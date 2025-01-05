@@ -20,7 +20,7 @@ type Router struct {
 
 // the prefix that will be add to all routes using this router (i.e. /api/v1)
 func NewRouter(prefix string) *Router {
-	prefix = normalizePattern(prefix, "/")
+	prefix = normalizeRoute(prefix, "/")
 	rtr := &Router{
 		prefix:   prefix,
 		registry: NewRouteRegistry(),
@@ -90,7 +90,7 @@ func (s *Router) DELETE(pattern string, handler HandlerFunc) *RouteBuilder {
 
 func (rtr *Router) registerRoute(method string, pattern string, handler HandlerFunc) *RouteBuilder {
 
-	pattern = normalizePattern(pattern, rtr.prefix)
+	pattern = normalizeRoute(pattern, rtr.prefix)
 
 	options := &RouteOptions{
 		Method:  method,
@@ -103,7 +103,7 @@ func (rtr *Router) registerRoute(method string, pattern string, handler HandlerF
 	return &RouteBuilder{Options: options}
 }
 
-func normalizePattern(route string, prefix string) string {
+func normalizeRoute(route string, prefix string) string {
 	// Remove extra slashes from prefix and route to prevent "//"
 	prefix = strings.TrimRight(prefix, "/")
 	route = strings.TrimLeft(route, "/")

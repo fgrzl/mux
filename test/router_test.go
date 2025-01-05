@@ -180,7 +180,7 @@ func TestTenantRoutes(t *testing.T) {
 			// Assert
 			assert.NoError(t, err)
 			assert.NotNil(t, resp)
-			assert.Equal(t, http.StatusOK, resp.StatusCode)
+			assert.Equal(t, http.StatusNoContent, resp.StatusCode)
 		})
 		t.Run("Tenant Not Found", func(t *testing.T) {
 			// Act

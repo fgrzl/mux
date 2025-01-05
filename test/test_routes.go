@@ -94,8 +94,8 @@ func ConfigureRoutes(r *mux.Router, service *TestService) {
 			return
 		}
 
-		createdTenant := service.PutTenant(&tenant)
-		c.Created(createdTenant) // return 201 with the created tenant
+		result := service.PutTenant(&tenant)
+		c.OK(result)
 	})
 
 	r.HEAD("/tenants/{tenantId}", func(c *mux.RouteContext) {
@@ -138,6 +138,27 @@ func ConfigureRoutes(r *mux.Router, service *TestService) {
 			return
 		}
 		c.OK(tenant) // return 200 with the tenant data
+	})
+
+	r.DELETE("/tenants/{tenantId}", func(c *mux.RouteContext) {
+		tenantIdStr, found := c.Param("tenantId") // Get tenantId as string
+		if !found {
+			c.NotFound() // return 404 if tenantId is not found
+			return
+		}
+		// Convert to int32
+		tenantId, err := strconv.ParseInt(tenantIdStr, 10, 32)
+		if err != nil {
+			c.BadRequest("Invalid TenantId", "Failed to parse tenant id.") // return 400 if conversion fails
+			return
+		}
+		// Get tenant by ID
+		_, found = service.GetTenant(int32(tenantId))
+		if !found {
+			c.NotFound() // return 404 if tenant not found
+			return
+		}
+		c.NoContent()
 	})
 
 	// Tenant-Resource routes
