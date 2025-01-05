@@ -1,0 +1,58 @@
+name: 'Cleanup Workflow History'
+description: 'A reusable GitHub Action to delete old workflow runs based on age and page count.'
+
+inputs:
+  days_old:
+    description: 'Number of days to keep workflow runs'
+    required: false
+    default: 7
+
+  page_count:
+    description: 'Number of workflows to query per request'
+    required: false
+    default: 10
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Delete old workflow runs
+      shell: bash
+      run: |
+          # Fetch workflow runs for the current page using `gh` CLI
+          WORKFLOWS=$(gh api repos/${{ github.repository }}/actions/runs --paginate -q ".workflow_runs[] | select(.created_at < \"$CUTOFF_DATE\") | {id, name, created_at}")
+
+          # Check if there are no more runs
+          if [ -z "$WORKFLOWS" ]; then
+            exit 0
+          fi
+
+          RUN_COUNT=$(echo "$WORKFLOWS" | wc -l | xargs)
+          echo "Found $RUN_COUNT workflow runs on page $PAGE"
+
+          # Loop through the workflow runs to delete
+          echo "$WORKFLOWS" | while read -r workflow; do
+            ID=$(echo "$workflow" | jq -r '.id')
+
+            # Check if ID is null or empty and skip
+            if [ -z "$ID" ]; then
+              exit 0
+            fi
+
+            NAME=$(echo "$workflow" | jq -r '.name')
+            CREATED_AT=$(echo "$workflow" | jq -r '.created_at')
+
+            echo "Deleting workflow run: ID=$ID, Name=$NAME, Created At=$CREATED_AT"
+
+            # Perform the deletion using `gh` CLI
+            DELETE_RESPONSE=$(gh api repos/${{ github.repository }}/actions/runs/$ID --method DELETE --silent)
+
+            if [ $? -eq 0 ]; then
+              echo "Successfully deleted workflow run ID=$ID."
+            else
+              echo "Failed to delete workflow run ID=$ID."
+            fi
+          done
+
+          # Increment page number for next iteration
+          PAGE=$((PAGE + 1))
+

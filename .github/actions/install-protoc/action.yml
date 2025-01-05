@@ -1,0 +1,26 @@
+name: 'Install Protocol Buffers (protoc)'
+description: 'Install Protocol Buffers and ensure it is in the PATH'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: install protoc
+      shell: bash 
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y wget unzip jq
+
+        # Get the latest release version of protoc from GitHub API
+        PROTOC_VERSION=$(curl -s https://api.github.com/repos/protocolbuffers/protobuf/releases/latest | jq -r '.tag_name' | sed 's/^v//')
+
+        # Download and install protoc
+        wget https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip
+        unzip protoc-${PROTOC_VERSION}-linux-x86_64.zip -d $HOME/.local
+        rm protoc-${PROTOC_VERSION}-linux-x86_64.zip
+
+        # Add protoc to PATH
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: Verify protoc installation
+      shell: bash 
+      run: protoc --version
