@@ -196,6 +196,63 @@ func (c *RouteContext) Forbidden(message string) {
 	http.Error(c.Response, "", http.StatusForbidden)
 }
 
+func (c *RouteContext) TemporaryRedirect(url string) {
+	http.Redirect(c.Response, c.Request, url, http.StatusTemporaryRedirect)
+}
+
+func (c *RouteContext) PermanentRedirect(url string) {
+	http.Redirect(c.Response, c.Request, url, http.StatusPermanentRedirect)
+}
+
+func (c *RouteContext) SetCookie(name, value string, maxAge int, path, domain string, secure, httpOnly bool) {
+	http.SetCookie(c.Response, &http.Cookie{
+		Name:     name,
+		Value:    value,
+		MaxAge:   maxAge,
+		Path:     path,
+		Domain:   domain,
+		Secure:   secure,
+		HttpOnly: httpOnly,
+	})
+}
+
+func (c *RouteContext) GetCookie(name string) (string, error) {
+	cookie, err := c.Request.Cookie(name)
+	if err != nil {
+		return "", err
+	}
+	return cookie.Value, nil
+}
+
+func (c *RouteContext) ClearCookie(name string) {
+	http.SetCookie(c.Response, &http.Cookie{
+		Name:   name,
+		Value:  "",
+		MaxAge: -1,
+	})
+}
+
+func (c *RouteContext) Authenticate(cookieName string, user ClaimsPrincipal) {
+	jwt := user.JWT()
+	c.SetCookie(cookieName, jwt, 0, "/", "", true, true)
+}
+
+func (c *RouteContext) SignIn(user ClaimsPrincipal, redirectUrl string) {
+	c.Authenticate(GetAppSessionCookieName(), user)
+
+	if redirectUrl == "" {
+		redirectUrl = "/"
+	}
+	c.TemporaryRedirect(redirectUrl)
+}
+
+func (c *RouteContext) SignOut() {
+	c.ClearCookie(GetAppSessionCookieName())
+	c.ClearCookie(GetTwoFactorCookieName())
+	c.ClearCookie(GetIdpSessionCookieName())
+	c.TemporaryRedirect("/logout")
+}
+
 func (c *RouteContext) Problem(problem *ProblemDetails) {
 	r := c.Response
 	r.Header().Set("Content-Type", "application/problem+json")

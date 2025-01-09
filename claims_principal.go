@@ -70,6 +70,8 @@ type ClaimsPrincipal interface {
 	CustomClaim(name string) Claim
 
 	Claims() map[string]Claim
+
+	JWT() string
 }
 
 func NewClaimsPrincipal(claims map[string]Claim) ClaimsPrincipal {
@@ -157,4 +159,8 @@ func (cp *claimsPrincipal) getClaimInt64(claimName string) int64 {
 		}
 	}
 	return 0
+}
+
+func (cp *claimsPrincipal) JWT() string {
+	return ""
 }

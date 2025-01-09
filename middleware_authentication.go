@@ -11,7 +11,6 @@ func (r *Router) UseAuthentication(options *AuthenticationOptions) {
 }
 
 type AuthenticationOptions struct {
-	SessionCookieName      string
 	Validate               func(token string) bool
 	ValidateSession        func(sessionID string) (bool, error)            // Validates session from DB or cache
 	GetSessionDetails      func(sessionID string) (*SessionDetails, error) // Fetches session info like IP and User-Agent
@@ -51,7 +50,7 @@ func (m *authenticationMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
 
 	// Fall back to cookie-based authentication if no Bearer token is present
 
-	cookie, err := r.Cookie(m.options.SessionCookieName)
+	cookie, err := r.Cookie(GetAppSessionCookieName())
 
 	if err == nil && cookie != nil && m.isValidSessionCookie(cookie.Value, r, c) {
 		// If the session cookie is valid, pass the request along to the next handler
@@ -103,14 +102,12 @@ func (m *authenticationMiddleware) isValidSessionCookie(sessionID string, r *htt
 
 // Extend the session cookie expiration by updating the `Expires` and `Max-Age` values
 func (m *authenticationMiddleware) extendSessionExpiration(c *RouteContext) {
+
 	// Define the session duration (e.g., 1 hour)
 	sessionDuration := 1 * time.Hour
 
-	// Create a new cookie with updated expiration time
-	expiration := time.Now().Add(sessionDuration)
-
 	// Set the cookie with the new expiration
-	cookie, err := c.Request.Cookie(m.options.SessionCookieName)
+	cookie, err := c.Request.Cookie(GetAppSessionCookieName())
 	if err != nil {
 		// Handle the error (e.g., no cookie found, or some other error)
 		// You may want to return or handle the failure
@@ -118,15 +115,9 @@ func (m *authenticationMiddleware) extendSessionExpiration(c *RouteContext) {
 	}
 
 	// this pushes the cookie, but if the contents are a jwt with a exp. that would need to be handled
-	http.SetCookie(c.Response, &http.Cookie{
-		Name:     m.options.SessionCookieName,
-		Value:    cookie.Value, // Now using the extracted cookie value
-		Path:     "/",
-		Expires:  expiration,
-		MaxAge:   int(sessionDuration.Seconds()), // MaxAge takes precedence over Expires
-		HttpOnly: true,
-		Secure:   true,
-	})
+	cookie.Expires = time.Now().Add(sessionDuration)
+	cookie.MaxAge = int(sessionDuration.Seconds())
+	http.SetCookie(c.Response, cookie)
 
 	// Optionally, log the session expiration extension for auditing purposes
 	// log.Printf("Session cookie expiration extended for session: %s", sessionID)
