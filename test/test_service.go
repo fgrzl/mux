@@ -1,7 +1,3 @@
-//go:generate go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-//go:generate go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-//go:generate protoc --go_out=./ --go_opt=paths=source_relative --proto_path=./ *.proto
-
 package test
 
 import (
@@ -10,40 +6,42 @@ import (
 	"github.com/go-faker/faker/v4"
 )
 
-// TestService is a struct to hold our in-memory "database" and mock methods.
-type TestService struct {
+var service *FakeService = NewFakeService()
+
+// FakeService is a struct to hold our in-memory "database" and mock methods.
+type FakeService struct {
 	mu        sync.Mutex
 	resources map[int32]*Resource
 	tenants   map[int32]*Tenant
 }
 
 // NewFakeService creates and returns a new instance of MockService.
-func NewFakeService() *TestService {
-	s := &TestService{
+func NewFakeService() *FakeService {
+	s := &FakeService{
 		resources: make(map[int32]*Resource),
 		tenants:   make(map[int32]*Tenant),
 	}
 	for i := 0; i < 10; i++ {
-		tenantId := int32(i)
+		tenantID := int32(i)
 		s.PutTenant(&Tenant{
-			TenantId: int32(i),
+			TenantID: int32(i),
 			Name:     faker.DomainName(),
 			Plan:     "diamond",
 		})
 		for i := 0; i < 10; i++ {
-			s.PutResource(&Resource{TenantId: tenantId, Name: faker.MacAddress(), Type: "resource"})
+			s.PutResource(&Resource{TenantID: tenantID, Name: faker.MacAddress(), Type: "resource"})
 		}
 	}
 	return s
 }
 
 // ListResources returns all Resources.
-func (s *TestService) ListResources(tenantId int32) []*Resource {
+func (s *FakeService) ListResources(tenantID int32) []*Resource {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var result []*Resource
 	for _, res := range s.resources {
-		if res.TenantId == tenantId {
+		if res.TenantID == tenantID {
 			result = append(result, res)
 		}
 	}
@@ -51,7 +49,7 @@ func (s *TestService) ListResources(tenantId int32) []*Resource {
 }
 
 // GetResource retrieves a Resource by ID.
-func (s *TestService) GetResource(id int32) (*Resource, bool) {
+func (s *FakeService) GetResource(id int32) (*Resource, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	res, exists := s.resources[id]
@@ -59,20 +57,20 @@ func (s *TestService) GetResource(id int32) (*Resource, bool) {
 }
 
 // CreateResource adds a new Resource.
-func (s *TestService) PutResource(resource *Resource) *Resource {
+func (s *FakeService) PutResource(resource *Resource) *Resource {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if resource.ResourceId == 0 {
-		resource.ResourceId = int32(len(s.resources) + 1)
+	if resource.ResourceID == 0 {
+		resource.ResourceID = int32(len(s.resources) + 1)
 	}
 
-	s.resources[resource.ResourceId] = resource
+	s.resources[resource.ResourceID] = resource
 	return resource
 }
 
 // ListTenants returns all Tenants.
-func (s *TestService) ListTenants() []*Tenant {
+func (s *FakeService) ListTenants() []*Tenant {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var result []*Tenant
@@ -83,7 +81,7 @@ func (s *TestService) ListTenants() []*Tenant {
 }
 
 // GetTenant retrieves a Tenant by ID.
-func (s *TestService) GetTenant(id int32) (*Tenant, bool) {
+func (s *FakeService) GetTenant(id int32) (*Tenant, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	tenant, exists := s.tenants[id]
@@ -91,9 +89,9 @@ func (s *TestService) GetTenant(id int32) (*Tenant, bool) {
 }
 
 // CreateTenant adds a new Tenant.
-func (s *TestService) PutTenant(tenant *Tenant) *Tenant {
+func (s *FakeService) PutTenant(tenant *Tenant) *Tenant {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.tenants[tenant.TenantId] = tenant
+	s.tenants[tenant.TenantID] = tenant
 	return tenant
 }

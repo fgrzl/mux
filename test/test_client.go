@@ -92,8 +92,8 @@ func (c *TestClient) CreateTenant(ctx context.Context, tenant *Tenant) (*http.Re
 	return resp, err
 }
 
-func (c *TestClient) GetTenant(ctx context.Context, tenantId int32) (*Tenant, *http.Response, error) {
-	url := fmt.Sprintf("%s/api/v1/tenants/%d", c.BaseURL, tenantId)
+func (c *TestClient) GetTenant(ctx context.Context, tenantID int32) (*Tenant, *http.Response, error) {
+	url := fmt.Sprintf("%s/api/v1/tenants/%d", c.BaseURL, tenantID)
 	req, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
 
 	var tenant Tenant
@@ -101,16 +101,16 @@ func (c *TestClient) GetTenant(ctx context.Context, tenantId int32) (*Tenant, *h
 	return &tenant, resp, err
 }
 
-func (c *TestClient) HeadTenant(ctx context.Context, tenantId int32) (*http.Response, error) {
-	url := fmt.Sprintf("%s/api/v1/tenants/%d", c.BaseURL, tenantId)
+func (c *TestClient) HeadTenant(ctx context.Context, tenantID int32) (*http.Response, error) {
+	url := fmt.Sprintf("%s/api/v1/tenants/%d", c.BaseURL, tenantID)
 	req, _ := http.NewRequestWithContext(ctx, "HEAD", url, nil)
 
 	resp, err := c.doRequest(req, nil)
 	return resp, err
 }
 
-func (c *TestClient) UpdateTenant(ctx context.Context, tenantId int32, tenant *Tenant) (*http.Response, error) {
-	url := fmt.Sprintf("%s/api/v1/tenants/%d", c.BaseURL, tenantId)
+func (c *TestClient) UpdateTenant(ctx context.Context, tenantID int32, tenant *Tenant) (*http.Response, error) {
+	url := fmt.Sprintf("%s/api/v1/tenants/%d", c.BaseURL, tenantID)
 
 	data, _ := json.Marshal(tenant)
 	req, _ := http.NewRequestWithContext(ctx, "PUT", url, bytes.NewReader(data))
@@ -120,8 +120,8 @@ func (c *TestClient) UpdateTenant(ctx context.Context, tenantId int32, tenant *T
 	return resp, err
 }
 
-func (c *TestClient) DeleteTenant(ctx context.Context, tenantId int32) (*http.Response, error) {
-	url := fmt.Sprintf("%s/api/v1/tenants/%d", c.BaseURL, tenantId)
+func (c *TestClient) DeleteTenant(ctx context.Context, tenantID int32) (*http.Response, error) {
+	url := fmt.Sprintf("%s/api/v1/tenants/%d", c.BaseURL, tenantID)
 	req, _ := http.NewRequestWithContext(ctx, "DELETE", url, nil)
 
 	resp, err := c.doRequest(req, nil)
@@ -129,8 +129,8 @@ func (c *TestClient) DeleteTenant(ctx context.Context, tenantId int32) (*http.Re
 }
 
 // Tenant Resource Routes
-func (c *TestClient) ListTenantResources(ctx context.Context, tenantId int32) ([]Resource, *http.Response, error) {
-	url := fmt.Sprintf("%s/api/v1/tenants/%d/resources", c.BaseURL, tenantId)
+func (c *TestClient) ListTenantResources(ctx context.Context, tenantID int32) ([]Resource, *http.Response, error) {
+	url := fmt.Sprintf("%s/api/v1/tenants/%d/resources", c.BaseURL, tenantID)
 	req, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
 
 	var resources []Resource
@@ -138,8 +138,8 @@ func (c *TestClient) ListTenantResources(ctx context.Context, tenantId int32) ([
 	return resources, resp, err
 }
 
-func (c *TestClient) CreateTenantResource(ctx context.Context, tenantId int32, resource *Resource) (*http.Response, error) {
-	url := fmt.Sprintf("%s/api/v1/tenants/%d/resources", c.BaseURL, tenantId)
+func (c *TestClient) CreateTenantResource(ctx context.Context, tenantID int32, resource *Resource) (*http.Response, error) {
+	url := fmt.Sprintf("%s/api/v1/tenants/%d/resources", c.BaseURL, tenantID)
 
 	data, _ := json.Marshal(resource)
 	req, _ := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(data))
@@ -149,8 +149,8 @@ func (c *TestClient) CreateTenantResource(ctx context.Context, tenantId int32, r
 	return resp, err
 }
 
-func (c *TestClient) GetTenantResource(ctx context.Context, tenantId, resourceId int32) (*Resource, *http.Response, error) {
-	url := fmt.Sprintf("%s/api/v1/tenants/%d/resources/%d", c.BaseURL, tenantId, resourceId)
+func (c *TestClient) GetTenantResource(ctx context.Context, tenantID, resourceId int32) (*Resource, *http.Response, error) {
+	url := fmt.Sprintf("%s/api/v1/tenants/%d/resources/%d", c.BaseURL, tenantID, resourceId)
 	req, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
 
 	var resource Resource
@@ -158,16 +158,16 @@ func (c *TestClient) GetTenantResource(ctx context.Context, tenantId, resourceId
 	return &resource, resp, err
 }
 
-func (c *TestClient) HeadTenantResource(ctx context.Context, tenantId, resourceId int32) (*http.Response, error) {
-	url := fmt.Sprintf("%s/api/v1/tenants/%d/resources/%d", c.BaseURL, tenantId, resourceId)
+func (c *TestClient) HeadTenantResource(ctx context.Context, tenantID, resourceId int32) (*http.Response, error) {
+	url := fmt.Sprintf("%s/api/v1/tenants/%d/resources/%d", c.BaseURL, tenantID, resourceId)
 	req, _ := http.NewRequestWithContext(ctx, "HEAD", url, nil)
 
 	resp, err := c.doRequest(req, nil)
 	return resp, err
 }
 
-func (c *TestClient) UpdateTenantResource(ctx context.Context, tenantId, resourceId int32, resource *Resource) (*http.Response, error) {
-	url := fmt.Sprintf("%s/api/v1/tenants/%d/resources/%d", c.BaseURL, tenantId, resourceId)
+func (c *TestClient) UpdateTenantResource(ctx context.Context, tenantID, resourceId int32, resource *Resource) (*http.Response, error) {
+	url := fmt.Sprintf("%s/api/v1/tenants/%d/resources/%d", c.BaseURL, tenantID, resourceId)
 
 	data, _ := json.Marshal(resource)
 	req, _ := http.NewRequestWithContext(ctx, "PUT", url, bytes.NewReader(data))
@@ -177,8 +177,8 @@ func (c *TestClient) UpdateTenantResource(ctx context.Context, tenantId, resourc
 	return resp, err
 }
 
-func (c *TestClient) DeleteTenantResource(ctx context.Context, tenantId, resourceId int32) (*http.Response, error) {
-	url := fmt.Sprintf("%s/api/v1/tenants/%d/resources/%d", c.BaseURL, tenantId, resourceId)
+func (c *TestClient) DeleteTenantResource(ctx context.Context, tenantID, resourceId int32) (*http.Response, error) {
+	url := fmt.Sprintf("%s/api/v1/tenants/%d/resources/%d", c.BaseURL, tenantID, resourceId)
 	req, _ := http.NewRequestWithContext(ctx, "DELETE", url, nil)
 
 	resp, err := c.doRequest(req, nil)

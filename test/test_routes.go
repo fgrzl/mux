@@ -6,7 +6,7 @@ import (
 	"github.com/fgrzl/mux"
 )
 
-func ConfigureRoutes(r *mux.Router, service *TestService) {
+func ConfigureRoutes(r *mux.Router) {
 
 	// Resource routes
 	r.GET("/resources/", func(c *mux.RouteContext) {
@@ -28,7 +28,7 @@ func ConfigureRoutes(r *mux.Router, service *TestService) {
 		// Convert to int32
 		resourceId, err := strconv.ParseInt(resourceIdStr, 10, 32)
 		if err != nil {
-			c.BadRequest("Invalid ResourceId", "Failed to parse resource id.") // return 400 if conversion fails
+			c.BadRequest("Invalid ResourceID", "Failed to parse resource id.") // return 400 if conversion fails
 			return
 		}
 		// Check if resource exists by ID
@@ -49,7 +49,7 @@ func ConfigureRoutes(r *mux.Router, service *TestService) {
 		// Convert to int32
 		resourceId, err := strconv.ParseInt(resourceIdStr, 10, 32)
 		if err != nil {
-			c.BadRequest("Invalid ResourceId", "Failed to parse resource id.") // return 400 if conversion fails
+			c.BadRequest("Invalid ResourceID", "Failed to parse resource id.") // return 400 if conversion fails
 			return
 		}
 		// Get resource by ID
@@ -78,8 +78,8 @@ func ConfigureRoutes(r *mux.Router, service *TestService) {
 			c.BadRequest("Bad Request", err.Error()) // return 400 if input is invalid
 			return
 		}
-		if tenant.TenantId == 0 || tenant.Name == "" {
-			c.BadRequest("Invalid Input", "TenantId and Name are required.") // return 400 if input is invalid
+		if tenant.TenantID == 0 || tenant.Name == "" {
+			c.BadRequest("Invalid Input", "tenantID and Name are required.") // return 400 if input is invalid
 			return
 		}
 		// Create the tenant
@@ -87,7 +87,7 @@ func ConfigureRoutes(r *mux.Router, service *TestService) {
 		c.Created(createdTenant) // return 201 with the created tenant
 	})
 
-	r.PUT("/tenants/{tenantId}", func(c *mux.RouteContext) {
+	r.PUT("/tenants/{tenantID}", func(c *mux.RouteContext) {
 		var tenant Tenant
 		if err := c.Bind(&tenant); err != nil {
 			c.BadRequest("Bad Request", err.Error())
@@ -98,20 +98,20 @@ func ConfigureRoutes(r *mux.Router, service *TestService) {
 		c.OK(result)
 	})
 
-	r.HEAD("/tenants/{tenantId}", func(c *mux.RouteContext) {
-		tenantIdStr, found := c.Param("tenantId") // Get tenantId as string
+	r.HEAD("/tenants/{tenantID}", func(c *mux.RouteContext) {
+		tenantIDStr, found := c.Param("tenantID") // Get tenantID as string
 		if !found {
-			c.NotFound() // return 404 if tenantId is not found
+			c.NotFound() // return 404 if tenantID is not found
 			return
 		}
 		// Convert to int32
-		tenantId, err := strconv.ParseInt(tenantIdStr, 10, 32)
+		tenantID, err := strconv.ParseInt(tenantIDStr, 10, 32)
 		if err != nil {
-			c.BadRequest("Invalid TenantId", "Failed to parse tenant id.") // return 400 if conversion fails
+			c.BadRequest("Invalid tenantID", "Failed to parse tenant id.") // return 400 if conversion fails
 			return
 		}
 		// Check if tenant exists by ID
-		_, found = service.GetTenant(int32(tenantId))
+		_, found = service.GetTenant(int32(tenantID))
 		if !found {
 			c.NotFound() // return 404 if tenant not found
 			return
@@ -119,20 +119,20 @@ func ConfigureRoutes(r *mux.Router, service *TestService) {
 		c.NoContent() // return 204 if tenant exists
 	})
 
-	r.GET("/tenants/{tenantId}", func(c *mux.RouteContext) {
-		tenantIdStr, found := c.Param("tenantId") // Get tenantId as string
+	r.GET("/tenants/{tenantID}", func(c *mux.RouteContext) {
+		tenantIDStr, found := c.Param("tenantID") // Get tenantID as string
 		if !found {
-			c.NotFound() // return 404 if tenantId is not found
+			c.NotFound() // return 404 if tenantID is not found
 			return
 		}
 		// Convert to int32
-		tenantId, err := strconv.ParseInt(tenantIdStr, 10, 32)
+		tenantID, err := strconv.ParseInt(tenantIDStr, 10, 32)
 		if err != nil {
-			c.BadRequest("Invalid TenantId", "Failed to parse tenant id.") // return 400 if conversion fails
+			c.BadRequest("Invalid tenantID", "Failed to parse tenant id.") // return 400 if conversion fails
 			return
 		}
 		// Get tenant by ID
-		tenant, found := service.GetTenant(int32(tenantId))
+		tenant, found := service.GetTenant(int32(tenantID))
 		if !found {
 			c.NotFound() // return 404 if tenant not found
 			return
@@ -140,20 +140,20 @@ func ConfigureRoutes(r *mux.Router, service *TestService) {
 		c.OK(tenant) // return 200 with the tenant data
 	})
 
-	r.DELETE("/tenants/{tenantId}", func(c *mux.RouteContext) {
-		tenantIdStr, found := c.Param("tenantId") // Get tenantId as string
+	r.DELETE("/tenants/{tenantID}", func(c *mux.RouteContext) {
+		tenantIDStr, found := c.Param("tenantID") // Get tenantID as string
 		if !found {
-			c.NotFound() // return 404 if tenantId is not found
+			c.NotFound() // return 404 if tenantID is not found
 			return
 		}
 		// Convert to int32
-		tenantId, err := strconv.ParseInt(tenantIdStr, 10, 32)
+		tenantID, err := strconv.ParseInt(tenantIDStr, 10, 32)
 		if err != nil {
-			c.BadRequest("Invalid TenantId", "Failed to parse tenant id.") // return 400 if conversion fails
+			c.BadRequest("Invalid tenantID", "Failed to parse tenant id.") // return 400 if conversion fails
 			return
 		}
 		// Get tenant by ID
-		_, found = service.GetTenant(int32(tenantId))
+		_, found = service.GetTenant(int32(tenantID))
 		if !found {
 			c.NotFound() // return 404 if tenant not found
 			return
@@ -162,20 +162,20 @@ func ConfigureRoutes(r *mux.Router, service *TestService) {
 	})
 
 	// Tenant-Resource routes
-	r.GET("/tenants/{tenantId}/resources", func(c *mux.RouteContext) {
-		tenantIdStr, found := c.Param("tenantId") // Get tenantId as string
+	r.GET("/tenants/{tenantID}/resources", func(c *mux.RouteContext) {
+		tenantIDStr, found := c.Param("tenantID") // Get tenantID as string
 		if !found {
-			c.NotFound() // return 404 if tenantId is not found
+			c.NotFound() // return 404 if tenantID is not found
 			return
 		}
 		// Convert to int32
-		tenantId, err := strconv.ParseInt(tenantIdStr, 10, 32)
+		tenantID, err := strconv.ParseInt(tenantIDStr, 10, 32)
 		if err != nil {
-			c.BadRequest("Invalid TenantId", "Failed to parse tenant id.") // return 400 if conversion fails
+			c.BadRequest("Invalid tenantID", "Failed to parse tenant id.") // return 400 if conversion fails
 			return
 		}
 		// List resources for a tenant
-		resources := service.ListResources(int32(tenantId))
+		resources := service.ListResources(int32(tenantID))
 		if len(resources) == 0 {
 			c.NotFound() // return 404 if no resources are found for the tenant
 			return
@@ -183,14 +183,14 @@ func ConfigureRoutes(r *mux.Router, service *TestService) {
 		c.OK(resources) // return 200 with the list of resources
 	})
 
-	r.POST("/tenants/{tenantId}/resources", func(c *mux.RouteContext) {
+	r.POST("/tenants/{tenantID}/resources", func(c *mux.RouteContext) {
 		var resource Resource
 		if err := c.Bind(&resource); err != nil {
 			c.BadRequest("Bad Request", err.Error()) // return 400 if input is invalid
 			return
 		}
-		if resource.TenantId == 0 || resource.ResourceId == 0 || resource.Name == "" {
-			c.BadRequest("Invalid Input", "TenantId, ResourceId and Name are required.") // return 400 if input is invalid
+		if resource.TenantID == 0 || resource.ResourceID == 0 || resource.Name == "" {
+			c.BadRequest("Invalid Input", "tenantID, ResourceID and Name are required.") // return 400 if input is invalid
 			return
 		}
 		// Create resource for tenant
