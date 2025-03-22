@@ -53,6 +53,21 @@ router.POST("/users", func(c *mux.RouteContext) {
 
 Middleware functions are used to process requests before they reach the actual route handler. They allow for reusable components that can handle tasks such as logging, authentication, and request modification.
 
+#### Built-in Middleware
+
+```go
+router := mux.NewRouter("/api")
+
+// use middleware
+r.UseLogging(&mux.LoggingOptions{})
+r.UseCompression(&mux.CompressionOptions{})
+r.UseAuthentication(&mux.AuthenticationOptions{})
+r.UseAuthorization(&mux.AuthorizationOptions{})
+```
+
+
+#### Custom Middleware
+
 ```go
 type LoggingMiddleware struct{}
 

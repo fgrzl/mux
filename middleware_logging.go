@@ -1,7 +1,7 @@
 package mux
 
 import (
-	"fmt"
+	"log/slog"
 )
 
 type LoggingOptions struct{}
@@ -15,7 +15,7 @@ type loggingMiddleware struct {
 }
 
 func (m *loggingMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
-	fmt.Printf("Request started: %s %s\n", c.Request.Method, c.Request.URL.Path)
+	slog.Debug("Request started: %s %s\n", c.Request.Method, c.Request.URL.Path)
 	next(c)
-	fmt.Printf("Request ended: %s %s\n", c.Request.Method, c.Request.URL.Path)
+	slog.Debug("Request ended: %s %s\n", c.Request.Method, c.Request.URL.Path)
 }

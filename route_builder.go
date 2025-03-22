@@ -11,22 +11,16 @@ func (rb *RouteBuilder) AllowAnonymous() *RouteBuilder {
 }
 
 func (rb *RouteBuilder) RequirePermission(resource string, permissions ...string) *RouteBuilder {
-	for _, p := range permissions {
-		rb.Options.Permissions = append(rb.Options.Permissions, p)
-	}
+	rb.Options.Permissions = append(rb.Options.Permissions, permissions...)
 	return rb
 }
 
 func (rb *RouteBuilder) RequireRoles(roles ...string) *RouteBuilder {
-	for _, r := range roles {
-		rb.Options.Roles = append(rb.Options.Roles, r)
-	}
+	rb.Options.Roles = append(rb.Options.Roles, roles...)
 	return rb
 }
 
 func (rb *RouteBuilder) RequireScopes(scopes ...string) *RouteBuilder {
-	for _, s := range scopes {
-		rb.Options.Scopes = append(rb.Options.Scopes, s)
-	}
+	rb.Options.Scopes = append(rb.Options.Scopes, scopes...)
 	return rb
 }

@@ -1,6 +1,7 @@
 package mux
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 )
 
 type RouteContext struct {
+	context.Context
 	Response http.ResponseWriter
 	Request  *http.Request
 	User     ClaimsPrincipal
@@ -17,6 +19,7 @@ type RouteContext struct {
 
 func NewRouteContext(w http.ResponseWriter, r *http.Request) *RouteContext {
 	return &RouteContext{
+		Context:  r.Context(),
 		Response: w,
 		Request:  r,
 	}
