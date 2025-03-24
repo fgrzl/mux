@@ -2,8 +2,15 @@ package mux
 
 import (
 	"net/http"
-	"strings"
 )
+
+func NewRouter() *Router {
+	return &Router{
+		RouteGroup: RouteGroup{
+			prefix:   "",
+			registry: NewRouteRegistry(),
+		}}
+}
 
 type HandlerFunc func(c *RouteContext)
 
@@ -12,24 +19,27 @@ type RouteKey struct {
 	Pattern string
 }
 
-type Router struct {
-	prefix     string
-	middleware []Middleware
-	registry   *RouteRegistry
-}
-
-// the prefix that will be add to all routes using this router (i.e. /api/v1)
-func NewRouter(prefix string) *Router {
-	prefix = normalizeRoute(prefix, "/")
-	rtr := &Router{
-		prefix:   prefix,
-		registry: NewRouteRegistry(),
-	}
-	return rtr
+type Action struct {
+	Method  string
+	Handler HandlerFunc
 }
 
 type Middleware interface {
 	Invoke(ctx *RouteContext, next HandlerFunc)
+}
+
+type Router struct {
+	RouteGroup
+	middleware []Middleware
+}
+
+// the prefix that will be add to all routes using this router (i.e. /api/v1)
+func (rtr *Router) NewRouteGroup(prefix string) *RouteGroup {
+	prefix = normalizeRoute(prefix, "/")
+	return &RouteGroup{
+		prefix:   prefix,
+		registry: rtr.registry,
+	}
 }
 
 // ServeHTTP implements http.Handler.
@@ -61,70 +71,4 @@ func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	next(c)
-}
-
-type Action struct {
-	Method  string
-	Handler HandlerFunc
-}
-
-func (s *Router) HEAD(pattern string, handler HandlerFunc) *RouteBuilder {
-	return s.registerRoute(http.MethodHead, pattern, handler)
-}
-
-func (s *Router) GET(pattern string, handler HandlerFunc) *RouteBuilder {
-	return s.registerRoute(http.MethodGet, pattern, handler)
-}
-
-func (s *Router) POST(pattern string, handler HandlerFunc) *RouteBuilder {
-	return s.registerRoute(http.MethodPost, pattern, handler)
-}
-
-func (s *Router) PUT(pattern string, handler HandlerFunc) *RouteBuilder {
-	return s.registerRoute(http.MethodPut, pattern, handler)
-}
-
-func (s *Router) DELETE(pattern string, handler HandlerFunc) *RouteBuilder {
-	return s.registerRoute(http.MethodDelete, pattern, handler)
-}
-
-func (rtr *Router) registerRoute(method string, pattern string, handler HandlerFunc) *RouteBuilder {
-
-	pattern = normalizeRoute(pattern, rtr.prefix)
-
-	options := &RouteOptions{
-		Method:  method,
-		Pattern: pattern,
-		Handler: handler,
-	}
-
-	rtr.registry.Register(pattern, method, options)
-
-	return &RouteBuilder{Options: options}
-}
-
-func normalizeRoute(route string, prefix string) string {
-	// Remove extra slashes from prefix and route to prevent "//"
-	prefix = strings.TrimRight(prefix, "/")
-	route = strings.TrimLeft(route, "/")
-
-	// Prepend the prefix if not already present
-	if !strings.HasPrefix(route, prefix) {
-		route = prefix + "/" + route
-	}
-
-	// Ensure route starts with a "/"
-	if !strings.HasPrefix(route, "/") {
-		route = "/" + route
-	}
-
-	// Ensure route ends with a "/"
-	if !strings.HasSuffix(route, "/") {
-		route = route + "/"
-	}
-
-	// Replace multiple slashes with a single slash
-	route = strings.ReplaceAll(route, "//", "/")
-
-	return route
 }

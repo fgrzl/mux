@@ -1,15 +1,19 @@
 package mux
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/fgrzl/claims"
+)
 
 // AuthorizationOptions allows configuration of the authorization check
 type AuthorizationOptions struct {
 	Roles            []string
 	Scopes           []string
 	Permissions      []string
-	CheckRoles       func(user ClaimsPrincipal, roles []string) bool
-	CheckScopes      func(user ClaimsPrincipal, scopes []string) bool
-	CheckPermissions func(user ClaimsPrincipal, permissions []string) bool
+	CheckRoles       func(user claims.Principal, roles []string) bool
+	CheckScopes      func(user claims.Principal, scopes []string) bool
+	CheckPermissions func(user claims.Principal, permissions []string) bool
 }
 
 func (rtr *Router) UseAuthorization(options *AuthorizationOptions) {

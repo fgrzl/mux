@@ -8,8 +8,11 @@ import (
 
 func ConfigureRoutes(r *mux.Router) {
 
+	// route groups help to organize your routes
+	rg := r.NewRouteGroup("/api/v1")
+
 	// Resource routes
-	r.GET("/resources/", func(c *mux.RouteContext) {
+	rg.GET("/resources/", func(c *mux.RouteContext) {
 		// List all resources
 		resources := service.ListResources(0)
 		if len(resources) == 0 {
@@ -19,7 +22,7 @@ func ConfigureRoutes(r *mux.Router) {
 		c.OK(resources) // return 200 with the list of resources
 	}).AllowAnonymous()
 
-	r.HEAD("/resources/{resourceId}", func(c *mux.RouteContext) {
+	rg.HEAD("/resources/{resourceId}", func(c *mux.RouteContext) {
 		resourceIdStr, found := c.Param("resourceId") // Get resourceId as string
 		if !found {
 			c.NotFound() // return 404 if resourceId is not found
@@ -40,7 +43,7 @@ func ConfigureRoutes(r *mux.Router) {
 		c.NoContent() // return 204 if resource exists
 	})
 
-	r.GET("/resources/{resourceId}", func(c *mux.RouteContext) {
+	rg.GET("/resources/{resourceId}", func(c *mux.RouteContext) {
 		resourceIdStr, found := c.Param("resourceId") // Get resourceId as string
 		if !found {
 			c.NotFound() // return 404 if resourceId is not found
@@ -62,7 +65,7 @@ func ConfigureRoutes(r *mux.Router) {
 	})
 
 	// Tenant routes
-	r.GET("/tenants/", func(c *mux.RouteContext) {
+	rg.GET("/tenants/", func(c *mux.RouteContext) {
 		// List all tenants
 		tenants := service.ListTenants()
 		if len(tenants) == 0 {
@@ -72,7 +75,7 @@ func ConfigureRoutes(r *mux.Router) {
 		c.OK(tenants) // return 200 with the list of tenants
 	})
 
-	r.POST("/tenants/", func(c *mux.RouteContext) {
+	rg.POST("/tenants/", func(c *mux.RouteContext) {
 		var tenant Tenant
 		if err := c.Bind(&tenant); err != nil {
 			c.BadRequest("Bad Request", err.Error()) // return 400 if input is invalid
@@ -87,7 +90,7 @@ func ConfigureRoutes(r *mux.Router) {
 		c.Created(createdTenant) // return 201 with the created tenant
 	})
 
-	r.PUT("/tenants/{tenantID}", func(c *mux.RouteContext) {
+	rg.PUT("/tenants/{tenantID}", func(c *mux.RouteContext) {
 		var tenant Tenant
 		if err := c.Bind(&tenant); err != nil {
 			c.BadRequest("Bad Request", err.Error())
@@ -98,7 +101,7 @@ func ConfigureRoutes(r *mux.Router) {
 		c.OK(result)
 	})
 
-	r.HEAD("/tenants/{tenantID}", func(c *mux.RouteContext) {
+	rg.HEAD("/tenants/{tenantID}", func(c *mux.RouteContext) {
 		tenantIDStr, found := c.Param("tenantID") // Get tenantID as string
 		if !found {
 			c.NotFound() // return 404 if tenantID is not found
@@ -119,7 +122,7 @@ func ConfigureRoutes(r *mux.Router) {
 		c.NoContent() // return 204 if tenant exists
 	})
 
-	r.GET("/tenants/{tenantID}", func(c *mux.RouteContext) {
+	rg.GET("/tenants/{tenantID}", func(c *mux.RouteContext) {
 		tenantIDStr, found := c.Param("tenantID") // Get tenantID as string
 		if !found {
 			c.NotFound() // return 404 if tenantID is not found
@@ -140,7 +143,7 @@ func ConfigureRoutes(r *mux.Router) {
 		c.OK(tenant) // return 200 with the tenant data
 	})
 
-	r.DELETE("/tenants/{tenantID}", func(c *mux.RouteContext) {
+	rg.DELETE("/tenants/{tenantID}", func(c *mux.RouteContext) {
 		tenantIDStr, found := c.Param("tenantID") // Get tenantID as string
 		if !found {
 			c.NotFound() // return 404 if tenantID is not found
@@ -162,7 +165,7 @@ func ConfigureRoutes(r *mux.Router) {
 	})
 
 	// Tenant-Resource routes
-	r.GET("/tenants/{tenantID}/resources", func(c *mux.RouteContext) {
+	rg.GET("/tenants/{tenantID}/resources", func(c *mux.RouteContext) {
 		tenantIDStr, found := c.Param("tenantID") // Get tenantID as string
 		if !found {
 			c.NotFound() // return 404 if tenantID is not found
@@ -183,7 +186,7 @@ func ConfigureRoutes(r *mux.Router) {
 		c.OK(resources) // return 200 with the list of resources
 	})
 
-	r.POST("/tenants/{tenantID}/resources", func(c *mux.RouteContext) {
+	rg.POST("/tenants/{tenantID}/resources", func(c *mux.RouteContext) {
 		var resource Resource
 		if err := c.Bind(&resource); err != nil {
 			c.BadRequest("Bad Request", err.Error()) // return 400 if input is invalid

@@ -6,13 +6,15 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+
+	"github.com/fgrzl/claims"
 )
 
 type RouteContext struct {
 	context.Context
 	Response http.ResponseWriter
 	Request  *http.Request
-	User     ClaimsPrincipal
+	User     claims.Principal
 	Options  *RouteOptions
 	Params   RouteParams
 }
@@ -173,13 +175,19 @@ func (c *RouteContext) Created(model any) {
 	r := c.Response
 	r.Header().Set("Content-Type", "application/json")
 	r.WriteHeader(http.StatusCreated)
-	json.NewEncoder(r).Encode(model)
+
+	if model != nil {
+		json.NewEncoder(r).Encode(model)
+	}
 }
 
 func (c *RouteContext) Accept(model any) {
 	r := c.Response
 	r.Header().Set("Content-Type", "application/json")
 	r.WriteHeader(http.StatusAccepted)
+	if model != nil {
+		json.NewEncoder(r).Encode(model)
+	}
 }
 
 func (c *RouteContext) NoContent() {
@@ -235,12 +243,12 @@ func (c *RouteContext) ClearCookie(name string) {
 	})
 }
 
-func (c *RouteContext) Authenticate(cookieName string, user ClaimsPrincipal) {
+func (c *RouteContext) Authenticate(cookieName string, user claims.Principal) {
 	jwt := user.JWT()
 	c.SetCookie(cookieName, jwt, 0, "/", "", true, true)
 }
 
-func (c *RouteContext) SignIn(user ClaimsPrincipal, redirectUrl string) {
+func (c *RouteContext) SignIn(user claims.Principal, redirectUrl string) {
 	c.Authenticate(GetAppSessionCookieName(), user)
 
 	if redirectUrl == "" {
