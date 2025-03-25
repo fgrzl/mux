@@ -38,10 +38,5 @@ jobs:
       - name: test
         run: go test ./... -v -coverprofile=coverage.out
 
-      - name: cleanup history
-        uses: ./.github/actions/cleanup-history  
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          days_old: 1
-          page_count: 20
+      - name: workflow cleanup
+        uses: fgrzl/workflow-cleanup@v1
