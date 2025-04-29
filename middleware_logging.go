@@ -15,7 +15,15 @@ type loggingMiddleware struct {
 }
 
 func (m *loggingMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
-	slog.Debug("Request started: %s %s\n", c.Request.Method, c.Request.URL.Path)
+	slog.DebugContext(c, "request started",
+		"method", c.Request.Method,
+		"path", c.Request.URL.Path,
+	)
+
 	next(c)
-	slog.Debug("Request ended: %s %s\n", c.Request.Method, c.Request.URL.Path)
+
+	slog.DebugContext(c, "request ended",
+		"method", c.Request.Method,
+		"path", c.Request.URL.Path,
+	)
 }

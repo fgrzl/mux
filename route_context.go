@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/fgrzl/claims"
 )
@@ -45,114 +48,98 @@ type RouteOptions struct {
 	Roles          []string
 	Scopes         []string
 	Permissions    []string
+	RateLimit      int
+	RateInterval   time.Duration
 }
 
 func (c *RouteContext) Bind(model any) error {
-	// Populate the values map with query parameters, headers, and body content
 	staging := make(map[string]any)
 
-	// Handle different HTTP methods
 	switch c.Request.Method {
 	case http.MethodGet, http.MethodHead, http.MethodDelete:
-		// Process query string for GET, HEAD, DELETE requests
 		for key, values := range c.Request.URL.Query() {
 			addToStaging(staging, key, values)
 		}
-
 	case http.MethodPut, http.MethodPost:
-
+		c.Request.Body = http.MaxBytesReader(c.Response, c.Request.Body, 1<<20) // 1MB max
 		ct := c.Request.Header.Get("Content-Type")
-		// Handle POST/PUT request bodies, both for form data and JSON content
 		if ct == "application/x-www-form-urlencoded" {
-			// Handle form URL encoded
 			if err := c.Request.ParseForm(); err != nil {
 				return err
 			}
-			// Populate the map with form values
 			for key, values := range c.Request.Form {
 				addToStaging(staging, key, values)
 			}
 		} else if strings.HasPrefix(ct, "application/json") {
-			// Handle JSON content
 			bodyMap := make(map[string]any)
 			decoder := json.NewDecoder(c.Request.Body)
 			if err := decoder.Decode(&bodyMap); err != nil {
 				return err
 			}
-			// Add the JSON fields into the values map
 			for key, val := range bodyMap {
 				staging[key] = val
 			}
 		} else {
-			// Unsupported content type
 			return errors.New("unsupported content type")
 		}
 	}
 
-	// Check headers
 	for key, headerValues := range c.Request.Header {
 		addToStaging(staging, key, headerValues)
 	}
-
-	// Extract route parameters (assuming these are set somewhere in the context)
 	for key, paramValue := range c.Params {
 		staging[key] = paramValue
 	}
 
-	// Now that we have populated the values map with all necessary info, unmarshal into the model
-	// Marshal the values map into JSON, then unmarshal into the provided model
 	marshaledData, err := json.Marshal(staging)
 	if err != nil {
 		return err
 	}
-	if err := json.Unmarshal(marshaledData, model); err != nil {
-		return err
-	}
-
-	return nil
+	return json.Unmarshal(marshaledData, model)
 }
 
 func (c *RouteContext) Param(name string) (string, bool) {
-	if val, ok := c.Params[name]; ok {
-		return val, ok
-	}
-	return "", false
+	val, ok := c.Params[name]
+	return val, ok
 }
 
 func (c *RouteContext) QueryValue(name string) (string, bool) {
-	query := c.Request.URL.Query()
-	if val, ok := query[name]; ok {
-		return val[0], ok
+	vals, ok := c.Request.URL.Query()[name]
+	if ok && len(vals) > 0 {
+		return vals[0], true
 	}
 	return "", false
 }
 
 func (c *RouteContext) QueryValues(name string) ([]string, bool) {
-	query := c.Request.URL.Query()
-	if val, ok := query[name]; ok {
-		return val, ok
-	}
-	return nil, false
+	vals, ok := c.Request.URL.Query()[name]
+	return vals, ok
 }
 
 func (c *RouteContext) ServerError(title, detail string) {
+	if title == "" {
+		title = http.StatusText(http.StatusInternalServerError)
+	}
 	c.Problem(&ProblemDetails{
 		Title:    title,
 		Detail:   detail,
 		Status:   http.StatusInternalServerError,
+		Type:     "about:blank",
 		Instance: getInstanceURI(c.Request),
 	})
 }
 
 func (c *RouteContext) BadRequest(title, detail string) {
-	problem := ProblemDetails{
+	if title == "" {
+		title = http.StatusText(http.StatusBadRequest)
+	}
+	c.Problem(&ProblemDetails{
 		Title:    title,
 		Detail:   detail,
 		Status:   http.StatusBadRequest,
+		Type:     "about:blank",
 		Instance: getInstanceURI(c.Request),
-	}
-
-	c.Problem(&problem)
+	})
 }
 
 func (c *RouteContext) Conflict(title, detail string) {
@@ -160,39 +147,50 @@ func (c *RouteContext) Conflict(title, detail string) {
 		Title:    title,
 		Detail:   detail,
 		Status:   http.StatusConflict,
+		Type:     "about:blank",
 		Instance: getInstanceURI(c.Request),
 	})
 }
 
-func (c *RouteContext) OK(model any) {
+func (c *RouteContext) Problem(problem *ProblemDetails) {
+	if problem.Status == 0 {
+		problem.Status = http.StatusInternalServerError
+	}
+	slog.Warn("problem response",
+		slog.Int("status", problem.Status),
+		slog.String("title", problem.Title),
+		slog.String("detail", problem.Detail),
+	)
 	r := c.Response
-	r.Header().Set("Content-Type", "application/json")
-	r.WriteHeader(http.StatusOK)
-	json.NewEncoder(r).Encode(model)
+	r.Header().Set("Content-Type", "application/problem+json")
+	r.WriteHeader(problem.Status)
+	_ = json.NewEncoder(r).Encode(problem)
+}
+
+func (c *RouteContext) OK(model any) {
+	c.Response.Header().Set("Content-Type", "application/json")
+	c.Response.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(c.Response).Encode(model)
 }
 
 func (c *RouteContext) Created(model any) {
-	r := c.Response
-	r.Header().Set("Content-Type", "application/json")
-	r.WriteHeader(http.StatusCreated)
-
+	c.Response.Header().Set("Content-Type", "application/json")
+	c.Response.WriteHeader(http.StatusCreated)
 	if model != nil {
-		json.NewEncoder(r).Encode(model)
+		_ = json.NewEncoder(c.Response).Encode(model)
 	}
 }
 
 func (c *RouteContext) Accept(model any) {
-	r := c.Response
-	r.Header().Set("Content-Type", "application/json")
-	r.WriteHeader(http.StatusAccepted)
+	c.Response.Header().Set("Content-Type", "application/json")
+	c.Response.WriteHeader(http.StatusAccepted)
 	if model != nil {
-		json.NewEncoder(r).Encode(model)
+		_ = json.NewEncoder(c.Response).Encode(model)
 	}
 }
 
 func (c *RouteContext) NoContent() {
-	r := c.Response
-	r.WriteHeader(http.StatusNoContent)
+	c.Response.WriteHeader(http.StatusNoContent)
 }
 
 func (c *RouteContext) NotFound() {
@@ -200,19 +198,39 @@ func (c *RouteContext) NotFound() {
 }
 
 func (c *RouteContext) Unauthorized() {
-	http.Error(c.Response, "", http.StatusUnauthorized)
+	http.Error(c.Response, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 }
 
 func (c *RouteContext) Forbidden(message string) {
-	http.Error(c.Response, "", http.StatusForbidden)
+	http.Error(c.Response, message, http.StatusForbidden)
+}
+
+func (c *RouteContext) GetRedirectScheme() string {
+	if scheme := c.Request.Header.Get("X-Forwarded-Proto"); scheme != "" {
+		return scheme
+	}
+	if c.Request.URL.Scheme != "" {
+		return c.Request.URL.Scheme
+	}
+	return "http"
 }
 
 func (c *RouteContext) TemporaryRedirect(url string) {
-	http.Redirect(c.Response, c.Request, url, http.StatusTemporaryRedirect)
+	target := ensureAbsoluteURL(c, url)
+	http.Redirect(c.Response, c.Request, target, http.StatusTemporaryRedirect)
 }
 
 func (c *RouteContext) PermanentRedirect(url string) {
-	http.Redirect(c.Response, c.Request, url, http.StatusPermanentRedirect)
+	target := ensureAbsoluteURL(c, url)
+	http.Redirect(c.Response, c.Request, target, http.StatusPermanentRedirect)
+}
+
+func ensureAbsoluteURL(c *RouteContext, url string) string {
+	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
+		return url
+	}
+	scheme := c.GetRedirectScheme()
+	return fmt.Sprintf("%s://%s%s", scheme, c.Request.Host, url)
 }
 
 func (c *RouteContext) SetCookie(name, value string, maxAge int, path, domain string, secure, httpOnly bool) {
@@ -224,6 +242,7 @@ func (c *RouteContext) SetCookie(name, value string, maxAge int, path, domain st
 		Domain:   domain,
 		Secure:   secure,
 		HttpOnly: httpOnly,
+		SameSite: http.SameSiteLaxMode,
 	})
 }
 
@@ -250,7 +269,6 @@ func (c *RouteContext) Authenticate(cookieName string, user claims.Principal) {
 
 func (c *RouteContext) SignIn(user claims.Principal, redirectUrl string) {
 	c.Authenticate(GetAppSessionCookieName(), user)
-
 	if redirectUrl == "" {
 		redirectUrl = "/"
 	}
@@ -264,15 +282,7 @@ func (c *RouteContext) SignOut() {
 	c.TemporaryRedirect("/logout")
 }
 
-func (c *RouteContext) Problem(problem *ProblemDetails) {
-	r := c.Response
-	r.Header().Set("Content-Type", "application/problem+json")
-	r.WriteHeader(problem.Status)
-	json.NewEncoder(r).Encode(problem)
-}
-
 func addToStaging(staging map[string]any, key string, values []string) {
-	// Store single or multiple values in the staging map
 	if len(values) == 1 {
 		staging[key] = values[0]
 	} else {
