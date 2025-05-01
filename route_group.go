@@ -10,10 +10,6 @@ type RouteGroup struct {
 	registry *RouteRegistry
 }
 
-func (rg *RouteGroup) GET(s string, param any) {
-	panic("unimplemented")
-}
-
 func (rg *RouteGroup) HEAD(pattern string, handler HandlerFunc) *RouteBuilder {
 	return rg.registerRoute(http.MethodHead, pattern, handler)
 }
