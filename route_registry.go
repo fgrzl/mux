@@ -1,103 +1,111 @@
 package mux
 
 import (
-	"fmt"
 	"strings"
 )
 
-// RouteRegistry holds the root node of the trie for route registration and lookup
+type routeNode struct {
+	Children     map[string]*routeNode
+	ParamChild   *routeNode
+	Wildcard     *routeNode // for *
+	CatchAll     *routeNode // for **
+	ParamName    string
+	RouteOptions map[string]*RouteOptions // keyed by method
+}
+
 type RouteRegistry struct {
-	root *node
+	root *routeNode
 }
 
-// node represents a single route segment in the trie
-type node struct {
-	children map[string]*node
-	options  map[string]*RouteOptions
-	isParam  bool
-	paramKey string
-}
-
-// newNode initializes a new trie node with empty maps for children and options
-func newNode() *node {
-	return &node{
-		children: make(map[string]*node),
-		options:  make(map[string]*RouteOptions), // Initialize the options map
-	}
-}
-
-// NewRouteRegistry creates and returns a new RouteRegistry
 func NewRouteRegistry() *RouteRegistry {
 	return &RouteRegistry{
-		root: newNode(),
+		root: &routeNode{Children: make(map[string]*routeNode)},
 	}
 }
 
-// Register registers a new route with the given pattern, method, and options
-func (rr *RouteRegistry) Register(pattern string, method string, options *RouteOptions) error {
-	// Prevent empty pattern
-	if pattern == "" {
-		return fmt.Errorf("route pattern cannot be empty")
-	}
-
-	// Split the pattern into route segments
+func (r *RouteRegistry) Register(pattern string, method string, options *RouteOptions) {
 	segments := strings.Split(strings.Trim(pattern, "/"), "/")
-	current := rr.root
+	node := r.root
 
-	// Traverse the route segments
-	for _, segment := range segments {
-		if strings.HasPrefix(segment, "{") && strings.HasSuffix(segment, "}") { // Dynamic parameter
-			paramKey := segment[1 : len(segment)-1] // Extract parameter name
-			if current.children["*param"] == nil {
-				// Create a node for the parameter if it doesn't exist
-				current.children["*param"] = newNode()
-				current.children["*param"].isParam = true
-				current.children["*param"].paramKey = paramKey
+	for _, seg := range segments {
+		if seg == "**" {
+			if node.CatchAll == nil {
+				node.CatchAll = &routeNode{Children: make(map[string]*routeNode)}
 			}
-			current = current.children["*param"]
-		} else { // Static segment
-			if current.children[segment] == nil {
-				// Create a new node for static segment if it doesn't exist
-				current.children[segment] = newNode()
+			node = node.CatchAll
+			break
+		} else if seg == "*" {
+			if node.Wildcard == nil {
+				node.Wildcard = &routeNode{Children: make(map[string]*routeNode)}
 			}
-			current = current.children[segment]
+			node = node.Wildcard
+		} else if strings.HasPrefix(seg, "{") && strings.HasSuffix(seg, "}") {
+			if node.ParamChild == nil {
+				node.ParamChild = &routeNode{Children: make(map[string]*routeNode)}
+				node.ParamChild.ParamName = seg[1 : len(seg)-1]
+			}
+			node = node.ParamChild
+		} else {
+			if node.Children[seg] == nil {
+				node.Children[seg] = &routeNode{Children: make(map[string]*routeNode)}
+			}
+			node = node.Children[seg]
 		}
 	}
 
-	// Check if the route already exists for the given method
-	if current.options[method] != nil {
-		return fmt.Errorf("route %s %s already exists", method, pattern)
+	if node.RouteOptions == nil {
+		node.RouteOptions = make(map[string]*RouteOptions)
 	}
 
-	// Register the options for the given method
-	current.options[method] = options
-	return nil
+	node.RouteOptions[method] = options
 }
 
-// Load loads the RouteOptions for the given path and method
-func (rr *RouteRegistry) Load(path string, method string) (*RouteOptions, RouteParams, bool) {
-	// Split the path into segments
+func (r *RouteRegistry) Load(path string, method string) (*RouteOptions, map[string]string, bool) {
 	segments := strings.Split(strings.Trim(path, "/"), "/")
-	current := rr.root
 	params := make(map[string]string)
 
-	// Traverse the path segments
-	for _, segment := range segments {
-		if current.children[segment] != nil { // Static match
-			current = current.children[segment]
-		} else if current.children["*param"] != nil { // Parameter match
-			current = current.children["*param"]
-			params[current.paramKey] = segment
-		} else {
-			// If no match is found, return false
-			return nil, nil, false
+	var search func(node *routeNode, segs []string) (*RouteOptions, bool)
+	search = func(node *routeNode, segs []string) (*RouteOptions, bool) {
+		if len(segs) == 0 {
+			opt, ok := node.RouteOptions[method]
+			return opt, ok
 		}
+
+		seg := segs[0]
+		rest := segs[1:]
+
+		// Exact match
+		if child, ok := node.Children[seg]; ok {
+			if opt, found := search(child, rest); found {
+				return opt, true
+			}
+		}
+
+		// Param match
+		if node.ParamChild != nil {
+			params[node.ParamChild.ParamName] = seg
+			if opt, found := search(node.ParamChild, rest); found {
+				return opt, true
+			}
+			delete(params, node.ParamChild.ParamName)
+		}
+
+		// Wildcard match
+		if node.Wildcard != nil {
+			if opt, found := search(node.Wildcard, rest); found {
+				return opt, true
+			}
+		}
+
+		// Catch-all match (**) — always matches
+		if node.CatchAll != nil {
+			opt, ok := node.CatchAll.RouteOptions[method]
+			return opt, ok
+		}
+
+		return nil, false
 	}
 
-	options := current.options[method]
-	if options == nil {
-		return nil, nil, false
-	}
-
-	return options, params, true
+	opt, ok := search(r.root, segments)
+	return opt, params, ok
 }

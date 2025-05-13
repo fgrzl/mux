@@ -200,4 +200,6 @@ func ConfigureRoutes(r *mux.Router) {
 		createdResource := service.PutResource(&resource)
 		c.Created(createdResource) // return 201 with the created resource
 	})
+
+	rg.StaticFallback("/**", "static", "static/index.html") // Serve static files from the "static" directory
 }
