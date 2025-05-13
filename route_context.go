@@ -50,6 +50,39 @@ type RouteOptions struct {
 	Permissions    []string
 	RateLimit      int
 	RateInterval   time.Duration
+
+	// Documentation fields
+	OperationID   string
+	Description   string
+	Summary       string
+	Parameters    []ParameterDescriptor
+	RequestBodies []RequestBodyDescriptor
+	Responses     []ResponseDescriptor
+}
+
+type ParameterDescriptor struct {
+	Description string
+	Source      string // "query", "header", "path", "cookie"
+	Model       any
+}
+
+type RequestDescriptor struct {
+	Description string
+	ContentType string
+	Model       any
+}
+
+type RequestBodyDescriptor struct {
+	Description string
+	ContentType string
+	Model       any
+}
+
+type ResponseDescriptor struct {
+	StatusCode  int
+	Description string
+	ContentType string
+	Model       any
 }
 
 func (c *RouteContext) Bind(model any) error {

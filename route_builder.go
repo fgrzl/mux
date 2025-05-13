@@ -1,6 +1,8 @@
 package mux
 
-import "time"
+import (
+	"time"
+)
 
 type RouteBuilder struct {
 	Pattern string
