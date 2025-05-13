@@ -39,11 +39,11 @@ func (rg *RouteGroup) DELETE(pattern string, handler HandlerFunc) *RouteBuilder 
 //
 // Example:
 //
-//	r.StaticFallback("/", "wwwroot", "wwwroot/index.html")
+//	r.StaticFallback("/", "static", "static/index.html")
 //
 // For a subpath mount:
 //
-//	r.StaticFallback("/portal", "wwwroot", "wwwroot/index.html")
+//	r.StaticFallback("/portal", "static", "static/index.html")
 func (rg *RouteGroup) StaticFallback(pattern, dir, fallback string) *RouteBuilder {
 	strip := strings.TrimRight(pattern, "/")
 	fs := http.StripPrefix(strip, http.FileServer(http.Dir(dir)))
