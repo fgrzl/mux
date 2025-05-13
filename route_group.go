@@ -2,6 +2,9 @@ package mux
 
 import (
 	"net/http"
+	"os"
+	"path"
+	"path/filepath"
 	"strings"
 )
 
@@ -28,6 +31,37 @@ func (rg *RouteGroup) PUT(pattern string, handler HandlerFunc) *RouteBuilder {
 
 func (rg *RouteGroup) DELETE(pattern string, handler HandlerFunc) *RouteBuilder {
 	return rg.registerRoute(http.MethodDelete, pattern, handler)
+}
+
+// StaticFallback registers a GET route that serves static files from the given directory.
+// If the requested file does not exist or is a directory, the fallback file (typically index.html)
+// will be served instead. This is useful for SPAs using client-side routing.
+//
+// Example:
+//
+//	r.StaticFallback("/", "wwwroot", "wwwroot/index.html")
+//
+// For a subpath mount:
+//
+//	r.StaticFallback("/portal", "wwwroot", "wwwroot/index.html")
+func (rg *RouteGroup) StaticFallback(pattern, dir, fallback string) *RouteBuilder {
+	strip := strings.TrimRight(pattern, "/")
+	fs := http.StripPrefix(strip, http.FileServer(http.Dir(dir)))
+
+	handler := func(c *RouteContext) {
+		cleanPath := path.Clean(c.Request.URL.Path)
+		fullPath := filepath.Join(dir, cleanPath)
+
+		info, err := os.Stat(fullPath)
+		if err != nil || info.IsDir() {
+			http.ServeFile(c.Response, c.Request, fallback)
+			return
+		}
+
+		fs.ServeHTTP(c.Response, c.Request)
+	}
+
+	return rg.registerRoute(http.MethodGet, pattern, handler)
 }
 
 func (rg *RouteGroup) registerRoute(method string, pattern string, handler HandlerFunc) *RouteBuilder {
