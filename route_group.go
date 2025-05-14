@@ -3,7 +3,6 @@ package mux
 import (
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 )
@@ -45,12 +44,14 @@ func (rg *RouteGroup) DELETE(pattern string, handler HandlerFunc) *RouteBuilder 
 //
 //	r.StaticFallback("/portal/**", "static", "static/index.html")
 func (rg *RouteGroup) StaticFallback(pattern, dir, fallback string) *RouteBuilder {
-	strip := strings.TrimRight(pattern, "/")
-	fs := http.StripPrefix(strip, http.FileServer(http.Dir(dir)))
+	prefix := strings.TrimSuffix(pattern, "**")
+	prefix = strings.TrimRight(prefix, "/")
 
 	handler := func(c *RouteContext) {
-		cleanPath := path.Clean(c.Request.URL.Path)
-		fullPath := filepath.Join(dir, cleanPath)
+		requestPath := c.Request.URL.Path
+		trimmed := strings.TrimPrefix(requestPath, prefix)
+		trimmed = strings.TrimPrefix(trimmed, "/")
+		fullPath := filepath.Join(dir, trimmed)
 
 		info, err := os.Stat(fullPath)
 		if err != nil || info.IsDir() {
@@ -58,7 +59,10 @@ func (rg *RouteGroup) StaticFallback(pattern, dir, fallback string) *RouteBuilde
 			return
 		}
 
-		fs.ServeHTTP(c.Response, c.Request)
+		// Construct a new request with the stripped path for static serving
+		r := *c.Request
+		r.URL.Path = "/" + trimmed
+		http.FileServer(http.Dir(dir)).ServeHTTP(c.Response, &r)
 	}
 
 	return rg.registerRoute(http.MethodGet, pattern, handler)
