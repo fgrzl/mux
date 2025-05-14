@@ -1,27 +1,24 @@
-[![ci](https://github.com/fgrzl/mux/actions/workflows/ci.yml/badge.svg)](https://github.com/fgrzl/mux/actions/workflows/ci.yml)
-[![Dependabot Updates](https://github.com/fgrzl/mux/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/fgrzl/mux/actions/workflows/dependabot/dependabot-updates)
+[![CI](https://github.com/fgrzl/mux/actions/workflows/ci.yml/badge.svg)](https://github.com/fgrzl/mux/actions/workflows/ci.yml)
+[![Dependabot](https://github.com/fgrzl/mux/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/fgrzl/mux/actions/workflows/dependabot/dependabot-updates)
 
-# Mux Package
+# Mux
 
-The `mux` package provides a lightweight HTTP router for handling requests with middleware support. It includes features for route handling, parameter binding, authentication, and error handling.
+A lightweight HTTP router for Go with middleware support, authentication, structured responses, and flexible request binding.
 
 ## Installation
 
 ```sh
-go get github.com/yourusername/mux
+go get github.com/fgrzl/mux
 ```
 
-## Usage
-
-### Creating a Router
+## Quick Start
 
 ```go
 package main
 
 import (
-	"fmt"
 	"net/http"
-	"github.com/yourusername/mux"
+	"github.com/fgrzl/mux"
 )
 
 func main() {
@@ -35,7 +32,20 @@ func main() {
 }
 ```
 
-### Defining Routes
+---
+
+## Features
+
+* Route grouping with prefixes
+* Middleware chaining
+* Request binding
+* Built-in helpers for common HTTP responses
+* Structured error handling
+* Authentication & Authorization hooks
+
+---
+
+## Defining Routes
 
 ```go
 router := mux.NewRouter("/api")
@@ -49,56 +59,35 @@ router.POST("/users", func(c *mux.RouteContext) {
 })
 ```
 
-### Using Middleware
+---
 
-Middleware functions are used to process requests before they reach the actual route handler. They allow for reusable components that can handle tasks such as logging, authentication, and request modification.
+## Middleware
 
-#### Built-in Middleware
+### Built-in
 
 ```go
-router := mux.NewRouter("/api")
-
-// use middleware
-r.UseLogging(&mux.LoggingOptions{})
-r.UseCompression(&mux.CompressionOptions{})
-r.UseAuthentication(&mux.AuthenticationOptions{})
-r.UseAuthorization(&mux.AuthorizationOptions{})
+router.UseLogging(&mux.LoggingOptions{})
+router.UseCompression(&mux.CompressionOptions{})
+router.UseAuthentication(&mux.AuthenticationOptions{})
+router.UseAuthorization(&mux.AuthorizationOptions{})
 ```
 
-
-#### Custom Middleware
+### Custom
 
 ```go
 type LoggingMiddleware struct{}
 
 func (m *LoggingMiddleware) Invoke(ctx *mux.RouteContext, next mux.HandlerFunc) {
-	fmt.Println("Request received for", ctx.Request.URL.Path)
+	fmt.Println("Request:", ctx.Request.URL.Path)
 	next(ctx)
 }
 
-router := mux.NewRouter("/api")
 router.Use(&LoggingMiddleware{})
 ```
 
-Middleware executes in the order they are added to the router. Each middleware function can call `next(ctx)` to pass execution to the next middleware or the final handler.
+---
 
-### Handling Requests and Responses
-
-The `RouteContext` provides helper methods for handling responses and error states:
-
-```go
-router.GET("/data", func(c *mux.RouteContext) {
-	if data, err := fetchData(); err != nil {
-		c.ServerError("Fetch Error", "Unable to retrieve data")
-	} else {
-		c.OK(data)
-	}
-})
-```
-
-### Binding Request Data
-
-The `Bind` method allows automatic deserialization of request bodies:
+## Request Binding
 
 ```go
 type User struct {
@@ -109,14 +98,16 @@ type User struct {
 router.POST("/users", func(c *mux.RouteContext) {
 	var user User
 	if err := c.Bind(&user); err != nil {
-		c.BadRequest("Invalid Data", err.Error())
+		c.BadRequest("Invalid request", err.Error())
 		return
 	}
 	c.Created(user)
 })
 ```
 
-### Handling Authentication
+---
+
+## Authentication
 
 ```go
 router.GET("/private", func(c *mux.RouteContext) {
@@ -124,11 +115,13 @@ router.GET("/private", func(c *mux.RouteContext) {
 		c.Unauthorized()
 		return
 	}
-	c.OK(map[string]string{"message": "Welcome!"})
+	c.OK(map[string]string{"message": "Access granted"})
 })
 ```
 
-### Handling Redirects
+---
+
+## Redirects
 
 ```go
 router.GET("/old-page", func(c *mux.RouteContext) {
@@ -136,19 +129,27 @@ router.GET("/old-page", func(c *mux.RouteContext) {
 })
 ```
 
-### Handling 404 Not Found
+---
 
-If a request does not match any registered route, the router automatically responds with a 404 status.
+## Not Found Handling
 
-## Route Registration Methods
+Unmatched routes automatically return a `404 Not Found` response.
 
-- `HEAD(pattern string, handler HandlerFunc) *RouteBuilder`
-- `GET(pattern string, handler HandlerFunc) *RouteBuilder`
-- `POST(pattern string, handler HandlerFunc) *RouteBuilder`
-- `PUT(pattern string, handler HandlerFunc) *RouteBuilder`
-- `DELETE(pattern string, handler HandlerFunc) *RouteBuilder`
+---
 
-## Running the Server
+## Route Methods
+
+* `HEAD(pattern, handler)`
+* `GET(pattern, handler)`
+* `POST(pattern, handler)`
+* `PUT(pattern, handler)`
+* `DELETE(pattern, handler)`
+
+Each returns a `*RouteBuilder` for optional chaining (e.g., `.AllowAnonymous()` or `.WithRateLimit(...)`).
+
+---
+
+## Development
 
 ```sh
 go run main.go
