@@ -32,6 +32,25 @@ func (rg *RouteGroup) DELETE(pattern string, handler HandlerFunc) *RouteBuilder 
 	return rg.registerRoute(http.MethodDelete, pattern, handler)
 }
 
+func (rg *RouteGroup) Healthz() *RouteBuilder {
+	return rg.HealthzWithReady(func() bool { return true })
+}
+
+func (rg *RouteGroup) HealthzWithReady(isReady func() bool) *RouteBuilder {
+	return rg.registerRoute(http.MethodGet, "/healthz", func(c *RouteContext) {
+		c.Response.Header().Set("Content-Type", "text/plain")
+
+		if isReady() {
+			c.Response.WriteHeader(http.StatusOK)
+			c.Response.Write([]byte("ok"))
+			return
+		}
+
+		c.Response.WriteHeader(http.StatusServiceUnavailable)
+		c.Response.Write([]byte("not ready"))
+	}).AllowAnonymous()
+}
+
 // StaticFallback registers a GET route that serves static files from the given directory.
 // If the requested file does not exist or is a directory, the fallback file (typically index.html)
 // will be served instead. This is useful for SPAs using client-side routing.
