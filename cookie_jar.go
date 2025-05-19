@@ -9,64 +9,63 @@ type CookieJarOptions struct {
 }
 
 var (
-	appSessionName string
-	twoFactorName  string
-	idpSessionName string
-	once           sync.Once
-	rwMu           sync.RWMutex
+	userCookieName      string
+	twoFactorCookieName string
+	idpUserCookieName   string
+	rwMu                sync.RWMutex
 )
 
 // Define constants for default cookie names
 const (
-	DefaultAppSessionCookieName = "app_session"
-	DefaultTwoFactorCookieName  = "2fa_session"
-	DefaultIdpSessionCookieName = "idp_session"
+	DefaultUserCookieName      = "app_token"
+	DefaultTwoFactorCookieName = "2fa_token"
+	DefaultIdpUserCookieName   = "idp_token"
 )
 
 // Getter and Setter for AppSessionCookieName
-func GetAppSessionCookieName() string {
+func GetUserCookieName() string {
 	rwMu.RLock()
 	defer rwMu.RUnlock()
-	if appSessionName == "" {
-		return DefaultAppSessionCookieName
+	if userCookieName == "" {
+		return DefaultUserCookieName
 	}
-	return appSessionName
+	return userCookieName
 }
 
 func SetAppSessionCookieName(name string) {
 	rwMu.Lock()
 	defer rwMu.Unlock()
-	appSessionName = name
+	userCookieName = name
 }
 
 // Getter and Setter for TwoFactorCookieName
 func GetTwoFactorCookieName() string {
 	rwMu.RLock()
 	defer rwMu.RUnlock()
-	if twoFactorName == "" {
+	if twoFactorCookieName == "" {
 		return DefaultTwoFactorCookieName
 	}
-	return twoFactorName
+	return twoFactorCookieName
 }
 
 func SetTwoFactorCookieName(name string) {
 	rwMu.Lock()
 	defer rwMu.Unlock()
-	twoFactorName = name
+	twoFactorCookieName = name
 }
 
 // Getter and Setter for IdpSessionCookieName
 func GetIdpSessionCookieName() string {
 	rwMu.RLock()
 	defer rwMu.RUnlock()
-	if idpSessionName == "" {
-		return DefaultIdpSessionCookieName
+	if idpUserCookieName == "" {
+		return DefaultIdpUserCookieName
 	}
-	return idpSessionName
+	return idpUserCookieName
 }
 
 func SetIdpSessionCookieName(name string) {
 	rwMu.Lock()
 	defer rwMu.Unlock()
-	idpSessionName = name
+	idpUserCookieName = name
 }

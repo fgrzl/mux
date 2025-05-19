@@ -301,7 +301,7 @@ func (c *RouteContext) Authenticate(cookieName string, user claims.Principal) {
 }
 
 func (c *RouteContext) SignIn(user claims.Principal, redirectUrl string) {
-	c.Authenticate(GetAppSessionCookieName(), user)
+	c.Authenticate(GetUserCookieName(), user)
 	if redirectUrl == "" {
 		redirectUrl = "/"
 	}
@@ -309,7 +309,7 @@ func (c *RouteContext) SignIn(user claims.Principal, redirectUrl string) {
 }
 
 func (c *RouteContext) SignOut() {
-	c.ClearCookie(GetAppSessionCookieName())
+	c.ClearCookie(GetUserCookieName())
 	c.ClearCookie(GetTwoFactorCookieName())
 	c.ClearCookie(GetIdpSessionCookieName())
 	c.TemporaryRedirect("/logout")
