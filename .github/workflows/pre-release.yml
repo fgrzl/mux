@@ -1,0 +1,56 @@
+name: Pre-Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: read
+
+jobs:
+  TagAndPublish:
+    name: Tag and Notify Go Proxy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Full History
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  
+
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v3.2.1
+        with:
+          versionSpec: '6.0.0'
+
+      - name: Calculate Version
+        id: version
+        uses: gittools/actions/gitversion/execute@v3.2.1
+
+      - name: Set Up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.24.0
+
+      - name: Install Dependencies
+        run: go mod tidy
+
+      - name: Build Project
+        run: go build ./...
+
+      - name: Run Tests
+        run: go test ./... -v -coverprofile=coverage.out
+
+      - name: Tag Commit
+        run: |
+          TAG=${{ steps.version.outputs.semVer }}
+          echo "Tagging as v$TAG"
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag "v$TAG"
+          git push origin "v$TAG"
+
+      - name: Notify Go Proxy
+        run: |
+          TAG=${{ steps.version.outputs.semVer }}
+          curl -sSf "https://proxy.golang.org/github.com/${{ github.repository }}/@v/v$TAG.info"
