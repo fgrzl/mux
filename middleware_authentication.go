@@ -1,6 +1,7 @@
 package mux
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -13,7 +14,7 @@ func (r *Router) UseAuthentication(options *AuthenticationOptions) {
 }
 
 type AuthenticationOptions struct {
-	Validate               func(token string) (claims.Principal, bool)
+	Validate               func(token string) (claims.Principal, error)
 	GetSessionDetails      func(sessionID string) (*SessionDetails, error)
 	GetSessionCreationTime func(sessionID string) time.Time
 }
@@ -37,7 +38,7 @@ func (m *authenticationMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
 	}
 
 	if cookie, err := r.Cookie(GetUserCookieName()); err == nil {
-		if principal, ok := m.validateSession(cookie.Value, r); ok {
+		if principal, err := m.validateSession(cookie.Value, r); err == nil {
 			c.User = principal
 			next(c)
 			m.extendSessionExpiration(c)
@@ -46,7 +47,7 @@ func (m *authenticationMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
 	}
 
 	if token := extractBearerToken(r); token != "" {
-		if principal, ok := m.options.Validate(token); ok {
+		if principal, err := m.options.Validate(token); err == nil {
 			c.User = principal
 			next(c)
 			return
@@ -56,18 +57,18 @@ func (m *authenticationMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
 	c.Unauthorized()
 }
 
-func (m *authenticationMiddleware) validateSession(sessionID string, r *http.Request) (claims.Principal, bool) {
+func (m *authenticationMiddleware) validateSession(sessionID string, r *http.Request) (claims.Principal, error) {
 	details, err := m.options.GetSessionDetails(sessionID)
-	if err != nil || details == nil {
-		return nil, false
+	if err != nil {
+		return nil, err
 	}
 
-	if details.IP != r.RemoteAddr || details.UserAgent != r.UserAgent() {
-		return nil, false
+	if details.IP != r.RemoteAddr {
+		return nil, fmt.Errorf("invalid remote addr")
 	}
 
-	if time.Since(details.CreatedAt) > time.Hour {
-		return nil, false
+	if details.UserAgent != r.UserAgent() {
+		return nil, fmt.Errorf("invalid user agent")
 	}
 
 	// Use sessionID as token input for validation (can be HMAC'd JWT)
