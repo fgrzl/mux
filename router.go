@@ -2,14 +2,34 @@ package mux
 
 import (
 	"net/http"
+	"time"
+
+	"github.com/fgrzl/claims/jwtkit"
 )
 
-func NewRouter() *Router {
+type RouterOptions struct {
+	authProvider AuthProvider
+}
+
+func (o *RouterOptions) WithAuth(signer jwtkit.Signer, ttl *time.Duration) *RouterOptions {
+	o.authProvider = NewAuthProvider(signer, ttl)
+	return o
+}
+
+func NewRouter(options *RouterOptions) *Router {
+
+	if options == nil {
+		options = &RouterOptions{}
+	}
+
 	return &Router{
 		RouteGroup: RouteGroup{
-			prefix:   "",
-			registry: NewRouteRegistry(),
-		}}
+			prefix:       "",
+			registry:     NewRouteRegistry(),
+			authProvider: options.authProvider,
+		},
+		authProvider: options.authProvider,
+	}
 }
 
 type HandlerFunc func(c *RouteContext)
@@ -30,15 +50,17 @@ type Middleware interface {
 
 type Router struct {
 	RouteGroup
-	middleware []Middleware
+	authProvider AuthProvider
+	middleware   []Middleware
 }
 
 // the prefix that will be add to all routes using this router (i.e. /api/v1)
 func (rtr *Router) NewRouteGroup(prefix string) *RouteGroup {
 	prefix = normalizeRoute(prefix, "/")
 	return &RouteGroup{
-		prefix:   prefix,
-		registry: rtr.registry,
+		prefix:       prefix,
+		authProvider: rtr.authProvider,
+		registry:     rtr.registry,
 	}
 }
 

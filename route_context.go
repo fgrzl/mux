@@ -58,6 +58,9 @@ type RouteOptions struct {
 	Parameters    []ParameterDescriptor
 	RequestBodies []RequestBodyDescriptor
 	Responses     []ResponseDescriptor
+
+	// Dependencies
+	AuthProvider AuthProvider
 }
 
 type ParameterDescriptor struct {
@@ -296,8 +299,18 @@ func (c *RouteContext) ClearCookie(name string) {
 }
 
 func (c *RouteContext) Authenticate(cookieName string, user claims.Principal) {
-	jwt := user.JWT()
-	c.SetCookie(cookieName, jwt, 0, "/", "", true, true)
+
+	if c.Options.AuthProvider == nil {
+		panic("a signer is required if using authentication")
+	}
+
+	token, err := c.Options.AuthProvider.CreateToken(c, user)
+	if err != nil {
+		slog.ErrorContext(c, "failed to create token")
+		return
+	}
+
+	c.SetCookie(cookieName, token, 0, "/", "", true, true)
 }
 
 func (c *RouteContext) SignIn(user claims.Principal, redirectUrl string) {

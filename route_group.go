@@ -8,8 +8,9 @@ import (
 )
 
 type RouteGroup struct {
-	prefix   string
-	registry *RouteRegistry
+	prefix       string
+	authProvider AuthProvider
+	registry     *RouteRegistry
 }
 
 func (rg *RouteGroup) HEAD(pattern string, handler HandlerFunc) *RouteBuilder {
