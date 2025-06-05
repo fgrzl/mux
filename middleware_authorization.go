@@ -59,7 +59,7 @@ func (m *authorizationMiddleware) checkRoles(c *RouteContext) bool {
 		return m.options.CheckRoles(c.User, validRoles)
 	}
 
-	if validRoles == nil || len(validRoles) == 0 {
+	if len(validRoles) == 0 {
 		// no Roles to check
 		return true
 	}
@@ -89,7 +89,7 @@ func (m *authorizationMiddleware) checkScopes(c *RouteContext) bool {
 		return m.options.CheckRoles(c.User, validScopes)
 	}
 
-	if validScopes == nil || len(validScopes) == 0 {
+	if len(validScopes) == 0 {
 		// no scopes to check
 		return true
 	}
@@ -121,7 +121,7 @@ func (m *authorizationMiddleware) checkPermission(c *RouteContext) bool {
 	if c.Options.Permissions != nil {
 		permission = append(permission, c.Options.Permissions...)
 	}
-	if permission == nil || len(permission) == 0 {
+	if len(permission) == 0 {
 		// no permissions to check
 		return true
 	}

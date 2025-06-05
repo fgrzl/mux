@@ -7,6 +7,10 @@ import (
 	"github.com/fgrzl/claims/jwtkit"
 )
 
+func NewRouterOptions() *RouterOptions {
+	return &RouterOptions{}
+}
+
 type RouterOptions struct {
 	authProvider AuthProvider
 }
