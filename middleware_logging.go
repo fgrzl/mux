@@ -2,6 +2,8 @@ package mux
 
 import (
 	"log/slog"
+	"net/http"
+	"time"
 )
 
 type LoggingOptions struct{}
@@ -15,15 +17,30 @@ type loggingMiddleware struct {
 }
 
 func (m *loggingMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
-	slog.DebugContext(c, "request started",
-		"method", c.Request.Method,
-		"path", c.Request.URL.Path,
-	)
+
+	start := time.Now()
+	rec := &statusRecorder{ResponseWriter: c.Response}
+
+	c.Response = rec
 
 	next(c)
 
-	slog.DebugContext(c, "request ended",
-		"method", c.Request.Method,
-		"path", c.Request.URL.Path,
+	slog.InfoContext(c, "http_request",
+		slog.String("method", c.Request.Method),
+		slog.String("path", c.Request.URL.Path),
+		slog.Int("status", rec.Status),
+		slog.String("remote", c.Request.RemoteAddr),
+		slog.String("user_agent", c.Request.UserAgent()),
+		slog.Duration("duration", time.Since(start)),
 	)
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	Status int
+}
+
+func (r *statusRecorder) WriteHeader(code int) {
+	r.Status = code
+	r.ResponseWriter.WriteHeader(code)
 }
