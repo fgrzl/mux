@@ -200,20 +200,29 @@ func (c *RouteContext) Problem(problem *ProblemDetails) {
 	r := c.Response
 	r.Header().Set("Content-Type", "application/problem+json")
 	r.WriteHeader(problem.Status)
-	_ = json.NewEncoder(r).Encode(problem)
+	json.NewEncoder(r).Encode(problem)
 }
 
 func (c *RouteContext) OK(model any) {
 	c.Response.Header().Set("Content-Type", "application/json")
 	c.Response.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(c.Response).Encode(model)
+	json.NewEncoder(c.Response).Encode(model)
+}
+
+// Plain writes a text/plain response
+func (c *RouteContext) Plain(status int, data []byte) {
+	c.Response.Header().Set("Content-Type", "text/plain")
+	c.Response.WriteHeader(status)
+	if len(data) > 0 {
+		c.Response.Write(data)
+	}
 }
 
 func (c *RouteContext) Created(model any) {
 	c.Response.Header().Set("Content-Type", "application/json")
 	c.Response.WriteHeader(http.StatusCreated)
 	if model != nil {
-		_ = json.NewEncoder(c.Response).Encode(model)
+		json.NewEncoder(c.Response).Encode(model)
 	}
 }
 
@@ -221,7 +230,7 @@ func (c *RouteContext) Accept(model any) {
 	c.Response.Header().Set("Content-Type", "application/json")
 	c.Response.WriteHeader(http.StatusAccepted)
 	if model != nil {
-		_ = json.NewEncoder(c.Response).Encode(model)
+		json.NewEncoder(c.Response).Encode(model)
 	}
 }
 
