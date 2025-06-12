@@ -72,8 +72,14 @@ func (rg *RouteGroup) StaticFallback(pattern, dir, fallback string) *RouteBuilde
 		trimmed := strings.TrimPrefix(requestPath, prefix)
 		trimmed = strings.TrimPrefix(trimmed, "/")
 		fullPath := filepath.Join(dir, trimmed)
+		absFullPath, err := filepath.Abs(fullPath)
+		absDir, dirErr := filepath.Abs(dir)
+		if err != nil || dirErr != nil || !strings.HasPrefix(absFullPath, absDir) {
+			http.ServeFile(c.Response, c.Request, fallback)
+			return
+		}
 
-		info, err := os.Stat(fullPath)
+		info, err := os.Stat(absFullPath)
 		if err != nil || info.IsDir() {
 			http.ServeFile(c.Response, c.Request, fallback)
 			return
