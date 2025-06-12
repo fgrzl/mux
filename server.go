@@ -2,6 +2,8 @@ package mux
 
 import (
 	"context"
+	"log/slog"
+	"net"
 	"net/http"
 	"time"
 )
@@ -14,7 +16,6 @@ type WebServer struct {
 
 // NewServer sets up the HTTP server with sane timeouts and a mux Router.
 func NewServer(addr string, router *Router) *WebServer {
-
 	srv := &http.Server{
 		Addr:         addr,
 		Handler:      router,
@@ -22,27 +23,28 @@ func NewServer(addr string, router *Router) *WebServer {
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
-
-	return &WebServer{
-		srv:    srv,
-		Router: router,
-	}
+	return &WebServer{srv: srv, Router: router}
 }
 
 // Start runs the HTTP server in a goroutine and handles graceful shutdown.
-func (ws *WebServer) Start(ctx context.Context) {
+func (ws *WebServer) Start(ctx context.Context) error {
+	// Validate address (optional)
+	if _, err := net.ResolveTCPAddr("tcp", ws.srv.Addr); err != nil {
+		return err
+	}
+
 	go func() {
 		if err := ws.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			// Replace with slog or your logger if needed
-			panic("HTTP server error: " + err.Error())
+			slog.Error("HTTP server error", "error", err)
 		}
 	}()
 
-	// Optional: hook for shutdown with context
 	go func() {
 		<-ctx.Done()
 		_ = ws.Stop(context.Background())
 	}()
+
+	return nil
 }
 
 // Stop shuts down the HTTP server gracefully.
