@@ -337,6 +337,26 @@ func (c *RouteContext) SignOut() {
 	c.TemporaryRedirect("/logout")
 }
 
+func (c *RouteContext) GetRedirectURL(defaultRedirect string) string {
+	candidates := []string{
+		"redirect_uri", // most common, OAuth standard
+		"redirect_url",
+		"return_url",
+		"returnUrl",
+		"return_to",
+		"redirect",
+		"return",
+	}
+
+	for _, key := range candidates {
+		if url, ok := c.QueryValue(key); ok {
+			return url
+		}
+	}
+
+	return defaultRedirect
+}
+
 func addToStaging(staging map[string]any, key string, values []string) {
 	if len(values) == 1 {
 		staging[key] = values[0]
