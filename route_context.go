@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/fgrzl/claims"
 )
@@ -39,54 +38,6 @@ type ProblemDetails struct {
 }
 
 type RouteParams map[string]string
-
-type RouteOptions struct {
-	Method         string
-	Pattern        string
-	Handler        HandlerFunc
-	AllowAnonymous bool
-	Roles          []string
-	Scopes         []string
-	Permissions    []string
-	RateLimit      int
-	RateInterval   time.Duration
-
-	// Documentation fields
-	OperationID   string
-	Description   string
-	Summary       string
-	Parameters    []ParameterDescriptor
-	RequestBodies []RequestBodyDescriptor
-	Responses     []ResponseDescriptor
-
-	// Dependencies
-	AuthProvider AuthProvider
-}
-
-type ParameterDescriptor struct {
-	Description string
-	Source      string // "query", "header", "path", "cookie"
-	Model       any
-}
-
-type RequestDescriptor struct {
-	Description string
-	ContentType string
-	Model       any
-}
-
-type RequestBodyDescriptor struct {
-	Description string
-	ContentType string
-	Model       any
-}
-
-type ResponseDescriptor struct {
-	StatusCode  int
-	Description string
-	ContentType string
-	Model       any
-}
 
 func (c *RouteContext) Bind(model any) error {
 	staging := make(map[string]any)

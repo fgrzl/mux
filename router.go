@@ -11,12 +11,28 @@ func NewRouterOptions() *RouterOptions {
 	return &RouterOptions{}
 }
 
+type OpenAPIMetadata struct {
+	Title       string
+	Description string
+	Version     string
+}
+
 type RouterOptions struct {
 	authProvider AuthProvider
+	openapi      *OpenAPIMetadata
 }
 
 func (o *RouterOptions) WithAuth(signer jwtkit.Signer, ttl *time.Duration) *RouterOptions {
 	o.authProvider = NewAuthProvider(signer, ttl)
+	return o
+}
+
+func (o *RouterOptions) WithOpenAPIMetadata(title, version, description string) *RouterOptions {
+	o.openapi = &OpenAPIMetadata{
+		Title:       title,
+		Version:     version,
+		Description: description,
+	}
 	return o
 }
 
