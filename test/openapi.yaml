@@ -1,0 +1,109 @@
+openapi: 3.1.0
+info:
+  title: test title
+  description: test description
+  version: 1.0.0
+paths:
+  /api/v1/resources/:
+    get:
+      operationId: listResources
+      summary: List all resources
+      tags:
+        - Resources
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Resource"
+        "404":
+          description: No content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+  /api/v1/resources/{resourceId}:
+    get:
+      operationId: getResource
+      tags:
+        - Resources
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Resource"
+        "404":
+          description: No content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+    head:
+      operationId: checkResourceExists
+      tags:
+        - Resources
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Success
+        "404":
+          description: No content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+components:
+  schemas:
+    Resource:
+      type: object
+      properties:
+        resourceID:
+          type: integer
+        tenantID:
+          type: integer
+        name:
+          type: string
+      required:
+        - resourceID
+        - tenantID
+        - name
+    Tenant:
+      type: object
+      properties:
+        tenantID:
+          type: integer
+        name:
+          type: string
+      required:
+        - tenantID
+        - name
+    ProblemDetails:
+      type: object
+      properties:
+        title:
+          type: string
+        detail:
+          type: string
+        status:
+          type: integer
+        instance:
+          type: string
+      required:
+        - title
+        - status
