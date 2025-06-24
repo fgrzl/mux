@@ -2,11 +2,14 @@ package mux
 
 import (
 	"fmt"
+	"net/http"
 	"reflect"
 	"regexp"
 	"strings"
 	"time"
 )
+
+var defaultProblem = &ProblemDetails{}
 
 type RouteBuilder struct {
 	Method  string
@@ -129,6 +132,38 @@ func (rb *RouteBuilder) WithResponse(code int, example any) *RouteBuilder {
 	}
 	rb.Options.Responses[fmt.Sprintf("%d", code)] = resp
 	return rb
+}
+
+func (rb *RouteBuilder) WithOKResponse(example any) *RouteBuilder {
+	return rb.WithResponse(http.StatusOK, example)
+}
+
+func (rb *RouteBuilder) WithCreatedResponse(example any) *RouteBuilder {
+	return rb.WithResponse(http.StatusCreated, example)
+}
+
+func (rb *RouteBuilder) WithAcceptedResponse(example any) *RouteBuilder {
+	return rb.WithResponse(http.StatusAccepted, example)
+}
+
+func (rb *RouteBuilder) WithNoContentResponse() *RouteBuilder {
+	return rb.WithResponse(http.StatusNoContent, nil)
+}
+
+func (rb *RouteBuilder) WithNotFoundResponse() *RouteBuilder {
+	return rb.WithResponse(http.StatusNotFound, nil)
+}
+
+func (rb *RouteBuilder) WithConflictResponse() *RouteBuilder {
+	return rb.WithResponse(http.StatusConflict, defaultProblem)
+}
+
+func (rb *RouteBuilder) WithBadRequestResponse() *RouteBuilder {
+	return rb.WithResponse(http.StatusBadRequest, defaultProblem)
+}
+
+func (rb *RouteBuilder) WithStandardErrors() *RouteBuilder {
+	return rb.WithBadRequestResponse().WithNotFoundResponse()
 }
 
 // WithJsonBody describes a JSON request body (required=true).
