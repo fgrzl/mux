@@ -3,6 +3,7 @@ package mux
 import (
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/fgrzl/claims"
 )
@@ -33,9 +34,14 @@ func (c *RouteContext) GetCookie(name string) (string, error) {
 // ClearCookie deletes the specified cookie.
 func (c *RouteContext) ClearCookie(name string) {
 	http.SetCookie(c.Response, &http.Cookie{
-		Name:   name,
-		Value:  "",
-		MaxAge: -1,
+		Name:     name,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		Expires:  time.Unix(1, 0), // old enough to be invalid
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
 	})
 }
 
