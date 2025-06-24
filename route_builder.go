@@ -12,8 +12,6 @@ import (
 var defaultProblem = &ProblemDetails{}
 
 type RouteBuilder struct {
-	Method  string
-	Pattern string
 	Options *RouteOptions
 }
 
@@ -44,9 +42,9 @@ var opIDValidator = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
 // Route bootstraps a new builder for the given HTTP method and path pattern.
 func Route(method, pattern string) *RouteBuilder {
 	return &RouteBuilder{
-		Method:  strings.ToUpper(method),
-		Pattern: pattern,
 		Options: &RouteOptions{
+			Method:    strings.ToUpper(method),
+			Pattern:   pattern,
 			Operation: Operation{Responses: map[string]ResponseObject{}},
 		},
 	}
