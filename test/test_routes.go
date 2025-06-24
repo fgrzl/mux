@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/fgrzl/mux"
+	"github.com/google/uuid"
 )
 
 func ConfigureRoutes(r *mux.Router) {
@@ -41,7 +42,7 @@ func ConfigureRoutes(r *mux.Router) {
 		}
 		c.NoContent()
 	}).WithOperationID("checkResourceExists").
-		WithParam("resourceId", "path", int(0), true).
+		WithParam("resourceId", "path", uuid.Nil, true).
 		WithResponse(204, nil).
 		WithResponse(404, mux.ProblemDetails{}).
 		WithTags("Resources")

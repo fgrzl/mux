@@ -189,6 +189,7 @@ func TestShouldGenerateOpenApiSpec(t *testing.T) {
 
 	// Act
 	spec, err := generator.GenerateSpec(router)
+	//spec.MarshalToFile("openapi.yaml")
 
 	// Assert
 	require.NoError(t, err)

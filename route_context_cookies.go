@@ -10,16 +10,24 @@ import (
 
 // SetCookie writes a cookie with the given attributes.
 func (c *RouteContext) SetCookie(name, value string, maxAge int, path, domain string, secure, httpOnly bool) {
-	http.SetCookie(c.Response, &http.Cookie{
+	cookie := &http.Cookie{
 		Name:     name,
 		Value:    value,
-		MaxAge:   maxAge,
 		Path:     path,
 		Domain:   domain,
+		MaxAge:   maxAge,
 		Secure:   secure,
 		HttpOnly: httpOnly,
 		SameSite: http.SameSiteLaxMode,
-	})
+	}
+
+	if maxAge > 0 {
+		cookie.Expires = time.Now().Add(time.Duration(maxAge) * time.Second)
+	} else if maxAge < 0 {
+		cookie.Expires = time.Unix(1, 0)
+	}
+
+	http.SetCookie(c.Response, cookie)
 }
 
 // GetCookie returns the value of a named cookie, or an error if not found.

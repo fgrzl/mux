@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/fgrzl/claims"
@@ -87,11 +86,6 @@ func addToStaging(staging map[string]any, key string, values []string) {
 func getInstanceURI(r *http.Request) *string {
 	instanceURI := r.RequestURI
 	return &instanceURI
-}
-
-func parseInt[T ~int | ~int16 | ~int32 | ~int64](val string, bitSize int) (T, bool) {
-	n, err := strconv.ParseInt(val, 10, bitSize)
-	return T(n), err == nil
 }
 
 func parseSlice[T any](vals []string, parse func(string) (T, error)) ([]T, bool) {

@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 var defaultProblem = &ProblemDetails{}
@@ -133,7 +135,6 @@ func (rb *RouteBuilder) WithParam(name, in string, example any, required bool) *
 		In:       in,
 		Required: required || in == "path", // paths are always required
 		Schema:   schema,
-		Example:  example,
 	})
 	return rb
 }
@@ -282,6 +283,11 @@ func quickSchema(t reflect.Type) (*Schema, error) {
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
+	// Special-case uuid.UUID
+	if t == reflect.TypeOf(uuid.UUID{}) {
+		return &Schema{Type: "string", Format: "uuid"}, nil
+	}
+
 	if name := t.Name(); name != "" && t.Kind() == reflect.Struct {
 		return &Schema{Ref: "#/components/schemas/" + name}, nil
 	}

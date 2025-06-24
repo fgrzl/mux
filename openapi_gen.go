@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/fgrzl/json/jsonschema"
+	"github.com/google/uuid"
 )
 
 // routeData represents a route for OpenAPI generation.
@@ -308,8 +309,6 @@ func ensureComponentSchema(
 	return nil
 }
 
-// ... rest unchanged
-
 // jsonSchemaGenerator adapts jsonschema.GenerateSchema to the Generator interface.
 func jsonSchemaGenerator(t reflect.Type, visited map[reflect.Type]bool) (*Schema, error) {
 	if t == nil {
@@ -405,6 +404,11 @@ func isZero(v any) bool {
 		return val.IsNil()
 	case reflect.Slice, reflect.Map, reflect.Array, reflect.String:
 		return val.Len() == 0
+	}
+
+	// Special case for uuid.UUID
+	if u, ok := v.(uuid.UUID); ok {
+		return u == uuid.Nil
 	}
 
 	zero := reflect.Zero(val.Type())
