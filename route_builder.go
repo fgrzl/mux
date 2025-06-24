@@ -90,6 +90,31 @@ func (rb *RouteBuilder) WithOperationID(id string) *RouteBuilder {
 	return rb
 }
 
+// WithPathParam adds a required path parameter with a string example.
+func (rb *RouteBuilder) WithPathParam(name string, example any) *RouteBuilder {
+	return rb.WithParam(name, "path", example, true)
+}
+
+// WithQueryParam adds an optional query parameter with example value.
+func (rb *RouteBuilder) WithQueryParam(name string, example any) *RouteBuilder {
+	return rb.WithParam(name, "query", example, false)
+}
+
+// WithRequiredQueryParam adds a required query parameter with example value.
+func (rb *RouteBuilder) WithRequiredQueryParam(name string, example any) *RouteBuilder {
+	return rb.WithParam(name, "query", example, true)
+}
+
+// WithHeaderParam adds a header parameter with example value.
+func (rb *RouteBuilder) WithHeaderParam(name string, example any, required bool) *RouteBuilder {
+	return rb.WithParam(name, "header", example, required)
+}
+
+// WithCookieParam adds a cookie parameter with example value.
+func (rb *RouteBuilder) WithCookieParam(name string, example any, required bool) *RouteBuilder {
+	return rb.WithParam(name, "cookie", example, required)
+}
+
 // WithParam describes an input parameter and infers its schema from the example
 // value.  "in" must be one of query|header|path|cookie.
 func (rb *RouteBuilder) WithParam(name, in string, example any, required bool) *RouteBuilder {
