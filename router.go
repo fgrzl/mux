@@ -2,28 +2,12 @@ package mux
 
 import (
 	"net/http"
-	"time"
-
-	"github.com/fgrzl/claims/jwtkit"
 )
 
-func NewRouterOptions() *RouterOptions {
-	return &RouterOptions{}
-}
-
-type RouterOptions struct {
-	authProvider AuthProvider
-}
-
-func (o *RouterOptions) WithAuth(signer jwtkit.Signer, ttl *time.Duration) *RouterOptions {
-	o.authProvider = NewAuthProvider(signer, ttl)
-	return o
-}
-
-func NewRouter(options *RouterOptions) *Router {
-
-	if options == nil {
-		options = &RouterOptions{}
+func NewRouter(opts ...RouterOption) *Router {
+	options := &RouterOptions{}
+	for _, opt := range opts {
+		opt(options)
 	}
 
 	return &Router{
@@ -32,6 +16,7 @@ func NewRouter(options *RouterOptions) *Router {
 			registry:     NewRouteRegistry(),
 			authProvider: options.authProvider,
 		},
+		options:      options,
 		authProvider: options.authProvider,
 	}
 }
@@ -54,6 +39,7 @@ type Middleware interface {
 
 type Router struct {
 	RouteGroup
+	options      *RouterOptions
 	authProvider AuthProvider
 	middleware   []Middleware
 }

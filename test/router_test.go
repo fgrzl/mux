@@ -4,14 +4,18 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/fgrzl/mux"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 func mockServerHandler() *mux.Router {
-	r := mux.NewRouter(nil)
+	r := mux.NewRouter()
 
 	// Add middleware
 	// r.UseLogging(&mux.LoggingOptions{})
@@ -175,4 +179,32 @@ func TestDeleteTenantNotFound(t *testing.T) {
 	// Assert
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+}
+
+func TestShouldGenerateOpenApiSpec(t *testing.T) {
+	// Arrange
+	router := mux.NewRouter(mux.WithTitle("test title"), mux.WithDescription("test description"), mux.WithVersion("1.0.0"))
+	ConfigureRoutes(router)
+	generator := mux.NewGenerator()
+
+	// Act
+	spec, err := generator.GenerateSpec(router)
+
+	// Assert
+	require.NoError(t, err)
+	assert.NotNil(t, spec)
+
+	expected := loadExpected(t)
+	assert.Equal(t, expected.Normalize(), spec.Normalize())
+}
+
+func loadExpected(t *testing.T) mux.OpenAPISpec {
+	expectedPath := filepath.Join(".", "openapi.yaml")
+	data, err := os.ReadFile(expectedPath)
+	require.NoError(t, err)
+
+	var expected mux.OpenAPISpec
+	err = yaml.Unmarshal(data, &expected)
+	require.NoError(t, err)
+	return expected
 }

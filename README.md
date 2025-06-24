@@ -3,11 +3,11 @@
 
 # Mux
 
-A lightweight HTTP router for Go with middleware support, authentication, structured responses, and flexible request binding.
+A lightweight, modular HTTP router for Go with middleware, request binding, OpenAPI 3.1 generation, structured responses, and flexible auth support.
 
 ## Installation
 
-```sh
+```bash
 go get github.com/fgrzl/mux
 ```
 
@@ -32,18 +32,16 @@ func main() {
 }
 ```
 
----
-
 ## Features
 
-* Route grouping with prefixes
-* Middleware chaining
-* Request binding
-* Built-in helpers for common HTTP responses
-* Structured error handling
-* Authentication & Authorization hooks
+- Route grouping with prefixes
+- Middleware chaining
+- Request binding
+- Structured response helpers
+- Error and redirect handling
+- Auth & role-based access control
+- OpenAPI 3.1 generation
 
----
 
 ## Defining Routes
 
@@ -58,8 +56,6 @@ router.POST("/users", func(c *mux.RouteContext) {
 	c.Created(map[string]string{"message": "User created"})
 })
 ```
-
----
 
 ## Middleware
 
@@ -77,15 +73,13 @@ router.UseAuthorization(&mux.AuthorizationOptions{})
 ```go
 type LoggingMiddleware struct{}
 
-func (m *LoggingMiddleware) Invoke(ctx *mux.RouteContext, next mux.HandlerFunc) {
-	fmt.Println("Request:", ctx.Request.URL.Path)
-	next(ctx)
+func (m *LoggingMiddleware) Invoke(c *mux.RouteContext, next mux.HandlerFunc) {
+	fmt.Println("Request:", c.Request.URL.Path)
+	next(c)
 }
 
 router.Use(&LoggingMiddleware{})
 ```
-
----
 
 ## Request Binding
 
@@ -105,9 +99,7 @@ router.POST("/users", func(c *mux.RouteContext) {
 })
 ```
 
----
-
-## Authentication
+## Authentication Example
 
 ```go
 router.GET("/private", func(c *mux.RouteContext) {
@@ -119,8 +111,6 @@ router.GET("/private", func(c *mux.RouteContext) {
 })
 ```
 
----
-
 ## Redirects
 
 ```go
@@ -129,28 +119,69 @@ router.GET("/old-page", func(c *mux.RouteContext) {
 })
 ```
 
----
-
 ## Not Found Handling
 
-Unmatched routes automatically return a `404 Not Found` response.
+Unmatched routes automatically return `404 Not Found`.
 
 ---
+
+## OpenAPI 3.1 DSL Example
+
+```go
+import "github.com/google/uuid"
+
+router.GET("/api/v1/resources", listResources).
+  WithOperationID("listResources").
+  WithSummary("List all resources").
+  WithOKResponse([]Resource{}).
+  WithNotFoundResponse().
+  WithTags("Resources")
+
+router.GET("/api/v1/resources/{resourceID}", getResource).
+  WithOperationID("getResource").
+  WithSummary("Get a resource").
+  WithParam("resourceID", "path", uuid.Nil, true).
+  WithOKResponse(Resource{}).
+  WithNotFoundResponse().
+  WithTags("Resources")
+
+router.POST("/api/v1/resources", createResource).
+  WithOperationID("createResource").
+  WithSummary("Create a resource").
+  WithJsonBody(Resource{}).
+  WithCreatedResponse(Resource{}).
+  WithBadRequestResponse().
+  WithTags("Resources")
+
+router.PUT("/api/v1/resources/{resourceID}", updateResource).
+  WithOperationID("updateResource").
+  WithSummary("Update a resource").
+  WithParam("resourceID", "path", uuid.Nil, true).
+  WithJsonBody(Resource{}).
+  WithOKResponse(Resource{}).
+  WithBadRequestResponse().
+  WithTags("Resources")
+
+router.DELETE("/api/v1/resources/{resourceID}", deleteResource).
+  WithOperationID("deleteResource").
+  WithSummary("Delete a resource").
+  WithParam("resourceID", "path", uuid.Nil, true).
+  WithNoContentResponse().
+  WithNotFoundResponse().
+  WithTags("Resources")
+```
 
 ## Route Methods
 
-* `HEAD(pattern, handler)`
-* `GET(pattern, handler)`
-* `POST(pattern, handler)`
-* `PUT(pattern, handler)`
-* `DELETE(pattern, handler)`
+Each method returns a `*RouteBuilder` to allow chaining:
 
-Each returns a `*RouteBuilder` for optional chaining (e.g., `.AllowAnonymous()` or `.WithRateLimit(...)`).
-
----
+- `HEAD(pattern, handler)`
+- `GET(pattern, handler)`
+- `POST(pattern, handler)`
+- `PUT(pattern, handler)`
+- `DELETE(pattern, handler)`
 
 ## Development
 
-```sh
+```bash
 go run main.go
-```
