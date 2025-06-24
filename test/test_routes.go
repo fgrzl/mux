@@ -1,7 +1,6 @@
 package test
 
 import (
-	"reflect"
 	"strconv"
 
 	"github.com/fgrzl/mux"
@@ -42,7 +41,7 @@ func ConfigureRoutes(r *mux.Router) {
 		}
 		c.NoContent()
 	}).WithOperationID("checkResourceExists").
-		WithParam("resourceId", "path", reflect.TypeFor[int](), true).
+		WithParam("resourceId", "path", int(0), true).
 		WithResponse(204, nil).
 		WithResponse(404, mux.ProblemDetails{}).
 		WithTags("Resources")
@@ -65,7 +64,7 @@ func ConfigureRoutes(r *mux.Router) {
 		}
 		c.OK(resource)
 	}).WithOperationID("getResource").
-		WithParam("resourceId", "path", reflect.TypeFor[int](), true).
+		WithParam("resourceId", "path", int(0), true).
 		WithResponse(200, Resource{}).
 		WithResponse(404, mux.ProblemDetails{}).
 		WithTags("Resources")
@@ -110,7 +109,7 @@ func ConfigureRoutes(r *mux.Router) {
 		result := service.PutTenant(&tenant)
 		c.OK(result)
 	}).WithOperationID("updateTenant").
-		WithParam("tenantID", "path", reflect.TypeFor[int](), true).
+		WithParam("tenantID", "path", int(0), true).
 		WithJsonBody(Tenant{}).
 		WithResponse(200, Tenant{}).
 		WithResponse(400, mux.ProblemDetails{}).
@@ -134,7 +133,7 @@ func ConfigureRoutes(r *mux.Router) {
 		}
 		c.NoContent()
 	}).WithOperationID("checkTenantExists").
-		WithParam("tenantID", "path", reflect.TypeFor[int](), true).
+		WithParam("tenantID", "path", int(0), true).
 		WithResponse(204, nil).
 		WithResponse(404, mux.ProblemDetails{}).
 		WithTags("Tenants")
@@ -157,7 +156,7 @@ func ConfigureRoutes(r *mux.Router) {
 		}
 		c.OK(tenant)
 	}).WithOperationID("getTenant").
-		WithParam("tenantID", "path", reflect.TypeFor[int](), true).
+		WithParam("tenantID", "path", int(0), true).
 		WithResponse(200, Tenant{}).
 		WithResponse(404, mux.ProblemDetails{}).
 		WithTags("Tenants")
@@ -180,7 +179,7 @@ func ConfigureRoutes(r *mux.Router) {
 		}
 		c.NoContent()
 	}).WithOperationID("deleteTenant").
-		WithParam("tenantID", "path", reflect.TypeFor[int](), true).
+		WithParam("tenantID", "path", int(0), true).
 		WithResponse(204, nil).
 		WithResponse(404, mux.ProblemDetails{}).
 		WithTags("Tenants")
@@ -203,7 +202,7 @@ func ConfigureRoutes(r *mux.Router) {
 		}
 		c.OK(resources)
 	}).WithOperationID("listTenantResources").
-		WithParam("tenantID", "path", reflect.TypeFor[int](), true).
+		WithParam("tenantID", "path", int(0), true).
 		WithResponse(200, []Resource{}).
 		WithResponse(404, mux.ProblemDetails{}).
 		WithTags("Tenants", "Resources")
@@ -221,7 +220,7 @@ func ConfigureRoutes(r *mux.Router) {
 		createdResource := service.PutResource(&resource)
 		c.Created(createdResource)
 	}).WithOperationID("createTenantResource").
-		WithParam("tenantID", "path", reflect.TypeFor[int](), true).
+		WithParam("tenantID", "path", int(0), true).
 		WithJsonBody(Resource{}).
 		WithResponse(201, Resource{}).
 		WithResponse(400, mux.ProblemDetails{}).

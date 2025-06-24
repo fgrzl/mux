@@ -181,7 +181,7 @@ func TestDeleteTenantNotFound(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 }
 
-func TestShouldGenerateOpenApiSpec3(t *testing.T) {
+func TestShouldGenerateOpenApiSpec(t *testing.T) {
 	// Arrange
 	router := mux.NewRouter(mux.WithTitle("test title"), mux.WithDescription("test description"), mux.WithVersion("1.0.0"))
 	ConfigureRoutes(router)
@@ -189,12 +189,13 @@ func TestShouldGenerateOpenApiSpec3(t *testing.T) {
 
 	// Act
 	spec, err := generator.GenerateSpec(router)
-	err = spec.MarshalToFile("./test.yaml")
-	require.NoError(t, err)
 
 	// Assert
+	require.NoError(t, err)
+	assert.NotNil(t, spec)
+
 	expected := loadExpected(t)
-	assert.Equal(t, expected, *spec)
+	assert.Equal(t, expected.Normalize(), spec.Normalize())
 }
 
 func loadExpected(t *testing.T) mux.OpenAPISpec {

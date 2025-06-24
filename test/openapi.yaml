@@ -3,13 +3,16 @@ info:
   title: test title
   description: test description
   version: 1.0.0
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+servers:
+  - url: /
 paths:
-  /api/v1/resources/:
+  /api/v1/resources:
     get:
-      operationId: listResources
-      summary: List all resources
       tags:
         - Resources
+      summary: List all resources
+      operationId: listResources
       responses:
         "200":
           description: Success
@@ -20,16 +23,16 @@ paths:
                 items:
                   $ref: "#/components/schemas/Resource"
         "404":
-          description: No content
+          description: Not Found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProblemDetails"
   /api/v1/resources/{resourceId}:
     get:
-      operationId: getResource
       tags:
         - Resources
+      operationId: getResource
       parameters:
         - name: resourceId
           in: path
@@ -44,15 +47,15 @@ paths:
               schema:
                 $ref: "#/components/schemas/Resource"
         "404":
-          description: No content
+          description: Not Found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProblemDetails"
     head:
-      operationId: checkResourceExists
       tags:
         - Resources
+      operationId: checkResourceExists
       parameters:
         - name: resourceId
           in: path
@@ -61,49 +64,243 @@ paths:
             type: integer
       responses:
         "204":
-          description: Success
+          description: No Content
         "404":
-          description: No content
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+  /api/v1/tenants:
+    get:
+      tags:
+        - Tenants
+      summary: List all tenants
+      operationId: listTenants
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Tenant"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+    post:
+      tags:
+        - Tenants
+      operationId: createTenant
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Tenant"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tenant"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+  /api/v1/tenants/{tenantID}:
+    get:
+      tags:
+        - Tenants
+      operationId: getTenant
+      parameters:
+        - name: tenantID
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tenant"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+    put:
+      tags:
+        - Tenants
+      operationId: updateTenant
+      parameters:
+        - name: tenantID
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Tenant"
+        required: true
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tenant"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+    delete:
+      tags:
+        - Tenants
+      operationId: deleteTenant
+      parameters:
+        - name: tenantID
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+    head:
+      tags:
+        - Tenants
+      operationId: checkTenantExists
+      parameters:
+        - name: tenantID
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+  /api/v1/tenants/{tenantID}/resources:
+    get:
+      tags:
+        - Tenants
+        - Resources
+      operationId: listTenantResources
+      parameters:
+        - name: tenantID
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Resource"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+    post:
+      tags:
+        - Tenants
+        - Resources
+      operationId: createTenantResource
+      parameters:
+        - name: tenantID
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Resource"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Resource"
+        "400":
+          description: Bad Request
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProblemDetails"
 components:
   schemas:
-    Resource:
-      type: object
-      properties:
-        resourceID:
-          type: integer
-        tenantID:
-          type: integer
-        name:
-          type: string
-      required:
-        - resourceID
-        - tenantID
-        - name
-    Tenant:
-      type: object
-      properties:
-        tenantID:
-          type: integer
-        name:
-          type: string
-      required:
-        - tenantID
-        - name
     ProblemDetails:
       type: object
       properties:
-        title:
-          type: string
         detail:
+          type: string
+        instance:
           type: string
         status:
           type: integer
-        instance:
+        title:
           type: string
-      required:
-        - title
-        - status
+        type:
+          type: string
+    Resource:
+      type: object
+      properties:
+        created_at:
+          type: string
+          format: date-time
+        name:
+          type: string
+        resource_id:
+          type: integer
+        tenant_id:
+          type: integer
+        type:
+          type: string
+    Tenant:
+      type: object
+      properties:
+        created_at:
+          type: string
+          format: date-time
+        name:
+          type: string
+        plan:
+          type: string
+        tenant_id:
+          type: integer

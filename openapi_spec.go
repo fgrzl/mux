@@ -37,6 +37,33 @@ func NewOpenAPISpec() *OpenAPISpec {
 	}
 }
 
+func (spec *OpenAPISpec) Normalize() *OpenAPISpec {
+	if spec.Components != nil {
+		if len(spec.Components.Responses) == 0 {
+			spec.Components.Responses = nil
+		}
+		if len(spec.Components.Parameters) == 0 {
+			spec.Components.Parameters = nil
+		}
+		if len(spec.Components.Examples) == 0 {
+			spec.Components.Examples = nil
+		}
+		if len(spec.Components.RequestBodies) == 0 {
+			spec.Components.RequestBodies = nil
+		}
+		if len(spec.Components.Headers) == 0 {
+			spec.Components.Headers = nil
+		}
+		if len(spec.Components.SecuritySchemes) == 0 {
+			spec.Components.SecuritySchemes = nil
+		}
+		if len(spec.Components.Links) == 0 {
+			spec.Components.Links = nil
+		}
+	}
+	return spec
+}
+
 // Validate performs basic validation on the OpenAPISpec.
 func (spec *OpenAPISpec) Validate() error {
 	if spec.OpenAPI != "3.1.0" {

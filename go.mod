@@ -5,6 +5,7 @@ go 1.24.0
 toolchain go1.24.1
 
 require (
+	github.com/fgrzl/json v0.0.1-alpha.30
 	github.com/go-faker/faker/v4 v4.6.1
 	github.com/oschwald/geoip2-golang v1.11.0
 	github.com/stretchr/testify v1.10.0
@@ -30,5 +31,5 @@ require (
 	github.com/fgrzl/claims v0.0.1-alpha.15
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/text v0.26.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1
 )
