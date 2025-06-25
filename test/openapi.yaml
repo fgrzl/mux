@@ -19,9 +19,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Resource'
+                $ref: '#/components/schemas/Page[*github.com/fgrzl/mux/test.Resource]'
         "404":
           description: Not Found
           content:
@@ -266,6 +264,28 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
 components:
   schemas:
+    Page[*github.com/fgrzl/mux/test.Resource]:
+      type: object
+      properties:
+        Models:
+          type: array
+          items:
+            type: object
+            properties:
+              created_at:
+                type: string
+                format: date-time
+              name:
+                type: string
+              resource_id:
+                type: integer
+              tenant_id:
+                type: integer
+              type:
+                type: string
+        Next:
+          type: string
+          format: uuid
     ProblemDetails:
       type: object
       properties:

@@ -2,7 +2,9 @@ package mux
 
 import (
 	"fmt"
+	"net"
 	"net/http"
+	"net/url"
 	"reflect"
 	"regexp"
 	"strings"
@@ -273,19 +275,21 @@ func isValidParameterIn(in string) bool {
 	}
 }
 
-// quickSchema is a lightweight type‑to‑schema helper used at build‑time.  It
-// intentionally avoids complex recursion — the full generator will later
+// quickSchema is a lightweight type‑to‑schema helper used at build‑time.
+// It intentionally avoids complex recursion — the full generator will later
 // replace $refs with proper component registrations.
 func quickSchema(t reflect.Type) (*Schema, error) {
 	if t == nil {
 		return nil, fmt.Errorf("nil type")
 	}
+
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
-	// Special-case uuid.UUID
-	if t == reflect.TypeOf(uuid.UUID{}) {
-		return &Schema{Type: "string", Format: "uuid"}, nil
+
+	// handle known types
+	if schema, ok := lookupKnownSchema(t); ok {
+		return schema, nil
 	}
 
 	if name := t.Name(); name != "" && t.Kind() == reflect.Struct {
@@ -310,4 +314,27 @@ func quickSchema(t reflect.Type) (*Schema, error) {
 	default:
 		return nil, fmt.Errorf("unsupported param kind %s", t.Kind())
 	}
+}
+
+var knownSchemas = map[reflect.Type]*Schema{
+	reflect.TypeOf(uuid.UUID{}): {Type: "string", Format: "uuid"},
+	reflect.TypeOf(time.Time{}): {Type: "string", Format: "date-time"},
+	reflect.TypeOf([]byte{}):    {Type: "string", Format: "byte"},
+	reflect.TypeOf(net.IP{}):    {Type: "string", Format: "ipv4"},
+	reflect.TypeOf(url.URL{}):   {Type: "string", Format: "uri"},
+}
+
+func RegisterSchema(t reflect.Type, schema *Schema) {
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	knownSchemas[t] = schema
+}
+
+func lookupKnownSchema(t reflect.Type) (*Schema, bool) {
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	schema, ok := knownSchemas[t]
+	return schema, ok
 }

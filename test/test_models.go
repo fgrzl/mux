@@ -2,6 +2,8 @@ package test
 
 import (
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // Tenant represents a tenant in the system.
@@ -20,3 +22,10 @@ type Resource struct {
 	Type       string    `json:"type"`
 	CreatedAt  time.Time `json:"created_at"`
 }
+
+type Page[T any] struct {
+	Next   uuid.UUID
+	Models []T
+}
+
+type ResourcePage = Page[*Resource]

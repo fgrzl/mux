@@ -20,7 +20,7 @@ func ConfigureRoutes(r *mux.Router) {
 	}).AllowAnonymous().
 		WithOperationID("listResources").
 		WithSummary("List all resources").
-		WithResponse(200, []Resource{}).
+		WithResponse(200, ResourcePage{}).
 		WithResponse(404, mux.ProblemDetails{}).
 		WithTags("Resources")
 
