@@ -8,30 +8,34 @@ import (
 	"github.com/oschwald/geoip2-golang"
 )
 
-// List of ISO country codes to block under export control restrictions
-var exportRestrictedCountries = map[string]struct{}{
-	"IR": {}, // Iran
-	"KP": {}, // North Korea
-	"SY": {}, // Syria
-	"CU": {}, // Cuba
-	"RU": {}, // Russia (optional, based on policy)
-}
+// ---- Functional Options ----
 
-// ExportControlOptions holds config for the middleware
 type ExportControlOptions struct {
 	DB *geoip2.Reader
 }
 
-// UseExportControl attaches the export control middleware to the router
-func (rtr *Router) UseExportControl(options *ExportControlOptions) {
+type ExportControlOption func(*ExportControlOptions)
+
+func WithGeoIPDatabase(db *geoip2.Reader) ExportControlOption {
+	return func(o *ExportControlOptions) {
+		o.DB = db
+	}
+}
+
+func (rtr *Router) UseExportControl(opts ...ExportControlOption) {
+	options := &ExportControlOptions{}
+	for _, opt := range opts {
+		opt(options)
+	}
 	rtr.middleware = append(rtr.middleware, &exportControlMiddleware{options: options})
 }
+
+// ---- Middleware ----
 
 type exportControlMiddleware struct {
 	options *ExportControlOptions
 }
 
-// Invoke implements the middleware logic for export control checks
 func (m *exportControlMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
 	ip := getRealIP(c.Request)
 	if parsed := net.ParseIP(ip); parsed != nil && m.options.DB != nil {
@@ -44,6 +48,16 @@ func (m *exportControlMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
 		}
 	}
 	next(c)
+}
+
+// ---- Helpers ----
+
+var exportRestrictedCountries = map[string]struct{}{
+	"IR": {},
+	"KP": {},
+	"SY": {},
+	"CU": {},
+	"RU": {},
 }
 
 func getRealIP(r *http.Request) string {

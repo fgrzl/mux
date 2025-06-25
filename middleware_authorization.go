@@ -6,141 +6,144 @@ import (
 	"github.com/fgrzl/claims"
 )
 
-// AuthorizationOptions allows configuration of the authorization check
+// ---- Functional Options ----
+
+type AuthZOption func(*AuthorizationOptions)
+
+func WithRoles(roles ...string) AuthZOption {
+	return func(o *AuthorizationOptions) {
+		o.Roles = append(o.Roles, roles...)
+	}
+}
+
+func WithScopes(scopes ...string) AuthZOption {
+	return func(o *AuthorizationOptions) {
+		o.Scopes = append(o.Scopes, scopes...)
+	}
+}
+
+func WithPermissions(perms ...string) AuthZOption {
+	return func(o *AuthorizationOptions) {
+		o.Permissions = append(o.Permissions, perms...)
+	}
+}
+
+func WithRoleChecker(fn func(claims.Principal, []string) bool) AuthZOption {
+	return func(o *AuthorizationOptions) {
+		o.CheckRoles = fn
+	}
+}
+
+func WithScopeChecker(fn func(claims.Principal, []string) bool) AuthZOption {
+	return func(o *AuthorizationOptions) {
+		o.CheckScopes = fn
+	}
+}
+
+func WithPermissionChecker(fn func(claims.Principal, []string) bool) AuthZOption {
+	return func(o *AuthorizationOptions) {
+		o.CheckPermissions = fn
+	}
+}
+
+// ---- Authorization ----
+
 type AuthorizationOptions struct {
 	Roles            []string
 	Scopes           []string
 	Permissions      []string
-	CheckRoles       func(user claims.Principal, roles []string) bool
-	CheckScopes      func(user claims.Principal, scopes []string) bool
-	CheckPermissions func(user claims.Principal, permissions []string) bool
+	CheckRoles       func(claims.Principal, []string) bool
+	CheckScopes      func(claims.Principal, []string) bool
+	CheckPermissions func(claims.Principal, []string) bool
 }
 
-func (rtr *Router) UseAuthorization(options *AuthorizationOptions) {
+func (rtr *Router) UseAuthorization(opts ...AuthZOption) {
+	options := &AuthorizationOptions{}
+	for _, opt := range opts {
+		opt(options)
+	}
 	rtr.middleware = append(rtr.middleware, &authorizationMiddleware{options: options})
 }
 
-// authorizationMiddleware holds the options for authorization checking
 type authorizationMiddleware struct {
 	options *AuthorizationOptions
 }
 
-// Invoke is called for every request, checks the authorization and proceeds accordingly
 func (m *authorizationMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
-	// Check if the user has the necessary roles
 	if !m.checkRoles(c) {
-		// User is not authorized, respond with 403 Forbidden
 		c.Forbidden("You do not have the necessary permissions to access this resource.")
 		return
 	}
-
-	// Check if the user has the necessary roles
 	if !m.checkScopes(c) {
-		// User is not authorized, respond with 403 Forbidden
 		c.Forbidden("You do not have the necessary permissions to access this resource.")
 		return
 	}
-
-	// Check if the user has the necessary roles
 	if !m.checkPermission(c) {
-		// User is not authorized, respond with 403 Forbidden
 		c.Forbidden("You do not have the necessary permissions to access this resource.")
 		return
 	}
-
-	// If authorized, proceed to the next handler
 	next(c)
 }
 
-// CheckAuthorization checks if the user has the necessary roles to access the resource
 func (m *authorizationMiddleware) checkRoles(c *RouteContext) bool {
-	validRoles := c.Options.Roles
+	valid := c.Options.Roles
 	if m.options.CheckRoles != nil {
-		return m.options.CheckRoles(c.User, validRoles)
+		return m.options.CheckRoles(c.User, valid)
 	}
-
-	if len(validRoles) == 0 {
-		// no Roles to check
+	if len(valid) == 0 {
 		return true
 	}
-
-	userRoles := c.User.Roles()
-	if len(userRoles) == 0 {
-		// No user Roles, deny access
-		return false
-	}
-
-	for _, requiredRole := range validRoles {
-		for _, userRole := range userRoles {
-			if requiredRole == userRole {
+	user := c.User.Roles()
+	for _, r := range valid {
+		for _, u := range user {
+			if r == u {
 				return true
 			}
 		}
 	}
-
-	// No matching Roles
 	return false
 }
 
 func (m *authorizationMiddleware) checkScopes(c *RouteContext) bool {
-	validScopes := c.Options.Scopes
-
+	valid := c.Options.Scopes
 	if m.options.CheckScopes != nil {
-		return m.options.CheckRoles(c.User, validScopes)
+		return m.options.CheckScopes(c.User, valid)
 	}
-
-	if len(validScopes) == 0 {
-		// no scopes to check
+	if len(valid) == 0 {
 		return true
 	}
-
-	userScopes := c.User.Scopes()
-	if len(userScopes) == 0 {
-		// No user Scopes, deny access
-		return false
-	}
-
-	for _, requiredScope := range validScopes {
-		for _, userScope := range userScopes {
-			if requiredScope == userScope {
+	user := c.User.Scopes()
+	for _, s := range valid {
+		for _, u := range user {
+			if s == u {
 				return true
 			}
 		}
 	}
-
-	// No matching Scopes
 	return false
 }
 
 func (m *authorizationMiddleware) checkPermission(c *RouteContext) bool {
-	var permission []string
-	if m.options.Permissions != nil {
-		permission = append(permission, m.options.Permissions...)
-	}
-
-	if c.Options.Permissions != nil {
-		permission = append(permission, c.Options.Permissions...)
-	}
-	if len(permission) == 0 {
-		// no permissions to check
+	var merged []string
+	merged = append(merged, m.options.Permissions...)
+	merged = append(merged, c.Options.Permissions...)
+	if len(merged) == 0 {
 		return true
 	}
-
-	permissions := interpolatePermissions(c.Params, m.options.Permissions, c.Options.Permissions)
-	return m.options.CheckPermissions(c.User, permissions)
+	perms := interpolatePermissions(c.Params, m.options.Permissions, c.Options.Permissions)
+	return m.options.CheckPermissions(c.User, perms)
 }
 
-// interpolatePermissions interpolates placeholders in permissions and ensures uniqueness.
+// ---- Helpers ----
+
 func interpolatePermissions(replacements map[string]string, permissions ...[]string) []string {
 	uniqueMap := make(map[string]struct{})
 	var result []string
-
-	// Iterate over slices of permissions
 	for _, slice := range permissions {
 		for _, item := range slice {
-			val := interpolatePermission(replacements, item) // Interpolate the permission string
+			val := interpolatePermission(replacements, item)
 			if _, exists := uniqueMap[val]; !exists {
-				uniqueMap[val] = struct{}{} // Mark as seen
+				uniqueMap[val] = struct{}{}
 				result = append(result, val)
 			}
 		}
@@ -148,37 +151,29 @@ func interpolatePermissions(replacements map[string]string, permissions ...[]str
 	return result
 }
 
-// interpolatePermission replaces placeholders in a permission string using a replacements map.
 func interpolatePermission(replacements map[string]string, permission string) string {
 	var result strings.Builder
-	var placeholderStart int
+	var start int
 	inPlaceholder := false
 
-	// Iterate over the string and manually detect placeholders
 	for i, ch := range permission {
 		if ch == '{' {
-			// Mark the start of a placeholder
 			inPlaceholder = true
-			placeholderStart = i + 1
+			start = i + 1
 		} else if ch == '}' && inPlaceholder {
-			// End of a placeholder
 			inPlaceholder = false
-			placeholder := permission[placeholderStart:i] // Extract the placeholder
-
-			// Look for the case-insensitive match in the map
-			replaced := placeholder // Default to the placeholder itself if not replaced
-			for key, value := range replacements {
-				if strings.EqualFold(key, placeholder) {
-					replaced = value
+			placeholder := permission[start:i]
+			replaced := placeholder
+			for k, v := range replacements {
+				if strings.EqualFold(k, placeholder) {
+					replaced = v
 					break
 				}
 			}
-			result.WriteString(replaced) // Append the replacement or the placeholder
+			result.WriteString(replaced)
 		} else if !inPlaceholder {
-			// Append normal characters outside of placeholders
 			result.WriteRune(ch)
 		}
 	}
-
 	return result.String()
 }

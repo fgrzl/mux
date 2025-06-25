@@ -6,21 +6,29 @@ import (
 	"time"
 )
 
+// ---- Functional Options ----
+
 type LoggingOptions struct{}
 
-func (rtr *Router) UseLogging(options *LoggingOptions) {
+type LoggingOption func(*LoggingOptions)
+
+func (rtr *Router) UseLogging(opts ...LoggingOption) {
+	options := &LoggingOptions{}
+	for _, opt := range opts {
+		opt(options)
+	}
 	rtr.middleware = append(rtr.middleware, &loggingMiddleware{options: options})
 }
+
+// ---- Middleware ----
 
 type loggingMiddleware struct {
 	options *LoggingOptions
 }
 
 func (m *loggingMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
-
 	start := time.Now()
 	rec := &statusRecorder{ResponseWriter: c.Response}
-
 	c.Response = rec
 
 	next(c)
@@ -34,6 +42,8 @@ func (m *loggingMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
 		slog.Duration("duration", time.Since(start)),
 	)
 }
+
+// ---- Helpers ----
 
 type statusRecorder struct {
 	http.ResponseWriter

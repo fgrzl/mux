@@ -10,22 +10,42 @@ import (
 	"github.com/fgrzl/claims"
 )
 
-// UseAuthentication registers authentication middleware with the router.
-func (r *Router) UseAuthentication(options *AuthenticationOptions) {
+func (r *Router) UseAuthentication(opts ...AuthOption) {
+	options := &AuthenticationOptions{}
+	for _, opt := range opts {
+		opt(options)
+	}
 	r.middleware = append(r.middleware, &authenticationMiddleware{options: options})
 }
 
-// AuthenticationOptions define hooks and configuration for token authentication.
+// ---- Functional Options ----
+
+type AuthOption func(*AuthenticationOptions)
+
+func WithTokenTTL(ttl time.Duration) AuthOption {
+	return func(o *AuthenticationOptions) {
+		o.TokenTTL = ttl
+	}
+}
+
+func WithValidator(fn func(string) (claims.Principal, error)) AuthOption {
+	return func(o *AuthenticationOptions) {
+		o.Validate = fn
+	}
+}
+
+func WithTokenCreator(fn func(claims.Principal, time.Duration) (string, error)) AuthOption {
+	return func(o *AuthenticationOptions) {
+		o.CreateToken = fn
+	}
+}
+
+// ---- Internal Types ----
+
 type AuthenticationOptions struct {
-	// TokenTTL is the default duration to extend sessions by.
-	// If zero or negative, session will not be extended.
-	TokenTTL time.Duration
-
-	// Validate verifies the token and returns associated claims.
-	Validate func(token string) (claims.Principal, error)
-
-	// CreateToken optionally re-issues a token to extend the session.
-	CreateToken func(principal claims.Principal, ttl time.Duration) (string, error)
+	TokenTTL    time.Duration
+	Validate    func(string) (claims.Principal, error)
+	CreateToken func(claims.Principal, time.Duration) (string, error)
 }
 
 type authenticationMiddleware struct {
@@ -38,17 +58,16 @@ type SessionDetails struct {
 	CreatedAt time.Time
 }
 
-// Invoke checks for valid authentication via cookie or bearer token.
-// If anonymous access is allowed, the request proceeds without validation.
-func (m *authenticationMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
+// ---- Middleware Logic ----
 
+func (m *authenticationMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
 	if c.Options.AllowAnonymous {
 		slog.DebugContext(c, "authentication skipped: anonymous access allowed")
 		next(c)
 		return
 	}
 
-	// 1. Check for user token in cookie
+	// 1. Check for cookie
 	if cookie, err := c.Request.Cookie(GetUserCookieName()); err == nil {
 		if principal, err := m.options.Validate(cookie.Value); err == nil {
 			userID := principal.Subject()
@@ -65,7 +84,7 @@ func (m *authenticationMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
 		}
 	}
 
-	// 2. Check for bearer token
+	// 2. Check bearer token
 	if token := extractBearerToken(c.Request); token != "" {
 		if principal, err := m.options.Validate(token); err == nil {
 			userID := principal.Subject()
@@ -81,12 +100,11 @@ func (m *authenticationMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
 		}
 	}
 
-	// 3. Fallback: unauthorized
+	// 3. Unauthorized
 	slog.InfoContext(c, "authentication failed: no valid token found")
 	c.Unauthorized()
 }
 
-// extendSessionExpiration optionally extends the cookie expiration and re-issues the token.
 func (m *authenticationMiddleware) extendSessionExpiration(c *RouteContext, cookie *http.Cookie) {
 	ttl := m.options.TokenTTL
 	if ttl <= 0 {
@@ -94,10 +112,8 @@ func (m *authenticationMiddleware) extendSessionExpiration(c *RouteContext, cook
 		return
 	}
 
-	duration := ttl
-
 	if m.options.CreateToken != nil {
-		if token, err := m.options.CreateToken(c.User, duration); err == nil {
+		if token, err := m.options.CreateToken(c.User, ttl); err == nil {
 			cookie.Value = token
 			slog.DebugContext(c, "session token renewed", "user", c.User.Subject())
 		} else {
@@ -105,22 +121,8 @@ func (m *authenticationMiddleware) extendSessionExpiration(c *RouteContext, cook
 		}
 	}
 
-	cookie.Expires = time.Now().Add(duration)
-	cookie.MaxAge = int(duration.Seconds())
+	cookie.Expires = time.Now().Add(ttl)
+	cookie.MaxAge = int(ttl.Seconds())
 	cookie.HttpOnly = true
 	cookie.SameSite = http.SameSiteLaxMode
-	cookie.Secure = c.Request.TLS != nil
-	cookie.Path = "/" // ensures consistent scope
-
-	http.SetCookie(c.Response, cookie)
-	slog.DebugContext(c, "session cookie extended", "expires", cookie.Expires)
-}
-
-// extractBearerToken retrieves a bearer token from the Authorization header.
-func extractBearerToken(r *http.Request) string {
-	auth := r.Header.Get("Authorization")
-	if strings.HasPrefix(auth, "Bearer ") {
-		return strings.TrimPrefix(auth, "Bearer ")
-	}
-	return ""
-}
+	cookie.Secure = c.Request.TL

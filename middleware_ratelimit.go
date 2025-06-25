@@ -7,9 +7,10 @@ import (
 	"time"
 )
 
-type selectiveRateLimiter struct {
-	mu       sync.Mutex
-	visitors map[string]*visitor
+type SelectiveRateLimiter struct {
+	mu            sync.Mutex
+	visitors      map[string]*visitor
+	cleanupTicker time.Duration
 }
 
 type visitor struct {
@@ -17,15 +18,39 @@ type visitor struct {
 	lastAccess time.Time
 }
 
-func NewSelectiveRateLimiter() *selectiveRateLimiter {
-	rl := &selectiveRateLimiter{
-		visitors: make(map[string]*visitor),
+// ---- Options Pattern ----
+
+type RateLimiterOptions struct {
+	CleanupInterval time.Duration
+}
+
+type RateLimiterOption func(*RateLimiterOptions)
+
+func WithCleanupInterval(d time.Duration) RateLimiterOption {
+	return func(o *RateLimiterOptions) {
+		o.CleanupInterval = d
 	}
-	go rl.cleanupExpiredVisitors(10 * time.Minute)
+}
+
+func NewSelectiveRateLimiter(opts ...RateLimiterOption) *SelectiveRateLimiter {
+	config := &RateLimiterOptions{
+		CleanupInterval: 10 * time.Minute,
+	}
+	for _, opt := range opts {
+		opt(config)
+	}
+
+	rl := &SelectiveRateLimiter{
+		visitors:      make(map[string]*visitor),
+		cleanupTicker: config.CleanupInterval,
+	}
+	go rl.cleanupExpiredVisitors()
 	return rl
 }
 
-func (m *selectiveRateLimiter) Invoke(c *RouteContext, next HandlerFunc) {
+// ---- Middleware ----
+
+func (m *SelectiveRateLimiter) Invoke(c *RouteContext, next HandlerFunc) {
 	opts := c.Options
 	if opts == nil || opts.RateLimit <= 0 {
 		next(c)
@@ -50,7 +75,7 @@ func (m *selectiveRateLimiter) Invoke(c *RouteContext, next HandlerFunc) {
 	next(c)
 }
 
-func (m *selectiveRateLimiter) getVisitor(ip, key string, limit int, interval time.Duration) *visitor {
+func (m *SelectiveRateLimiter) getVisitor(ip, key string, limit int, interval time.Duration) *visitor {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -78,13 +103,13 @@ func (m *selectiveRateLimiter) getVisitor(ip, key string, limit int, interval ti
 	return v
 }
 
-func (m *selectiveRateLimiter) cleanupExpiredVisitors(maxIdle time.Duration) {
+func (m *SelectiveRateLimiter) cleanupExpiredVisitors() {
 	ticker := time.NewTicker(5 * time.Minute)
 	for range ticker.C {
 		now := time.Now()
 		m.mu.Lock()
 		for key, v := range m.visitors {
-			if now.Sub(v.lastAccess) > maxIdle {
+			if now.Sub(v.lastAccess) > m.cleanupTicker {
 				delete(m.visitors, key)
 			}
 		}
