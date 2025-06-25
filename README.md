@@ -179,8 +179,6 @@ router.GET("/old-page", func(c *mux.RouteContext) {
 
 Unmatched routes automatically return `404 Not Found`.
 
----
-
 ## OpenAPI 3.1 DSL Example
 
 ```go
