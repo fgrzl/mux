@@ -125,4 +125,17 @@ func (m *authenticationMiddleware) extendSessionExpiration(c *RouteContext, cook
 	cookie.MaxAge = int(ttl.Seconds())
 	cookie.HttpOnly = true
 	cookie.SameSite = http.SameSiteLaxMode
-	cookie.Secure = c.Request.TL
+	cookie.Secure = c.Request.TLS != nil
+	cookie.Path = "/"
+
+	http.SetCookie(c.Response, cookie)
+	slog.DebugContext(c, "session cookie extended", "expires", cookie.Expires)
+}
+
+func extractBearerToken(r *http.Request) string {
+	auth := r.Header.Get("Authorization")
+	if strings.HasPrefix(auth, "Bearer ") {
+		return strings.TrimPrefix(auth, "Bearer ")
+	}
+	return ""
+}

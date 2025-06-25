@@ -61,23 +61,55 @@ router.POST("/users", func(c *mux.RouteContext) {
 ### Built-in
 
 ```go
-router.UseLogging(&mux.LoggingOptions{})
-router.UseCompression(&mux.CompressionOptions{})
-router.UseAuthentication(&mux.AuthenticationOptions{})
-router.UseAuthorization(&mux.AuthorizationOptions{})
+router.UseLogging() // optionally: router.UseLogging( /* LoggingOption... */ )
+
+router.UseCompression() // optionally: router.UseCompression( /* CompressionOption... */ )
+
+router.UseAuthentication(
+  mux.WithValidator(validateToken),
+  mux.WithTokenCreator(createToken),
+  mux.WithTokenTTL(30 * time.Minute),
+)
+
+router.UseAuthorization(
+  mux.WithRoles("admin", "user"),
+  mux.WithPermissions("tenant:{tenantID}:read"),
+  mux.WithPermissionChecker(checkPermissions),
+)
 ```
 
 ### Custom
 
 ```go
-type LoggingMiddleware struct{}
+type SimpleLogger struct{}
 
-func (m *LoggingMiddleware) Invoke(c *mux.RouteContext, next mux.HandlerFunc) {
-	fmt.Println("Request:", c.Request.URL.Path)
+func (m *SimpleLogger) Invoke(c *mux.RouteContext, next mux.HandlerFunc) {
+	start := time.Now()
+	rec := &statusRecorder{ResponseWriter: c.Response}
+	c.Response = rec
+
 	next(c)
+
+	log.Printf("[%s] %s %d (%s)",
+		c.Request.Method,
+		c.Request.URL.Path,
+		rec.Status,
+		time.Since(start),
+	)
 }
 
-router.Use(&LoggingMiddleware{})
+type statusRecorder struct {
+	http.ResponseWriter
+	Status int
+}
+
+func (r *statusRecorder) WriteHeader(code int) {
+	r.Status = code
+	r.ResponseWriter.WriteHeader(code)
+}
+
+// Register custom middleware
+router.Use(&SimpleLogger{})
 ```
 
 ## Request Binding

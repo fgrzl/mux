@@ -11,7 +11,7 @@ import (
 // WebServer wraps an http.Server and your custom Router.
 type WebServer struct {
 	srv    *http.Server
-	Router *Router
+	router *Router
 }
 
 // NewServer sets up the HTTP server with sane timeouts and a mux Router.
@@ -23,7 +23,7 @@ func NewServer(addr string, router *Router) *WebServer {
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
-	return &WebServer{srv: srv, Router: router}
+	return &WebServer{srv: srv, router: router}
 }
 
 // Start runs the HTTP server in a goroutine and handles graceful shutdown.
