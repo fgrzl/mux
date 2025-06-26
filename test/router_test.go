@@ -191,7 +191,7 @@ func TestShouldGenerateOpenApiSpec(t *testing.T) {
 	spec, err := generator.GenerateSpec(router)
 
 	// if you need to write the file to review
-	// spec.MarshalToFile("openapi_review.yaml")
+	// spec.MarshalToFile("openapi.yaml")
 
 	// Assert
 	require.NoError(t, err)

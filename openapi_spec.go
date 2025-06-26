@@ -14,14 +14,14 @@ import (
 // See: https://spec.openapis.org/oas/v3.1.0#openapi-object
 type OpenAPISpec struct {
 	OpenAPI           string                 `json:"openapi" yaml:"openapi"`
-	Info              InfoObject             `json:"info" yaml:"info"`
+	Info              *InfoObject            `json:"info" yaml:"info"`
 	JsonSchemaDialect string                 `json:"jsonSchemaDialect,omitempty" yaml:"jsonSchemaDialect,omitempty"`
-	Servers           []ServerObject         `json:"servers,omitempty" yaml:"servers,omitempty"`
-	Paths             map[string]PathItem    `json:"paths" yaml:"paths"`
-	Webhooks          map[string]PathItem    `json:"webhooks,omitempty" yaml:"webhooks,omitempty"`
+	Servers           []*ServerObject        `json:"servers,omitempty" yaml:"servers,omitempty"`
+	Paths             map[string]*PathItem   `json:"paths" yaml:"paths"`
+	Webhooks          map[string]*PathItem   `json:"webhooks,omitempty" yaml:"webhooks,omitempty"`
 	Components        *ComponentsObject      `json:"components,omitempty" yaml:"components,omitempty"`
-	Security          []SecurityRequirement  `json:"security,omitempty" yaml:"security,omitempty"`
-	Tags              []TagObject            `json:"tags,omitempty" yaml:"tags,omitempty"`
+	Security          []*SecurityRequirement `json:"security,omitempty" yaml:"security,omitempty"`
+	Tags              []*TagObject           `json:"tags,omitempty" yaml:"tags,omitempty"`
 	ExternalDocs      *ExternalDocumentation `json:"externalDocs,omitempty" yaml:"externalDocs,omitempty"`
 	Extensions        map[string]any         `json:"-,inline" yaml:"-,inline"`
 }
@@ -31,9 +31,9 @@ func NewOpenAPISpec() *OpenAPISpec {
 	return &OpenAPISpec{
 		OpenAPI:           "3.1.0",
 		JsonSchemaDialect: "https://json-schema.org/draft/2020-12/schema",
-		Info:              InfoObject{Version: "1.0.0"},
-		Paths:             make(map[string]PathItem),
-		Servers:           []ServerObject{{URL: "/"}},
+		Info:              &InfoObject{Version: "1.0.0"},
+		Paths:             make(map[string]*PathItem),
+		Servers:           []*ServerObject{{URL: "/"}},
 	}
 }
 
@@ -137,86 +137,86 @@ type InfoObject struct {
 // PathItem describes operations available on a single path.
 // See: https://spec.openapis.org/oas/v3.1.0#path-item-object
 type PathItem struct {
-	Ref         string            `json:"$ref,omitempty" yaml:"$ref,omitempty"`
-	Summary     string            `json:"summary,omitempty" yaml:"summary,omitempty"`
-	Description string            `json:"description,omitempty" yaml:"description,omitempty"`
-	Get         *Operation        `json:"get,omitempty" yaml:"get,omitempty"`
-	Put         *Operation        `json:"put,omitempty" yaml:"put,omitempty"`
-	Post        *Operation        `json:"post,omitempty" yaml:"post,omitempty"`
-	Delete      *Operation        `json:"delete,omitempty" yaml:"delete,omitempty"`
-	Options     *Operation        `json:"options,omitempty" yaml:"options,omitempty"`
-	Head        *Operation        `json:"head,omitempty" yaml:"head,omitempty"`
-	Patch       *Operation        `json:"patch,omitempty" yaml:"patch,omitempty"`
-	Trace       *Operation        `json:"trace,omitempty" yaml:"trace,omitempty"`
-	Parameters  []ParameterObject `json:"parameters,omitempty" yaml:"parameters,omitempty"`
-	Servers     []ServerObject    `json:"servers,omitempty" yaml:"servers,omitempty"`
-	Extensions  map[string]any    `json:"-,inline" yaml:"-,inline"`
+	Ref         string             `json:"$ref,omitempty" yaml:"$ref,omitempty"`
+	Summary     string             `json:"summary,omitempty" yaml:"summary,omitempty"`
+	Description string             `json:"description,omitempty" yaml:"description,omitempty"`
+	Get         *Operation         `json:"get,omitempty" yaml:"get,omitempty"`
+	Put         *Operation         `json:"put,omitempty" yaml:"put,omitempty"`
+	Post        *Operation         `json:"post,omitempty" yaml:"post,omitempty"`
+	Delete      *Operation         `json:"delete,omitempty" yaml:"delete,omitempty"`
+	Options     *Operation         `json:"options,omitempty" yaml:"options,omitempty"`
+	Head        *Operation         `json:"head,omitempty" yaml:"head,omitempty"`
+	Patch       *Operation         `json:"patch,omitempty" yaml:"patch,omitempty"`
+	Trace       *Operation         `json:"trace,omitempty" yaml:"trace,omitempty"`
+	Parameters  []*ParameterObject `json:"parameters,omitempty" yaml:"parameters,omitempty"`
+	Servers     []*ServerObject    `json:"servers,omitempty" yaml:"servers,omitempty"`
+	Extensions  map[string]any     `json:"-,inline" yaml:"-,inline"`
 }
 
 // Operation describes a single API operation.
 // See: https://spec.openapis.org/oas/v3.1.0#operation-object
 type Operation struct {
-	Tags         []string                  `json:"tags,omitempty" yaml:"tags,omitempty"`
-	Summary      string                    `json:"summary,omitempty" yaml:"summary,omitempty"`
-	Description  string                    `json:"description,omitempty" yaml:"description,omitempty"`
-	ExternalDocs *ExternalDocumentation    `json:"externalDocs,omitempty" yaml:"externalDocs,omitempty"`
-	OperationID  string                    `json:"operationId,omitempty" yaml:"operationId,omitempty"`
-	Parameters   []ParameterObject         `json:"parameters,omitempty" yaml:"parameters,omitempty"`
-	RequestBody  *RequestBodyObject        `json:"requestBody,omitempty" yaml:"requestBody,omitempty"`
-	Responses    map[string]ResponseObject `json:"responses" yaml:"responses"`
-	Callbacks    map[string]PathItem       `json:"callbacks,omitempty" yaml:"callbacks,omitempty"`
-	Deprecated   bool                      `json:"deprecated,omitempty" yaml:"deprecated,omitempty"`
-	Security     []SecurityRequirement     `json:"security,omitempty" yaml:"security,omitempty"`
-	Servers      []ServerObject            `json:"servers,omitempty" yaml:"servers,omitempty"`
-	Extensions   map[string]any            `json:"-,inline" yaml:"-,inline"`
+	Tags         []string                   `json:"tags,omitempty" yaml:"tags,omitempty"`
+	Summary      string                     `json:"summary,omitempty" yaml:"summary,omitempty"`
+	Description  string                     `json:"description,omitempty" yaml:"description,omitempty"`
+	ExternalDocs *ExternalDocumentation     `json:"externalDocs,omitempty" yaml:"externalDocs,omitempty"`
+	OperationID  string                     `json:"operationId,omitempty" yaml:"operationId,omitempty"`
+	Parameters   []*ParameterObject         `json:"parameters,omitempty" yaml:"parameters,omitempty"`
+	RequestBody  *RequestBodyObject         `json:"requestBody,omitempty" yaml:"requestBody,omitempty"`
+	Responses    map[string]*ResponseObject `json:"responses" yaml:"responses"`
+	Callbacks    map[string]*PathItem       `json:"callbacks,omitempty" yaml:"callbacks,omitempty"`
+	Deprecated   bool                       `json:"deprecated,omitempty" yaml:"deprecated,omitempty"`
+	Security     []*SecurityRequirement     `json:"security,omitempty" yaml:"security,omitempty"`
+	Servers      []*ServerObject            `json:"servers,omitempty" yaml:"servers,omitempty"`
+	Extensions   map[string]any             `json:"-,inline" yaml:"-,inline"`
 }
 
 // ParameterObject defines a parameter for an operation or path.
 // See: https://spec.openapis.org/oas/v3.1.0#parameter-object
 type ParameterObject struct {
-	Name            string                   `json:"name" yaml:"name"`
-	In              string                   `json:"in" yaml:"in"`
-	Description     string                   `json:"description,omitempty" yaml:"description,omitempty"`
-	Required        bool                     `json:"required,omitempty" yaml:"required,omitempty"`
-	Deprecated      bool                     `json:"deprecated,omitempty" yaml:"deprecated,omitempty"`
-	AllowEmptyValue bool                     `json:"allowEmptyValue,omitempty" yaml:"allowEmptyValue,omitempty"`
-	Style           string                   `json:"style,omitempty" yaml:"style,omitempty"`
-	Explode         *bool                    `json:"explode,omitempty" yaml:"explode,omitempty"`
-	AllowReserved   bool                     `json:"allowReserved,omitempty" yaml:"allowReserved,omitempty"`
-	Schema          *Schema                  `json:"schema,omitempty" yaml:"schema,omitempty"`
-	Example         any                      `json:"example,omitempty" yaml:"example,omitempty"`
-	Examples        map[string]ExampleObject `json:"examples,omitempty" yaml:"examples,omitempty"`
-	Content         map[string]MediaType     `json:"content,omitempty" yaml:"content,omitempty"`
-	Extensions      map[string]any           `json:"-,inline" yaml:"-,inline"`
+	Name            string                    `json:"name" yaml:"name"`
+	In              string                    `json:"in" yaml:"in"`
+	Description     string                    `json:"description,omitempty" yaml:"description,omitempty"`
+	Required        bool                      `json:"required,omitempty" yaml:"required,omitempty"`
+	Deprecated      bool                      `json:"deprecated,omitempty" yaml:"deprecated,omitempty"`
+	AllowEmptyValue bool                      `json:"allowEmptyValue,omitempty" yaml:"allowEmptyValue,omitempty"`
+	Style           string                    `json:"style,omitempty" yaml:"style,omitempty"`
+	Explode         *bool                     `json:"explode,omitempty" yaml:"explode,omitempty"`
+	AllowReserved   bool                      `json:"allowReserved,omitempty" yaml:"allowReserved,omitempty"`
+	Schema          *Schema                   `json:"schema,omitempty" yaml:"schema,omitempty"`
+	Example         any                       `json:"example,omitempty" yaml:"example,omitempty"`
+	Examples        map[string]*ExampleObject `json:"examples,omitempty" yaml:"examples,omitempty"`
+	Content         map[string]*MediaType     `json:"content,omitempty" yaml:"content,omitempty"`
+	Extensions      map[string]*any           `json:"-,inline" yaml:"-,inline"`
 }
 
 // RequestBodyObject describes a request body.
 // See: https://spec.openapis.org/oas/v3.1.0#request-body-object
 type RequestBodyObject struct {
-	Description string               `json:"description,omitempty" yaml:"description,omitempty"`
-	Content     map[string]MediaType `json:"content" yaml:"content"`
-	Required    bool                 `json:"required,omitempty" yaml:"required,omitempty"`
-	Extensions  map[string]any       `json:"-,inline" yaml:"-,inline"`
+	Description string                `json:"description,omitempty" yaml:"description,omitempty"`
+	Content     map[string]*MediaType `json:"content" yaml:"content"`
+	Required    bool                  `json:"required,omitempty" yaml:"required,omitempty"`
+	Extensions  map[string]any        `json:"-,inline" yaml:"-,inline"`
 }
 
 // ResponseObject describes an API response.
 // See: https://spec.openapis.org/oas/v3.1.0#response-object
 type ResponseObject struct {
-	Description string                  `json:"description" yaml:"description"`
-	Headers     map[string]HeaderObject `json:"headers,omitempty" yaml:"headers,omitempty"`
-	Content     map[string]MediaType    `json:"content,omitempty" yaml:"content,omitempty"`
-	Links       map[string]LinkObject   `json:"links,omitempty" yaml:"links,omitempty"`
-	Extensions  map[string]any          `json:"-,inline" yaml:"-,inline"`
+	Description string                   `json:"description" yaml:"description"`
+	Headers     map[string]*HeaderObject `json:"headers,omitempty" yaml:"headers,omitempty"`
+	Content     map[string]*MediaType    `json:"content,omitempty" yaml:"content,omitempty"`
+	Links       map[string]*LinkObject   `json:"links,omitempty" yaml:"links,omitempty"`
+	Extensions  map[string]any           `json:"-,inline" yaml:"-,inline"`
 }
 
 // MediaType defines a media type for request/response content.
 // See: https://spec.openapis.org/oas/v3.1.0#media-type-object
 type MediaType struct {
-	Schema     *Schema                   `json:"schema,omitempty" yaml:"schema,omitempty"`
-	Example    any                       `json:"example,omitempty" yaml:"example,omitempty"`
-	Examples   map[string]ExampleObject  `json:"examples,omitempty" yaml:"examples,omitempty"`
-	Encoding   map[string]EncodingObject `json:"encoding,omitempty" yaml:"encoding,omitempty"`
-	Extensions map[string]any            `json:"-,inline" yaml:"-,inline"`
+	Schema     *Schema                    `json:"schema,omitempty" yaml:"schema,omitempty"`
+	Example    any                        `json:"example,omitempty" yaml:"example,omitempty"`
+	Examples   map[string]*ExampleObject  `json:"examples,omitempty" yaml:"examples,omitempty"`
+	Encoding   map[string]*EncodingObject `json:"encoding,omitempty" yaml:"encoding,omitempty"`
+	Extensions map[string]any             `json:"-,inline" yaml:"-,inline"`
 }
 
 // Schema represents a JSON Schema or a reference to one.
@@ -241,30 +241,30 @@ type Schema struct {
 // ComponentsObject holds reusable components.
 // See: https://spec.openapis.org/oas/v3.1.0#components-object
 type ComponentsObject struct {
-	Schemas         map[string]Schema            `json:"schemas,omitempty" yaml:"schemas,omitempty"`
-	Responses       map[string]ResponseObject    `json:"responses,omitempty" yaml:"responses,omitempty"`
-	Parameters      map[string]ParameterObject   `json:"parameters,omitempty" yaml:"parameters,omitempty"`
-	Examples        map[string]ExampleObject     `json:"examples,omitempty" yaml:"examples,omitempty"`
-	RequestBodies   map[string]RequestBodyObject `json:"requestBodies,omitempty" yaml:"requestBodies,omitempty"`
-	Headers         map[string]HeaderObject      `json:"headers,omitempty" yaml:"headers,omitempty"`
-	SecuritySchemes map[string]SecurityScheme    `json:"securitySchemes,omitempty" yaml:"securitySchemes,omitempty"`
-	Links           map[string]LinkObject        `json:"links,omitempty" yaml:"links,omitempty"`
-	Callbacks       map[string]any               `json:"callbacks,omitempty" yaml:"callbacks,omitempty"`
-	PathItems       map[string]any               `json:"pathItems,omitempty" yaml:"pathItems,omitempty"`
-	Extensions      map[string]any               `json:"-,inline" yaml:"-,inline"`
+	Schemas         map[string]*Schema            `json:"schemas,omitempty" yaml:"schemas,omitempty"`
+	Responses       map[string]*ResponseObject    `json:"responses,omitempty" yaml:"responses,omitempty"`
+	Parameters      map[string]*ParameterObject   `json:"parameters,omitempty" yaml:"parameters,omitempty"`
+	Examples        map[string]*ExampleObject     `json:"examples,omitempty" yaml:"examples,omitempty"`
+	RequestBodies   map[string]*RequestBodyObject `json:"requestBodies,omitempty" yaml:"requestBodies,omitempty"`
+	Headers         map[string]*HeaderObject      `json:"headers,omitempty" yaml:"headers,omitempty"`
+	SecuritySchemes map[string]*SecurityScheme    `json:"securitySchemes,omitempty" yaml:"securitySchemes,omitempty"`
+	Links           map[string]*LinkObject        `json:"links,omitempty" yaml:"links,omitempty"`
+	Callbacks       map[string]any                `json:"callbacks,omitempty" yaml:"callbacks,omitempty"`
+	PathItems       map[string]any                `json:"pathItems,omitempty" yaml:"pathItems,omitempty"`
+	Extensions      map[string]any                `json:"-,inline" yaml:"-,inline"`
 }
 
 // HeaderObject defines a response header.
 // See: https://spec.openapis.org/oas/v3.1.0#header-object
 type HeaderObject struct {
-	Description string               `json:"description,omitempty" yaml:"description,omitempty"`
-	Required    bool                 `json:"required,omitempty" yaml:"required,omitempty"`
-	Deprecated  bool                 `json:"deprecated,omitempty" yaml:"deprecated,omitempty"`
-	Schema      *Schema              `json:"schema,omitempty" yaml:"schema,omitempty"`
-	Example     any                  `json:"example,omitempty" yaml:"example,omitempty"`
-	Examples    map[string]any       `json:"examples,omitempty" yaml:"examples,omitempty"`
-	Content     map[string]MediaType `json:"content,omitempty" yaml:"content,omitempty"`
-	Extensions  map[string]any       `json:"-,inline" yaml:"-,inline"`
+	Description string                `json:"description,omitempty" yaml:"description,omitempty"`
+	Required    bool                  `json:"required,omitempty" yaml:"required,omitempty"`
+	Deprecated  bool                  `json:"deprecated,omitempty" yaml:"deprecated,omitempty"`
+	Schema      *Schema               `json:"schema,omitempty" yaml:"schema,omitempty"`
+	Example     any                   `json:"example,omitempty" yaml:"example,omitempty"`
+	Examples    map[string]any        `json:"examples,omitempty" yaml:"examples,omitempty"`
+	Content     map[string]*MediaType `json:"content,omitempty" yaml:"content,omitempty"`
+	Extensions  map[string]any        `json:"-,inline" yaml:"-,inline"`
 }
 
 // ExampleObject defines example data.
@@ -280,12 +280,12 @@ type ExampleObject struct {
 // EncodingObject defines encoding for a media type.
 // See: https://spec.openapis.org/oas/v3.1.0#encoding-object
 type EncodingObject struct {
-	ContentType   string                  `json:"contentType,omitempty" yaml:"contentType,omitempty"`
-	Headers       map[string]HeaderObject `json:"headers,omitempty" yaml:"headers,omitempty"`
-	Style         string                  `json:"style,omitempty" yaml:"style,omitempty"`
-	Explode       bool                    `json:"explode,omitempty" yaml:"explode,omitempty"`
-	AllowReserved bool                    `json:"allowReserved,omitempty" yaml:"allowReserved,omitempty"`
-	Extensions    map[string]any          `json:"-,inline" yaml:"-,inline"`
+	ContentType   string                   `json:"contentType,omitempty" yaml:"contentType,omitempty"`
+	Headers       map[string]*HeaderObject `json:"headers,omitempty" yaml:"headers,omitempty"`
+	Style         string                   `json:"style,omitempty" yaml:"style,omitempty"`
+	Explode       bool                     `json:"explode,omitempty" yaml:"explode,omitempty"`
+	AllowReserved bool                     `json:"allowReserved,omitempty" yaml:"allowReserved,omitempty"`
+	Extensions    map[string]any           `json:"-,inline" yaml:"-,inline"`
 }
 
 // LinkObject defines a link between operations.
@@ -337,10 +337,10 @@ type OAuthFlowObject struct {
 // ServerObject defines an API server.
 // See: https://spec.openapis.org/oas/v3.1.0#server-object
 type ServerObject struct {
-	URL         string                    `json:"url" yaml:"url"`
-	Description string                    `json:"description,omitempty" yaml:"description,omitempty"`
-	Variables   map[string]ServerVariable `json:"variables,omitempty" yaml:"variables,omitempty"`
-	Extensions  map[string]any            `json:"-,inline" yaml:"-,inline"`
+	URL         string                     `json:"url" yaml:"url"`
+	Description string                     `json:"description,omitempty" yaml:"description,omitempty"`
+	Variables   map[string]*ServerVariable `json:"variables,omitempty" yaml:"variables,omitempty"`
+	Extensions  map[string]any             `json:"-,inline" yaml:"-,inline"`
 }
 
 // ServerVariable defines a server variable for URL substitution.

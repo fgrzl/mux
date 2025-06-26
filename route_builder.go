@@ -49,7 +49,7 @@ func Route(method, pattern string) *RouteBuilder {
 		Options: &RouteOptions{
 			Method:    strings.ToUpper(method),
 			Pattern:   pattern,
-			Operation: Operation{Responses: map[string]ResponseObject{}},
+			Operation: Operation{Responses: map[string]*ResponseObject{}},
 		},
 	}
 }
@@ -132,7 +132,7 @@ func (rb *RouteBuilder) WithParam(name, in string, example any, required bool) *
 	if err != nil {
 		panic(err)
 	}
-	rb.Options.Parameters = append(rb.Options.Parameters, ParameterObject{
+	rb.Options.Parameters = append(rb.Options.Parameters, &ParameterObject{
 		Name:     name,
 		In:       in,
 		Required: required || in == "path", // paths are always required
@@ -144,15 +144,15 @@ func (rb *RouteBuilder) WithParam(name, in string, example any, required bool) *
 // WithResponse registers a response example and schema for the given HTTP code.
 func (rb *RouteBuilder) WithResponse(code int, example any) *RouteBuilder {
 	if rb.Options.Responses == nil {
-		rb.Options.Responses = map[string]ResponseObject{}
+		rb.Options.Responses = map[string]*ResponseObject{}
 	}
-	resp := ResponseObject{}
+	resp := &ResponseObject{}
 	if example != nil {
 		schema, err := quickSchema(reflect.TypeOf(example))
 		if err != nil {
 			panic(err)
 		}
-		resp.Content = map[string]MediaType{
+		resp.Content = map[string]*MediaType{
 			"application/json": {Schema: schema, Example: example},
 		}
 	}
@@ -216,7 +216,7 @@ func (rb *RouteBuilder) withBody(example any, ctype string) *RouteBuilder {
 		panic(err)
 	}
 	rb.Options.RequestBody = &RequestBodyObject{
-		Content:  map[string]MediaType{ctype: {Schema: schema, Example: example}},
+		Content:  map[string]*MediaType{ctype: {Schema: schema, Example: example}},
 		Required: true,
 	}
 	return rb
@@ -250,9 +250,9 @@ func (rb *RouteBuilder) WithExternalDocs(url, desc string) *RouteBuilder {
 }
 
 // WithSecurity appends a security requirement.
-func (rb *RouteBuilder) WithSecurity(sec SecurityRequirement) *RouteBuilder {
+func (rb *RouteBuilder) WithSecurity(sec *SecurityRequirement) *RouteBuilder {
 	if rb.Options.Security == nil {
-		rb.Options.Security = []SecurityRequirement{}
+		rb.Options.Security = []*SecurityRequirement{}
 	}
 	rb.Options.Security = append(rb.Options.Security, sec)
 	return rb

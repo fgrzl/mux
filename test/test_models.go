@@ -28,4 +28,7 @@ type Page[T any] struct {
 	Models []T
 }
 
-type ResourcePage = Page[*Resource]
+type ResourcePage struct {
+	Next   uuid.UUID
+	Models []Resource
+}

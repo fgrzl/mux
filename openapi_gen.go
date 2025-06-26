@@ -1,249 +1,144 @@
+// Updated mux generator to ensure nested components are registered without global state
 package mux
 
 import (
 	"encoding/json"
 	"fmt"
-	"path"
 	"reflect"
 	"regexp"
-	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/fgrzl/json/jsonschema"
 	"github.com/google/uuid"
 )
 
-// routeData represents a route for OpenAPI generation.
-type routeData struct {
-	Path    string
-	Method  string
-	Options *RouteOptions
+type GeneratorOption func(*Generator)
+
+func WithExamples() GeneratorOption {
+	return func(g *Generator) {
+		g.withExamples = true
+	}
 }
 
-// collectRoutes collects all routes from a routeNode tree.
-func collectRoutes(node *routeNode) ([]routeData, error) {
-	if node == nil {
-		return nil, fmt.Errorf("route node is nil")
-	}
-	var routes []routeData
-	var walk func(string, *routeNode) error
-	walk = func(prefix string, n *routeNode) error {
-		for method, opt := range n.RouteOptions {
-			if method == "" {
-				return fmt.Errorf("empty method in route options at path %q", prefix)
-			}
-			routes = append(routes, routeData{
-				Path:    cleanPath(prefix),
-				Method:  strings.ToUpper(method),
-				Options: opt,
-			})
-		}
-		for seg, child := range n.Children {
-			if seg == "" {
-				return fmt.Errorf("empty segment in children at path %q", prefix)
-			}
-			if err := walk(path.Join(prefix, seg), child); err != nil {
-				return err
-			}
-		}
-		if n.ParamChild != nil {
-			if n.ParamChild.ParamName == "" {
-				return fmt.Errorf("empty param name at path %q", prefix)
-			}
-			if err := walk(path.Join(prefix, "{"+n.ParamChild.ParamName+"}"), n.ParamChild); err != nil {
-				return err
-			}
-		}
-		if n.Wildcard != nil {
-			if err := walk(path.Join(prefix, "*"), n.Wildcard); err != nil {
-				return err
-			}
-		}
-		if n.CatchAll != nil {
-			if err := walk(path.Join(prefix, "**"), n.CatchAll); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-	if err := walk("", node); err != nil {
-		return nil, err
-	}
-
-	sort.Slice(routes, func(i, j int) bool {
-		if routes[i].Path == routes[j].Path {
-			return routes[i].Method < routes[j].Method
-		}
-		return routes[i].Path < routes[j].Path
-	})
-
-	return routes, nil
-}
-
-// cleanPath ensures consistent path formatting.
-func cleanPath(p string) string {
-	if p == "" {
-		return "/"
-	}
-	p = path.Clean("/" + strings.Trim(p, "/"))
-	if p == "." {
-		return "/"
-	}
-	return p
-}
-
-// Generator generates an OpenAPI 3.1 specification from a router.
+// Generator generates an OpenAPI 3.1 specification and holds internal state.
 type Generator struct {
-	spec            *OpenAPISpec
-	schemaGenerator func(reflect.Type, map[reflect.Type]bool) (*Schema, error)
+	spec         *OpenAPISpec
+	builder      *jsonschema.Builder
+	visited      map[reflect.Type]bool
+	withExamples bool // default is false
 }
 
-// NewGenerator creates a new Generator instance.
-func NewGenerator() *Generator {
-	return &Generator{
-		spec:            NewOpenAPISpec(),
-		schemaGenerator: jsonSchemaGenerator,
+func NewGenerator(opts ...GeneratorOption) *Generator {
+	gen := &Generator{
+		spec:    NewOpenAPISpec(),
+		builder: jsonschema.NewBuilder(),
+		visited: make(map[reflect.Type]bool),
 	}
+
+	for _, opt := range opts {
+		opt(gen)
+	}
+
+	return gen
 }
 
-// WithSchemaGenerator sets a custom schema generator.
-func (g *Generator) WithSchemaGenerator(fn func(reflect.Type, map[reflect.Type]bool) (*Schema, error)) *Generator {
-	g.schemaGenerator = fn
-	return g
-}
-
-// GenerateSpec generates an OpenAPI 3.1 specification from a router.
 func (g *Generator) GenerateSpec(router *Router) (*OpenAPISpec, error) {
-	if router == nil {
-		return nil, fmt.Errorf("router is nil")
-	}
-	if router.options.openapi == nil {
-		return nil, fmt.Errorf("router info is nil")
+	if router == nil || router.options.openapi == nil {
+		return nil, fmt.Errorf("router or router info is nil")
 	}
 
-	// Initialize spec
-	g.spec.Info = *router.options.openapi
-	if g.spec.Components == nil {
-		g.spec.Components = &ComponentsObject{
-			Schemas:         make(map[string]Schema),
-			Responses:       make(map[string]ResponseObject),
-			Parameters:      make(map[string]ParameterObject),
-			Examples:        make(map[string]ExampleObject),
-			RequestBodies:   make(map[string]RequestBodyObject),
-			Headers:         make(map[string]HeaderObject),
-			SecuritySchemes: make(map[string]SecurityScheme),
-			Links:           make(map[string]LinkObject),
-		}
-	}
+	g.spec.Info = router.options.openapi
+	g.ensureComponentInit()
 
-	// Collect routes
 	routes, err := collectRoutes(router.registry.root)
 	if err != nil {
-		return nil, fmt.Errorf("collecting routes: %w", err)
+		return nil, err
 	}
-
-	// Process routes
 	for _, rd := range routes {
 		if rd.Options == nil || rd.Options.OperationID == "" {
 			continue
 		}
-		if err := appendRouteToSpec(g.spec, rd, g.schemaGenerator); err != nil {
-			return nil, fmt.Errorf("appending route %s %s: %w", rd.Method, rd.Path, err)
+		if err := g.appendRoute(rd); err != nil {
+			return nil, err
 		}
 	}
-
-	// Validate spec
-	if err := g.spec.Validate(); err != nil {
-		return nil, fmt.Errorf("validating spec: %w", err)
-	}
-
-	return g.spec, nil
+	return g.spec, g.spec.Validate()
 }
 
-// GenerateAndSave generates and saves the spec as YAML or JSON.
-func (g *Generator) GenerateAndSave(router *Router, outputPath string) error {
+func (g *Generator) GenerateAndSave(router *Router, path string) error {
 	spec, err := g.GenerateSpec(router)
 	if err != nil {
 		return err
 	}
-	return spec.MarshalToFile(outputPath)
+	return spec.MarshalToFile(path)
 }
 
-// appendRouteToSpec appends a route to the OpenAPI spec, resolving schemas.
-func appendRouteToSpec(
-	spec *OpenAPISpec,
-	rd routeData,
-	schemaGen func(reflect.Type, map[reflect.Type]bool) (*Schema, error),
-) error {
-	if spec.Paths == nil {
-		spec.Paths = make(map[string]PathItem)
+func (g *Generator) ensureComponentInit() {
+	if g.spec.Components == nil {
+		g.spec.Components = &ComponentsObject{
+			Schemas: make(map[string]*Schema),
+		}
 	}
+}
+
+func (g *Generator) appendRoute(rd routeData) error {
+	if g.spec.Paths == nil {
+		g.spec.Paths = map[string]*PathItem{}
+	}
+
 	path, method := rd.Path, strings.ToLower(rd.Method)
 	opt := rd.Options
-
-	if !isValidHTTPMethod(method) {
-		return fmt.Errorf("invalid HTTP method %q", method)
-	}
-	if opt.OperationID == "" {
-		return fmt.Errorf("operationID is required for %s %s", method, path)
-	}
 	if err := validatePathParameters(path, opt.Parameters); err != nil {
-		return fmt.Errorf("validating path parameters: %w", err)
+		return err
 	}
 
-	item, ok := spec.Paths[path]
-	if !ok {
-		item = PathItem{}
+	item := g.spec.Paths[path]
+	if item == nil {
+		item = new(PathItem)
 	}
-
-	op := opt.Operation
+	op := &opt.Operation
 	if len(op.Responses) == 0 {
 		code := getDefaultResponseCode(method)
-		op.Responses = map[string]ResponseObject{
-			code: {Description: getDefaultResponseDescription(code)},
-		}
+		op.Responses = map[string]*ResponseObject{code: {Description: getDefaultResponseDescription(code)}}
 	}
 
 	for i, param := range op.Parameters {
-		if err := ensureComponentSchema(spec, param.Example, param.Schema, schemaGen); err != nil {
-			return fmt.Errorf("param %s: %w", param.Name, err)
+		if err := g.ensureComponentSchema(param.Example, param.Schema); err != nil {
+			return err
 		}
-		if isZero(param.Example) {
+		if !g.withExamples {
 			param.Example = nil
+			param.Examples = nil
 		}
 		op.Parameters[i] = param
 	}
 
 	if op.RequestBody != nil {
-		newContent := make(map[string]MediaType)
+		newContent := map[string]*MediaType{}
 		for ctype, media := range op.RequestBody.Content {
-			if err := ensureComponentSchema(spec, media.Example, media.Schema, schemaGen); err != nil {
-				return fmt.Errorf("request body (%s): %w", ctype, err)
+			if err := g.ensureComponentSchema(media.Example, media.Schema); err != nil {
+				return err
 			}
-			if isZero(media.Example) {
+			if !g.withExamples {
 				media.Example = nil
+				media.Examples = nil
 			}
 			newContent[ctype] = media
 		}
-		op.RequestBody = &RequestBodyObject{
-			Content:     newContent,
-			Required:    op.RequestBody.Required,
-			Description: op.RequestBody.Description,
-			Extensions:  op.RequestBody.Extensions,
-		}
+		op.RequestBody.Content = newContent
 	}
 
-	newResponses := make(map[string]ResponseObject)
+	newResponses := map[string]*ResponseObject{}
 	for code, resp := range op.Responses {
 		if resp.Content != nil {
-			newContent := make(map[string]MediaType)
+			newContent := map[string]*MediaType{}
 			for ctype, media := range resp.Content {
-				if err := ensureComponentSchema(spec, media.Example, media.Schema, schemaGen); err != nil {
-					return fmt.Errorf("response %s (%s): %w", code, ctype, err)
+				if err := g.ensureComponentSchema(media.Example, media.Schema); err != nil {
+					return err
 				}
-				if isZero(media.Example) {
+				if !g.withExamples {
 					media.Example = nil
+					media.Examples = nil
 				}
 				newContent[ctype] = media
 			}
@@ -258,59 +153,47 @@ func appendRouteToSpec(
 
 	switch method {
 	case "get":
-		item.Get = &op
+		item.Get = op
 	case "post":
-		item.Post = &op
+		item.Post = op
 	case "put":
-		item.Put = &op
+		item.Put = op
 	case "delete":
-		item.Delete = &op
+		item.Delete = op
 	case "patch":
-		item.Patch = &op
-	case "options":
-		item.Options = &op
-	case "head":
-		item.Head = &op
-	case "trace":
-		item.Trace = &op
-	default:
-		return fmt.Errorf("unsupported method %q", method)
+		item.Patch = op
 	}
-
-	spec.Paths[path] = item
+	g.spec.Paths[path] = item
 	return nil
 }
 
-func ensureComponentSchema(
-	spec *OpenAPISpec,
-	example any,
-	schema *Schema,
-	gen func(reflect.Type, map[reflect.Type]bool) (*Schema, error),
-) error {
+func (g *Generator) ensureComponentSchema(example any, schema *Schema) error {
 	if schema == nil || schema.Ref == "" {
 		return nil
 	}
 	typeName := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
-	if _, exists := spec.Components.Schemas[typeName]; exists {
+	if _, exists := g.spec.Components.Schemas[typeName]; exists {
 		return nil
 	}
 	t := reflect.TypeOf(example)
 	if t == nil {
 		return fmt.Errorf("missing type info for schema ref %q", schema.Ref)
 	}
-	genSchema, err := gen(t, map[reflect.Type]bool{})
+	s, err := g.GenerateSchemaForType(t)
 	if err != nil {
-		return fmt.Errorf("generating schema for %q: %w", typeName, err)
+		return err
 	}
-	if !isZero(example) {
+
+	if g.withExamples && !isZero(example) {
 		schema.Example = example
 	}
-	spec.Components.Schemas[typeName] = *genSchema
+
+	g.spec.Components.Schemas[typeName] = s
+
 	return nil
 }
 
-// jsonSchemaGenerator adapts jsonschema.GenerateSchema to the Generator interface.
-func jsonSchemaGenerator(t reflect.Type, visited map[reflect.Type]bool) (*Schema, error) {
+func (g *Generator) GenerateSchemaForType(t reflect.Type) (*Schema, error) {
 	if t == nil {
 		return nil, fmt.Errorf("type is nil")
 	}
@@ -320,74 +203,38 @@ func jsonSchemaGenerator(t reflect.Type, visited map[reflect.Type]bool) (*Schema
 	if t.Name() == "" {
 		return nil, fmt.Errorf("unnamed types cannot be registered")
 	}
-	if visited[t] {
+	if g.visited[t] {
 		return &Schema{Ref: "#/components/schemas/" + t.Name()}, nil
 	}
-	visited[t] = true
-	defer delete(visited, t)
+	g.visited[t] = true
+	defer delete(g.visited, t)
 
-	raw := jsonschema.GenerateSchema(t)
-	jsonBytes, err := json.Marshal(raw)
+	root, components := g.builder.SchemaWithComponents(t)
+
+	for name, raw := range components {
+		if _, exists := g.spec.Components.Schemas[name]; !exists {
+			data, err := json.Marshal(raw)
+			if err != nil {
+				return nil, fmt.Errorf("marshal component schema %q: %w", name, err)
+			}
+			s := &Schema{}
+			if err := json.Unmarshal(data, &s); err != nil {
+				return nil, fmt.Errorf("unmarshal component schema %q: %w", name, err)
+			}
+			g.spec.Components.Schemas[name] = s
+		}
+	}
+
+	data, err := json.Marshal(root)
 	if err != nil {
-		return nil, fmt.Errorf("marshaling generated schema: %w", err)
+		return nil, fmt.Errorf("marshal root schema: %w", err)
+	}
+	var schema Schema
+	if err := json.Unmarshal(data, &schema); err != nil {
+		return nil, fmt.Errorf("unmarshal root schema: %w", err)
 	}
 
-	var s Schema
-	if err := json.Unmarshal(jsonBytes, &s); err != nil {
-		return nil, fmt.Errorf("unmarshaling into Schema: %w", err)
-	}
-
-	// Optionally apply openapi tags if struct
-	if t.Kind() == reflect.Struct {
-		for i := 0; i < t.NumField(); i++ {
-			f := t.Field(i)
-			if f.PkgPath != "" {
-				continue
-			}
-			name, _ := parseJSONTag(f)
-			if name == "-" || s.Properties[name] == nil {
-				continue
-			}
-			applyOpenAPITags(f, s.Properties[name])
-		}
-	}
-
-	return &s, nil
-}
-
-// applyOpenAPITags applies OpenAPI-specific tags to a schema.
-func applyOpenAPITags(f reflect.StructField, schema *Schema) {
-	tag := f.Tag.Get("openapi")
-	if tag == "" {
-		return
-	}
-	for _, part := range strings.Split(tag, ",") {
-		kv := strings.SplitN(part, "=", 2)
-		if len(kv) != 2 {
-			continue
-		}
-		key, value := kv[0], kv[1]
-		switch key {
-		case "format":
-			schema.Format = value
-		case "pattern":
-			schema.Pattern = value
-		case "minimum":
-			if min, err := strconv.ParseFloat(value, 64); err == nil {
-				schema.Minimum = &min
-			}
-		case "maximum":
-			if max, err := strconv.ParseFloat(value, 64); err == nil {
-				schema.Maximum = &max
-			}
-		case "enum":
-			vals := strings.Split(value, "|")
-			schema.Enum = make([]interface{}, len(vals))
-			for i, v := range vals {
-				schema.Enum[i] = v
-			}
-		}
-	}
+	return &schema, nil
 }
 
 func isZero(v any) bool {
@@ -398,39 +245,20 @@ func isZero(v any) bool {
 	if !val.IsValid() {
 		return true
 	}
-
 	switch val.Kind() {
 	case reflect.Ptr, reflect.Interface:
 		return val.IsNil()
 	case reflect.Slice, reflect.Map, reflect.Array, reflect.String:
 		return val.Len() == 0
 	}
-
-	// Special case for uuid.UUID
 	if u, ok := v.(uuid.UUID); ok {
 		return u == uuid.Nil
 	}
-
 	zero := reflect.Zero(val.Type())
 	return reflect.DeepEqual(val.Interface(), zero.Interface())
 }
 
-// parseJSONTag extracts the JSON field name and required flag.
-func parseJSONTag(f reflect.StructField) (name string, required bool) {
-	jsonTag := f.Tag.Get("json")
-	if jsonTag == "" {
-		return f.Name, true
-	}
-	parts := strings.Split(jsonTag, ",")
-	name = parts[0]
-	if name == "" {
-		name = f.Name
-	}
-	return name, len(parts) == 1 || parts[1] != "omitempty"
-}
-
-// validatePathParameters ensures path parameters match Parameters.
-func validatePathParameters(path string, params []ParameterObject) error {
+func validatePathParameters(path string, params []*ParameterObject) error {
 	pathParams := map[string]bool{}
 	for _, match := range regexp.MustCompile(`\{([^}]+)\}`).FindAllStringSubmatch(path, -1) {
 		pathParams[match[1]] = true
@@ -453,23 +281,17 @@ func validatePathParameters(path string, params []ParameterObject) error {
 	return nil
 }
 
-// isValidHTTPMethod checks if a method is valid.
-func isValidHTTPMethod(method string) bool {
-	validMethods := map[string]struct{}{
-		"get":     {},
-		"post":    {},
-		"put":     {},
-		"delete":  {},
-		"patch":   {},
-		"options": {},
-		"head":    {},
-		"trace":   {},
+func getDefaultResponseCode(method string) string {
+	switch method {
+	case "post":
+		return "201"
+	case "delete":
+		return "204"
+	default:
+		return "200"
 	}
-	_, ok := validMethods[method]
-	return ok
 }
 
-// getDefaultResponseDescription returns a default description.
 func getDefaultResponseDescription(code string) string {
 	switch code {
 	case "200":
@@ -490,17 +312,5 @@ func getDefaultResponseDescription(code string) string {
 		return "Internal Server Error"
 	default:
 		return fmt.Sprintf("Response %s", code)
-	}
-}
-
-// getDefaultResponseCode returns a default response code.
-func getDefaultResponseCode(method string) string {
-	switch method {
-	case "post":
-		return "201"
-	case "delete":
-		return "204"
-	default:
-		return "200"
 	}
 }
