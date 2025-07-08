@@ -7,7 +7,7 @@ require (
 	github.com/fgrzl/json v0.0.1-alpha.38
 	github.com/go-faker/faker/v4 v4.6.1
 	github.com/google/uuid v1.6.0
-	github.com/oschwald/geoip2-golang v1.11.0
+	github.com/oschwald/geoip2-golang v1.13.0
 	github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.62.0
 	gopkg.in/yaml.v3 v3.0.1
