@@ -26,26 +26,6 @@ jobs:
       - name: Calculate Version
         id: version
         uses: gittools/actions/gitversion/execute@v4.0.1
-<<<<<<< HEAD
-=======
-
-      - name: Set Up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: 1.24.0
-
-      - name: Install Dependencies
-        run: go mod tidy
-
-      - name: Download Dependencies
-        run: go mod download
-
-      - name: Build Project
-        run: go build ./...
-
-      - name: Run Tests
-        run: go test ./... -v -coverprofile=coverage.out
->>>>>>> aae1627c7c0d2d2ba04183299720335143544952
 
       - name: Tag Commit
         uses: fgrzl/actions/tag-commit@v0.0.3
