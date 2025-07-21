@@ -26,9 +26,11 @@ type RouteBuilder struct {
 
 type RouteOptions struct {
 	// ---- runtime routing metadata ----
-	Method         string
-	Pattern        string
-	Handler        HandlerFunc
+	Method  string
+	Pattern string
+	Handler HandlerFunc
+
+	// ---- runtime operations ----
 	AllowAnonymous bool
 	Roles          []string
 	Scopes         []string
