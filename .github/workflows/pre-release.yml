@@ -2,6 +2,7 @@ name: Pre-Release
 
 on:
   workflow_dispatch:
+  workflow_run:
 
 permissions:
   contents: write
@@ -11,6 +12,7 @@ jobs:
   TagAndPublish:
     name: Tag and Notify Go Proxy
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     steps:
       - name: Checkout Full History
@@ -19,39 +21,21 @@ jobs:
           fetch-depth: 0
 
       - name: Install GitVersion
-        uses: gittools/actions/gitversion/setup@v4.0.0
+        uses: gittools/actions/gitversion/setup@v4.0.1
 
       - name: Calculate Version
         id: version
-        uses: gittools/actions/gitversion/execute@v4.0.0
-
-      - name: Set Up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: 1.24.0
-
-      - name: Install Dependencies
-        run: go mod tidy
-
-      - name: Download Dependencies
-        run: go mod download
-
-      - name: Build Project
-        run: go build ./...
-
-      - name: Run Tests
-        run: go test ./... -v -coverprofile=coverage.out
+        uses: gittools/actions/gitversion/execute@v4.0.1
 
       - name: Tag Commit
-        run: |
-          TAG=${{ steps.version.outputs.semVer }}
-          echo "Tagging as v$TAG"
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git tag "v$TAG"
-          git push origin "v$TAG"
+        uses: fgrzl/actions/tag-commit@v0.0.3
+        with:
+          tag: ${{ steps.version.outputs.semVer }}
 
       - name: Notify Go Proxy
-        run: |
-          TAG=${{ steps.version.outputs.semVer }}
-          curl -sSf "https://proxy.golang.org/github.com/${{ github.repository }}/@v/v$TAG.info"
+        uses: fgrzl/actions/notify-go-proxy@v0.0.3
+        with:
+          tag: ${{ steps.version.outputs.semVer }}
+
+      - name: Prune Pre-release Tags
+        uses: fgrzl/actions/prune-tags@v0.0.3
