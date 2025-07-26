@@ -27,6 +27,25 @@ type RouteContext struct {
 	User     claims.Principal
 	Options  *RouteOptions
 	Params   RouteParams
+
+	services map[ServiceKey]any
+}
+
+// SetService sets a service in the RouteContext.
+func (c *RouteContext) SetService(key ServiceKey, svc any) {
+	if c.services == nil {
+		c.services = make(map[ServiceKey]any)
+	}
+	c.services[key] = svc
+}
+
+// GetService retrieves a service from the RouteContext.
+func (c *RouteContext) GetService(key ServiceKey) (any, bool) {
+	if c.services == nil {
+		return nil, false
+	}
+	svc, ok := c.services[key]
+	return svc, ok
 }
 
 func (c *RouteContext) Bind(model any) error {
