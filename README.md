@@ -47,39 +47,6 @@ func main() {
 - **Geographic Control**: Export control middleware with GeoIP database support
 - **Observability**: OpenTelemetry integration and structured logging
 
-## Project Structure
-
-This project follows a flat file structure for simplicity and clarity:
-
-```
-mux/
-├── README.md                          # Project documentation
-├── go.mod                            # Go module definition
-├── LICENSE                           # MIT license
-├── .github/                          # GitHub Actions workflows
-│   ├── workflows/
-│   │   ├── ci.yml                   # Build and test pipeline
-│   │   └── pre-release.yml          # Release automation
-│   └── dependabot.yml               # Dependency updates
-├── test/                             # Test files and examples
-│   ├── router_test.go               # Integration tests  
-│   ├── test_*.go                    # Test utilities and models
-│   └── openapi.yaml                 # Generated OpenAPI spec
-├── router*.go                        # Core router and options
-├── route_*.go                        # Route handling and context
-├── middleware_*.go                   # Built-in middleware components
-├── openapi_*.go                      # OpenAPI generation
-├── auth_provider.go                  # Authentication provider
-├── cookie_jar.go                     # Cookie utilities
-├── problem_detail.go                 # RFC 7807 problem details
-└── server.go                         # HTTP server integration
-```
-
-**Key Design Principles:**
-- **Flat structure**: All core functionality in the root package for simplicity
-- **Middleware modularity**: Each middleware in its own file with options pattern
-- **Test separation**: Tests isolated in `/test` directory with example implementations
-- **Zero dependencies**: Minimal external dependencies for core functionality
 
 ## Defining Routes
 
