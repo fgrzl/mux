@@ -37,6 +37,10 @@ type serviceSetterMiddleware struct {
 }
 
 func (m *serviceSetterMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
+	if m.options == nil || m.options.Services == nil {
+		next(c)
+		return
+	}
 	for k, v := range m.options.Services {
 		c.SetService(k, v)
 	}
