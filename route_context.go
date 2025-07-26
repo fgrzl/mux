@@ -33,6 +33,13 @@ type RouteContext struct {
 
 // SetService sets a service in the RouteContext.
 func (c *RouteContext) SetService(key ServiceKey, svc any) {
+	// Validate inputs
+	if key == "" {
+		return // Do not allow empty keys
+	}
+	if svc == nil {
+		return // Do not allow nil services
+	}
 	if c.services == nil {
 		c.services = make(map[ServiceKey]any)
 	}
