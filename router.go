@@ -21,6 +21,8 @@ func NewRouter(opts ...RouterOption) *Router {
 	}
 }
 
+type APIOption[T any] = func(api T)
+
 type HandlerFunc func(c *RouteContext)
 
 type RouteKey struct {
