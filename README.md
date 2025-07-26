@@ -22,9 +22,12 @@ import (
 )
 
 func main() {
-	router := mux.NewRouter("/api/v1")
+	router := mux.NewRouter()
+	
+	// Create a route group with prefix
+	api := router.NewRouteGroup("/api/v1")
 
-	router.GET("/hello", func(c *mux.RouteContext) {
+	api.GET("/hello", func(c *mux.RouteContext) {
 		c.OK("Hello, world!")
 	})
 
@@ -34,48 +37,77 @@ func main() {
 
 ## Features
 
-- Route grouping with prefixes
-- Middleware chaining
-- Request binding
-- Structured response helpers
-- Error and redirect handling
-- Auth & role-based access control
-- OpenAPI 3.1 generation
+- **Route Management**: Route grouping with prefixes, parameter binding, and flexible patterns
+- **Middleware System**: Modular middleware with built-in options for logging, compression, auth, rate limiting, and more
+- **Request Binding**: Automatic data collection from query parameters, body, headers, and path parameters
+- **Response Helpers**: Structured response helpers for common HTTP status codes
+- **Authentication & Authorization**: JWT-based auth with role-based access control and permissions
+- **Rate Limiting**: Per-route token bucket rate limiting
+- **OpenAPI 3.1**: Automatic spec generation with inline documentation
+- **Geographic Control**: Export control middleware with GeoIP database support
+- **Observability**: OpenTelemetry integration and structured logging
+
 
 ## Defining Routes
 
 ```go
-router := mux.NewRouter("/api")
+router := mux.NewRouter()
+api := router.NewRouteGroup("/api")
 
-router.GET("/users", func(c *mux.RouteContext) {
+api.GET("/users", func(c *mux.RouteContext) {
 	c.OK(map[string]string{"message": "GET users"})
 })
 
-router.POST("/users", func(c *mux.RouteContext) {
+api.POST("/users", func(c *mux.RouteContext) {
 	c.Created(map[string]string{"message": "User created"})
 })
 ```
 
 ## Middleware
 
-### Built-in
+### Built-in Middleware
 
 ```go
+// Logging - structured request/response logging
 router.UseLogging() // optionally: router.UseLogging( /* LoggingOption... */ )
 
+// Compression - gzip/deflate response compression
 router.UseCompression() // optionally: router.UseCompression( /* CompressionOption... */ )
 
+// Authentication - JWT token validation and creation
 router.UseAuthentication(
   mux.WithValidator(validateToken),
   mux.WithTokenCreator(createToken),
   mux.WithTokenTTL(30 * time.Minute),
 )
 
+// Authorization - role-based access control
 router.UseAuthorization(
   mux.WithRoles("admin", "user"),
   mux.WithPermissions("tenant:{tenantID}:read"),
   mux.WithPermissionChecker(checkPermissions),
 )
+
+// HTTPS enforcement - redirect HTTP to HTTPS
+router.UseEnforceHTTPS()
+
+// Forwarded headers - parse X-Forwarded-* headers  
+router.UseForwardedHeaders()
+
+// Export control - geographic access restrictions
+router.UseExportControl(mux.WithGeoIPDatabase(geoipDB))
+
+// OpenTelemetry - distributed tracing and metrics
+router.UseOpenTelemetry()
+```
+
+### Rate Limiting
+
+Rate limiting is configured per-route using a token bucket algorithm:
+
+```go
+router.GET("/api/data", handler).
+  WithRateLimit(100, time.Minute) // 100 requests per minute
 ```
 
 ### Custom
@@ -232,6 +264,69 @@ Each method returns a `*RouteBuilder` to allow chaining:
 - `POST(pattern, handler)`
 - `PUT(pattern, handler)`
 - `DELETE(pattern, handler)`
+
+## Development
+
+### Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/fgrzl/mux.git
+cd mux
+
+# Install dependencies  
+go mod tidy
+
+# Build the project
+go build ./...
+
+# Run tests
+go test ./... -v
+
+# Run tests with coverage
+go test ./... -v -coverprofile=coverage.out
+```
+
+### Testing
+
+The project includes comprehensive tests in the `test/` directory:
+
+- **Integration tests**: Full HTTP request/response testing in `router_test.go`
+- **Example implementations**: Reference implementations in `test_*.go` files  
+- **OpenAPI validation**: Automatic spec generation testing
+
+Test coverage includes all middleware, routing, authentication, and OpenAPI generation.
+
+### Code Conventions
+
+- **Go standards**: Follow standard Go conventions (gofmt, go vet)
+- **Options pattern**: Use functional options for configurable components
+- **Middleware interface**: Implement `Invoke(c *RouteContext, next HandlerFunc)`
+- **Builder pattern**: Chainable methods for route configuration
+- **Error handling**: Use structured error responses with problem details (RFC 7807)
+
+### Contributing
+
+1. **Fork** the repository
+2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
+3. **Write** tests for your changes
+4. **Ensure** all tests pass (`go test ./...`)
+5. **Format** code (`go fmt ./...`)
+6. **Commit** changes (`git commit -m 'Add amazing feature'`)
+7. **Push** to branch (`git push origin feature/amazing-feature`)
+8. **Open** a Pull Request
+
+### CI/CD
+
+The project uses GitHub Actions for:
+
+- **Continuous Integration**: Build and test on every push/PR
+- **Dependency Updates**: Automated Dependabot updates
+- **Pre-release**: Automated versioning and releases
+
+Build requirements:
+- **Go**: 1.24.x or later
+- **Platform**: Linux, macOS, Windows supported
 
 ## Why Use `fgrzl/mux`?
 

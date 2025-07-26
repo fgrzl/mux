@@ -31,7 +31,7 @@ func mockServerHandler() *mux.Router {
 }
 
 // Test GET /api/v1/resources/
-func TestGetResourcesSuccess(t *testing.T) {
+func TestShouldReturnResourcesWhenRequestIsValid(t *testing.T) {
 	// Arrange: Start the mock server
 	server := httptest.NewServer(mockServerHandler())
 	defer server.Close()
@@ -45,7 +45,7 @@ func TestGetResourcesSuccess(t *testing.T) {
 }
 
 // Test HEAD /api/v1/resources/{resourceId} - Success
-func TestHeadResourceSuccess(t *testing.T) {
+func TestShouldReturnNoContentWhenResourceExists(t *testing.T) {
 	// Arrange
 	server := httptest.NewServer(mockServerHandler())
 	defer server.Close()
@@ -60,7 +60,7 @@ func TestHeadResourceSuccess(t *testing.T) {
 }
 
 // Test HEAD /api/v1/resources/{resourceId} - Not Found
-func TestHeadResourceNotFound(t *testing.T) {
+func TestShouldReturnNotFoundWhenResourceDoesNotExist(t *testing.T) {
 	// Arrange
 	server := httptest.NewServer(mockServerHandler())
 	defer server.Close()
@@ -75,7 +75,7 @@ func TestHeadResourceNotFound(t *testing.T) {
 }
 
 // Test GET /api/v1/resources/{resourceId} - Success
-func TestGetResourceSuccess(t *testing.T) {
+func TestShouldReturnResourceWhenResourceIdIsValid(t *testing.T) {
 	// Arrange
 	server := httptest.NewServer(mockServerHandler())
 	defer server.Close()
@@ -89,7 +89,7 @@ func TestGetResourceSuccess(t *testing.T) {
 }
 
 // Test GET /api/v1/resources/{resourceId} - Not Found
-func TestGetResourceNotFound(t *testing.T) {
+func TestShouldReturnNotFoundWhenResourceIdIsInvalid(t *testing.T) {
 	// Arrange
 	server := httptest.NewServer(mockServerHandler())
 	defer server.Close()
@@ -103,7 +103,7 @@ func TestGetResourceNotFound(t *testing.T) {
 }
 
 // Test GET /api/v1/tenants/
-func TestGetTenantsSuccess(t *testing.T) {
+func TestShouldReturnTenantsWhenRequestIsValid(t *testing.T) {
 	// Arrange
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -120,7 +120,7 @@ func TestGetTenantsSuccess(t *testing.T) {
 }
 
 // Test POST /api/v1/tenants/ - Success
-func TestCreateTenantSuccess(t *testing.T) {
+func TestShouldCreateTenantWhenRequestIsValid(t *testing.T) {
 	// Arrange
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
@@ -140,7 +140,7 @@ func TestCreateTenantSuccess(t *testing.T) {
 }
 
 // Test DELETE /api/v1/tenants/{tenantID} - Success
-func TestDeleteTenantSuccess(t *testing.T) {
+func TestShouldDeleteTenantWhenTenantExists(t *testing.T) {
 	// Arrange
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodDelete {
@@ -161,7 +161,7 @@ func TestDeleteTenantSuccess(t *testing.T) {
 }
 
 // Test DELETE /api/v1/tenants/{tenantID} - Not Found
-func TestDeleteTenantNotFound(t *testing.T) {
+func TestShouldReturnNotFoundWhenTenantDoesNotExist(t *testing.T) {
 	// Arrange
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodDelete {
