@@ -359,7 +359,7 @@ func generateInlineStructSchema(t reflect.Type) (*Schema, error) {
 
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
-		
+
 		// Skip unexported fields
 		if !field.IsExported() {
 			continue
@@ -370,7 +370,7 @@ func generateInlineStructSchema(t reflect.Type) (*Schema, error) {
 		if jsonTag == "-" {
 			continue // Skip fields marked with json:"-"
 		}
-		
+
 		fieldName := field.Name
 		if jsonTag != "" {
 			// Handle json tags like "name,omitempty" - take only the name part
