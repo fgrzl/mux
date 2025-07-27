@@ -298,6 +298,11 @@ func quickSchema(t reflect.Type) (*Schema, error) {
 		return &Schema{Ref: "#/components/schemas/" + name}, nil
 	}
 
+	// handle anonymous structs by generating inline schema
+	if t.Kind() == reflect.Struct && t.Name() == "" {
+		return generateInlineStructSchema(t)
+	}
+
 	switch t.Kind() {
 	case reflect.String:
 		return &Schema{Type: "string"}, nil
@@ -339,4 +344,51 @@ func lookupKnownSchema(t reflect.Type) (*Schema, bool) {
 	}
 	schema, ok := knownSchemas[t]
 	return schema, ok
+}
+
+// generateInlineStructSchema creates an inline schema for anonymous structs
+func generateInlineStructSchema(t reflect.Type) (*Schema, error) {
+	if t.Kind() != reflect.Struct {
+		return nil, fmt.Errorf("expected struct type, got %s", t.Kind())
+	}
+
+	schema := &Schema{
+		Type:       "object",
+		Properties: make(map[string]*Schema),
+	}
+
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		
+		// Skip unexported fields
+		if !field.IsExported() {
+			continue
+		}
+
+		// Get the JSON tag name, or use the field name if no tag
+		jsonTag := field.Tag.Get("json")
+		if jsonTag == "-" {
+			continue // Skip fields marked with json:"-"
+		}
+		
+		fieldName := field.Name
+		if jsonTag != "" {
+			// Handle json tags like "name,omitempty" - take only the name part
+			if commaIndex := strings.Index(jsonTag, ","); commaIndex != -1 {
+				fieldName = jsonTag[:commaIndex]
+			} else {
+				fieldName = jsonTag
+			}
+		}
+
+		// Generate schema for the field type
+		fieldSchema, err := quickSchema(field.Type)
+		if err != nil {
+			return nil, fmt.Errorf("generating schema for field %s: %w", field.Name, err)
+		}
+
+		schema.Properties[fieldName] = fieldSchema
+	}
+
+	return schema, nil
 }
