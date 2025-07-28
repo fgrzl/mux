@@ -49,11 +49,7 @@ type Router struct {
 // the prefix that will be add to all routes using this router (i.e. /api/v1)
 func (rtr *Router) NewRouteGroup(prefix string) *RouteGroup {
 	prefix = normalizeRoute(prefix, "/")
-	return &RouteGroup{
-		prefix:       prefix,
-		authProvider: rtr.authProvider,
-		registry:     rtr.registry,
-	}
+	return newRouteGroupBase(prefix, rtr.authProvider, rtr.registry)
 }
 
 // ServeHTTP implements http.Handler.

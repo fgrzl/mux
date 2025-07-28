@@ -127,31 +127,40 @@ func (rg *RouteGroup) Deprecated() *RouteGroup {
 
 // ---- Nested Group Creation ----
 
+// copyDefaults copies all default settings from source to target RouteGroup.
+func (target *RouteGroup) copyDefaults(source *RouteGroup) {
+	target.defaultParams = append([]*ParameterObject{}, source.defaultParams...)
+	target.defaultRoles = append([]string{}, source.defaultRoles...)
+	target.defaultScopes = append([]string{}, source.defaultScopes...)
+	target.defaultPermissions = append([]string{}, source.defaultPermissions...)
+	target.defaultTags = append([]string{}, source.defaultTags...)
+	target.defaultSecurity = append([]*SecurityRequirement{}, source.defaultSecurity...)
+	target.defaultSummary = source.defaultSummary
+	target.defaultDescription = source.defaultDescription
+	target.defaultAllowAnon = source.defaultAllowAnon
+	target.defaultDeprecated = source.defaultDeprecated
+}
+
+// newRouteGroupBase creates a new RouteGroup with basic initialization.
+func newRouteGroupBase(prefix string, authProvider AuthProvider, registry *RouteRegistry) *RouteGroup {
+	return &RouteGroup{
+		prefix:       prefix,
+		authProvider: authProvider,
+		registry:     registry,
+	}
+}
+
 // NewRouteGroup creates a new RouteGroup with an extended prefix and inherited defaults.
 // The new group inherits all defaults from the parent and uses the same registry and auth provider.
 func (rg *RouteGroup) NewRouteGroup(prefix string) *RouteGroup {
 	// Use the existing normalizeRoute function to properly join the prefixes
-	// This treats the new prefix as a route and parent prefix as the base prefix
 	extendedPrefix := normalizeRoute(prefix, rg.prefix)
 	
-	// Create new group with inherited properties
-	newGroup := &RouteGroup{
-		prefix:       extendedPrefix,
-		authProvider: rg.authProvider,
-		registry:     rg.registry,
-		
-		// Inherit all defaults by copying slices and values
-		defaultParams:      append([]*ParameterObject{}, rg.defaultParams...),
-		defaultRoles:       append([]string{}, rg.defaultRoles...),
-		defaultScopes:      append([]string{}, rg.defaultScopes...),
-		defaultPermissions: append([]string{}, rg.defaultPermissions...),
-		defaultTags:        append([]string{}, rg.defaultTags...),
-		defaultSecurity:    append([]*SecurityRequirement{}, rg.defaultSecurity...),
-		defaultSummary:     rg.defaultSummary,
-		defaultDescription: rg.defaultDescription,
-		defaultAllowAnon:   rg.defaultAllowAnon,
-		defaultDeprecated:  rg.defaultDeprecated,
-	}
+	// Create new group with basic initialization
+	newGroup := newRouteGroupBase(extendedPrefix, rg.authProvider, rg.registry)
+	
+	// Copy all defaults from parent
+	newGroup.copyDefaults(rg)
 	
 	return newGroup
 }
