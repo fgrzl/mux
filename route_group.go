@@ -125,6 +125,37 @@ func (rg *RouteGroup) Deprecated() *RouteGroup {
 	return rg
 }
 
+// ---- Nested Group Creation ----
+
+// Group creates a new RouteGroup with an extended prefix and inherited defaults.
+// The new group inherits all defaults from the parent and uses the same registry and auth provider.
+func (rg *RouteGroup) Group(prefix string) *RouteGroup {
+	// Use the existing normalizeRoute function to properly join the prefixes
+	// This treats the new prefix as a route and parent prefix as the base prefix
+	extendedPrefix := normalizeRoute(prefix, rg.prefix)
+	
+	// Create new group with inherited properties
+	newGroup := &RouteGroup{
+		prefix:       extendedPrefix,
+		authProvider: rg.authProvider,
+		registry:     rg.registry,
+		
+		// Inherit all defaults by copying slices and values
+		defaultParams:      append([]*ParameterObject{}, rg.defaultParams...),
+		defaultRoles:       append([]string{}, rg.defaultRoles...),
+		defaultScopes:      append([]string{}, rg.defaultScopes...),
+		defaultPermissions: append([]string{}, rg.defaultPermissions...),
+		defaultTags:        append([]string{}, rg.defaultTags...),
+		defaultSecurity:    append([]*SecurityRequirement{}, rg.defaultSecurity...),
+		defaultSummary:     rg.defaultSummary,
+		defaultDescription: rg.defaultDescription,
+		defaultAllowAnon:   rg.defaultAllowAnon,
+		defaultDeprecated:  rg.defaultDeprecated,
+	}
+	
+	return newGroup
+}
+
 // ---- Route Registration (Apply Defaults) ----
 
 // registerRoute registers a route with all group-level defaults applied.
