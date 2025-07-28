@@ -127,9 +127,9 @@ func (rg *RouteGroup) Deprecated() *RouteGroup {
 
 // ---- Nested Group Creation ----
 
-// Group creates a new RouteGroup with an extended prefix and inherited defaults.
+// NewRouteGroup creates a new RouteGroup with an extended prefix and inherited defaults.
 // The new group inherits all defaults from the parent and uses the same registry and auth provider.
-func (rg *RouteGroup) Group(prefix string) *RouteGroup {
+func (rg *RouteGroup) NewRouteGroup(prefix string) *RouteGroup {
 	// Use the existing normalizeRoute function to properly join the prefixes
 	// This treats the new prefix as a route and parent prefix as the base prefix
 	extendedPrefix := normalizeRoute(prefix, rg.prefix)

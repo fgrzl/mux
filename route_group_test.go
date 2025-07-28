@@ -15,7 +15,7 @@ func TestNestedRouteGroups(t *testing.T) {
 	
 	// Create a nested group structure: /api/v1
 	api := router.NewRouteGroup("/api")
-	v1 := api.Group("/v1")
+	v1 := api.NewRouteGroup("/v1")
 	
 	// Add a route to the nested group
 	v1.GET("/users", func(c *RouteContext) {
@@ -45,7 +45,7 @@ func TestNestedRouteGroupsInheritDefaults(t *testing.T) {
 		Deprecated()
 	
 	// Create nested group
-	v1 := api.Group("/v1")
+	v1 := api.NewRouteGroup("/v1")
 	
 	// Check that defaults are inherited
 	assert.Equal(t, "/api/v1", v1.prefix)
@@ -67,7 +67,7 @@ func TestNestedRouteGroupsIndependentDefaults(t *testing.T) {
 	api.WithTags("API")
 	
 	// Create nested group and add different defaults
-	v1 := api.Group("/v1")
+	v1 := api.NewRouteGroup("/v1")
 	v1.WithTags("V1")
 	
 	// Check that parent defaults are preserved and child defaults are added
@@ -80,8 +80,8 @@ func TestMultipleLevelsOfNesting(t *testing.T) {
 	
 	// Create multiple levels: /api/v1/users
 	api := router.NewRouteGroup("/api")
-	v1 := api.Group("/v1")
-	users := v1.Group("/users")
+	v1 := api.NewRouteGroup("/v1")
+	users := v1.NewRouteGroup("/users")
 	
 	// Add a route to the deeply nested group
 	users.GET("/profile", func(c *RouteContext) {
@@ -115,7 +115,7 @@ func TestNestedGroupsPrefixNormalization(t *testing.T) {
 	
 	for _, tc := range testCases {
 		parent := router.NewRouteGroup(tc.parentPrefix)
-		child := parent.Group(tc.childPrefix)
+		child := parent.NewRouteGroup(tc.childPrefix)
 		
 		assert.Equal(t, tc.expectedPath, child.prefix, 
 			"Parent: %s, Child: %s should result in: %s", 
@@ -133,7 +133,7 @@ func TestNestedGroupsWithParameters(t *testing.T) {
 		RequireRoles("admin")
 	
 	// Create nested group
-	v1 := api.Group("/v1")
+	v1 := api.NewRouteGroup("/v1")
 	
 	// Add route to nested group
 	v1.GET("/users", func(c *RouteContext) {
@@ -154,7 +154,7 @@ func TestExampleFromIssue(t *testing.T) {
 	router := NewRouter()
 	
 	api := router.NewRouteGroup("/api")
-	v1 := api.Group("/v1")
+	v1 := api.NewRouteGroup("/v1")
 	v1.GET("/users", func(c *RouteContext) {
 		c.OK("users endpoint")
 	})
