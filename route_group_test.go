@@ -9,33 +9,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNestedRouteGroups(t *testing.T) {
-	// Create a router
+func TestShouldCreateNestedRouteGroupsWhenCallingNewRouteGroup(t *testing.T) {
+	// Arrange: Create a router and nested group structure
 	router := NewRouter()
-	
-	// Create a nested group structure: /api/v1
 	api := router.NewRouteGroup("/api")
 	v1 := api.NewRouteGroup("/v1")
-	
-	// Add a route to the nested group
 	v1.GET("/users", func(c *RouteContext) {
 		c.OK("users")
 	})
 	
-	// Test that the route was registered with the correct path
+	// Act: Make request to the nested route
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/users", nil)
 	w := httptest.NewRecorder()
-	
 	router.ServeHTTP(w, req)
 	
+	// Assert: Route was registered with correct path and responds
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), "users")
 }
 
-func TestNestedRouteGroupsInheritDefaults(t *testing.T) {
+func TestShouldInheritDefaultsWhenCreatingNestedRouteGroup(t *testing.T) {
+	// Arrange: Create parent group with defaults
 	router := NewRouter()
-	
-	// Create parent group with defaults
 	api := router.NewRouteGroup("/api")
 	api.WithTags("API").
 		RequireRoles("user").
@@ -44,10 +39,10 @@ func TestNestedRouteGroupsInheritDefaults(t *testing.T) {
 		AllowAnonymous().
 		Deprecated()
 	
-	// Create nested group
+	// Act: Create nested group
 	v1 := api.NewRouteGroup("/v1")
 	
-	// Check that defaults are inherited
+	// Assert: All defaults are inherited
 	assert.Equal(t, "/api/v1", v1.prefix)
 	assert.Equal(t, api.authProvider, v1.authProvider)
 	assert.Equal(t, api.registry, v1.registry)
@@ -59,49 +54,44 @@ func TestNestedRouteGroupsInheritDefaults(t *testing.T) {
 	assert.Equal(t, api.defaultDeprecated, v1.defaultDeprecated)
 }
 
-func TestNestedRouteGroupsIndependentDefaults(t *testing.T) {
+func TestShouldMaintainIndependentDefaultsWhenModifyingNestedRouteGroup(t *testing.T) {
+	// Arrange: Create parent group with defaults
 	router := NewRouter()
-	
-	// Create parent group with defaults
 	api := router.NewRouteGroup("/api")
 	api.WithTags("API")
 	
-	// Create nested group and add different defaults
+	// Act: Create nested group and add different defaults
 	v1 := api.NewRouteGroup("/v1")
 	v1.WithTags("V1")
 	
-	// Check that parent defaults are preserved and child defaults are added
+	// Assert: Parent defaults are preserved and child defaults are added
 	assert.Equal(t, []string{"API"}, api.defaultTags)
 	assert.Equal(t, []string{"API", "V1"}, v1.defaultTags)
 }
 
-func TestMultipleLevelsOfNesting(t *testing.T) {
+func TestShouldSupportMultipleLevelsOfNestingWhenCreatingRouteGroups(t *testing.T) {
+	// Arrange: Create multiple levels of nesting
 	router := NewRouter()
-	
-	// Create multiple levels: /api/v1/users
 	api := router.NewRouteGroup("/api")
 	v1 := api.NewRouteGroup("/v1")
 	users := v1.NewRouteGroup("/users")
-	
-	// Add a route to the deeply nested group
 	users.GET("/profile", func(c *RouteContext) {
 		c.OK("profile")
 	})
 	
-	// Test that the route was registered with the correct path
+	// Act: Make request to deeply nested route
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/users/profile", nil)
 	w := httptest.NewRecorder()
-	
 	router.ServeHTTP(w, req)
 	
+	// Assert: Route was registered with correct path and responds
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), "profile")
 }
 
-func TestNestedGroupsPrefixNormalization(t *testing.T) {
+func TestShouldNormalizePrefixesWhenCreatingNestedRouteGroups(t *testing.T) {
+	// Arrange: Define test cases with various prefix formats
 	router := NewRouter()
-	
-	// Test various prefix formats
 	testCases := []struct {
 		parentPrefix string
 		childPrefix  string
@@ -113,6 +103,7 @@ func TestNestedGroupsPrefixNormalization(t *testing.T) {
 		{"api/", "v1/", "/api/v1/"}, // Fixed: trailing slash should be preserved
 	}
 	
+	// Act & Assert: Test each case
 	for _, tc := range testCases {
 		parent := router.NewRouteGroup(tc.parentPrefix)
 		child := parent.NewRouteGroup(tc.childPrefix)
@@ -123,48 +114,42 @@ func TestNestedGroupsPrefixNormalization(t *testing.T) {
 	}
 }
 
-func TestNestedGroupsWithParameters(t *testing.T) {
+func TestShouldInheritParametersWhenCreatingNestedRouteGroup(t *testing.T) {
+	// Arrange: Create parent group with parameters
 	router := NewRouter()
-	
-	// Create parent group with parameters
 	api := router.NewRouteGroup("/api")
 	api.WithPathParam("version", "v1").
 		WithQueryParam("limit", 10).
 		RequireRoles("admin")
 	
-	// Create nested group
+	// Act: Create nested group and add route
 	v1 := api.NewRouteGroup("/v1")
-	
-	// Add route to nested group
 	v1.GET("/users", func(c *RouteContext) {
 		c.OK("users")
 	})
 	
-	// Verify the route inherits parameters and defaults
+	// Assert: Route inherits parameters and defaults
 	options, _, found := router.registry.Load("/api/v1/users", http.MethodGet)
 	require.True(t, found, "Route should be registered")
-	
-	// Check inherited defaults
 	assert.Contains(t, options.Roles, "admin")
 	assert.Len(t, options.Operation.Parameters, 2) // version and limit params
 }
 
-func TestExampleFromIssue(t *testing.T) {
-	// Test the exact example from the issue
+func TestShouldWorkAsExpectedWhenUsingExampleFromIssue(t *testing.T) {
+	// Arrange: Set up the exact example from the issue
 	router := NewRouter()
-	
 	api := router.NewRouteGroup("/api")
 	v1 := api.NewRouteGroup("/v1")
 	v1.GET("/users", func(c *RouteContext) {
 		c.OK("users endpoint")
 	})
 	
-	// Test the resulting route
+	// Act: Make request to the route
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/users", nil)
 	w := httptest.NewRecorder()
-	
 	router.ServeHTTP(w, req)
 	
+	// Assert: Route works as expected
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), "users endpoint")
 }
