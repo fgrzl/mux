@@ -155,13 +155,13 @@ func newRouteGroupBase(prefix string, authProvider AuthProvider, registry *Route
 func (rg *RouteGroup) NewRouteGroup(prefix string) *RouteGroup {
 	// Use the existing normalizeRoute function to properly join the prefixes
 	extendedPrefix := normalizeRoute(prefix, rg.prefix)
-	
+
 	// Create new group with basic initialization
 	newGroup := newRouteGroupBase(extendedPrefix, rg.authProvider, rg.registry)
-	
+
 	// Copy all defaults from parent
 	newGroup.copyDefaults(rg)
-	
+
 	return newGroup
 }
 

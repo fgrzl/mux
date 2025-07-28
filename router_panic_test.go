@@ -151,11 +151,11 @@ func TestServeHTTP_NormalOperation_NotAffected(t *testing.T) {
 func TestServeHTTP_PanicInMiddleware(t *testing.T) {
 	// Arrange
 	router := NewRouter()
-	
+
 	// Add middleware that panics
 	panicMiddleware := &testPanicMiddleware{}
 	router.middleware = append(router.middleware, panicMiddleware)
-	
+
 	router.GET("/test", func(c *RouteContext) {
 		c.OK(map[string]string{"message": "should not reach here"})
 	})
@@ -172,11 +172,11 @@ func TestServeHTTP_PanicInMiddleware(t *testing.T) {
 
 	// Assert
 	assert.Equal(t, http.StatusInternalServerError, recorder.Code)
-	
+
 	var problemDetails ProblemDetails
 	err := json.Unmarshal(recorder.Body.Bytes(), &problemDetails)
 	require.NoError(t, err)
-	
+
 	assert.Equal(t, "Internal Server Error", problemDetails.Title)
 	assert.Equal(t, "An unexpected error occurred", problemDetails.Detail)
 }

@@ -63,13 +63,13 @@ func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if err := recover(); err != nil {
 			slog.Error("panic recovered in ServeHTTP", "error", err, "path", r.URL.Path, "method", r.Method)
-			
+
 			// Check if we're in development mode
 			env := os.Getenv("GO_ENV")
 			if env == "" {
 				env = os.Getenv("ENVIRONMENT")
 			}
-			
+
 			if env == "development" || env == "dev" {
 				// In development, provide detailed error information
 				c.ServerError("Panic Recovered", fmt.Sprintf("A panic occurred: %v", err))
