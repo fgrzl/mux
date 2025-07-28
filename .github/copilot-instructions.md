@@ -44,6 +44,8 @@ Welcome, Copilot. Please follow these instructions to ensure clean, idiomatic, a
 
 * All exported functions, methods, and types must have GoDoc-style comments.
 * Start comments with the name of the item being documented.
+* Maintain accurate documentation in the /docs directory
+* Ensure the main README.md provides clear, concise documentation to help new developers understand how to use the project effectively.
 
 ## 🩵 Logging
 
