@@ -28,7 +28,8 @@ type RouteContext struct {
 	Options  *RouteOptions
 	Params   RouteParams
 
-	services map[ServiceKey]any
+	services    map[ServiceKey]any
+	formsParsed bool
 }
 
 // SetService sets a service in the RouteContext.
