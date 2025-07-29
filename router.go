@@ -1,10 +1,8 @@
 package mux
 
 import (
-	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
 )
 
 func NewRouter(opts ...RouterOption) *Router {
@@ -62,27 +60,15 @@ func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Panic recovery
 	defer func() {
 		if err := recover(); err != nil {
-			slog.Error("panic recovered in ServeHTTP", "error", err, "path", r.URL.Path, "method", r.Method)
-
-			// Check if we're in development mode
-			env := os.Getenv("GO_ENV")
-			if env == "" {
-				env = os.Getenv("ENVIRONMENT")
-			}
-
-			if env == "development" || env == "dev" {
-				// In development, provide detailed error information
-				c.ServerError("Panic Recovered", fmt.Sprintf("A panic occurred: %v", err))
-			} else {
-				// In production, provide generic error message
-				c.ServerError("Internal Server Error", "An unexpected error occurred")
-			}
+			slog.ErrorContext(c, "panic recovered in ServeHTTP", "error", err, "path", r.URL.Path, "method", r.Method)
+			c.ServerError("Internal Server Error", "An unexpected error occurred")
 		}
 	}()
 
 	// lookup the route options using the pattern and method
 	options, params, ok := rtr.registry.Load(r.URL.Path, r.Method)
 	if !ok {
+		slog.DebugContext(c, "not found", "path", r.URL.Path, "method", r.Method)
 		c.NotFound()
 		return
 	}
