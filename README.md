@@ -187,6 +187,90 @@ router.PUT("/users/{id}", func(c *mux.RouteContext) {
   WithTags("Users")
 ```
 
+## Individual Parameter Access
+
+For more granular control, you can access individual parameters using type-safe helpers:
+
+### Query Parameters
+
+```go
+router.GET("/search", func(c *mux.RouteContext) {
+  // Basic string values
+  query, ok := c.QueryValue("q")
+  if !ok {
+    c.BadRequest("Missing query parameter")
+    return
+  }
+  
+  // Type-specific helpers
+  page, _ := c.QueryInt("page")           // defaults to 0 if not found/invalid
+  limit, _ := c.QueryInt("limit")
+  includeDeleted, _ := c.QueryBool("include_deleted")
+  userID, _ := c.QueryUUID("user_id")
+  
+  // Multiple values
+  tags, _ := c.QueryValues("tags")       // []string
+  categories, _ := c.QueryInts("categories") // []int
+  
+  c.OK(map[string]any{
+    "query": query,
+    "page": page,
+    "limit": limit,
+    "tags": tags,
+  })
+})
+```
+
+### Form Values (POST/PUT)
+
+Form parsing supports both `application/x-www-form-urlencoded` and `multipart/form-data` with lazy loading:
+
+```go
+router.POST("/users", func(c *mux.RouteContext) {
+  // Basic form values
+  name, ok := c.FormValue("name")
+  if !ok {
+    c.BadRequest("Missing name")
+    return
+  }
+  
+  // Type-specific helpers
+  age, _ := c.FormInt("age")
+  isActive, _ := c.FormBool("active")
+  userID, _ := c.FormUUID("user_id")
+  
+  // Multiple values (e.g., checkboxes)
+  interests, _ := c.FormValues("interests") // []string
+  scores, _ := c.FormInts("scores")         // []int
+  
+  c.OK(map[string]any{
+    "name": name,
+    "age": age,
+    "interests": interests,
+  })
+})
+```
+
+### Path Parameters
+
+```go
+router.GET("/users/{id}", func(c *mux.RouteContext) {
+  userID, ok := c.ParamUUID("id")
+  if !ok {
+    c.BadRequest("Invalid user ID")
+    return
+  }
+  c.OK(map[string]any{"id": userID})
+})
+```
+
+Available type helpers for Query, Form, and Param methods:
+- String: `Value()`, `Values()`
+- Integers: `Int()`, `Int16()`, `Int32()`, `Int64()`, `Ints()`, etc.
+- Floats: `Float32()`, `Float64()`, `Float32s()`, `Float64s()`
+- Boolean: `Bool()`, `Bools()`
+- UUID: `UUID()`, `UUIDs()`
+
 ## Authentication Example
 
 ```go
