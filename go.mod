@@ -3,7 +3,7 @@ module github.com/fgrzl/mux
 go 1.24.4
 
 require (
-	github.com/fgrzl/claims v0.0.1-alpha.15
+	github.com/fgrzl/claims v0.0.1-alpha.17
 	github.com/fgrzl/json v0.1.0-alpha.40
 	github.com/go-faker/faker/v4 v4.6.1
 	github.com/google/uuid v1.6.0
@@ -18,7 +18,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/golang-jwt/jwt/v5 v5.2.3 // indirect
+	github.com/golang-jwt/jwt/v5 v5.3.0 // indirect
 	github.com/oschwald/maxminddb-golang v1.13.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
