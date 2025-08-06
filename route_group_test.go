@@ -44,7 +44,6 @@ func TestShouldInheritDefaultsWhenCreatingNestedRouteGroup(t *testing.T) {
 
 	// Assert: All defaults are inherited
 	assert.Equal(t, "/api/v1", v1.prefix)
-	assert.Equal(t, api.authProvider, v1.authProvider)
 	assert.Equal(t, api.registry, v1.registry)
 	assert.Equal(t, api.defaultTags, v1.defaultTags)
 	assert.Equal(t, api.defaultRoles, v1.defaultRoles)

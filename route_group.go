@@ -12,9 +12,8 @@ import (
 
 // RouteGroup represents a group of routes with shared configuration and defaults.
 type RouteGroup struct {
-	prefix       string
-	authProvider AuthProvider
-	registry     *RouteRegistry
+	prefix   string
+	registry *RouteRegistry
 
 	// Group-level defaults:
 	defaultParams      []*ParameterObject
@@ -142,11 +141,10 @@ func (target *RouteGroup) copyDefaults(source *RouteGroup) {
 }
 
 // newRouteGroupBase creates a new RouteGroup with basic initialization.
-func newRouteGroupBase(prefix string, authProvider AuthProvider, registry *RouteRegistry) *RouteGroup {
+func newRouteGroupBase(prefix string, registry *RouteRegistry) *RouteGroup {
 	return &RouteGroup{
-		prefix:       prefix,
-		authProvider: authProvider,
-		registry:     registry,
+		prefix:   prefix,
+		registry: registry,
 	}
 }
 
@@ -157,7 +155,7 @@ func (rg *RouteGroup) NewRouteGroup(prefix string) *RouteGroup {
 	extendedPrefix := normalizeRoute(prefix, rg.prefix)
 
 	// Create new group with basic initialization
-	newGroup := newRouteGroupBase(extendedPrefix, rg.authProvider, rg.registry)
+	newGroup := newRouteGroupBase(extendedPrefix, rg.registry)
 
 	// Copy all defaults from parent
 	newGroup.copyDefaults(rg)
@@ -198,7 +196,6 @@ func (rg *RouteGroup) registerRoute(method, pattern string, handler HandlerFunc)
 		Permissions:    append([]string{}, rg.defaultPermissions...),
 		RateLimit:      0,
 		RateInterval:   0,
-		AuthProvider:   nil,
 		Operation:      op,
 	}
 

@@ -1,39 +1,54 @@
 package mux
 
 import (
+	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
-	"log/slog"
-
 	"github.com/fgrzl/claims"
 )
 
+// UseAuthentication adds authentication middleware to the router with the given options.
 func (r *Router) UseAuthentication(opts ...AuthOption) {
 	options := &AuthenticationOptions{}
+
 	for _, opt := range opts {
 		opt(options)
 	}
-	r.middleware = append(r.middleware, &authenticationMiddleware{options: options})
+
+	m := &authenticationMiddleware{
+		provider: &defaultTokenProvider{
+			ttl:        options.TokenTTL,
+			signFn:     options.CreateToken,
+			validateFn: options.Validate,
+		},
+	}
+
+	r.middleware = append(r.middleware, m)
 }
 
 // ---- Functional Options ----
 
+// AuthOption represents a functional option for configuring authentication middleware.
 type AuthOption func(*AuthenticationOptions)
 
+// WithTokenTTL sets the token time-to-live duration.
 func WithTokenTTL(ttl time.Duration) AuthOption {
 	return func(o *AuthenticationOptions) {
 		o.TokenTTL = ttl
 	}
 }
 
+// WithValidator sets the token validation function.
 func WithValidator(fn func(string) (claims.Principal, error)) AuthOption {
 	return func(o *AuthenticationOptions) {
 		o.Validate = fn
 	}
 }
 
+// WithTokenCreator sets the token creation function.
 func WithTokenCreator(fn func(claims.Principal, time.Duration) (string, error)) AuthOption {
 	return func(o *AuthenticationOptions) {
 		o.CreateToken = fn
@@ -42,78 +57,126 @@ func WithTokenCreator(fn func(claims.Principal, time.Duration) (string, error)) 
 
 // ---- Internal Types ----
 
+// AuthenticationOptions contains configuration options for authentication middleware.
 type AuthenticationOptions struct {
 	TokenTTL    time.Duration
 	Validate    func(string) (claims.Principal, error)
 	CreateToken func(claims.Principal, time.Duration) (string, error)
 }
 
-type authenticationMiddleware struct {
-	options *AuthenticationOptions
+// defaultTokenProvider handles token creation and validation.
+type defaultTokenProvider struct {
+	ttl        time.Duration
+	signFn     func(claims.Principal, time.Duration) (string, error)
+	validateFn func(string) (claims.Principal, error)
 }
 
-type SessionDetails struct {
-	IP        string
-	UserAgent string
-	CreatedAt time.Time
+// CreateToken creates a new token for the given user.
+func (p *defaultTokenProvider) CreateToken(c *RouteContext, user claims.Principal) (string, error) {
+	if p.signFn == nil {
+		return "", errors.New("signing function is not set")
+	}
+	return p.signFn(user, p.ttl)
+}
+
+// ValidateToken validates the given token and returns the principal.
+func (p *defaultTokenProvider) ValidateToken(token string) (claims.Principal, error) {
+	if p.validateFn == nil {
+		return nil, errors.New("validation function is not set")
+	}
+	return p.validateFn(token)
+}
+
+// authenticationMiddleware implements authentication middleware functionality.
+type authenticationMiddleware struct {
+	provider *defaultTokenProvider
 }
 
 // ---- Middleware Logic ----
 
+// Invoke implements the middleware interface for authentication.
 func (m *authenticationMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
+	c.SetService("token.provider", m.provider)
+
 	if c.Options.AllowAnonymous {
 		slog.DebugContext(c, "authentication skipped: anonymous access allowed")
 		next(c)
 		return
 	}
 
-	// 1. Check for cookie
-	if cookie, err := c.Request.Cookie(GetUserCookieName()); err == nil {
-		if principal, err := m.options.Validate(cookie.Value); err == nil {
-			userID := principal.Subject()
-			if userID == "" {
-				userID = "unknown"
-			}
-			slog.DebugContext(c, "authentication success via cookie", "user", userID)
-			c.User = principal
-			next(c)
-			m.extendSessionExpiration(c, cookie)
-			return
-		} else {
-			slog.WarnContext(c, "invalid session cookie", "error", err)
-		}
+	// Try cookie authentication first
+	if m.authenticateViaCookie(c) {
+		next(c)
+		return
 	}
 
-	// 2. Check bearer token
-	if token := extractBearerToken(c.Request); token != "" {
-		if principal, err := m.options.Validate(token); err == nil {
-			userID := principal.Subject()
-			if userID == "" {
-				userID = "unknown"
-			}
-			slog.DebugContext(c, "authentication success via bearer", "user", userID)
-			c.User = principal
-			next(c)
-			return
-		} else {
-			slog.WarnContext(c, "invalid bearer token", "error", err)
-		}
+	// Try bearer token authentication
+	if m.authenticateViaBearer(c) {
+		next(c)
+		return
 	}
 
-	// 3. Unauthorized
+	// No valid authentication found
 	slog.InfoContext(c, "authentication failed: no valid token found")
 	c.Unauthorized()
 }
 
+// authenticateViaCookie attempts to authenticate using session cookie.
+func (m *authenticationMiddleware) authenticateViaCookie(c *RouteContext) bool {
+	cookie, err := c.Request.Cookie(GetUserCookieName())
+	if err != nil {
+		return false
+	}
+
+	principal, err := m.provider.ValidateToken(cookie.Value)
+	if err != nil {
+		slog.WarnContext(c, "invalid session cookie", "error", err)
+		return false
+	}
+
+	m.setAuthenticatedUser(c, principal, "cookie")
+	m.extendSessionExpiration(c, cookie)
+	return true
+}
+
+// authenticateViaBearer attempts to authenticate using bearer token.
+func (m *authenticationMiddleware) authenticateViaBearer(c *RouteContext) bool {
+	token := extractBearerToken(c.Request)
+	if token == "" {
+		return false
+	}
+
+	principal, err := m.provider.ValidateToken(token)
+	if err != nil {
+		slog.WarnContext(c, "invalid bearer token", "error", err)
+		return false
+	}
+
+	m.setAuthenticatedUser(c, principal, "bearer")
+	return true
+}
+
+// setAuthenticatedUser sets the authenticated user and logs the success.
+func (m *authenticationMiddleware) setAuthenticatedUser(c *RouteContext, principal claims.Principal, method string) {
+	userID := principal.Subject()
+	if userID == "" {
+		userID = "unknown"
+	}
+
+	c.User = principal
+	slog.DebugContext(c, "authentication success", "method", method, "user", userID)
+}
+
+// extendSessionExpiration extends the session expiration time and renews the token if possible.
 func (m *authenticationMiddleware) extendSessionExpiration(c *RouteContext, cookie *http.Cookie) {
-	ttl := m.options.TokenTTL
-	if ttl <= 0 {
+	if m.provider.ttl <= 0 {
 		slog.DebugContext(c, "session extension skipped: TTL not set")
 		return
 	}
 
-	if m.options.CreateToken != nil {
-		if token, err := m.options.CreateToken(c.User, ttl); err == nil {
+	// Renew token if possible
+	if m.provider.signFn != nil {
+		if token, err := m.provider.CreateToken(c, c.User); err == nil {
 			cookie.Value = token
 			slog.DebugContext(c, "session token renewed", "user", c.User.Subject())
 		} else {
@@ -121,17 +184,24 @@ func (m *authenticationMiddleware) extendSessionExpiration(c *RouteContext, cook
 		}
 	}
 
-	cookie.Expires = time.Now().Add(ttl)
-	cookie.MaxAge = int(ttl.Seconds())
-	cookie.HttpOnly = true
-	cookie.SameSite = http.SameSiteLaxMode
-	cookie.Secure = c.Request.TLS != nil
-	cookie.Path = "/"
+	// Update cookie properties
+	m.updateCookieProperties(cookie, m.provider.ttl, c.Request.TLS != nil)
 
 	http.SetCookie(c.Response, cookie)
 	slog.DebugContext(c, "session cookie extended", "expires", cookie.Expires)
 }
 
+// updateCookieProperties updates cookie security properties.
+func (m *authenticationMiddleware) updateCookieProperties(cookie *http.Cookie, ttl time.Duration, isSecure bool) {
+	cookie.Expires = time.Now().Add(ttl)
+	cookie.MaxAge = int(ttl.Seconds())
+	cookie.HttpOnly = true
+	cookie.SameSite = http.SameSiteLaxMode
+	cookie.Secure = isSecure
+	cookie.Path = "/"
+}
+
+// extractBearerToken extracts the bearer token from the Authorization header.
 func extractBearerToken(r *http.Request) string {
 	auth := r.Header.Get("Authorization")
 	if strings.HasPrefix(auth, "Bearer ") {

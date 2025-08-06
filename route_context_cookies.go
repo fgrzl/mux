@@ -55,11 +55,17 @@ func (c *RouteContext) ClearCookie(name string) {
 
 // Authenticate creates a JWT token for the user and stores it in a secure cookie.
 func (c *RouteContext) Authenticate(cookieName string, user claims.Principal) {
-	if c.Options.AuthProvider == nil {
-		panic("a signer is required if using authentication")
+	service, ok := c.GetService("token.provider")
+	if !ok {
+		panic("the token provider is not available")
 	}
 
-	token, err := c.Options.AuthProvider.CreateToken(c, user)
+	provider, ok := service.(TokenProvider)
+	if !ok {
+		panic("the token provider is not valid")
+	}
+
+	token, err := provider.CreateToken(c, user)
 	if err != nil {
 		slog.ErrorContext(c, "failed to create token")
 		return
