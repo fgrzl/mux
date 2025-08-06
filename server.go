@@ -10,17 +10,20 @@ import (
 	"time"
 )
 
-// WebServerOption allows functional options for WebServer.
+// WebServerOption allows functional options to be passed to NewServer for configuring the WebServer.
 type WebServerOption func(*WebServer)
 
-// WebServer wraps an http.Server and your custom Router.
+// WebServer wraps an http.Server and a custom Router, providing methods for starting and stopping the server.
 type WebServer struct {
-	srv      *http.Server
-	router   *Router
-	certFile string
-	keyFile  string
+	srv      *http.Server // underlying HTTP server
+	router   *Router      // custom router
+	certFile string       // TLS certificate file path
+	keyFile  string       // TLS key file path
 }
 
+// WithTLS enables HTTPS for the WebServer using the provided certificate and key file paths.
+// certFile: path to the TLS certificate file
+// keyFile:  path to the TLS private key file
 func WithTLS(certFile, keyFile string) WebServerOption {
 	return func(ws *WebServer) {
 		ws.certFile = certFile
@@ -32,9 +35,11 @@ func WithTLS(certFile, keyFile string) WebServerOption {
 // and sets the certFile and keyFile fields on the WebServer to the discovered paths.
 // This allows for flexible certificate management in local development or deployment environments.
 //
-// certsDir: the directory name to search for (e.g., ".certs")
-// certFile: the certificate file name (e.g., "localhost.crt")
-// keyFile:  the key file name (e.g., "localhost.key")
+// Parameters:
+//
+//	certsDir: the directory name to search for (e.g., ".certs")
+//	certFile: the certificate file name (e.g., "localhost.crt")
+//	keyFile:  the key file name (e.g., "localhost.key")
 //
 // If the certs directory is not found, an error is logged and TLS will not be enabled.
 func WithTLSDiscovery(certsDir, certFile, keyFile string) WebServerOption {
@@ -66,7 +71,12 @@ func WithTLSDiscovery(certsDir, certFile, keyFile string) WebServerOption {
 
 }
 
-// NewServer sets up the HTTP server with sane timeouts and a mux Router.
+// NewServer creates a new WebServer with the given address, router, and optional configuration options.
+// It sets up the HTTP server with reasonable timeouts and attaches the provided router as the handler.
+//
+// addr:   the address to listen on (e.g., ":8080")
+// router: the router to use for handling requests
+// opts:   optional configuration options (e.g., TLS)
 func NewServer(addr string, router *Router, opts ...WebServerOption) *WebServer {
 	srv := &http.Server{
 		Addr:         addr,
@@ -83,6 +93,10 @@ func NewServer(addr string, router *Router, opts ...WebServerOption) *WebServer 
 }
 
 // Start runs the HTTP or HTTPS server in a goroutine and handles graceful shutdown.
+// It validates the server address, starts the server, and listens for context cancellation to trigger shutdown.
+//
+// ctx: context for cancellation and shutdown
+// Returns an error if the address is invalid or startup fails.
 func (ws *WebServer) Start(ctx context.Context) error {
 	// Validate address (optional)
 	if _, err := net.ResolveTCPAddr("tcp", ws.srv.Addr); err != nil {
@@ -126,7 +140,9 @@ func (ws *WebServer) Start(ctx context.Context) error {
 	return nil
 }
 
-// Stop shuts down the HTTP server gracefully.
+// Stop shuts down the HTTP server gracefully using the provided context.
+// ctx: context for controlling the shutdown timeout and cancellation
+// Returns an error if the shutdown fails.
 func (ws *WebServer) Stop(ctx context.Context) error {
 	return ws.srv.Shutdown(ctx)
 }
