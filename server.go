@@ -5,6 +5,8 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -19,12 +21,49 @@ type WebServer struct {
 	keyFile  string
 }
 
-// WithTLS enables HTTPS with the given cert and key file paths.
 func WithTLS(certFile, keyFile string) WebServerOption {
 	return func(ws *WebServer) {
 		ws.certFile = certFile
 		ws.keyFile = keyFile
 	}
+}
+
+// WithTLSDiscovery searches for a certs directory by walking up the directory tree (up to 10 levels),
+// and sets the certFile and keyFile fields on the WebServer to the discovered paths.
+// This allows for flexible certificate management in local development or deployment environments.
+//
+// certsDir: the directory name to search for (e.g., ".certs")
+// certFile: the certificate file name (e.g., "localhost.crt")
+// keyFile:  the key file name (e.g., "localhost.key")
+//
+// If the certs directory is not found, an error is logged and TLS will not be enabled.
+func WithTLSDiscovery(certsDir, certFile, keyFile string) WebServerOption {
+	return func(ws *WebServer) {
+		dir, err := os.Getwd()
+		if err != nil {
+			slog.Error("Could not get working directory for TLS discovery", "error", err)
+			return
+		}
+		found := false
+		for i := 0; i < 10; i++ {
+			certsPath := filepath.Join(dir, certsDir)
+			if stat, err := os.Stat(certsPath); err == nil && stat.IsDir() {
+				ws.certFile = filepath.Join(certsPath, certFile)
+				ws.keyFile = filepath.Join(certsPath, keyFile)
+				found = true
+				break
+			}
+			parent := filepath.Dir(dir)
+			if parent == dir {
+				break
+			}
+			dir = parent
+		}
+		if !found {
+			slog.Error("Could not find certs directory for TLS discovery", "searched_from", dir)
+		}
+	}
+
 }
 
 // NewServer sets up the HTTP server with sane timeouts and a mux Router.
@@ -53,8 +92,19 @@ func (ws *WebServer) Start(ctx context.Context) error {
 	go func() {
 		var err error
 		if ws.certFile != "" && ws.keyFile != "" {
+			// Check cert and key file existence before starting TLS
+			if _, errCert := os.Stat(ws.certFile); errCert != nil {
+				slog.Error("TLS cert file not found", "path", ws.certFile, "error", errCert)
+				return
+			}
+			if _, errKey := os.Stat(ws.keyFile); errKey != nil {
+				slog.Error("TLS key file not found", "path", ws.keyFile, "error", errKey)
+				return
+			}
+			slog.Info("Starting HTTPS server", "addr", ws.srv.Addr, "cert", ws.certFile, "key", ws.keyFile)
 			err = ws.srv.ListenAndServeTLS(ws.certFile, ws.keyFile)
 		} else {
+			slog.Info("Starting HTTP server", "addr", ws.srv.Addr)
 			err = ws.srv.ListenAndServe()
 		}
 		if err != nil && err != http.ErrServerClosed {
@@ -64,7 +114,13 @@ func (ws *WebServer) Start(ctx context.Context) error {
 
 	go func() {
 		<-ctx.Done()
-		_ = ws.Stop(context.Background())
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := ws.Stop(shutdownCtx); err != nil {
+			slog.Error("Error during server shutdown", "error", err)
+		} else {
+			slog.Info("Server shutdown complete")
+		}
 	}()
 
 	return nil
