@@ -15,6 +15,7 @@ import (
 
 var defaultProblem = &ProblemDetails{}
 
+// RouteBuilder provides a fluent interface for configuring HTTP routes with OpenAPI documentation.
 type RouteBuilder struct {
 	Options *RouteOptions
 }
