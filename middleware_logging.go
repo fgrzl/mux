@@ -8,10 +8,13 @@ import (
 
 // ---- Functional Options ----
 
+// LoggingOptions configures the logging middleware behavior.
 type LoggingOptions struct{}
 
+// LoggingOption is a function type for configuring logging options.
 type LoggingOption func(*LoggingOptions)
 
+// UseLogging adds structured request/response logging middleware.
 func (rtr *Router) UseLogging(opts ...LoggingOption) {
 	options := &LoggingOptions{}
 	for _, opt := range opts {
@@ -22,10 +25,12 @@ func (rtr *Router) UseLogging(opts ...LoggingOption) {
 
 // ---- Middleware ----
 
+// loggingMiddleware provides structured HTTP request/response logging.
 type loggingMiddleware struct {
 	options *LoggingOptions
 }
 
+// Invoke implements the Middleware interface, logging request details with structured logging.
 func (m *loggingMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
 	start := time.Now()
 	rec := &statusRecorder{ResponseWriter: c.Response}
@@ -45,11 +50,13 @@ func (m *loggingMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
 
 // ---- Helpers ----
 
+// statusRecorder wraps http.ResponseWriter to capture the response status code.
 type statusRecorder struct {
 	http.ResponseWriter
 	Status int
 }
 
+// WriteHeader captures the status code and forwards it to the underlying ResponseWriter.
 func (r *statusRecorder) WriteHeader(code int) {
 	r.Status = code
 	r.ResponseWriter.WriteHeader(code)

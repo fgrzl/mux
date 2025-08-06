@@ -32,10 +32,12 @@ func (rtr *Router) UseServices(opts ...ServiceSetterOption) {
 	rtr.middleware = append(rtr.middleware, &serviceSetterMiddleware{options: options})
 }
 
+// serviceSetterMiddleware implements middleware that injects services into the route context.
 type serviceSetterMiddleware struct {
 	options *ServiceSetterOptions
 }
 
+// Invoke implements the Middleware interface, setting services on the RouteContext.
 func (m *serviceSetterMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
 	if m.options == nil || m.options.Services == nil {
 		next(c)

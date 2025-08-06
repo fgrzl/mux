@@ -1,3 +1,5 @@
+// Package mux provides a lightweight, modular HTTP router for Go with middleware,
+// request binding, OpenAPI 3.1 generation, structured responses, and flexible auth support.
 package mux
 
 import (
@@ -5,6 +7,7 @@ import (
 	"net/http"
 )
 
+// NewRouter creates a new Router with the given options.
 func NewRouter(opts ...RouterOption) *Router {
 	options := &RouterOptions{}
 	for _, opt := range opts {
@@ -22,24 +25,30 @@ func NewRouter(opts ...RouterOption) *Router {
 	}
 }
 
+// APIOption is a generic function type for configuring API components.
 type APIOption[T any] = func(api T)
 
+// HandlerFunc defines the signature for HTTP request handlers.
 type HandlerFunc func(c *RouteContext)
 
+// RouteKey uniquely identifies a route by its HTTP method and pattern.
 type RouteKey struct {
 	Method  string
 	Pattern string
 }
 
+// Action represents an HTTP action with its method and handler.
 type Action struct {
 	Method  string
 	Handler HandlerFunc
 }
 
+// Middleware defines the interface for HTTP middleware components.
 type Middleware interface {
 	Invoke(ctx *RouteContext, next HandlerFunc)
 }
 
+// Router is the main HTTP router that handles routing and middleware execution.
 type Router struct {
 	RouteGroup
 	options      *RouterOptions
@@ -47,7 +56,8 @@ type Router struct {
 	middleware   []Middleware
 }
 
-// the prefix that will be add to all routes using this router (i.e. /api/v1)
+// NewRouteGroup creates a new route group with the specified prefix.
+// The prefix will be added to all routes using this router (e.g., /api/v1).
 func (rtr *Router) NewRouteGroup(prefix string) *RouteGroup {
 	prefix = normalizeRoute(prefix, "/")
 	return newRouteGroupBase(prefix, rtr.authProvider, rtr.registry)

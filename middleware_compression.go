@@ -10,10 +10,13 @@ import (
 
 // ---- Functional Options ----
 
+// CompressionOptions configures the compression middleware behavior.
 type CompressionOptions struct{}
 
+// CompressionOption is a function type for configuring compression options.
 type CompressionOption func(*CompressionOptions)
 
+// UseCompression adds response compression middleware that supports gzip and deflate encoding.
 func (rtr *Router) UseCompression(opts ...CompressionOption) {
 	options := &CompressionOptions{}
 	for _, opt := range opts {
@@ -24,27 +27,33 @@ func (rtr *Router) UseCompression(opts ...CompressionOption) {
 
 // ---- Middleware ----
 
+// compressionMiddleware handles response compression using gzip or deflate.
 type compressionMiddleware struct {
 	options *CompressionOptions
 }
 
+// compressionWriter wraps an http.ResponseWriter to provide compression.
 type compressionWriter struct {
 	w http.ResponseWriter
 	c io.WriteCloser
 }
 
+// Write implements io.Writer, writing compressed data to the underlying writer.
 func (cw *compressionWriter) Write(p []byte) (int, error) {
 	return cw.c.Write(p)
 }
 
+// Header returns the header map of the underlying ResponseWriter.
 func (cw *compressionWriter) Header() http.Header {
 	return cw.w.Header()
 }
 
+// WriteHeader sends an HTTP response header with the provided status code.
 func (cw *compressionWriter) WriteHeader(statusCode int) {
 	cw.w.WriteHeader(statusCode)
 }
 
+// Invoke implements the Middleware interface, applying compression based on Accept-Encoding headers.
 func (m *compressionMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
 	acceptEncoding := c.Request.Header.Get("Accept-Encoding")
 	if acceptEncoding == "" {
