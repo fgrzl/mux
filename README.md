@@ -196,12 +196,28 @@ router.Use(&CustomMiddleware{})
 
 ## Documentation
 
-For detailed documentation and advanced usage:
+Comprehensive documentation to help you build production-ready APIs:
 
+### 🚀 Getting Started
+- [**Installation Guide**](docs/installation.md) - Setup requirements and installation
+- [**Quick Start Tutorial**](docs/quick-start.md) - Build your first API in 10 steps
+- [**Examples**](examples/) - Working example applications
+
+### 📖 Core Documentation
 - [**Overview**](docs/overview.md) - Architecture and core concepts
 - [**Router**](docs/router.md) - Route definition and configuration
+- [**Built-in Middleware Guide**](docs/middleware.md) - Complete middleware reference
 - [**Authentication Middleware**](docs/authentication-middleware.md) - JWT auth setup
 - [**Custom Middleware**](docs/custom-middleware.md) - Building custom middleware
+
+### 📚 Advanced Topics
+- [**Best Practices Guide**](docs/best-practices.md) - Production-ready patterns and conventions
+- [**FAQ**](docs/faq.md) - Common questions and troubleshooting
+
+### 🎯 Quick Links
+- [API Reference](https://pkg.go.dev/github.com/fgrzl/mux) - Complete API documentation on pkg.go.dev
+- [Examples Directory](examples/) - Working code examples
+- [GitHub Issues](https://github.com/fgrzl/mux/issues) - Bug reports and feature requests
 
 ## OpenAPI Generation
 
