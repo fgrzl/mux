@@ -15,7 +15,7 @@ func TestShouldSetSingleServiceOnRouteContext(t *testing.T) {
 	// Arrange
 	service := &MockService{Name: "test-service"}
 	serviceKey := ServiceKey("testService")
-	
+
 	middleware := &serviceSetterMiddleware{
 		options: &ServiceSetterOptions{
 			Services: map[ServiceKey]any{
@@ -23,11 +23,11 @@ func TestShouldSetSingleServiceOnRouteContext(t *testing.T) {
 			},
 		},
 	}
-	
+
 	req := httptest.NewRequest("GET", "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	
+
 	nextCalled := false
 	next := func(c *RouteContext) {
 		nextCalled = true
@@ -50,7 +50,7 @@ func TestShouldSetMultipleServicesOnRouteContext(t *testing.T) {
 	service2 := &MockService{Name: "service2"}
 	serviceKey1 := ServiceKey("service1")
 	serviceKey2 := ServiceKey("service2")
-	
+
 	middleware := &serviceSetterMiddleware{
 		options: &ServiceSetterOptions{
 			Services: map[ServiceKey]any{
@@ -59,11 +59,11 @@ func TestShouldSetMultipleServicesOnRouteContext(t *testing.T) {
 			},
 		},
 	}
-	
+
 	req := httptest.NewRequest("GET", "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	
+
 	nextCalled := false
 	next := func(c *RouteContext) {
 		nextCalled = true
@@ -71,7 +71,7 @@ func TestShouldSetMultipleServicesOnRouteContext(t *testing.T) {
 		retrievedService1, ok1 := c.GetService(serviceKey1)
 		assert.True(t, ok1)
 		assert.Equal(t, service1, retrievedService1)
-		
+
 		retrievedService2, ok2 := c.GetService(serviceKey2)
 		assert.True(t, ok2)
 		assert.Equal(t, service2, retrievedService2)
@@ -87,11 +87,11 @@ func TestShouldSetMultipleServicesOnRouteContext(t *testing.T) {
 func TestShouldHandleNilOptionsGracefully(t *testing.T) {
 	// Arrange
 	middleware := &serviceSetterMiddleware{options: nil}
-	
+
 	req := httptest.NewRequest("GET", "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	
+
 	nextCalled := false
 	next := func(c *RouteContext) {
 		nextCalled = true
@@ -109,11 +109,11 @@ func TestShouldHandleEmptyServicesMapGracefully(t *testing.T) {
 	middleware := &serviceSetterMiddleware{
 		options: &ServiceSetterOptions{Services: nil},
 	}
-	
+
 	req := httptest.NewRequest("GET", "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	
+
 	nextCalled := false
 	next := func(c *RouteContext) {
 		nextCalled = true

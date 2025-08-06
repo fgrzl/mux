@@ -18,7 +18,7 @@ func TestShouldCompressResponseWithGzip(t *testing.T) {
 	req.Header.Set("Accept-Encoding", "gzip")
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	
+
 	response := "This is test response data that should be compressed"
 	next := func(c *RouteContext) {
 		c.Response.Write([]byte(response))
@@ -29,12 +29,12 @@ func TestShouldCompressResponseWithGzip(t *testing.T) {
 
 	// Assert
 	assert.Equal(t, "gzip", recorder.Header().Get("Content-Encoding"))
-	
+
 	// Decompress and verify content
 	reader, err := gzip.NewReader(recorder.Body)
 	require.NoError(t, err)
 	defer reader.Close()
-	
+
 	decompressed, err := io.ReadAll(reader)
 	require.NoError(t, err)
 	assert.Equal(t, response, string(decompressed))
@@ -47,7 +47,7 @@ func TestShouldCompressResponseWithDeflate(t *testing.T) {
 	req.Header.Set("Accept-Encoding", "deflate")
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	
+
 	response := "This is test response data that should be compressed with deflate"
 	next := func(c *RouteContext) {
 		c.Response.Write([]byte(response))
@@ -68,7 +68,7 @@ func TestShouldPreferGzipOverDeflate(t *testing.T) {
 	req.Header.Set("Accept-Encoding", "gzip, deflate")
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	
+
 	next := func(c *RouteContext) {
 		c.Response.Write([]byte("test"))
 	}
@@ -86,7 +86,7 @@ func TestShouldNotCompressWhenNoAcceptEncoding(t *testing.T) {
 	req := httptest.NewRequest("GET", "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	
+
 	response := "This response should not be compressed"
 	next := func(c *RouteContext) {
 		c.Response.Write([]byte(response))
@@ -107,7 +107,7 @@ func TestShouldNotCompressWhenUnsupportedEncoding(t *testing.T) {
 	req.Header.Set("Accept-Encoding", "br") // Brotli - not supported
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	
+
 	response := "This response should not be compressed"
 	next := func(c *RouteContext) {
 		c.Response.Write([]byte(response))
@@ -145,20 +145,20 @@ func TestCompressionWriterShouldImplementResponseWriter(t *testing.T) {
 
 	// Act & Assert
 	assert.Implements(t, (*http.ResponseWriter)(nil), writer)
-	
+
 	// Test Header method
 	writer.Header().Set("Test-Header", "test-value")
 	assert.Equal(t, "test-value", recorder.Header().Get("Test-Header"))
-	
+
 	// Test WriteHeader method
 	writer.WriteHeader(http.StatusAccepted)
 	assert.Equal(t, http.StatusAccepted, recorder.Code)
-	
+
 	// Test Write method
 	data := []byte("test data")
 	n, err := writer.Write(data)
 	assert.NoError(t, err)
 	assert.Equal(t, len(data), n)
-	
+
 	compressor.Close()
 }
