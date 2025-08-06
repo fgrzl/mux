@@ -80,7 +80,7 @@ func (p *defaultTokenProvider) CreateToken(c *RouteContext, user claims.Principa
 }
 
 // ValidateToken validates the given token and returns the principal.
-func (p *defaultTokenProvider) ValidateToken(token string) (claims.Principal, error) {
+func (p *defaultTokenProvider) ValidateToken(ctx *RouteContext, token string) (claims.Principal, error) {
 	if p.validateFn == nil {
 		return nil, errors.New("validation function is not set")
 	}
@@ -128,7 +128,7 @@ func (m *authenticationMiddleware) authenticateViaCookie(c *RouteContext) bool {
 		return false
 	}
 
-	principal, err := m.provider.ValidateToken(cookie.Value)
+	principal, err := m.provider.ValidateToken(c, cookie.Value)
 	if err != nil {
 		slog.WarnContext(c, "invalid session cookie", "error", err)
 		return false
@@ -146,7 +146,7 @@ func (m *authenticationMiddleware) authenticateViaBearer(c *RouteContext) bool {
 		return false
 	}
 
-	principal, err := m.provider.ValidateToken(token)
+	principal, err := m.provider.ValidateToken(c, token)
 	if err != nil {
 		slog.WarnContext(c, "invalid bearer token", "error", err)
 		return false
