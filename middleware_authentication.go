@@ -11,6 +11,7 @@ import (
 )
 
 // UseAuthentication adds authentication middleware to the router with the given options.
+// This middleware enforces authentication and provides token creation capabilities.
 func (r *Router) UseAuthentication(opts ...AuthOption) {
 	options := &AuthenticationOptions{}
 
@@ -18,12 +19,24 @@ func (r *Router) UseAuthentication(opts ...AuthOption) {
 		opt(options)
 	}
 
+	provider := &defaultTokenProvider{
+		ttl:        options.TokenTTL,
+		signFn:     options.CreateToken,
+		validateFn: options.Validate,
+	}
+
 	m := &authenticationMiddleware{
-		provider: &defaultTokenProvider{
-			ttl:        options.TokenTTL,
-			signFn:     options.CreateToken,
-			validateFn: options.Validate,
-		},
+		provider: provider,
+	}
+
+	r.middleware = append(r.middleware, m)
+}
+
+// UseAuthenticationWithProvider adds authentication middleware using a custom token provider.
+// This allows for more advanced token provider implementations.
+func (r *Router) UseAuthenticationWithProvider(provider TokenProvider) {
+	m := &authenticationMiddleware{
+		provider: provider,
 	}
 
 	r.middleware = append(r.middleware, m)
@@ -87,9 +100,19 @@ func (p *defaultTokenProvider) ValidateToken(ctx *RouteContext, token string) (c
 	return p.validateFn(token)
 }
 
+// GetTTL returns the token TTL for this provider.
+func (p *defaultTokenProvider) GetTTL() time.Duration {
+	return p.ttl
+}
+
+// CanCreateTokens returns true if this provider can create tokens.
+func (p *defaultTokenProvider) CanCreateTokens() bool {
+	return p.signFn != nil
+}
+
 // authenticationMiddleware implements authentication middleware functionality.
 type authenticationMiddleware struct {
-	provider *defaultTokenProvider
+	provider TokenProvider
 }
 
 // ---- Middleware Logic ----
@@ -169,13 +192,14 @@ func (m *authenticationMiddleware) setAuthenticatedUser(c *RouteContext, princip
 
 // extendSessionExpiration extends the session expiration time and renews the token if possible.
 func (m *authenticationMiddleware) extendSessionExpiration(c *RouteContext, cookie *http.Cookie) {
-	if m.provider.ttl <= 0 {
+	ttl := m.provider.GetTTL()
+	if ttl <= 0 {
 		slog.DebugContext(c, "session extension skipped: TTL not set")
 		return
 	}
 
 	// Renew token if possible
-	if m.provider.signFn != nil {
+	if m.provider.CanCreateTokens() {
 		if token, err := m.provider.CreateToken(c, c.User); err == nil {
 			cookie.Value = token
 			slog.DebugContext(c, "session token renewed", "user", c.User.Subject())
@@ -185,7 +209,7 @@ func (m *authenticationMiddleware) extendSessionExpiration(c *RouteContext, cook
 	}
 
 	// Update cookie properties
-	m.updateCookieProperties(cookie, m.provider.ttl, c.Request.TLS != nil)
+	m.updateCookieProperties(cookie, ttl, c.Request.TLS != nil)
 
 	http.SetCookie(c.Response, cookie)
 	slog.DebugContext(c, "session cookie extended", "expires", cookie.Expires)
