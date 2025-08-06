@@ -45,7 +45,7 @@ func TestShouldParseMultipartFormValues(t *testing.T) {
 	// Arrange
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
-	
+
 	writer.WriteField("name", "test")
 	writer.WriteField("age", "25")
 	writer.WriteField("tags", "tag1")
@@ -304,7 +304,7 @@ func TestShouldHandleLazyFormParsing(t *testing.T) {
 
 	// Act & Assert - first call should parse
 	assert.False(t, c.formsParsed)
-	
+
 	name1, ok1 := c.FormValue("name")
 	assert.True(t, c.formsParsed)
 	assert.True(t, ok1)
@@ -335,15 +335,15 @@ func TestShouldHandleMultipartFileField(t *testing.T) {
 	// Arrange
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
-	
+
 	// Add a regular field
 	writer.WriteField("name", "test")
-	
+
 	// Add a file field
 	fileWriter, err := writer.CreateFormFile("file", "test.txt")
 	require.NoError(t, err)
 	fileWriter.Write([]byte("file content"))
-	
+
 	writer.Close()
 
 	req := httptest.NewRequest(http.MethodPost, "/", &buf)

@@ -8,14 +8,27 @@ import (
 	"time"
 )
 
+// WebServerOption allows functional options for WebServer.
+type WebServerOption func(*WebServer)
+
 // WebServer wraps an http.Server and your custom Router.
 type WebServer struct {
-	srv    *http.Server
-	router *Router
+	srv      *http.Server
+	router   *Router
+	certFile string
+	keyFile  string
+}
+
+// WithTLS enables HTTPS with the given cert and key file paths.
+func WithTLS(certFile, keyFile string) WebServerOption {
+	return func(ws *WebServer) {
+		ws.certFile = certFile
+		ws.keyFile = keyFile
+	}
 }
 
 // NewServer sets up the HTTP server with sane timeouts and a mux Router.
-func NewServer(addr string, router *Router) *WebServer {
+func NewServer(addr string, router *Router, opts ...WebServerOption) *WebServer {
 	srv := &http.Server{
 		Addr:         addr,
 		Handler:      router,
@@ -23,10 +36,14 @@ func NewServer(addr string, router *Router) *WebServer {
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
-	return &WebServer{srv: srv, router: router}
+	ws := &WebServer{srv: srv, router: router}
+	for _, opt := range opts {
+		opt(ws)
+	}
+	return ws
 }
 
-// Start runs the HTTP server in a goroutine and handles graceful shutdown.
+// Start runs the HTTP or HTTPS server in a goroutine and handles graceful shutdown.
 func (ws *WebServer) Start(ctx context.Context) error {
 	// Validate address (optional)
 	if _, err := net.ResolveTCPAddr("tcp", ws.srv.Addr); err != nil {
@@ -34,7 +51,13 @@ func (ws *WebServer) Start(ctx context.Context) error {
 	}
 
 	go func() {
-		if err := ws.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		var err error
+		if ws.certFile != "" && ws.keyFile != "" {
+			err = ws.srv.ListenAndServeTLS(ws.certFile, ws.keyFile)
+		} else {
+			err = ws.srv.ListenAndServe()
+		}
+		if err != nil && err != http.ErrServerClosed {
 			slog.Error("HTTP server error", "error", err)
 		}
 	}()
