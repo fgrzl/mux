@@ -10,6 +10,7 @@ import (
 	"github.com/fgrzl/claims"
 )
 
+// NewRouteContext creates a new RouteContext from an HTTP request and response writer.
 func NewRouteContext(w http.ResponseWriter, r *http.Request) *RouteContext {
 	return &RouteContext{
 		Context:  r.Context(),
@@ -18,8 +19,11 @@ func NewRouteContext(w http.ResponseWriter, r *http.Request) *RouteContext {
 	}
 }
 
+// RouteParams represents path parameters extracted from the URL pattern.
 type RouteParams map[string]string
 
+// RouteContext provides context for handling HTTP requests, including access to
+// request/response objects, user authentication, route parameters, and services.
 type RouteContext struct {
 	context.Context
 	Response http.ResponseWriter
@@ -56,6 +60,8 @@ func (c *RouteContext) GetService(key ServiceKey) (any, bool) {
 	return svc, ok
 }
 
+// Bind collects input data from query parameters, request body, headers, and path parameters,
+// then binds them to the provided model struct. It supports JSON and form-encoded data.
 func (c *RouteContext) Bind(model any) error {
 	staging := make(map[string]any)
 
