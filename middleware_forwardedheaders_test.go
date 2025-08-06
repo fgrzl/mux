@@ -14,7 +14,7 @@ func TestShouldProcessXForwardedProtoHeader(t *testing.T) {
 	req.Header.Set("X-Forwarded-Proto", "https")
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	
+
 	nextCalled := false
 	next := func(c *RouteContext) {
 		nextCalled = true
@@ -35,7 +35,7 @@ func TestShouldProcessXForwardedForHeader(t *testing.T) {
 	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	
+
 	nextCalled := false
 	next := func(c *RouteContext) {
 		nextCalled = true
@@ -57,7 +57,7 @@ func TestShouldProcessBothForwardedHeaders(t *testing.T) {
 	req.Header.Set("X-Forwarded-For", "10.0.0.1")
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	
+
 	nextCalled := false
 	next := func(c *RouteContext) {
 		nextCalled = true
@@ -80,7 +80,7 @@ func TestShouldIgnoreEmptyForwardedHeaders(t *testing.T) {
 	originalRemoteAddr := req.RemoteAddr
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	
+
 	nextCalled := false
 	next := func(c *RouteContext) {
 		nextCalled = true

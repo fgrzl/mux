@@ -1,23 +1,10 @@
 package mux
 
-import (
-	"time"
-
-	"github.com/fgrzl/claims/jwtkit"
-)
-
 type RouterOptions struct {
-	authProvider AuthProvider
-	openapi      *InfoObject
+	openapi *InfoObject
 }
 
 type RouterOption func(*RouterOptions)
-
-func WithAuth(signer jwtkit.Signer, ttl *time.Duration) RouterOption {
-	return func(o *RouterOptions) {
-		o.authProvider = NewAuthProvider(signer, ttl)
-	}
-}
 
 func WithTitle(title string) RouterOption {
 	return func(o *RouterOptions) {

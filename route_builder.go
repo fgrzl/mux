@@ -38,7 +38,6 @@ type RouteOptions struct {
 	Permissions    []string
 	RateLimit      int
 	RateInterval   time.Duration
-	AuthProvider   AuthProvider
 
 	// ---- OpenAPI documentation ----
 	Operation

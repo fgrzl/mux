@@ -137,7 +137,7 @@ func TestShouldReturnOKWithData(t *testing.T) {
 	req := httptest.NewRequest("GET", "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	
+
 	data := map[string]string{"message": "success"}
 
 	// Act
@@ -154,7 +154,7 @@ func TestShouldReturnCreatedWithData(t *testing.T) {
 	req := httptest.NewRequest("POST", "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	
+
 	data := map[string]string{"id": "123", "name": "test"}
 
 	// Act
@@ -186,7 +186,7 @@ func TestShouldReturnAcceptWithData(t *testing.T) {
 	req := httptest.NewRequest("POST", "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	
+
 	data := map[string]string{"status": "processing"}
 
 	// Act

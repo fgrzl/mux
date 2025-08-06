@@ -87,12 +87,12 @@ func TestShouldReturnCustomIdpSessionCookieNameWhenSet(t *testing.T) {
 func TestShouldHandleConcurrentAccessToCookieNames(t *testing.T) {
 	// Arrange
 	customName := "concurrent_test_token"
-	
+
 	// Act & Assert - This test mainly ensures no data races occur
 	go func() {
 		SetAppSessionCookieName(customName)
 	}()
-	
+
 	go func() {
 		name := GetUserCookieName()
 		assert.NotEmpty(t, name)

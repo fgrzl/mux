@@ -16,12 +16,10 @@ func NewRouter(opts ...RouterOption) *Router {
 
 	return &Router{
 		RouteGroup: RouteGroup{
-			prefix:       "",
-			registry:     NewRouteRegistry(),
-			authProvider: options.authProvider,
+			prefix:   "",
+			registry: NewRouteRegistry(),
 		},
-		options:      options,
-		authProvider: options.authProvider,
+		options: options,
 	}
 }
 
@@ -51,16 +49,15 @@ type Middleware interface {
 // Router is the main HTTP router that handles routing and middleware execution.
 type Router struct {
 	RouteGroup
-	options      *RouterOptions
-	authProvider AuthProvider
-	middleware   []Middleware
+	options    *RouterOptions
+	middleware []Middleware
 }
 
 // NewRouteGroup creates a new route group with the specified prefix.
 // The prefix will be added to all routes using this router (e.g., /api/v1).
 func (rtr *Router) NewRouteGroup(prefix string) *RouteGroup {
 	prefix = normalizeRoute(prefix, "/")
-	return newRouteGroupBase(prefix, rtr.authProvider, rtr.registry)
+	return newRouteGroupBase(prefix, rtr.registry)
 }
 
 // ServeHTTP implements http.Handler.

@@ -54,18 +54,31 @@ func (c *RouteContext) ClearCookie(name string) {
 }
 
 // Authenticate creates a JWT token for the user and stores it in a secure cookie.
+// This method requires that authentication middleware has been added to the router using UseAuthentication().
 func (c *RouteContext) Authenticate(cookieName string, user claims.Principal) {
-	if c.Options.AuthProvider == nil {
-		panic("a signer is required if using authentication")
+	service, ok := c.GetService("token.provider")
+	if !ok {
+		panic("DEVELOPMENT ERROR: No token provider available. Did you forget to call router.UseAuthentication() before using c.Authenticate()?")
 	}
 
-	token, err := c.Options.AuthProvider.CreateToken(c, user)
+	provider, ok := service.(TokenProvider)
+	if !ok {
+		panic("DEVELOPMENT ERROR: Invalid token provider service. This indicates a bug in the authentication middleware.")
+	}
+
+	token, err := provider.CreateToken(c, user)
 	if err != nil {
-		slog.ErrorContext(c, "failed to create token")
+		slog.ErrorContext(c, "failed to create token", "error", err)
 		return
 	}
 
-	c.SetCookie(cookieName, token, 0, "/", "", true, true)
+	// Use the provider's TTL for the cookie if available
+	var maxAge int
+	if ttl := provider.GetTTL(); ttl > 0 {
+		maxAge = int(ttl.Seconds())
+	}
+
+	c.SetCookie(cookieName, token, maxAge, "/", "", true, true)
 }
 
 // SignIn authenticates the user and redirects to the given URL (or "/" by default).
