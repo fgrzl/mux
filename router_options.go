@@ -1,6 +1,9 @@
 package mux
 
-import "net/url"
+import (
+	"log/slog"
+	"net/url"
+)
 
 type RouterOptions struct {
 	openapi   *InfoObject
@@ -12,6 +15,19 @@ func (o *RouterOptions) SetClientURL(clientURL *url.URL) {
 }
 
 type RouterOption func(*RouterOptions)
+
+// WithClientURL parses the provided clientURL string and sets it on the WebServer.
+// If parsing fails, logs an error and does not set the clientURL.
+func WithClientURL(clientURL string) RouterOption {
+	return func(o *RouterOptions) {
+		u, err := url.Parse(clientURL)
+		if err != nil {
+			slog.Error("Invalid clientURL", "clientURL", clientURL, "error", err)
+			return
+		}
+		o.clientURL = u
+	}
+}
 
 func WithTitle(title string) RouterOption {
 	return func(o *RouterOptions) {

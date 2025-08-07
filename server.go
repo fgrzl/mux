@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"time"
@@ -20,8 +19,6 @@ type WebServer struct {
 	srv *http.Server
 	// custom router
 	router *Router
-	// clientURL
-	clientURL *url.URL
 	// TLS certificate file path
 	certFile string
 	// TLS key file path
@@ -74,19 +71,6 @@ func WithTLSDiscovery(certsDir, certFile, keyFile string) WebServerOption {
 		if !found {
 			slog.Error("Could not find certs directory for TLS discovery", "searched_from", dir)
 		}
-	}
-}
-
-// WithClientURL parses the provided clientURL string and sets it on the WebServer.
-// If parsing fails, logs an error and does not set the clientURL.
-func WithClientURL(clientURL string) WebServerOption {
-	return func(ws *WebServer) {
-		u, err := url.Parse(clientURL)
-		if err != nil {
-			slog.Error("Invalid clientURL", "clientURL", clientURL, "error", err)
-			return
-		}
-		ws.clientURL = u
 	}
 }
 
