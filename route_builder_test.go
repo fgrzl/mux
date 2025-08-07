@@ -513,12 +513,16 @@ func TestRegisterSchemaShouldAddCustomSchema(t *testing.T) {
 	// Arrange
 	type CustomType struct{}
 	customSchema := &Schema{Type: "string", Format: "custom"}
-	
-	// Act
-	RegisterSchema(reflect.TypeOf(CustomType{}), customSchema)
-	
+
+	typ := reflect.TypeOf(CustomType{})
+	RegisterSchema(typ, customSchema)
+	t.Cleanup(func() {
+		// Remove the custom schema from the registry to maintain test isolation
+		delete(schemaRegistry, typ)
+	})
+
 	// Assert
-	schema, err := quickSchema(reflect.TypeOf(CustomType{}))
+	schema, err := quickSchema(typ)
 	require.NoError(t, err)
 	assert.Equal(t, customSchema, schema)
 }
