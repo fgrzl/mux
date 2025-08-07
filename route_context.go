@@ -65,47 +65,80 @@ func (c *RouteContext) GetService(key ServiceKey) (any, bool) {
 func (c *RouteContext) Bind(model any) error {
 	staging := make(map[string]any)
 
-	switch c.Request.Method {
-	case http.MethodGet, http.MethodHead, http.MethodDelete:
-		for key, values := range c.Request.URL.Query() {
-			addToStaging(staging, key, values)
-		}
-	case http.MethodPut, http.MethodPost:
-		c.Request.Body = http.MaxBytesReader(c.Response, c.Request.Body, 1<<20) // 1MB max
-		ct := c.Request.Header.Get("Content-Type")
-		if ct == MimeFormURLEncoded {
-			if err := c.Request.ParseForm(); err != nil {
-				return err
-			}
-			for key, values := range c.Request.Form {
-				addToStaging(staging, key, values)
-			}
-		} else if strings.HasPrefix(ct, MimeJSON) {
-			bodyMap := make(map[string]any)
-			decoder := json.NewDecoder(c.Request.Body)
-			if err := decoder.Decode(&bodyMap); err != nil {
-				return err
-			}
-			for key, val := range bodyMap {
-				staging[key] = val
-			}
-		} else {
-			return errors.New("unsupported content type")
-		}
+	if err := c.collectRequestData(staging); err != nil {
+		return err
 	}
-
-	for key, headerValues := range c.Request.Header {
-		addToStaging(staging, key, headerValues)
-	}
-	for key, paramValue := range c.Params {
-		staging[key] = paramValue
-	}
+	c.collectHeaderData(staging)
+	c.collectParamsData(staging)
 
 	marshaledData, err := json.Marshal(staging)
 	if err != nil {
 		return err
 	}
 	return json.Unmarshal(marshaledData, model)
+}
+
+func (c *RouteContext) collectRequestData(staging map[string]any) error {
+	switch c.Request.Method {
+	case http.MethodGet, http.MethodHead, http.MethodDelete:
+		c.collectQueryParams(staging)
+	case http.MethodPut, http.MethodPost:
+		return c.collectBodyData(staging)
+	}
+	return nil
+}
+
+func (c *RouteContext) collectQueryParams(staging map[string]any) {
+	for key, values := range c.Request.URL.Query() {
+		addToStaging(staging, key, values)
+	}
+}
+
+func (c *RouteContext) collectBodyData(staging map[string]any) error {
+	c.Request.Body = http.MaxBytesReader(c.Response, c.Request.Body, 1<<20) // 1MB max
+	ct := c.Request.Header.Get(HeaderContentType)
+	switch {
+	case ct == MimeFormURLEncoded:
+		return c.collectFormData(staging)
+	case strings.HasPrefix(ct, MimeJSON):
+		return c.collectJSONBody(staging)
+	default:
+		return errors.New("unsupported content type")
+	}
+}
+
+func (c *RouteContext) collectFormData(staging map[string]any) error {
+	if err := c.Request.ParseForm(); err != nil {
+		return err
+	}
+	for key, values := range c.Request.Form {
+		addToStaging(staging, key, values)
+	}
+	return nil
+}
+
+func (c *RouteContext) collectJSONBody(staging map[string]any) error {
+	bodyMap := make(map[string]any)
+	decoder := json.NewDecoder(c.Request.Body)
+	if err := decoder.Decode(&bodyMap); err != nil {
+		return err
+	}
+	for key, val := range bodyMap {
+		staging[key] = val
+	}
+	return nil
+}
+
+func (c *RouteContext) collectHeaderData(staging map[string]any) {
+	for key, headerValues := range c.Request.Header {
+		addToStaging(staging, key, headerValues)
+	}
+}
+
+func (c *RouteContext) collectParamsData(staging map[string]any) {
+	for key, paramValue := range c.Params {
+		staging[key] = paramValue
+	}
 }
 
 func addToStaging(staging map[string]any, key string, values []string) {
