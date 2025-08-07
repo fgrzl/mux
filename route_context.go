@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/fgrzl/claims"
@@ -26,11 +27,12 @@ type RouteParams map[string]string
 // request/response objects, user authentication, route parameters, and services.
 type RouteContext struct {
 	context.Context
-	Response http.ResponseWriter
-	Request  *http.Request
-	User     claims.Principal
-	Options  *RouteOptions
-	Params   RouteParams
+	Response  http.ResponseWriter
+	Request   *http.Request
+	ClientURL *url.URL
+	User      claims.Principal
+	Options   *RouteOptions
+	Params    RouteParams
 
 	services    map[ServiceKey]any
 	formsParsed bool

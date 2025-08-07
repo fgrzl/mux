@@ -4,6 +4,7 @@ package mux
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"reflect"
 	"regexp"
 	"strings"
@@ -283,7 +284,7 @@ func validatePathParameters(path string, params []*ParameterObject) error {
 
 func getDefaultResponseCode(method string) string {
 	switch method {
-	case "post":
+	case http.MethodPost:
 		return "201"
 	case "delete":
 		return "204"

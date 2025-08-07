@@ -10,7 +10,7 @@ import (
 
 func TestShouldReturnServerErrorWithProblemDetails(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -27,7 +27,7 @@ func TestShouldReturnServerErrorWithProblemDetails(t *testing.T) {
 
 func TestShouldReturnServerErrorWithDefaultTitle(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -41,7 +41,7 @@ func TestShouldReturnServerErrorWithDefaultTitle(t *testing.T) {
 
 func TestShouldReturnBadRequestWithProblemDetails(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("POST", "/test", nil)
+	req := httptest.NewRequest(http.MethodPost, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -58,7 +58,7 @@ func TestShouldReturnBadRequestWithProblemDetails(t *testing.T) {
 
 func TestShouldReturnBadRequestWithDefaultTitle(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("POST", "/test", nil)
+	req := httptest.NewRequest(http.MethodPost, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -72,7 +72,7 @@ func TestShouldReturnBadRequestWithDefaultTitle(t *testing.T) {
 
 func TestShouldReturnConflictWithProblemDetails(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("PUT", "/test", nil)
+	req := httptest.NewRequest(http.MethodPut, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -89,7 +89,7 @@ func TestShouldReturnConflictWithProblemDetails(t *testing.T) {
 
 func TestShouldReturnUnauthorized(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/protected", nil)
+	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -104,7 +104,7 @@ func TestShouldReturnUnauthorized(t *testing.T) {
 
 func TestShouldReturnForbidden(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/admin", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -119,7 +119,7 @@ func TestShouldReturnForbidden(t *testing.T) {
 
 func TestShouldReturnNotFound(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/nonexistent", nil)
+	req := httptest.NewRequest(http.MethodGet, "/nonexistent", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -134,7 +134,7 @@ func TestShouldReturnNotFound(t *testing.T) {
 
 func TestShouldReturnOKWithData(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -151,7 +151,7 @@ func TestShouldReturnOKWithData(t *testing.T) {
 
 func TestShouldReturnCreatedWithData(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("POST", "/test", nil)
+	req := httptest.NewRequest(http.MethodPost, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -169,7 +169,7 @@ func TestShouldReturnCreatedWithData(t *testing.T) {
 
 func TestShouldReturnNoContent(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("DELETE", "/test/123", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/test/123", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -183,7 +183,7 @@ func TestShouldReturnNoContent(t *testing.T) {
 
 func TestShouldReturnAcceptWithData(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("POST", "/test", nil)
+	req := httptest.NewRequest(http.MethodPost, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 

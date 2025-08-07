@@ -2,6 +2,7 @@ package mux
 
 import (
 	"net"
+	"net/http"
 	"net/url"
 	"reflect"
 	"testing"
@@ -29,19 +30,19 @@ const (
 
 func TestShouldCreateRouteBuilder(t *testing.T) {
 	// Arrange & Act
-	builder := Route("GET", "/users")
+	builder := Route(http.MethodGet, "/users")
 
 	// Assert
 	assert.NotNil(t, builder)
 	assert.NotNil(t, builder.Options)
-	assert.Equal(t, "GET", builder.Options.Method)
+	assert.Equal(t, http.MethodGet, builder.Options.Method)
 	assert.Equal(t, "/users", builder.Options.Pattern)
 	assert.NotNil(t, builder.Options.Responses)
 }
 
 func TestShouldSetAllowAnonymous(t *testing.T) {
 	// Arrange
-	builder := Route("GET", "/public")
+	builder := Route(http.MethodGet, "/public")
 
 	// Act
 	result := builder.AllowAnonymous()
@@ -53,7 +54,7 @@ func TestShouldSetAllowAnonymous(t *testing.T) {
 
 func TestShouldSetRequiredPermissions(t *testing.T) {
 	// Arrange
-	builder := Route("GET", "/secure")
+	builder := Route(http.MethodGet, "/secure")
 	perms := []string{"read", "write"}
 
 	// Act
@@ -66,7 +67,7 @@ func TestShouldSetRequiredPermissions(t *testing.T) {
 
 func TestShouldSetRequiredRoles(t *testing.T) {
 	// Arrange
-	builder := Route("GET", "/admin")
+	builder := Route(http.MethodGet, "/admin")
 	roles := []string{"admin", "moderator"}
 
 	// Act
@@ -79,7 +80,7 @@ func TestShouldSetRequiredRoles(t *testing.T) {
 
 func TestShouldSetRequiredScopes(t *testing.T) {
 	// Arrange
-	builder := Route("GET", "/api")
+	builder := Route(http.MethodGet, "/api")
 	scopes := []string{"api:read", "api:write"}
 
 	// Act
@@ -92,7 +93,7 @@ func TestShouldSetRequiredScopes(t *testing.T) {
 
 func TestShouldSetRateLimit(t *testing.T) {
 	// Arrange
-	builder := Route("GET", "/limited")
+	builder := Route(http.MethodGet, "/limited")
 	limit := 100
 	interval := time.Minute
 
@@ -107,7 +108,7 @@ func TestShouldSetRateLimit(t *testing.T) {
 
 func TestShouldSetOperationID(t *testing.T) {
 	// Arrange
-	builder := Route("GET", "/users")
+	builder := Route(http.MethodGet, "/users")
 	opID := "getUsers"
 
 	// Act
@@ -120,7 +121,7 @@ func TestShouldSetOperationID(t *testing.T) {
 
 func TestShouldPanicOnInvalidOperationID(t *testing.T) {
 	// Arrange
-	builder := Route("GET", "/users")
+	builder := Route(http.MethodGet, "/users")
 
 	// Act & Assert
 	assert.Panics(t, func() {
@@ -130,7 +131,7 @@ func TestShouldPanicOnInvalidOperationID(t *testing.T) {
 
 func TestShouldAddPathParameter(t *testing.T) {
 	// Arrange
-	builder := Route("GET", "/users/{id}")
+	builder := Route(http.MethodGet, "/users/{id}")
 	example := "123"
 
 	// Act
@@ -148,7 +149,7 @@ func TestShouldAddPathParameter(t *testing.T) {
 
 func TestShouldAddQueryParameter(t *testing.T) {
 	// Arrange
-	builder := Route("GET", "/users")
+	builder := Route(http.MethodGet, "/users")
 	example := "10"
 
 	// Act
@@ -165,7 +166,7 @@ func TestShouldAddQueryParameter(t *testing.T) {
 
 func TestShouldAddRequiredQueryParameter(t *testing.T) {
 	// Arrange
-	builder := Route("GET", "/users")
+	builder := Route(http.MethodGet, "/users")
 	example := "active"
 
 	// Act
@@ -182,7 +183,7 @@ func TestShouldAddRequiredQueryParameter(t *testing.T) {
 
 func TestShouldAddHeaderParameter(t *testing.T) {
 	// Arrange
-	builder := Route("GET", "/users")
+	builder := Route(http.MethodGet, "/users")
 	example := MimeJSON
 
 	// Act
@@ -199,7 +200,7 @@ func TestShouldAddHeaderParameter(t *testing.T) {
 
 func TestShouldAddCookieParameter(t *testing.T) {
 	// Arrange
-	builder := Route("GET", "/users")
+	builder := Route(http.MethodGet, "/users")
 	example := "session123"
 
 	// Act
@@ -216,7 +217,7 @@ func TestShouldAddCookieParameter(t *testing.T) {
 
 func TestShouldPanicOnInvalidParameterIn(t *testing.T) {
 	// Arrange
-	builder := Route("GET", "/users")
+	builder := Route(http.MethodGet, "/users")
 
 	// Act & Assert
 	assert.Panics(t, func() {
@@ -226,7 +227,7 @@ func TestShouldPanicOnInvalidParameterIn(t *testing.T) {
 
 func TestShouldPanicOnEmptyParameterName(t *testing.T) {
 	// Arrange
-	builder := Route("GET", "/users")
+	builder := Route(http.MethodGet, "/users")
 
 	// Act & Assert
 	assert.Panics(t, func() {
@@ -236,7 +237,7 @@ func TestShouldPanicOnEmptyParameterName(t *testing.T) {
 
 func TestShouldAddResponse(t *testing.T) {
 	// Arrange
-	builder := Route("GET", "/users")
+	builder := Route(http.MethodGet, "/users")
 	example := struct {
 		Name string `json:"name"`
 	}{Name: "John"}
@@ -257,7 +258,7 @@ func TestShouldAddResponse(t *testing.T) {
 
 func TestShouldAddStandardResponses(t *testing.T) {
 	// Arrange
-	builder := Route("GET", "/users")
+	builder := Route(http.MethodGet, "/users")
 	example := []string{"user1", "user2"}
 
 	// Act
@@ -282,7 +283,7 @@ func TestShouldAddStandardResponses(t *testing.T) {
 
 func TestShouldAddJsonBody(t *testing.T) {
 	// Arrange
-	builder := Route("POST", "/users")
+	builder := Route(http.MethodPost, "/users")
 	example := struct {
 		Name  string `json:"name"`
 		Email string `json:"email"`
@@ -302,7 +303,7 @@ func TestShouldAddJsonBody(t *testing.T) {
 
 func TestShouldAddFormBody(t *testing.T) {
 	// Arrange
-	builder := Route("POST", "/users")
+	builder := Route(http.MethodPost, "/users")
 	example := struct {
 		Name  string `json:"name"`
 		Email string `json:"email"`
@@ -321,7 +322,7 @@ func TestShouldAddFormBody(t *testing.T) {
 
 func TestShouldAddMultipartBody(t *testing.T) {
 	// Arrange
-	builder := Route("POST", "/upload")
+	builder := Route(http.MethodPost, "/upload")
 	example := struct {
 		File string `json:"file"`
 	}{File: "test.txt"}
@@ -339,7 +340,7 @@ func TestShouldAddMultipartBody(t *testing.T) {
 
 func TestShouldSetSummary(t *testing.T) {
 	// Arrange
-	builder := Route("GET", "/users")
+	builder := Route(http.MethodGet, "/users")
 	summary := "Get all users"
 
 	// Act
@@ -352,7 +353,7 @@ func TestShouldSetSummary(t *testing.T) {
 
 func TestShouldSetDescription(t *testing.T) {
 	// Arrange
-	builder := Route("GET", "/users")
+	builder := Route(http.MethodGet, "/users")
 	description := "Retrieves a list of all users in the system"
 
 	// Act
@@ -365,7 +366,7 @@ func TestShouldSetDescription(t *testing.T) {
 
 func TestShouldAddTags(t *testing.T) {
 	// Arrange
-	builder := Route("GET", "/users")
+	builder := Route(http.MethodGet, "/users")
 	tags := []string{"users", "admin"}
 
 	// Act
@@ -378,7 +379,7 @@ func TestShouldAddTags(t *testing.T) {
 
 func TestShouldSetExternalDocs(t *testing.T) {
 	// Arrange
-	builder := Route("GET", "/users")
+	builder := Route(http.MethodGet, "/users")
 	url := "https://api.example.com/docs"
 	desc := "User API Documentation"
 
@@ -394,7 +395,7 @@ func TestShouldSetExternalDocs(t *testing.T) {
 
 func TestShouldAddSecurity(t *testing.T) {
 	// Arrange
-	builder := Route("GET", "/users")
+	builder := Route(http.MethodGet, "/users")
 	security := &SecurityRequirement{}
 
 	// Act
@@ -408,7 +409,7 @@ func TestShouldAddSecurity(t *testing.T) {
 
 func TestShouldSetDeprecated(t *testing.T) {
 	// Arrange
-	builder := Route("GET", "/old-endpoint")
+	builder := Route(http.MethodGet, "/old-endpoint")
 
 	// Act
 	result := builder.WithDeprecated()
@@ -544,7 +545,7 @@ func TestRegisterSchemaShouldAddCustomSchema(t *testing.T) {
 
 func TestShouldChainFluentMethods(t *testing.T) {
 	// Arrange & Act
-	builder := Route("GET", "/users/{id}").
+	builder := Route(http.MethodGet, "/users/{id}").
 		AllowAnonymous().
 		RequirePermission("read").
 		RequireRoles("user").

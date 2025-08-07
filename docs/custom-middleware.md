@@ -210,7 +210,7 @@ func (w *transactionResponseWriter) WriteHeader(statusCode int) {
 func TestTimingMiddleware(t *testing.T) {
     // Arrange
     middleware := &TimingMiddleware{}
-    req := httptest.NewRequest("GET", "/test", nil)
+    req := httptest.NewRequest(http.MethodGet, "/test", nil)
     recorder := httptest.NewRecorder()
     ctx := mux.NewRouteContext(recorder, req)
     

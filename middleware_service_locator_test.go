@@ -1,6 +1,7 @@
 package mux
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -24,7 +25,7 @@ func TestShouldSetSingleServiceOnRouteContext(t *testing.T) {
 		},
 	}
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -60,7 +61,7 @@ func TestShouldSetMultipleServicesOnRouteContext(t *testing.T) {
 		},
 	}
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -88,7 +89,7 @@ func TestShouldHandleNilOptionsGracefully(t *testing.T) {
 	// Arrange
 	middleware := &serviceSetterMiddleware{options: nil}
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -110,7 +111,7 @@ func TestShouldHandleEmptyServicesMapGracefully(t *testing.T) {
 		options: &ServiceSetterOptions{Services: nil},
 	}
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 

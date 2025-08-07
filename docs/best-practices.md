@@ -408,7 +408,7 @@ func TestCreateUser(t *testing.T) {
         t.Run(tt.name, func(t *testing.T) {
             tt.setupMock()
             
-            req := httptest.NewRequest("POST", "/users", strings.NewReader(tt.body))
+            req := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(tt.body))
             req.Header.Set("Content-Type", "application/json")
             rec := httptest.NewRecorder()
             
@@ -441,7 +441,7 @@ func TestUserAPIIntegration(t *testing.T) {
     t.Run("create and retrieve user", func(t *testing.T) {
         // Create user
         createBody := `{"name":"Jane Doe","email":"jane@example.com"}`
-        req := httptest.NewRequest("POST", "/api/v1/users", strings.NewReader(createBody))
+        req := httptest.NewRequest(http.MethodPost, "/api/v1/users", strings.NewReader(createBody))
         req.Header.Set("Content-Type", "application/json")
         rec := httptest.NewRecorder()
         
@@ -454,7 +454,7 @@ func TestUserAPIIntegration(t *testing.T) {
         require.NoError(t, err)
         
         // Retrieve user
-        req = httptest.NewRequest("GET", fmt.Sprintf("/api/v1/users/%s", user.ID), nil)
+        req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/users/%s", user.ID), nil)
         rec = httptest.NewRecorder()
         
         router.ServeHTTP(rec, req)

@@ -1,6 +1,7 @@
 package mux
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -10,7 +11,7 @@ import (
 
 func TestShouldReturnQueryValue(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test?name=john&age=25", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test?name=john&age=25", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -24,7 +25,7 @@ func TestShouldReturnQueryValue(t *testing.T) {
 
 func TestShouldReturnFalseForMissingQueryValue(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -37,7 +38,7 @@ func TestShouldReturnFalseForMissingQueryValue(t *testing.T) {
 
 func TestShouldReturnFirstQueryValueWhenMultiple(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test?tag=first&tag=second", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test?tag=first&tag=second", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -51,7 +52,7 @@ func TestShouldReturnFirstQueryValueWhenMultiple(t *testing.T) {
 
 func TestShouldReturnAllQueryValues(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test?tag=first&tag=second&tag=third", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test?tag=first&tag=second&tag=third", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -65,7 +66,7 @@ func TestShouldReturnAllQueryValues(t *testing.T) {
 
 func TestShouldReturnFalseForMissingQueryValues(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -79,7 +80,7 @@ func TestShouldReturnFalseForMissingQueryValues(t *testing.T) {
 func TestShouldParseValidQueryUUID(t *testing.T) {
 	// Arrange
 	testUUID := uuid.New()
-	req := httptest.NewRequest("GET", "/test?id="+testUUID.String(), nil)
+	req := httptest.NewRequest(http.MethodGet, "/test?id="+testUUID.String(), nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -93,7 +94,7 @@ func TestShouldParseValidQueryUUID(t *testing.T) {
 
 func TestShouldReturnFalseForInvalidQueryUUID(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test?id=invalid-uuid", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test?id=invalid-uuid", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -108,7 +109,7 @@ func TestShouldParseMultipleQueryUUIDs(t *testing.T) {
 	// Arrange
 	uuid1 := uuid.New()
 	uuid2 := uuid.New()
-	req := httptest.NewRequest("GET", "/test?ids="+uuid1.String()+"&ids="+uuid2.String(), nil)
+	req := httptest.NewRequest(http.MethodGet, "/test?ids="+uuid1.String()+"&ids="+uuid2.String(), nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -124,7 +125,7 @@ func TestShouldParseMultipleQueryUUIDs(t *testing.T) {
 
 func TestShouldReturnFalseForMissingQueryUUIDs(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -137,7 +138,7 @@ func TestShouldReturnFalseForMissingQueryUUIDs(t *testing.T) {
 
 func TestShouldParseValidQueryInt(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test?page=5&limit=10", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test?page=5&limit=10", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -151,7 +152,7 @@ func TestShouldParseValidQueryInt(t *testing.T) {
 
 func TestShouldReturnFalseForInvalidQueryInt(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test?page=invalid", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test?page=invalid", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -164,7 +165,7 @@ func TestShouldReturnFalseForInvalidQueryInt(t *testing.T) {
 
 func TestShouldParseMultipleQueryInts(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test?numbers=1&numbers=2&numbers=3", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test?numbers=1&numbers=2&numbers=3", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -178,7 +179,7 @@ func TestShouldParseMultipleQueryInts(t *testing.T) {
 
 func TestShouldParseValidQueryBool(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test?active=true&deleted=false", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test?active=true&deleted=false", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -192,7 +193,7 @@ func TestShouldParseValidQueryBool(t *testing.T) {
 
 func TestShouldReturnFalseForInvalidQueryBool(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test?active=maybe", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test?active=maybe", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -205,7 +206,7 @@ func TestShouldReturnFalseForInvalidQueryBool(t *testing.T) {
 
 func TestShouldParseQueryFloat32(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test?price=19.99", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test?price=19.99", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -219,7 +220,7 @@ func TestShouldParseQueryFloat32(t *testing.T) {
 
 func TestShouldParseQueryFloat64(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test?percentage=85.7653", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test?percentage=85.7653", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -233,7 +234,7 @@ func TestShouldParseQueryFloat64(t *testing.T) {
 
 func TestShouldReturnZeroForMissingQueryParameters(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 

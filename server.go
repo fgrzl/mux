@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"time"
@@ -15,10 +16,16 @@ type WebServerOption func(*WebServer)
 
 // WebServer wraps an http.Server and a custom Router, providing methods for starting and stopping the server.
 type WebServer struct {
-	srv      *http.Server // underlying HTTP server
-	router   *Router      // custom router
-	certFile string       // TLS certificate file path
-	keyFile  string       // TLS key file path
+	// underlying HTTP server
+	srv *http.Server
+	// custom router
+	router *Router
+	// clientURL
+	clientURL *url.URL
+	// TLS certificate file path
+	certFile string
+	// TLS key file path
+	keyFile string
 }
 
 // WithTLS enables HTTPS for the WebServer using the provided certificate and key file paths.
@@ -68,7 +75,19 @@ func WithTLSDiscovery(certsDir, certFile, keyFile string) WebServerOption {
 			slog.Error("Could not find certs directory for TLS discovery", "searched_from", dir)
 		}
 	}
+}
 
+// WithClientURL parses the provided clientURL string and sets it on the WebServer.
+// If parsing fails, logs an error and does not set the clientURL.
+func WithClientURL(clientURL string) WebServerOption {
+	return func(ws *WebServer) {
+		u, err := url.Parse(clientURL)
+		if err != nil {
+			slog.Error("Invalid clientURL", "clientURL", clientURL, "error", err)
+			return
+		}
+		ws.clientURL = u
+	}
 }
 
 // NewServer creates a new WebServer with the given address, router, and optional configuration options.

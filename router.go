@@ -62,6 +62,7 @@ func (rtr *Router) NewRouteGroup(prefix string) *RouteGroup {
 
 // ServeHTTP implements http.Handler.
 func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
 	c := NewRouteContext(w, r)
 
 	// Panic recovery
@@ -82,6 +83,7 @@ func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	c.Options = options
 	c.Params = params
+	c.ClientURL = rtr.options.clientURL
 
 	// start the pipeline
 	var next HandlerFunc

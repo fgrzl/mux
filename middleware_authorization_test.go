@@ -1,6 +1,7 @@
 package mux
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -126,7 +127,7 @@ func TestShouldAllowAccessWhenUserHasRequiredRole(t *testing.T) {
 		options: &AuthorizationOptions{},
 	}
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	ctx.User = &mockPrincipalForAuth{roles: []string{"admin", "user"}}
@@ -150,7 +151,7 @@ func TestShouldDenyAccessWhenUserLacksRequiredRole(t *testing.T) {
 		options: &AuthorizationOptions{},
 	}
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	ctx.User = &mockPrincipalForAuth{roles: []string{"user"}}
@@ -175,7 +176,7 @@ func TestShouldAllowAccessWhenUserHasRequiredScope(t *testing.T) {
 		options: &AuthorizationOptions{},
 	}
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	ctx.User = &mockPrincipalForAuth{scopes: []string{"api:read", "api:write"}}
@@ -199,7 +200,7 @@ func TestShouldDenyAccessWhenUserLacksRequiredScope(t *testing.T) {
 		options: &AuthorizationOptions{},
 	}
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	ctx.User = &mockPrincipalForAuth{scopes: []string{"api:write"}}
@@ -232,7 +233,7 @@ func TestShouldUseCustomRoleChecker(t *testing.T) {
 		},
 	}
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	ctx.User = &mockPrincipalForAuth{roles: []string{"user"}}
@@ -265,7 +266,7 @@ func TestShouldUseCustomScopeChecker(t *testing.T) {
 		},
 	}
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	ctx.User = &mockPrincipalForAuth{scopes: []string{"api:read"}}
@@ -290,7 +291,7 @@ func TestShouldAllowAccessWhenNoRolesRequired(t *testing.T) {
 		options: &AuthorizationOptions{},
 	}
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	ctx.User = &mockPrincipalForAuth{}
@@ -314,7 +315,7 @@ func TestShouldAllowAccessWhenNoScopesRequired(t *testing.T) {
 		options: &AuthorizationOptions{},
 	}
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	ctx.User = &mockPrincipalForAuth{}
@@ -404,7 +405,7 @@ func TestShouldHandlePermissionCheckingWithCustomChecker(t *testing.T) {
 		},
 	}
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	ctx.User = &mockPrincipalForAuth{}
