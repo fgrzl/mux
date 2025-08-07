@@ -117,7 +117,7 @@ func TestShouldBindFromQueryParameters(t *testing.T) {
 	req := httptest.NewRequest("GET", "/test?name=John&age=30", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
-	
+
 	var result struct {
 		Name string `json:"name"`
 		Age  string `json:"age"` // Use string since query params are strings
@@ -139,7 +139,7 @@ func TestShouldBindFromJSONBody(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
-	
+
 	var result struct {
 		Name string `json:"name"`
 		Age  int    `json:"age"`
@@ -163,7 +163,7 @@ func TestShouldBindFromFormData(t *testing.T) {
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
-	
+
 	var result struct {
 		Name string `json:"name"`
 		Age  string `json:"age"` // Use string since form data are strings
@@ -185,7 +185,7 @@ func TestShouldBindFromHeaders(t *testing.T) {
 	req.Header.Set("X-User-Name", "John")
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
-	
+
 	var result struct {
 		UserID   string `json:"X-User-ID"`
 		UserName string `json:"X-User-Name"`
@@ -206,7 +206,7 @@ func TestShouldBindFromRouteParams(t *testing.T) {
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	ctx.Params = RouteParams{"id": "123", "name": "John"}
-	
+
 	var result struct {
 		ID   string `json:"id"`
 		Name string `json:"name"`
@@ -227,7 +227,7 @@ func TestShouldReturnErrorForUnsupportedContentType(t *testing.T) {
 	req.Header.Set("Content-Type", "text/plain")
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
-	
+
 	var result struct{}
 
 	// Act
@@ -244,7 +244,7 @@ func TestShouldReturnErrorForInvalidJSON(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
-	
+
 	var result struct{}
 
 	// Act
@@ -338,7 +338,7 @@ func TestShouldHandleEmptyParams(t *testing.T) {
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	ctx.Params = nil
-	
+
 	var result struct {
 		Name string `json:"name"`
 	}
@@ -371,7 +371,7 @@ func TestShouldBindComplexData(t *testing.T) {
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	ctx.Params = RouteParams{"id": "123"}
-	
+
 	var result struct {
 		ID   string   `json:"id"`
 		User string   `json:"user"`
@@ -395,15 +395,15 @@ func TestShouldBindWithMaxBytesLimit(t *testing.T) {
 	for i := 0; i < 50000; i++ {
 		largePayload[string(rune(i))] = strings.Repeat("x", 30)
 	}
-	
+
 	jsonData, err := json.Marshal(largePayload)
 	require.NoError(t, err)
-	
+
 	req := httptest.NewRequest("POST", "/test", bytes.NewReader(jsonData))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
-	
+
 	var result map[string]string
 
 	// Act

@@ -12,10 +12,10 @@ import (
 
 // mockTokenProvider implements TokenProvider for testing
 type mockTokenProvider struct {
-	createTokenFunc    func(ctx *RouteContext, principal claims.Principal) (string, error)
-	validateTokenFunc  func(ctx *RouteContext, token string) (claims.Principal, error)
-	ttl                time.Duration
-	canCreateTokens    bool
+	createTokenFunc   func(ctx *RouteContext, principal claims.Principal) (string, error)
+	validateTokenFunc func(ctx *RouteContext, token string) (claims.Principal, error)
+	ttl               time.Duration
+	canCreateTokens   bool
 }
 
 func (m *mockTokenProvider) CreateToken(ctx *RouteContext, principal claims.Principal) (string, error) {
@@ -283,7 +283,7 @@ func TestTokenProviderShouldBeUsableInRouteContext(t *testing.T) {
 	// Assert
 	assert.True(t, exists)
 	assert.Equal(t, provider, retrieved)
-	
+
 	// Verify it's still usable as TokenProvider interface
 	if tp, ok := retrieved.(TokenProvider); ok {
 		assert.Equal(t, time.Minute*30, tp.GetTTL())

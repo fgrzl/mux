@@ -12,6 +12,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	paramID         = "id"
+	paramLimit      = "limit"
+	paramStatus     = "status"
+	paramAccept     = "Accept"
+	paramSessionID  = "sessionId"
+	queryIn         = "query"
+	pathIn          = "path"
+	headerIn        = "header"
+	cookieIn        = "cookie"
+	applicationJSON = "application/json"
+	formURLEncoded  = "application/x-www-form-urlencoded"
+	multipartForm   = "multipart/form-data"
+)
+
 func TestShouldCreateRouteBuilder(t *testing.T) {
 	// Arrange & Act
 	builder := Route("GET", "/users")
@@ -168,10 +183,10 @@ func TestShouldAddRequiredQueryParameter(t *testing.T) {
 func TestShouldAddHeaderParameter(t *testing.T) {
 	// Arrange
 	builder := Route("GET", "/users")
-	example := "application/json"
+	example := MimeJSON
 
 	// Act
-	result := builder.WithHeaderParam("Accept", example, true)
+	result := builder.WithHeaderParam(paramAccept, example, true)
 
 	// Assert
 	assert.Equal(t, builder, result)
@@ -235,7 +250,7 @@ func TestShouldAddResponse(t *testing.T) {
 	assert.True(t, exists)
 	assert.NotNil(t, response)
 	assert.NotNil(t, response.Content)
-	mediaType := response.Content["application/json"]
+	mediaType := response.Content[MimeJSON]
 	assert.NotNil(t, mediaType)
 	assert.Equal(t, example, mediaType.Example)
 }
@@ -280,7 +295,7 @@ func TestShouldAddJsonBody(t *testing.T) {
 	assert.Equal(t, builder, result)
 	assert.NotNil(t, builder.Options.RequestBody)
 	assert.True(t, builder.Options.RequestBody.Required)
-	mediaType := builder.Options.RequestBody.Content["application/json"]
+	mediaType := builder.Options.RequestBody.Content[MimeJSON]
 	assert.NotNil(t, mediaType)
 	assert.Equal(t, example, mediaType.Example)
 }
@@ -299,7 +314,7 @@ func TestShouldAddFormBody(t *testing.T) {
 	// Assert
 	assert.Equal(t, builder, result)
 	assert.NotNil(t, builder.Options.RequestBody)
-	mediaType := builder.Options.RequestBody.Content["application/x-www-form-urlencoded"]
+	mediaType := builder.Options.RequestBody.Content[MimeFormURLEncoded]
 	assert.NotNil(t, mediaType)
 	assert.Equal(t, example, mediaType.Example)
 }
@@ -317,7 +332,7 @@ func TestShouldAddMultipartBody(t *testing.T) {
 	// Assert
 	assert.Equal(t, builder, result)
 	assert.NotNil(t, builder.Options.RequestBody)
-	mediaType := builder.Options.RequestBody.Content["multipart/form-data"]
+	mediaType := builder.Options.RequestBody.Content[MimeMultipartFormData]
 	assert.NotNil(t, mediaType)
 	assert.Equal(t, example, mediaType.Example)
 }
@@ -518,7 +533,7 @@ func TestRegisterSchemaShouldAddCustomSchema(t *testing.T) {
 	RegisterSchema(typ, customSchema)
 	t.Cleanup(func() {
 		// Remove the custom schema from the registry to maintain test isolation
-		delete(schemaRegistry, typ)
+		removeSchema(typ)
 	})
 
 	// Assert

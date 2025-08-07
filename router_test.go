@@ -70,7 +70,7 @@ func TestShouldServeHTTPAndCallRegisteredHandler(t *testing.T) {
 		called = true
 		c.OK("success")
 	})
-	
+
 	req := httptest.NewRequest("GET", "/test", nil)
 	rec := httptest.NewRecorder()
 
@@ -86,7 +86,7 @@ func TestShouldServeHTTPWithMiddleware(t *testing.T) {
 	// Arrange
 	router := NewRouter()
 	middlewareExecuted := false
-	
+
 	// Add middleware
 	router.middleware = append(router.middleware, &testMiddleware{
 		invoke: func(c *RouteContext, next HandlerFunc) {
@@ -94,13 +94,13 @@ func TestShouldServeHTTPWithMiddleware(t *testing.T) {
 			next(c)
 		},
 	})
-	
+
 	handlerExecuted := false
 	router.GET("/test", func(c *RouteContext) {
 		handlerExecuted = true
 		c.OK("success")
 	})
-	
+
 	req := httptest.NewRequest("GET", "/test", nil)
 	rec := httptest.NewRecorder()
 
@@ -121,7 +121,7 @@ func TestShouldSetRouteParamsInContext(t *testing.T) {
 		receivedParams = c.Params
 		c.OK("success")
 	})
-	
+
 	req := httptest.NewRequest("GET", "/users/123", nil)
 	rec := httptest.NewRecorder()
 
@@ -138,7 +138,7 @@ func TestShouldExecuteMiddlewareInCorrectOrder(t *testing.T) {
 	// Arrange
 	router := NewRouter()
 	executionOrder := []int{}
-	
+
 	// Add middleware in order
 	router.middleware = append(router.middleware, &testMiddleware{
 		invoke: func(c *RouteContext, next HandlerFunc) {
@@ -152,12 +152,12 @@ func TestShouldExecuteMiddlewareInCorrectOrder(t *testing.T) {
 			next(c)
 		},
 	})
-	
+
 	router.GET("/test", func(c *RouteContext) {
 		executionOrder = append(executionOrder, 3)
 		c.OK("success")
 	})
-	
+
 	req := httptest.NewRequest("GET", "/test", nil)
 	rec := httptest.NewRecorder()
 
@@ -174,7 +174,7 @@ func TestShouldStopMiddlewareChainWhenNotContinuing(t *testing.T) {
 	router := NewRouter()
 	middlewareExecuted := false
 	handlerExecuted := false
-	
+
 	// Add middleware that doesn't call next
 	router.middleware = append(router.middleware, &testMiddleware{
 		invoke: func(c *RouteContext, next HandlerFunc) {
@@ -183,12 +183,12 @@ func TestShouldStopMiddlewareChainWhenNotContinuing(t *testing.T) {
 			// Don't call next(c)
 		},
 	})
-	
+
 	router.GET("/test", func(c *RouteContext) {
 		handlerExecuted = true
 		c.OK("success")
 	})
-	
+
 	req := httptest.NewRequest("GET", "/test", nil)
 	rec := httptest.NewRecorder()
 

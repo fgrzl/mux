@@ -57,15 +57,15 @@ func TestShouldCreateOtelMiddlewareWithDefaultOperation(t *testing.T) {
 func TestShouldInvokeNextWithOpenTelemetryTracing(t *testing.T) {
 	// Arrange
 	middleware := &otelMiddleware{operation: "test-operation"}
-	
+
 	req := httptest.NewRequest("GET", "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
-	
+
 	nextCalled := false
 	requestUpdated := false
 	responseUpdated := false
-	
+
 	next := func(c *RouteContext) {
 		nextCalled = true
 		// Check if context was properly updated
@@ -112,7 +112,7 @@ func TestShouldSetDefaultOperationWhenNoneProvided(t *testing.T) {
 	// Assert
 	// The middleware should be created with default operation "http.server"
 	assert.Len(t, router.middleware, 1)
-	
+
 	// We can't easily access the internal operation without reflection,
 	// but we verified that the default is set in the UseOpenTelemetry method
 }
@@ -123,7 +123,7 @@ func TestWithOperationShouldCreateValidOption(t *testing.T) {
 
 	// Act
 	option := WithOperation(operationName)
-	
+
 	// Test the option by applying it
 	options := &OpenTelemetryOptions{}
 	option(options)
@@ -146,16 +146,16 @@ func TestShouldCreateOtelMiddlewareWithCustomOperation(t *testing.T) {
 func TestShouldInvokeWithDifferentHTTPMethods(t *testing.T) {
 	// Test that the middleware works with different HTTP methods
 	methods := []string{"GET", "POST", "PUT", "DELETE", "PATCH"}
-	
+
 	for _, method := range methods {
 		t.Run(method, func(t *testing.T) {
 			// Arrange
 			middleware := &otelMiddleware{operation: "test"}
-			
+
 			req := httptest.NewRequest(method, "/test", nil)
 			rec := httptest.NewRecorder()
 			ctx := NewRouteContext(rec, req)
-			
+
 			called := false
 			next := func(c *RouteContext) {
 				called = true
@@ -174,15 +174,15 @@ func TestShouldInvokeWithDifferentHTTPMethods(t *testing.T) {
 func TestShouldWorkWithComplexRouteContext(t *testing.T) {
 	// Arrange
 	middleware := &otelMiddleware{operation: "complex-test"}
-	
+
 	req := httptest.NewRequest("POST", "/api/users/123", nil)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer token123")
-	
+
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	ctx.Params = RouteParams{"id": "123"}
-	
+
 	nextCalled := false
 	next := func(c *RouteContext) {
 		nextCalled = true

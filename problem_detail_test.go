@@ -61,11 +61,11 @@ func TestShouldSerializeProblemDetailsToJSON(t *testing.T) {
 
 	// Assert
 	require.NoError(t, err)
-	
+
 	var result map[string]interface{}
 	err = json.Unmarshal(jsonData, &result)
 	require.NoError(t, err)
-	
+
 	assert.Equal(t, "https://example.com/problems/not-found", result["type"])
 	assert.Equal(t, "User Not Found", result["title"])
 	assert.Equal(t, float64(404), result["status"]) // JSON numbers are float64
@@ -87,11 +87,11 @@ func TestShouldSerializeProblemDetailsWithoutInstanceToJSON(t *testing.T) {
 
 	// Assert
 	require.NoError(t, err)
-	
+
 	var result map[string]interface{}
 	err = json.Unmarshal(jsonData, &result)
 	require.NoError(t, err)
-	
+
 	assert.Equal(t, "about:blank", result["type"])
 	assert.Equal(t, "Bad Request", result["title"])
 	assert.Equal(t, float64(400), result["status"])
@@ -175,11 +175,11 @@ func TestShouldHandleEmptyInstance(t *testing.T) {
 
 	// Assert
 	require.NoError(t, err)
-	
+
 	var result map[string]interface{}
 	err = json.Unmarshal(jsonData, &result)
 	require.NoError(t, err)
-	
+
 	assert.Equal(t, "", result["instance"]) // Empty string should be preserved
 }
 

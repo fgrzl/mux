@@ -51,7 +51,7 @@ func TestAuthenticateShouldCreateCookieWithTTLWhenProviderIsAvailable(t *testing
 	provider.signFn = func(user claims.Principal, ttl time.Duration) (string, error) {
 		return "test-token-" + user.Subject(), nil
 	}
-	ctx.SetService("token.provider", provider)
+	ctx.SetService(ServiceKeyTokenProvider, provider)
 
 	mockUser := newMockPrincipal("test-user")
 

@@ -11,21 +11,37 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	testAddrHTTP       = ":8080"
+	testAddrHTTPS      = ":8443"
+	testAddrLocal      = "127.0.0.1:0"
+	testInvalidAddr    = "invalid:address:format"
+	testCertFile       = "/path/to/cert.pem"
+	testKeyFile        = "/path/to/key.pem"
+	testCertName       = "localhost.crt"
+	testKeyName        = "localhost.key"
+	testCertsDir       = ".certs"
+	testNonexistentDir = ".nonexistent"
+	testReadTimeout    = 10 * time.Second
+	testWriteTimeout   = 10 * time.Second
+	testIdleTimeout    = 120 * time.Second
+)
+
 func TestShouldCreateNewServerWithDefaults(t *testing.T) {
 	// Arrange
 	router := NewRouter()
 
 	// Act
-	server := NewServer(":8080", router)
+	server := NewServer(testAddrHTTP, router)
 
 	// Assert
 	assert.NotNil(t, server)
 	assert.NotNil(t, server.srv)
-	assert.Equal(t, ":8080", server.srv.Addr)
+	assert.Equal(t, testAddrHTTP, server.srv.Addr)
 	assert.Equal(t, router, server.srv.Handler)
-	assert.Equal(t, 10*time.Second, server.srv.ReadTimeout)
-	assert.Equal(t, 10*time.Second, server.srv.WriteTimeout)
-	assert.Equal(t, 120*time.Second, server.srv.IdleTimeout)
+	assert.Equal(t, testReadTimeout, server.srv.ReadTimeout)
+	assert.Equal(t, testWriteTimeout, server.srv.WriteTimeout)
+	assert.Equal(t, testIdleTimeout, server.srv.IdleTimeout)
 	assert.Equal(t, "", server.certFile)
 	assert.Equal(t, "", server.keyFile)
 }
@@ -33,28 +49,25 @@ func TestShouldCreateNewServerWithDefaults(t *testing.T) {
 func TestShouldConfigureServerWithTLS(t *testing.T) {
 	// Arrange
 	router := NewRouter()
-	certFile := "/path/to/cert.pem"
-	keyFile := "/path/to/key.pem"
-
 	// Act
-	server := NewServer(":8443", router, WithTLS(certFile, keyFile))
+	server := NewServer(testAddrHTTPS, router, WithTLS(testCertFile, testKeyFile))
 
 	// Assert
 	assert.NotNil(t, server)
-	assert.Equal(t, certFile, server.certFile)
-	assert.Equal(t, keyFile, server.keyFile)
+	assert.Equal(t, testCertFile, server.certFile)
+	assert.Equal(t, testKeyFile, server.keyFile)
 }
 
 func TestShouldConfigureServerWithTLSDiscovery(t *testing.T) {
 	// Arrange
 	router := NewRouter()
 	tempDir := t.TempDir()
-	certsDir := filepath.Join(tempDir, ".certs")
+	certsDir := filepath.Join(tempDir, testCertsDir)
 	require.NoError(t, os.MkdirAll(certsDir, 0755))
 
 	// Create dummy cert files
-	certFile := filepath.Join(certsDir, "localhost.crt")
-	keyFile := filepath.Join(certsDir, "localhost.key")
+	certFile := filepath.Join(certsDir, testCertName)
+	keyFile := filepath.Join(certsDir, testKeyName)
 	require.NoError(t, os.WriteFile(certFile, []byte("dummy cert"), 0644))
 	require.NoError(t, os.WriteFile(keyFile, []byte("dummy key"), 0644))
 
@@ -65,7 +78,7 @@ func TestShouldConfigureServerWithTLSDiscovery(t *testing.T) {
 	defer func() { require.NoError(t, os.Chdir(origDir)) }()
 
 	// Act
-	server := NewServer(":8443", router, WithTLSDiscovery(".certs", "localhost.crt", "localhost.key"))
+	server := NewServer(testAddrHTTPS, router, WithTLSDiscovery(testCertsDir, testCertName, testKeyName))
 
 	// Assert
 	assert.NotNil(t, server)
@@ -77,10 +90,15 @@ func TestShouldHandleTLSDiscoveryWhenCertsDirNotFound(t *testing.T) {
 	// Arrange
 	router := NewRouter()
 	tempDir := t.TempDir()
+
+	// Change to temp directory and ensure we change back
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
 	require.NoError(t, os.Chdir(tempDir))
+	defer func() { require.NoError(t, os.Chdir(origDir)) }()
 
 	// Act
-	server := NewServer(":8443", router, WithTLSDiscovery(".nonexistent", "localhost.crt", "localhost.key"))
+	server := NewServer(testAddrHTTPS, router, WithTLSDiscovery(testNonexistentDir, testCertName, testKeyName))
 
 	// Assert
 	assert.NotNil(t, server)
@@ -95,7 +113,7 @@ func TestShouldStartHTTPServerSuccessfully(t *testing.T) {
 		c.OK("OK")
 	})
 
-	server := NewServer("127.0.0.1:0", router) // Use 0 for random port
+	server := NewServer(testAddrLocal, router) // Use 0 for random port
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -116,7 +134,7 @@ func TestShouldStartHTTPServerSuccessfully(t *testing.T) {
 func TestShouldReturnErrorForInvalidAddress(t *testing.T) {
 	// Arrange
 	router := NewRouter()
-	server := NewServer("invalid:address:format", router)
+	server := NewServer(testInvalidAddr, router)
 	ctx := context.Background()
 
 	// Act
@@ -129,7 +147,7 @@ func TestShouldReturnErrorForInvalidAddress(t *testing.T) {
 func TestShouldStopServerGracefully(t *testing.T) {
 	// Arrange
 	router := NewRouter()
-	server := NewServer("127.0.0.1:0", router)
+	server := NewServer(testAddrLocal, router)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Start server
@@ -151,18 +169,15 @@ func TestShouldStopServerGracefully(t *testing.T) {
 func TestShouldHandleMultipleOptions(t *testing.T) {
 	// Arrange
 	router := NewRouter()
-	certFile := "/path/to/cert.pem"
-	keyFile := "/path/to/key.pem"
-
 	// Act
-	server := NewServer(":8443", router,
-		WithTLS(certFile, keyFile),
-		WithTLSDiscovery(".certs", "other.crt", "other.key"), // This should be applied after WithTLS
+	server := NewServer(testAddrHTTPS, router,
+		WithTLS(testCertFile, testKeyFile),
+		WithTLSDiscovery(testCertsDir, "other.crt", "other.key"), // This should be applied after WithTLS
 	)
 
 	// Assert - TLSDiscovery applies after WithTLS, so the original values should remain
 	// since .certs directory won't exist, and it won't override existing values
 	assert.NotNil(t, server)
-	assert.Equal(t, certFile, server.certFile) // Should keep original value
-	assert.Equal(t, keyFile, server.keyFile)   // Should keep original value
+	assert.Equal(t, testCertFile, server.certFile) // Should keep original value
+	assert.Equal(t, testKeyFile, server.keyFile)   // Should keep original value
 }

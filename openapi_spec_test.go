@@ -167,7 +167,7 @@ func TestShouldMarshalToJSONFile(t *testing.T) {
 			},
 		},
 	}
-	
+
 	tempFile := filepath.Join(t.TempDir(), "test-spec.json")
 
 	// Act
@@ -175,15 +175,15 @@ func TestShouldMarshalToJSONFile(t *testing.T) {
 
 	// Assert
 	require.NoError(t, err)
-	
+
 	// Verify file exists and is valid JSON
 	data, err := os.ReadFile(tempFile)
 	require.NoError(t, err)
-	
+
 	var result map[string]interface{}
 	err = json.Unmarshal(data, &result)
 	require.NoError(t, err)
-	
+
 	assert.Equal(t, "3.1.0", result["openapi"])
 	assert.Contains(t, result, "info")
 	assert.Contains(t, result, "paths")
@@ -205,7 +205,7 @@ func TestShouldMarshalToYAMLFile(t *testing.T) {
 			},
 		},
 	}
-	
+
 	tempFile := filepath.Join(t.TempDir(), "test-spec.yaml")
 
 	// Act
@@ -213,15 +213,15 @@ func TestShouldMarshalToYAMLFile(t *testing.T) {
 
 	// Assert
 	require.NoError(t, err)
-	
+
 	// Verify file exists and is valid YAML
 	data, err := os.ReadFile(tempFile)
 	require.NoError(t, err)
-	
+
 	var result map[string]interface{}
 	err = yaml.Unmarshal(data, &result)
 	require.NoError(t, err)
-	
+
 	assert.Equal(t, "3.1.0", result["openapi"])
 	assert.Contains(t, result, "info")
 	assert.Contains(t, result, "paths")
@@ -261,10 +261,10 @@ func TestShouldUnmarshalFromJSONFile(t *testing.T) {
 			}
 		}
 	}`
-	
+
 	tempFile := filepath.Join(t.TempDir(), "test-unmarshal.json")
 	require.NoError(t, os.WriteFile(tempFile, []byte(jsonContent), 0644))
-	
+
 	var spec OpenAPISpec
 
 	// Act
@@ -293,10 +293,10 @@ paths:
         '200':
           description: Success
 `
-	
+
 	tempFile := filepath.Join(t.TempDir(), "test-unmarshal.yml")
 	require.NoError(t, os.WriteFile(tempFile, []byte(yamlContent), 0644))
-	
+
 	var spec OpenAPISpec
 
 	// Act
@@ -327,7 +327,7 @@ func TestShouldReturnErrorForUnsupportedUnmarshalExtension(t *testing.T) {
 	// Arrange
 	tempFile := filepath.Join(t.TempDir(), "test.txt")
 	require.NoError(t, os.WriteFile(tempFile, []byte("some content"), 0644))
-	
+
 	var spec OpenAPISpec
 
 	// Act
@@ -396,15 +396,15 @@ func TestShouldHandleComplexOpenAPISpec(t *testing.T) {
 	// Act & Assert - Should not panic and should be valid
 	err := spec.Validate()
 	assert.NoError(t, err)
-	
+
 	normalized := spec.Normalize()
 	assert.NotNil(t, normalized)
-	
+
 	// Test JSON marshalling
 	tempFile := filepath.Join(t.TempDir(), "complex-spec.json")
 	err = spec.MarshalToFile(tempFile)
 	assert.NoError(t, err)
-	
+
 	// Test YAML marshalling
 	tempFileYAML := filepath.Join(t.TempDir(), "complex-spec.yaml")
 	err = spec.MarshalToFile(tempFileYAML)

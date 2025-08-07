@@ -125,13 +125,13 @@ func TestShouldAllowAccessWhenUserHasRequiredRole(t *testing.T) {
 	middleware := &authorizationMiddleware{
 		options: &AuthorizationOptions{},
 	}
-	
+
 	req := httptest.NewRequest("GET", "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	ctx.User = &mockPrincipalForAuth{roles: []string{"admin", "user"}}
 	ctx.Options = &RouteOptions{Roles: []string{"admin"}}
-	
+
 	nextCalled := false
 	next := func(c *RouteContext) {
 		nextCalled = true
@@ -149,13 +149,13 @@ func TestShouldDenyAccessWhenUserLacksRequiredRole(t *testing.T) {
 	middleware := &authorizationMiddleware{
 		options: &AuthorizationOptions{},
 	}
-	
+
 	req := httptest.NewRequest("GET", "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	ctx.User = &mockPrincipalForAuth{roles: []string{"user"}}
 	ctx.Options = &RouteOptions{Roles: []string{"admin"}}
-	
+
 	nextCalled := false
 	next := func(c *RouteContext) {
 		nextCalled = true
@@ -174,13 +174,13 @@ func TestShouldAllowAccessWhenUserHasRequiredScope(t *testing.T) {
 	middleware := &authorizationMiddleware{
 		options: &AuthorizationOptions{},
 	}
-	
+
 	req := httptest.NewRequest("GET", "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	ctx.User = &mockPrincipalForAuth{scopes: []string{"api:read", "api:write"}}
 	ctx.Options = &RouteOptions{Scopes: []string{"api:read"}}
-	
+
 	nextCalled := false
 	next := func(c *RouteContext) {
 		nextCalled = true
@@ -198,13 +198,13 @@ func TestShouldDenyAccessWhenUserLacksRequiredScope(t *testing.T) {
 	middleware := &authorizationMiddleware{
 		options: &AuthorizationOptions{},
 	}
-	
+
 	req := httptest.NewRequest("GET", "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	ctx.User = &mockPrincipalForAuth{scopes: []string{"api:write"}}
 	ctx.Options = &RouteOptions{Scopes: []string{"api:admin"}}
-	
+
 	nextCalled := false
 	next := func(c *RouteContext) {
 		nextCalled = true
@@ -225,19 +225,19 @@ func TestShouldUseCustomRoleChecker(t *testing.T) {
 		customCheckerCalled = true
 		return true // Always allow
 	}
-	
+
 	middleware := &authorizationMiddleware{
 		options: &AuthorizationOptions{
 			CheckRoles: customChecker,
 		},
 	}
-	
+
 	req := httptest.NewRequest("GET", "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	ctx.User = &mockPrincipalForAuth{roles: []string{"user"}}
 	ctx.Options = &RouteOptions{Roles: []string{"admin"}}
-	
+
 	nextCalled := false
 	next := func(c *RouteContext) {
 		nextCalled = true
@@ -258,19 +258,19 @@ func TestShouldUseCustomScopeChecker(t *testing.T) {
 		customCheckerCalled = true
 		return false // Always deny
 	}
-	
+
 	middleware := &authorizationMiddleware{
 		options: &AuthorizationOptions{
 			CheckScopes: customChecker,
 		},
 	}
-	
+
 	req := httptest.NewRequest("GET", "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	ctx.User = &mockPrincipalForAuth{scopes: []string{"api:read"}}
 	ctx.Options = &RouteOptions{Scopes: []string{"api:read"}}
-	
+
 	nextCalled := false
 	next := func(c *RouteContext) {
 		nextCalled = true
@@ -289,13 +289,13 @@ func TestShouldAllowAccessWhenNoRolesRequired(t *testing.T) {
 	middleware := &authorizationMiddleware{
 		options: &AuthorizationOptions{},
 	}
-	
+
 	req := httptest.NewRequest("GET", "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	ctx.User = &mockPrincipalForAuth{}
 	ctx.Options = &RouteOptions{} // No roles required
-	
+
 	nextCalled := false
 	next := func(c *RouteContext) {
 		nextCalled = true
@@ -313,13 +313,13 @@ func TestShouldAllowAccessWhenNoScopesRequired(t *testing.T) {
 	middleware := &authorizationMiddleware{
 		options: &AuthorizationOptions{},
 	}
-	
+
 	req := httptest.NewRequest("GET", "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	ctx.User = &mockPrincipalForAuth{}
 	ctx.Options = &RouteOptions{} // No scopes required
-	
+
 	nextCalled := false
 	next := func(c *RouteContext) {
 		nextCalled = true
@@ -396,20 +396,20 @@ func TestShouldHandlePermissionCheckingWithCustomChecker(t *testing.T) {
 	customPermissionChecker := func(principal claims.Principal, permissions []string) bool {
 		return len(permissions) > 0 && permissions[0] == "allowed:permission"
 	}
-	
+
 	middleware := &authorizationMiddleware{
 		options: &AuthorizationOptions{
 			CheckPermissions: customPermissionChecker,
 			Permissions:      []string{"allowed:permission"},
 		},
 	}
-	
+
 	req := httptest.NewRequest("GET", "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	ctx.User = &mockPrincipalForAuth{}
 	ctx.Options = &RouteOptions{}
-	
+
 	nextCalled := false
 	next := func(c *RouteContext) {
 		nextCalled = true

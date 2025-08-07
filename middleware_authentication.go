@@ -119,7 +119,7 @@ type authenticationMiddleware struct {
 
 // Invoke implements the middleware interface for authentication.
 func (m *authenticationMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
-	c.SetService("token.provider", m.provider)
+	c.SetService(ServiceKeyTokenProvider, m.provider)
 
 	if c.Options.AllowAnonymous {
 		slog.DebugContext(c, "authentication skipped: anonymous access allowed")

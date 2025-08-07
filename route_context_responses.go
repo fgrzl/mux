@@ -71,7 +71,7 @@ func (c *RouteContext) OK(model any) {
 
 // JSON writes a JSON response with custom status code.
 func (c *RouteContext) JSON(status int, model any) {
-	c.Response.Header().Set("Content-Type", "application/json")
+	c.Response.Header().Set("Content-Type", MimeJSON)
 	c.Response.WriteHeader(status)
 	json.NewEncoder(c.Response).Encode(model)
 }
@@ -87,7 +87,7 @@ func (c *RouteContext) Plain(status int, data []byte) {
 
 // HTML writes an HTML response.
 func (c *RouteContext) HTML(status int, html string) {
-	c.Response.Header().Set("Content-Type", "text/html")
+	c.Response.Header().Set("Content-Type", MimeTextHTML)
 	c.Response.WriteHeader(status)
 	c.Response.Write([]byte(html))
 }
