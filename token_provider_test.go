@@ -277,8 +277,8 @@ func TestTokenProviderShouldBeUsableInRouteContext(t *testing.T) {
 	}
 
 	// Act
-	ctx.SetService("token-provider", provider)
-	retrieved, exists := ctx.GetService("token-provider")
+	ctx.SetService(ServiceKeyTokenProvider, provider)
+	retrieved, exists := ctx.GetService(ServiceKeyTokenProvider)
 
 	// Assert
 	assert.True(t, exists)
