@@ -4,6 +4,8 @@ github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2
 github.com/felixge/httpsnoop v1.0.4/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
 github.com/fgrzl/claims v0.0.1-alpha.17 h1:EV3M2og6bYVqXIdDCgCasg8KjekHlvzfKpib1bxA8cM=
 github.com/fgrzl/claims v0.0.1-alpha.17/go.mod h1:AOUqWTtgnwlcwaHqJLVoAgmFjuBCCJFhZlyFzazXQ00=
+github.com/fgrzl/claims v0.0.1-alpha.19 h1:6LerzTa5Ag+FJyMGPO/kNm0yKOxpgjXZLza6h8WVscg=
+github.com/fgrzl/claims v0.0.1-alpha.19/go.mod h1:AOUqWTtgnwlcwaHqJLVoAgmFjuBCCJFhZlyFzazXQ00=
 github.com/fgrzl/json v0.1.0-alpha.41 h1:SUDvrwD0DPyRMeYjr+hMpIPLfHakRlvfzXQUW0neB5g=
 github.com/fgrzl/json v0.1.0-alpha.41/go.mod h1:uhY90IO9L/wJ4qXdqHBS0PLC14YlwrpUMU8O2D9YGxQ=
 github.com/go-faker/faker/v4 v4.6.1 h1:xUyVpAjEtB04l6XFY0V/29oR332rOSPWV4lU8RwDt4k=
@@ -47,6 +49,8 @@ go.opentelemetry.io/otel/trace v1.37.0 h1:HLdcFNbRQBE2imdSEgm/kwqmQj1Or1l/7bW6mx
 go.opentelemetry.io/otel/trace v1.37.0/go.mod h1:TlgrlQ+PtQO5XFerSPUYG0JSgGyryXewPGyayAWSBS0=
 golang.org/x/sys v0.34.0 h1:H5Y5sJ2L2JRdyv7ROF1he/lPdvFsd0mJHFw2ThKHxLA=
 golang.org/x/sys v0.34.0/go.mod h1:BJP2sWEmIv4KK5OTEluFJCKSidICx8ciO85XgH3Ak8k=
+golang.org/x/sys v0.35.0 h1:vz1N37gP5bs89s7He8XuIYXpyY0+QlsKmzipCbUtyxI=
+golang.org/x/sys v0.35.0/go.mod h1:BJP2sWEmIv4KK5OTEluFJCKSidICx8ciO85XgH3Ak8k=
 golang.org/x/text v0.27.0 h1:4fGWRpyh641NLlecmyl4LOe6yDdfaYNrGb2zdfo4JV4=
 golang.org/x/text v0.27.0/go.mod h1:1D28KMCvyooCX9hBiosv5Tz/+YLxj0j7XhWjpSUF7CU=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=

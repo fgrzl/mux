@@ -38,6 +38,12 @@ type RouteContext struct {
 	formsParsed bool
 }
 
+// SetUser sets the authenticated user in the RouteContext and updates the context for downstream access.
+func (c *RouteContext) SetUser(user claims.Principal) {
+	c.User = user
+	c.Context = claims.WithUser(c.Context, user)
+}
+
 // SetService sets a service in the RouteContext.
 func (c *RouteContext) SetService(key ServiceKey, svc any) {
 	// Validate inputs

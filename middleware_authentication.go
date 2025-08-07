@@ -186,7 +186,7 @@ func (m *authenticationMiddleware) setAuthenticatedUser(c *RouteContext, princip
 		userID = "unknown"
 	}
 
-	c.User = principal
+	c.SetUser(principal)
 	slog.DebugContext(c, "authentication success", "method", method, "user", userID)
 }
 
