@@ -65,7 +65,8 @@ func createToken(principal claims.Principal) (string, error) {
         "exp":   time.Now().Add(time.Hour).Unix(),
     })
     
-    return token.SignedString([]byte("your-secret-key"))
+    secret := os.Getenv("JWT_SECRET")
+    return token.SignedString([]byte(secret))
 }
 ```
 
