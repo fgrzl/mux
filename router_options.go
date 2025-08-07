@@ -1,7 +1,14 @@
 package mux
 
+import "net/url"
+
 type RouterOptions struct {
-	openapi *InfoObject
+	openapi   *InfoObject
+	clientURL *url.URL
+}
+
+func (o *RouterOptions) SetClientURL(clientURL *url.URL) {
+	o.clientURL = clientURL
 }
 
 type RouterOption func(*RouterOptions)
