@@ -69,12 +69,9 @@ router.GET("/", func(c *mux.RouteContext) {
 ### Parameterized Route
 ```go
 router.GET("/hello/{name}", func(c *mux.RouteContext) {
-    name, ok := c.ParamValue("name")
+    name := c.Param("name")
     // ...
 })
-```
-- Uses `{name}` to capture path parameters
-- Extracts the parameter using `c.ParamValue("name")`
 - Returns a structured JSON response
 
 ### Server Startup
