@@ -11,7 +11,7 @@ import (
 func TestShouldRedirectHTTPToHTTPS(t *testing.T) {
 	// Arrange
 	middleware := &enforceHTTPSMiddleware{}
-	req := httptest.NewRequest("GET", "http://example.com/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -32,7 +32,7 @@ func TestShouldRedirectHTTPToHTTPS(t *testing.T) {
 func TestShouldAllowHTTPSRequests(t *testing.T) {
 	// Arrange
 	middleware := &enforceHTTPSMiddleware{}
-	req := httptest.NewRequest("GET", "https://example.com/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "https://example.com/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -65,7 +65,7 @@ func TestShouldAddEnforceHTTPSMiddlewareToRouter(t *testing.T) {
 func TestShouldPreserveQueryParametersInRedirect(t *testing.T) {
 	// Arrange
 	middleware := &enforceHTTPSMiddleware{}
-	req := httptest.NewRequest("GET", "http://example.com/test?param=value&other=123", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/test?param=value&other=123", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 

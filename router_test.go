@@ -52,7 +52,7 @@ func TestShouldCreateNewRouteGroupWithPrefix(t *testing.T) {
 func TestShouldServeHTTPAndReturnNotFoundForUnknownRoute(t *testing.T) {
 	// Arrange
 	router := NewRouter()
-	req := httptest.NewRequest("GET", "/unknown", nil)
+	req := httptest.NewRequest(http.MethodGet, "/unknown", nil)
 	rec := httptest.NewRecorder()
 
 	// Act
@@ -71,7 +71,7 @@ func TestShouldServeHTTPAndCallRegisteredHandler(t *testing.T) {
 		c.OK("success")
 	})
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 
 	// Act
@@ -101,7 +101,7 @@ func TestShouldServeHTTPWithMiddleware(t *testing.T) {
 		c.OK("success")
 	})
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 
 	// Act
@@ -122,7 +122,7 @@ func TestShouldSetRouteParamsInContext(t *testing.T) {
 		c.OK("success")
 	})
 
-	req := httptest.NewRequest("GET", "/users/123", nil)
+	req := httptest.NewRequest(http.MethodGet, "/users/123", nil)
 	rec := httptest.NewRecorder()
 
 	// Act
@@ -158,7 +158,7 @@ func TestShouldExecuteMiddlewareInCorrectOrder(t *testing.T) {
 		c.OK("success")
 	})
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 
 	// Act
@@ -189,7 +189,7 @@ func TestShouldStopMiddlewareChainWhenNotContinuing(t *testing.T) {
 		c.OK("success")
 	})
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 
 	// Act

@@ -1,6 +1,7 @@
 package mux
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -58,7 +59,7 @@ func TestShouldInvokeNextWithOpenTelemetryTracing(t *testing.T) {
 	// Arrange
 	middleware := &otelMiddleware{operation: "test-operation"}
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 
@@ -145,7 +146,7 @@ func TestShouldCreateOtelMiddlewareWithCustomOperation(t *testing.T) {
 
 func TestShouldInvokeWithDifferentHTTPMethods(t *testing.T) {
 	// Test that the middleware works with different HTTP methods
-	methods := []string{"GET", "POST", "PUT", "DELETE", "PATCH"}
+	methods := []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, "PATCH"}
 
 	for _, method := range methods {
 		t.Run(method, func(t *testing.T) {
@@ -175,7 +176,7 @@ func TestShouldWorkWithComplexRouteContext(t *testing.T) {
 	// Arrange
 	middleware := &otelMiddleware{operation: "complex-test"}
 
-	req := httptest.NewRequest("POST", "/api/users/123", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/users/123", nil)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer token123")
 

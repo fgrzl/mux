@@ -59,7 +59,7 @@ server := &http.Server{
 ```go
 // Gorilla Mux
 r := mux.NewRouter()
-r.HandleFunc("/users/{id}", getUserHandler).Methods("GET")
+r.HandleFunc("/users/{id}", getUserHandler).Methods(http.MethodGet)
 
 // Mux
 router := mux.NewRouter()
@@ -395,7 +395,7 @@ func TestCreateUser(t *testing.T) {
     router.POST("/users", createUser)
     
     body := `{"name": "John", "email": "john@example.com"}`
-    req := httptest.NewRequest("POST", "/users", strings.NewReader(body))
+    req := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(body))
     req.Header.Set("Content-Type", "application/json")
     
     rec := httptest.NewRecorder()
@@ -415,7 +415,7 @@ func TestAuthenticationMiddleware(t *testing.T) {
     router.GET("/protected", protectedHandler)
     
     // Test with valid token
-    req := httptest.NewRequest("GET", "/protected", nil)
+    req := httptest.NewRequest(http.MethodGet, "/protected", nil)
     req.Header.Set("Authorization", "Bearer valid-token")
     
     rec := httptest.NewRecorder()

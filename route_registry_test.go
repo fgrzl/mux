@@ -1,6 +1,7 @@
 package mux
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,10 +23,10 @@ func TestShouldRegisterSimpleRoute(t *testing.T) {
 	options := &RouteOptions{Handler: func(c *RouteContext) {}}
 
 	// Act
-	registry.Register("/users", "GET", options)
+	registry.Register("/users", http.MethodGet, options)
 
 	// Assert
-	loadedOptions, params, found := registry.Load("/users", "GET")
+	loadedOptions, params, found := registry.Load("/users", http.MethodGet)
 	assert.True(t, found)
 	assert.NotNil(t, loadedOptions)
 	assert.Equal(t, options, loadedOptions)
@@ -38,10 +39,10 @@ func TestShouldRegisterRouteWithParameters(t *testing.T) {
 	options := &RouteOptions{Handler: func(c *RouteContext) {}}
 
 	// Act
-	registry.Register("/users/{id}", "GET", options)
+	registry.Register("/users/{id}", http.MethodGet, options)
 
 	// Assert
-	loadedOptions, params, found := registry.Load("/users/123", "GET")
+	loadedOptions, params, found := registry.Load("/users/123", http.MethodGet)
 	assert.True(t, found)
 	assert.NotNil(t, loadedOptions)
 	assert.Equal(t, options, loadedOptions)
@@ -54,10 +55,10 @@ func TestShouldRegisterRouteWithMultipleParameters(t *testing.T) {
 	options := &RouteOptions{Handler: func(c *RouteContext) {}}
 
 	// Act
-	registry.Register("/users/{userId}/posts/{postId}", "GET", options)
+	registry.Register("/users/{userId}/posts/{postId}", http.MethodGet, options)
 
 	// Assert
-	loadedOptions, params, found := registry.Load("/users/123/posts/456", "GET")
+	loadedOptions, params, found := registry.Load("/users/123/posts/456", http.MethodGet)
 	assert.True(t, found)
 	assert.NotNil(t, loadedOptions)
 	assert.Equal(t, options, loadedOptions)
@@ -71,10 +72,10 @@ func TestShouldRegisterRouteWithWildcard(t *testing.T) {
 	options := &RouteOptions{Handler: func(c *RouteContext) {}}
 
 	// Act
-	registry.Register("/static/*", "GET", options)
+	registry.Register("/static/*", http.MethodGet, options)
 
 	// Assert
-	loadedOptions, params, found := registry.Load("/static/anything", "GET")
+	loadedOptions, params, found := registry.Load("/static/anything", http.MethodGet)
 	assert.True(t, found)
 	assert.NotNil(t, loadedOptions)
 	assert.Equal(t, options, loadedOptions)
@@ -87,10 +88,10 @@ func TestShouldRegisterRouteWithCatchAll(t *testing.T) {
 	options := &RouteOptions{Handler: func(c *RouteContext) {}}
 
 	// Act
-	registry.Register("/api/**", "GET", options)
+	registry.Register("/api/**", http.MethodGet, options)
 
 	// Assert
-	loadedOptions, params, found := registry.Load("/api/anything/else", "GET")
+	loadedOptions, params, found := registry.Load("/api/anything/else", http.MethodGet)
 	assert.True(t, found)
 	assert.NotNil(t, loadedOptions)
 	assert.Equal(t, options, loadedOptions)
@@ -104,15 +105,15 @@ func TestShouldRegisterMultipleMethodsForSameRoute(t *testing.T) {
 	postOptions := &RouteOptions{Handler: func(c *RouteContext) {}}
 
 	// Act
-	registry.Register("/users", "GET", getOptions)
-	registry.Register("/users", "POST", postOptions)
+	registry.Register("/users", http.MethodGet, getOptions)
+	registry.Register("/users", http.MethodPost, postOptions)
 
 	// Assert
-	loadedGetOptions, _, found := registry.Load("/users", "GET")
+	loadedGetOptions, _, found := registry.Load("/users", http.MethodGet)
 	assert.True(t, found)
 	assert.Equal(t, getOptions, loadedGetOptions)
 
-	loadedPostOptions, _, found := registry.Load("/users", "POST")
+	loadedPostOptions, _, found := registry.Load("/users", http.MethodPost)
 	assert.True(t, found)
 	assert.Equal(t, postOptions, loadedPostOptions)
 }
@@ -122,7 +123,7 @@ func TestShouldReturnFalseForUnregisteredRoute(t *testing.T) {
 	registry := NewRouteRegistry()
 
 	// Act
-	_, _, found := registry.Load("/nonexistent", "GET")
+	_, _, found := registry.Load("/nonexistent", http.MethodGet)
 
 	// Assert
 	assert.False(t, found)
@@ -132,10 +133,10 @@ func TestShouldReturnFalseForUnregisteredMethod(t *testing.T) {
 	// Arrange
 	registry := NewRouteRegistry()
 	options := &RouteOptions{Handler: func(c *RouteContext) {}}
-	registry.Register("/users", "GET", options)
+	registry.Register("/users", http.MethodGet, options)
 
 	// Act
-	_, _, found := registry.Load("/users", "POST")
+	_, _, found := registry.Load("/users", http.MethodPost)
 
 	// Assert
 	assert.False(t, found)
@@ -147,10 +148,10 @@ func TestShouldHandleRootRoute(t *testing.T) {
 	options := &RouteOptions{Handler: func(c *RouteContext) {}}
 
 	// Act
-	registry.Register("/", "GET", options)
+	registry.Register("/", http.MethodGet, options)
 
 	// Assert
-	loadedOptions, params, found := registry.Load("/", "GET")
+	loadedOptions, params, found := registry.Load("/", http.MethodGet)
 	assert.True(t, found)
 	assert.NotNil(t, loadedOptions)
 	assert.Equal(t, options, loadedOptions)
@@ -163,10 +164,10 @@ func TestShouldHandleEmptyRoute(t *testing.T) {
 	options := &RouteOptions{Handler: func(c *RouteContext) {}}
 
 	// Act
-	registry.Register("", "GET", options)
+	registry.Register("", http.MethodGet, options)
 
 	// Assert
-	loadedOptions, params, found := registry.Load("", "GET")
+	loadedOptions, params, found := registry.Load("", http.MethodGet)
 	assert.True(t, found)
 	assert.NotNil(t, loadedOptions)
 	assert.Equal(t, options, loadedOptions)
@@ -180,18 +181,18 @@ func TestShouldMatchExactRouteBeforeParameterRoute(t *testing.T) {
 	paramOptions := &RouteOptions{Handler: func(c *RouteContext) { /* param */ }}
 
 	// Act
-	registry.Register("/users/{id}", "GET", paramOptions)
-	registry.Register("/users/new", "GET", exactOptions)
+	registry.Register("/users/{id}", http.MethodGet, paramOptions)
+	registry.Register("/users/new", http.MethodGet, exactOptions)
 
 	// Assert
 	// Should match exact route first
-	loadedOptions, params, found := registry.Load("/users/new", "GET")
+	loadedOptions, params, found := registry.Load("/users/new", http.MethodGet)
 	assert.True(t, found)
 	assert.Equal(t, exactOptions, loadedOptions)
 	assert.Empty(t, params)
 
 	// Should still match parameter route for other paths
-	loadedOptions, params, found = registry.Load("/users/123", "GET")
+	loadedOptions, params, found = registry.Load("/users/123", http.MethodGet)
 	assert.True(t, found)
 	assert.Equal(t, paramOptions, loadedOptions)
 	assert.Equal(t, "123", params["id"])
@@ -204,15 +205,15 @@ func TestShouldHandleNestedRoutes(t *testing.T) {
 	options2 := &RouteOptions{Handler: func(c *RouteContext) {}}
 
 	// Act
-	registry.Register("/api/users", "GET", options1)
-	registry.Register("/api/users/profile", "GET", options2)
+	registry.Register("/api/users", http.MethodGet, options1)
+	registry.Register("/api/users/profile", http.MethodGet, options2)
 
 	// Assert
-	loadedOptions1, _, found := registry.Load("/api/users", "GET")
+	loadedOptions1, _, found := registry.Load("/api/users", http.MethodGet)
 	assert.True(t, found)
 	assert.Equal(t, options1, loadedOptions1)
 
-	loadedOptions2, _, found := registry.Load("/api/users/profile", "GET")
+	loadedOptions2, _, found := registry.Load("/api/users/profile", http.MethodGet)
 	assert.True(t, found)
 	assert.Equal(t, options2, loadedOptions2)
 }
@@ -221,10 +222,10 @@ func TestShouldHandleParameterCleanupOnFailure(t *testing.T) {
 	// Arrange
 	registry := NewRouteRegistry()
 	options := &RouteOptions{Handler: func(c *RouteContext) {}}
-	registry.Register("/users/{id}/posts", "GET", options)
+	registry.Register("/users/{id}/posts", http.MethodGet, options)
 
 	// Act - try to load a path that partially matches
-	_, params, found := registry.Load("/users/123/comments", "GET")
+	_, params, found := registry.Load("/users/123/comments", http.MethodGet)
 
 	// Assert
 	assert.False(t, found)

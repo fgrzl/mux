@@ -1,6 +1,7 @@
 package mux
 
 import (
+	"net/http"
 	"reflect"
 	"testing"
 
@@ -10,7 +11,7 @@ import (
 
 func TestWithJsonBodyAnonymousStruct(t *testing.T) {
 	// Test with anonymous struct
-	rb := Route("POST", "/test").WithJsonBody(struct {
+	rb := Route(http.MethodPost, "/test").WithJsonBody(struct {
 		Name string `json:"name"`
 		Age  int    `json:"age"`
 	}{})
@@ -39,7 +40,7 @@ func TestWithJsonBodyAnonymousStruct(t *testing.T) {
 
 func TestWithJsonBodyAnonymousStructComplexTypes(t *testing.T) {
 	// Test with more complex anonymous struct containing different types
-	rb := Route("POST", "/test").WithJsonBody(struct {
+	rb := Route(http.MethodPost, "/test").WithJsonBody(struct {
 		Name    string   `json:"name"`
 		Age     int      `json:"age"`
 		Active  bool     `json:"active"`
@@ -75,7 +76,7 @@ func TestWithJsonBodyNamedStruct(t *testing.T) {
 	}
 
 	// Test with named struct - should preserve existing behavior
-	rb := Route("POST", "/test").WithJsonBody(TestStruct{})
+	rb := Route(http.MethodPost, "/test").WithJsonBody(TestStruct{})
 
 	require.NotNil(t, rb.Options.RequestBody)
 	require.NotNil(t, rb.Options.RequestBody.Content)
@@ -180,7 +181,7 @@ func TestAnonymousStructWithNestedStruct(t *testing.T) {
 	}
 
 	// Test anonymous struct with nested named struct
-	rb := Route("POST", "/test").WithJsonBody(struct {
+	rb := Route(http.MethodPost, "/test").WithJsonBody(struct {
 		Name    string  `json:"name"`
 		Address Address `json:"address"`
 	}{})

@@ -14,7 +14,7 @@ import (
 func TestShouldCompressResponseWithGzip(t *testing.T) {
 	// Arrange
 	middleware := &compressionMiddleware{options: &CompressionOptions{}}
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.Header.Set("Accept-Encoding", "gzip")
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
@@ -43,7 +43,7 @@ func TestShouldCompressResponseWithGzip(t *testing.T) {
 func TestShouldCompressResponseWithDeflate(t *testing.T) {
 	// Arrange
 	middleware := &compressionMiddleware{options: &CompressionOptions{}}
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.Header.Set("Accept-Encoding", "deflate")
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
@@ -64,7 +64,7 @@ func TestShouldCompressResponseWithDeflate(t *testing.T) {
 func TestShouldPreferGzipOverDeflate(t *testing.T) {
 	// Arrange
 	middleware := &compressionMiddleware{options: &CompressionOptions{}}
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.Header.Set("Accept-Encoding", "gzip, deflate")
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
@@ -83,7 +83,7 @@ func TestShouldPreferGzipOverDeflate(t *testing.T) {
 func TestShouldNotCompressWhenNoAcceptEncoding(t *testing.T) {
 	// Arrange
 	middleware := &compressionMiddleware{options: &CompressionOptions{}}
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -103,7 +103,7 @@ func TestShouldNotCompressWhenNoAcceptEncoding(t *testing.T) {
 func TestShouldNotCompressWhenUnsupportedEncoding(t *testing.T) {
 	// Arrange
 	middleware := &compressionMiddleware{options: &CompressionOptions{}}
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.Header.Set("Accept-Encoding", "br") // Brotli - not supported
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)

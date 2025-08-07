@@ -17,7 +17,7 @@ func TestLoggingMiddlewareShouldLogRequestDetails(t *testing.T) {
 	slog.SetDefault(logger)
 
 	middleware := &loggingMiddleware{options: &LoggingOptions{}}
-	req := httptest.NewRequest("GET", "/test?param=value", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test?param=value", nil)
 	req.RemoteAddr = "192.168.1.1:8080"
 	req.Header.Set("User-Agent", "test-agent/1.0")
 
@@ -54,7 +54,7 @@ func TestLoggingMiddlewareShouldCaptureStatusCode(t *testing.T) {
 	slog.SetDefault(logger)
 
 	middleware := &loggingMiddleware{options: &LoggingOptions{}}
-	req := httptest.NewRequest("POST", "/test", nil)
+	req := httptest.NewRequest(http.MethodPost, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -77,7 +77,7 @@ func TestLoggingMiddlewareShouldHandleErrorStatus(t *testing.T) {
 	slog.SetDefault(logger)
 
 	middleware := &loggingMiddleware{options: &LoggingOptions{}}
-	req := httptest.NewRequest("GET", "/error", nil)
+	req := httptest.NewRequest(http.MethodGet, "/error", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -100,7 +100,7 @@ func TestLoggingMiddlewareShouldDefaultTo200Status(t *testing.T) {
 	slog.SetDefault(logger)
 
 	middleware := &loggingMiddleware{options: &LoggingOptions{}}
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 

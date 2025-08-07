@@ -2,6 +2,7 @@ package mux
 
 import (
 	"errors"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -78,7 +79,7 @@ func TestTokenProviderShouldCreateToken(t *testing.T) {
 	// Arrange
 	expectedToken := "test-token-123"
 	principal := &mockPrincipalForToken{subject: "test-user"}
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 
@@ -101,7 +102,7 @@ func TestTokenProviderShouldReturnErrorWhenCreateTokenFails(t *testing.T) {
 	// Arrange
 	expectedError := errors.New("token creation failed")
 	principal := &mockPrincipalForToken{subject: "test-user"}
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 
@@ -125,7 +126,7 @@ func TestTokenProviderShouldValidateToken(t *testing.T) {
 	// Arrange
 	token := "valid-token-123"
 	expectedPrincipal := &mockPrincipalForToken{subject: "test-user"}
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 
@@ -149,7 +150,7 @@ func TestTokenProviderShouldValidateToken(t *testing.T) {
 func TestTokenProviderShouldReturnErrorForInvalidToken(t *testing.T) {
 	// Arrange
 	token := "invalid-token"
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 
@@ -218,7 +219,7 @@ func TestTokenProviderShouldIndicateTokenCreationCapability(t *testing.T) {
 
 func TestTokenProviderShouldHandleNilPrincipal(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 
@@ -243,7 +244,7 @@ func TestTokenProviderShouldHandleNilPrincipal(t *testing.T) {
 
 func TestTokenProviderShouldHandleEmptyToken(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 
@@ -267,7 +268,7 @@ func TestTokenProviderShouldHandleEmptyToken(t *testing.T) {
 
 func TestTokenProviderShouldBeUsableInRouteContext(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 

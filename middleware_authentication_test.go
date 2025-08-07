@@ -75,7 +75,7 @@ func TestDefaultTokenProviderShouldCreateTokenWhenSignFnIsSet(t *testing.T) {
 		},
 	}
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	res := httptest.NewRecorder()
 	ctx := &RouteContext{Request: req, Response: res}
 
@@ -92,7 +92,7 @@ func TestDefaultTokenProviderShouldReturnErrorWhenSignFnIsNotSet(t *testing.T) {
 	provider := &defaultTokenProvider{}
 	mockUser := newMockPrincipal("user123")
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	res := httptest.NewRecorder()
 	ctx := &RouteContext{Request: req, Response: res}
 
@@ -116,7 +116,7 @@ func TestDefaultTokenProviderShouldReturnErrorWhenSignFnFails(t *testing.T) {
 	}
 	mockUser := newMockPrincipal("user123")
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	res := httptest.NewRecorder()
 	ctx := &RouteContext{Request: req, Response: res}
 
@@ -141,7 +141,7 @@ func TestDefaultTokenProviderShouldValidateTokenWhenValidateFnIsSet(t *testing.T
 		},
 	}
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	res := httptest.NewRecorder()
 	ctx := &RouteContext{Request: req, Response: res}
 
@@ -158,7 +158,7 @@ func TestDefaultTokenProviderShouldReturnErrorWhenValidateFnIsNotSet(t *testing.
 	// Arrange
 	provider := &defaultTokenProvider{}
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	res := httptest.NewRecorder()
 	ctx := &RouteContext{Request: req, Response: res}
 
@@ -180,7 +180,7 @@ func TestDefaultTokenProviderShouldReturnErrorWhenValidateFnFails(t *testing.T) 
 		},
 	}
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	res := httptest.NewRecorder()
 	ctx := &RouteContext{Request: req, Response: res}
 
@@ -203,7 +203,7 @@ func TestAuthenticationMiddlewareShouldSetTokenProviderAsService(t *testing.T) {
 		}),
 	)
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	res := httptest.NewRecorder()
 
 	var capturedContext *RouteContext
@@ -238,7 +238,7 @@ func TestAuthenticationMiddlewareShouldAllowAnonymousAccessWhenConfigured(t *tes
 		}),
 	)
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	res := httptest.NewRecorder()
 
 	handler := func(c *RouteContext) {
@@ -264,7 +264,7 @@ func TestAuthenticationMiddlewareShouldRejectRequestWithoutValidAuthentication(t
 		}),
 	)
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	res := httptest.NewRecorder()
 
 	router.GET("/test", func(c *RouteContext) {
@@ -291,7 +291,7 @@ func TestAuthenticationMiddlewareShouldAuthenticateViaCookie(t *testing.T) {
 		}),
 	)
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.AddCookie(&http.Cookie{
 		Name:  GetUserCookieName(),
 		Value: "valid-cookie-token",
@@ -326,7 +326,7 @@ func TestAuthenticationMiddlewareShouldAuthenticateViaBearerToken(t *testing.T) 
 		}),
 	)
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.Header.Set("Authorization", "Bearer valid-bearer-token")
 	res := httptest.NewRecorder()
 

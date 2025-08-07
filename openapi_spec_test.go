@@ -250,7 +250,7 @@ func TestShouldUnmarshalFromJSONFile(t *testing.T) {
 		},
 		"paths": {
 			"/unmarshal-test": {
-				"get": {
+				"get" : {
 					"summary": "Test unmarshal",
 					"responses": {
 						"200": {

@@ -150,7 +150,7 @@ Each request generates a structured log entry with:
   "time": "2024-01-15T10:30:00Z",
   "level": "INFO",
   "msg": "http_request",
-  "method": "GET",
+  "method": http.MethodGet,
   "path": "/api/users",
   "status": 200,
   "remote": "192.168.1.100",

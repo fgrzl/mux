@@ -1,6 +1,7 @@
 package mux
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -10,7 +11,7 @@ import (
 func TestShouldProcessXForwardedProtoHeader(t *testing.T) {
 	// Arrange
 	middleware := &forwardedHeadersMiddleware{}
-	req := httptest.NewRequest("GET", "http://example.com/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
 	req.Header.Set("X-Forwarded-Proto", "https")
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
@@ -31,7 +32,7 @@ func TestShouldProcessXForwardedProtoHeader(t *testing.T) {
 func TestShouldProcessXForwardedForHeader(t *testing.T) {
 	// Arrange
 	middleware := &forwardedHeadersMiddleware{}
-	req := httptest.NewRequest("GET", "http://example.com/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
 	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
@@ -52,7 +53,7 @@ func TestShouldProcessXForwardedForHeader(t *testing.T) {
 func TestShouldProcessBothForwardedHeaders(t *testing.T) {
 	// Arrange
 	middleware := &forwardedHeadersMiddleware{}
-	req := httptest.NewRequest("GET", "http://example.com/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
 	req.Header.Set("X-Forwarded-Proto", "https")
 	req.Header.Set("X-Forwarded-For", "10.0.0.1")
 	recorder := httptest.NewRecorder()
@@ -75,7 +76,7 @@ func TestShouldProcessBothForwardedHeaders(t *testing.T) {
 func TestShouldIgnoreEmptyForwardedHeaders(t *testing.T) {
 	// Arrange
 	middleware := &forwardedHeadersMiddleware{}
-	req := httptest.NewRequest("GET", "http://example.com/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
 	originalScheme := req.URL.Scheme
 	originalRemoteAddr := req.RemoteAddr
 	recorder := httptest.NewRecorder()
