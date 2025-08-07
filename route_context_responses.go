@@ -176,6 +176,10 @@ func (c *RouteContext) ensureAbsoluteURL(url string) string {
 	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
 		return url
 	}
+	// Ensure url starts with a slash
+	if !strings.HasPrefix(url, "/") {
+		url = "/" + url
+	}
 	if c.ClientURL != nil {
 		// Ensure no double slash
 		return strings.TrimRight(c.ClientURL.String(), "/") + url
