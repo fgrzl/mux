@@ -10,6 +10,8 @@ import (
 	"strings"
 )
 
+const ProblemTypeAboutBlank = "about:blank"
+
 // ServerError writes a 500 Internal Server Error with problem details.
 func (c *RouteContext) ServerError(title, detail string) {
 	if title == "" {
@@ -19,7 +21,7 @@ func (c *RouteContext) ServerError(title, detail string) {
 		Title:    title,
 		Detail:   detail,
 		Status:   http.StatusInternalServerError,
-		Type:     "about:blank",
+		Type:     ProblemTypeAboutBlank,
 		Instance: getInstanceURI(c.Request),
 	})
 }
@@ -33,7 +35,7 @@ func (c *RouteContext) BadRequest(title, detail string) {
 		Title:    title,
 		Detail:   detail,
 		Status:   http.StatusBadRequest,
-		Type:     "about:blank",
+		Type:     ProblemTypeAboutBlank,
 		Instance: getInstanceURI(c.Request),
 	})
 }
@@ -44,7 +46,7 @@ func (c *RouteContext) Conflict(title, detail string) {
 		Title:    title,
 		Detail:   detail,
 		Status:   http.StatusConflict,
-		Type:     "about:blank",
+		Type:     ProblemTypeAboutBlank,
 		Instance: getInstanceURI(c.Request),
 	})
 }
@@ -59,7 +61,7 @@ func (c *RouteContext) Problem(problem *ProblemDetails) {
 		slog.String("title", problem.Title),
 		slog.String("detail", problem.Detail),
 	)
-	c.Response.Header().Set("Content-Type", "application/problem+json")
+	c.Response.Header().Set(HeaderContentType, MimeProblemJSON)
 	c.Response.WriteHeader(problem.Status)
 	json.NewEncoder(c.Response).Encode(problem)
 }
@@ -71,14 +73,14 @@ func (c *RouteContext) OK(model any) {
 
 // JSON writes a JSON response with custom status code.
 func (c *RouteContext) JSON(status int, model any) {
-	c.Response.Header().Set("Content-Type", "application/json")
+	c.Response.Header().Set(HeaderContentType, MimeJSON)
 	c.Response.WriteHeader(status)
 	json.NewEncoder(c.Response).Encode(model)
 }
 
 // Plain writes a plain text response.
 func (c *RouteContext) Plain(status int, data []byte) {
-	c.Response.Header().Set("Content-Type", "text/plain")
+	c.Response.Header().Set(HeaderContentType, MimeTextPlain)
 	c.Response.WriteHeader(status)
 	if len(data) > 0 {
 		c.Response.Write(data)
@@ -87,7 +89,7 @@ func (c *RouteContext) Plain(status int, data []byte) {
 
 // HTML writes an HTML response.
 func (c *RouteContext) HTML(status int, html string) {
-	c.Response.Header().Set("Content-Type", "text/html")
+	c.Response.Header().Set(HeaderContentType, MimeTextHTML)
 	c.Response.WriteHeader(status)
 	c.Response.Write([]byte(html))
 }
@@ -136,8 +138,8 @@ func (c *RouteContext) Download(filePath, filename string) {
 	}
 	defer f.Close()
 
-	c.Response.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
-	c.Response.Header().Set("Content-Type", "application/octet-stream")
+	c.Response.Header().Set(HeaderContentDisposition, fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	c.Response.Header().Set(HeaderContentType, MimeOctetStream)
 	c.Response.WriteHeader(http.StatusOK)
 	io.Copy(c.Response, f)
 }
@@ -160,7 +162,7 @@ func (c *RouteContext) PermanentRedirect(url string) {
 
 // GetRedirectScheme returns the scheme to use when constructing redirect URLs.
 func (c *RouteContext) GetRedirectScheme() string {
-	if scheme := c.Request.Header.Get("X-Forwarded-Proto"); scheme != "" {
+	if scheme := c.Request.Header.Get(HeaderXForwardedProto); scheme != "" {
 		return scheme
 	}
 	if c.Request.URL.Scheme != "" {

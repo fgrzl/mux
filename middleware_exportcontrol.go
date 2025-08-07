@@ -61,7 +61,7 @@ var exportRestrictedCountries = map[string]struct{}{
 }
 
 func getRealIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+	if xff := r.Header.Get(HeaderXForwardedFor); xff != "" {
 		return strings.TrimSpace(strings.Split(xff, ",")[0])
 	}
 	if xrip := r.Header.Get("X-Real-IP"); xrip != "" {

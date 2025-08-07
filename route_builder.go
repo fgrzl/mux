@@ -155,7 +155,7 @@ func (rb *RouteBuilder) WithResponse(code int, example any) *RouteBuilder {
 			panic(err)
 		}
 		resp.Content = map[string]*MediaType{
-			"application/json": {Schema: schema, Example: example},
+			MimeJSON: {Schema: schema, Example: example},
 		}
 	}
 	rb.Options.Responses[fmt.Sprintf("%d", code)] = resp
@@ -336,6 +336,14 @@ func RegisterSchema(t reflect.Type, schema *Schema) {
 		t = t.Elem()
 	}
 	knownSchemas[t] = schema
+}
+
+// removeSchema removes a schema from the knownSchemas registry (for test cleanup).
+func removeSchema(t reflect.Type) {
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	delete(knownSchemas, t)
 }
 
 func lookupKnownSchema(t reflect.Type) (*Schema, bool) {

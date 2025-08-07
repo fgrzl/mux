@@ -57,7 +57,11 @@ func (m *SelectiveRateLimiter) Invoke(c *RouteContext, next HandlerFunc) {
 		return
 	}
 
-	ip, _, _ := net.SplitHostPort(c.Request.RemoteAddr)
+	ip, _, err := net.SplitHostPort(c.Request.RemoteAddr)
+	if err != nil {
+		// If we can't parse the host:port, use the entire RemoteAddr as IP
+		ip = c.Request.RemoteAddr
+	}
 	v := m.getVisitor(ip, c.Request.Pattern, opts.RateLimit, opts.RateInterval)
 
 	if v.tokens <= 0 {

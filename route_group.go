@@ -238,7 +238,7 @@ func (rg *RouteGroup) Healthz() *RouteBuilder {
 // HealthzWithReady registers a /healthz endpoint with a custom readiness check.
 func (rg *RouteGroup) HealthzWithReady(isReady func() bool) *RouteBuilder {
 	return rg.registerRoute(http.MethodGet, "/healthz", func(c *RouteContext) {
-		c.Response.Header().Set("Content-Type", "text/plain")
+		c.Response.Header().Set(HeaderContentType, MimeTextPlain)
 		if isReady() {
 			c.Response.WriteHeader(http.StatusOK)
 			c.Response.Write([]byte("ok"))

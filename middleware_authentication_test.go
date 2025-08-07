@@ -219,7 +219,7 @@ func TestAuthenticationMiddlewareShouldSetTokenProviderAsService(t *testing.T) {
 
 	// Assert
 	require.NotNil(t, capturedContext)
-	service, ok := capturedContext.GetService("token.provider")
+	service, ok := capturedContext.GetService(ServiceKeyTokenProvider)
 	assert.True(t, ok)
 	assert.NotNil(t, service)
 

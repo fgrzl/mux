@@ -73,14 +73,14 @@ func (c *RouteContext) Bind(model any) error {
 	case http.MethodPut, http.MethodPost:
 		c.Request.Body = http.MaxBytesReader(c.Response, c.Request.Body, 1<<20) // 1MB max
 		ct := c.Request.Header.Get("Content-Type")
-		if ct == "application/x-www-form-urlencoded" {
+		if ct == MimeFormURLEncoded {
 			if err := c.Request.ParseForm(); err != nil {
 				return err
 			}
 			for key, values := range c.Request.Form {
 				addToStaging(staging, key, values)
 			}
-		} else if strings.HasPrefix(ct, "application/json") {
+		} else if strings.HasPrefix(ct, MimeJSON) {
 			bodyMap := make(map[string]any)
 			decoder := json.NewDecoder(c.Request.Body)
 			if err := decoder.Decode(&bodyMap); err != nil {
