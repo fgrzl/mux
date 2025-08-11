@@ -149,7 +149,7 @@ type DefaultRouteContext struct {
 }
 
 func (c *DefaultRouteContext) Response() http.ResponseWriter {
-	return c.Response()
+	return c.response
 }
 
 func (c *DefaultRouteContext) SetResponse(w http.ResponseWriter) {

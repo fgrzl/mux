@@ -44,11 +44,11 @@ func TestShouldCreateNewRouteContext(t *testing.T) {
 	// Assert
 	assert.NotNil(t, ctx)
 	assert.Equal(t, req.Context(), ctx.Context)
-	assert.Equal(t, rec, ctx.Response)
-	assert.Equal(t, req, ctx.Request)
-	assert.Nil(t, ctx.User)
-	assert.Nil(t, ctx.Options)
-	assert.Nil(t, ctx.Params)
+	assert.Equal(t, rec, ctx.Response())
+	assert.Equal(t, req, ctx.Request())
+	assert.Nil(t, ctx.User())
+	assert.Nil(t, ctx.Options())
+	assert.Nil(t, ctx.Params())
 	assert.False(t, ctx.formsParsed)
 	assert.Nil(t, ctx.services)
 }
