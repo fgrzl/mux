@@ -6,10 +6,17 @@ import "net/http"
 type enforceHTTPSMiddleware struct{}
 
 // Invoke implements the Middleware interface, redirecting HTTP requests to HTTPS.
-func (m *enforceHTTPSMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
-	if c.Request.URL.Scheme != "https" {
-		target := "https://" + c.Request.Host + c.Request.URL.RequestURI()
-		http.Redirect(c.Response, c.Request, target, http.StatusMovedPermanently)
+func (m *enforceHTTPSMiddleware) Invoke(c RouteContext, next HandlerFunc) {
+	// Cast to concrete type to access Request and Response
+	c, ok := c.(*DefaultRouteContext)
+	if !ok {
+		next(c)
+		return
+	}
+
+	if c.Request().URL.Scheme != "https" {
+		target := "https://" + c.Request().Host + c.Request().URL.RequestURI()
+		http.Redirect(c.Response(), c.Request(), target, http.StatusMovedPermanently)
 		return
 	}
 	next(c)

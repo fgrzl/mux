@@ -27,7 +27,7 @@ func NewRouter(opts ...RouterOption) *Router {
 type APIOption[T any] = func(api T)
 
 // HandlerFunc defines the signature for HTTP request handlers.
-type HandlerFunc func(c *RouteContext)
+type HandlerFunc func(c RouteContext)
 
 // RouteKey uniquely identifies a route by its HTTP method and pattern.
 type RouteKey struct {
@@ -43,7 +43,7 @@ type Action struct {
 
 // Middleware defines the interface for HTTP middleware components.
 type Middleware interface {
-	Invoke(ctx *RouteContext, next HandlerFunc)
+	Invoke(c RouteContext, next HandlerFunc)
 }
 
 // Router is the main HTTP router that handles routing and middleware execution.
@@ -81,21 +81,21 @@ func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c.Options = options
-	c.Params = params
-	c.ClientURL = rtr.options.clientURL
+	c.options = options
+	c.params = params
+	c.clientURL = rtr.options.clientURL
 
 	// start the pipeline
 	var next HandlerFunc
 	index := 0
 	middleware := rtr.middleware
-	next = func(c *RouteContext) {
+	next = func(c RouteContext) {
 		if index < len(middleware) {
 			current := middleware[index]
 			index++
 			current.Invoke(c, next)
 		} else {
-			c.Options.Handler(c)
+			c.Options().Handler(c)
 		}
 	}
 	next(c)

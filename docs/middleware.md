@@ -247,10 +247,10 @@ After adding the middleware, forwarded headers are automatically parsed and made
 ```go
 func handler(c *mux.RouteContext) {
     // Get real client IP (considering forwarded headers)
-    realIP := getRealIP(c.Request)
+    realIP := getRealIP(c.Request())
     
     // Original protocol
-    proto := c.Request.Header.Get("X-Forwarded-Proto")
+    proto := c.Request().Header.Get("X-Forwarded-Proto")
     
     c.OK(map[string]string{
         "client_ip": realIP,

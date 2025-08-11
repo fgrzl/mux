@@ -54,8 +54,9 @@ func (cw *compressionWriter) WriteHeader(statusCode int) {
 }
 
 // Invoke implements the Middleware interface, applying compression based on Accept-Encoding headers.
-func (m *compressionMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
-	acceptEncoding := c.Request.Header.Get("Accept-Encoding")
+func (m *compressionMiddleware) Invoke(c RouteContext, next HandlerFunc) {
+
+	acceptEncoding := c.Request().Header.Get("Accept-Encoding")
 	if acceptEncoding == "" {
 		next(c)
 		return
@@ -63,12 +64,12 @@ func (m *compressionMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
 
 	var compressor io.WriteCloser
 	if strings.Contains(acceptEncoding, "gzip") {
-		c.Response.Header().Set("Content-Encoding", "gzip")
-		compressor = gzip.NewWriter(c.Response)
+		c.Response().Header().Set("Content-Encoding", "gzip")
+		compressor = gzip.NewWriter(c.Response())
 	} else if strings.Contains(acceptEncoding, "deflate") {
-		c.Response.Header().Set("Content-Encoding", "deflate")
+		c.Response().Header().Set("Content-Encoding", "deflate")
 		var err error
-		compressor, err = flate.NewWriter(c.Response, flate.DefaultCompression)
+		compressor, err = flate.NewWriter(c.Response(), flate.DefaultCompression)
 		if err != nil {
 			c.ServerError("Compression Failed", err.Error())
 			return
@@ -78,10 +79,10 @@ func (m *compressionMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
 		return
 	}
 
-	c.Response = &compressionWriter{
-		w: c.Response,
+	c.SetResponse(&compressionWriter{
+		w: c.Response(),
 		c: compressor,
-	}
+	})
 	defer compressor.Close()
 	next(c)
 }

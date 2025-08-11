@@ -7,13 +7,13 @@ import (
 )
 
 // Param returns the raw string value of a route parameter.
-func (c *RouteContext) Param(name string) (string, bool) {
-	val, ok := c.Params[name]
+func (c *DefaultRouteContext) Param(name string) (string, bool) {
+	val, ok := c.params[name]
 	return val, ok
 }
 
 // ParamUUID parses a UUID from a route parameter.
-func (c *RouteContext) ParamUUID(name string) (uuid.UUID, bool) {
+func (c *DefaultRouteContext) ParamUUID(name string) (uuid.UUID, bool) {
 	val, ok := c.Param(name)
 	if !ok {
 		return uuid.Nil, false
@@ -23,7 +23,7 @@ func (c *RouteContext) ParamUUID(name string) (uuid.UUID, bool) {
 }
 
 // ParamInt parses an int from a route parameter.
-func (c *RouteContext) ParamInt(name string) (int, bool) {
+func (c *DefaultRouteContext) ParamInt(name string) (int, bool) {
 	val, ok := c.Param(name)
 	if !ok {
 		return 0, false
@@ -33,7 +33,7 @@ func (c *RouteContext) ParamInt(name string) (int, bool) {
 }
 
 // ParamInt16 parses an int16 from a route parameter.
-func (c *RouteContext) ParamInt16(name string) (int16, bool) {
+func (c *DefaultRouteContext) ParamInt16(name string) (int16, bool) {
 	val, ok := c.Param(name)
 	if !ok {
 		return 0, false
@@ -43,7 +43,7 @@ func (c *RouteContext) ParamInt16(name string) (int16, bool) {
 }
 
 // ParamInt32 parses an int32 from a route parameter.
-func (c *RouteContext) ParamInt32(name string) (int32, bool) {
+func (c *DefaultRouteContext) ParamInt32(name string) (int32, bool) {
 	val, ok := c.Param(name)
 	if !ok {
 		return 0, false
@@ -53,7 +53,7 @@ func (c *RouteContext) ParamInt32(name string) (int32, bool) {
 }
 
 // ParamInt64 parses an int64 from a route parameter.
-func (c *RouteContext) ParamInt64(name string) (int64, bool) {
+func (c *DefaultRouteContext) ParamInt64(name string) (int64, bool) {
 	val, ok := c.Param(name)
 	if !ok {
 		return 0, false

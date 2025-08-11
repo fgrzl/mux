@@ -31,19 +31,19 @@ type loggingMiddleware struct {
 }
 
 // Invoke implements the Middleware interface, logging request details with structured logging.
-func (m *loggingMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
+func (m *loggingMiddleware) Invoke(c RouteContext, next HandlerFunc) {
 	start := time.Now()
-	rec := &statusRecorder{ResponseWriter: c.Response}
-	c.Response = rec
+	rec := &statusRecorder{ResponseWriter: c.Response()}
+	c.SetResponse(rec)
 
 	next(c)
 
 	slog.InfoContext(c, "http_request",
-		slog.String("method", c.Request.Method),
-		slog.String("path", c.Request.URL.Path),
+		slog.String("method", c.Request().Method),
+		slog.String("path", c.Request().URL.Path),
 		slog.Int("status", rec.Status),
-		slog.String("remote", c.Request.RemoteAddr),
-		slog.String("user_agent", c.Request.UserAgent()),
+		slog.String("remote", c.Request().RemoteAddr),
+		slog.String("user_agent", c.Request().UserAgent()),
 		slog.Duration("duration", time.Since(start)),
 	)
 }

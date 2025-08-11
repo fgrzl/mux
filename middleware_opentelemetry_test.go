@@ -67,13 +67,13 @@ func TestShouldInvokeNextWithOpenTelemetryTracing(t *testing.T) {
 	requestUpdated := false
 	responseUpdated := false
 
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
 		// Check if context was properly updated
-		if c.Request != nil {
+		if c.Request() != nil {
 			requestUpdated = true
 		}
-		if c.Response != nil {
+		if c.Response() != nil {
 			responseUpdated = true
 		}
 	}
@@ -158,7 +158,7 @@ func TestShouldInvokeWithDifferentHTTPMethods(t *testing.T) {
 			ctx := NewRouteContext(rec, req)
 
 			called := false
-			next := func(c *RouteContext) {
+			next := func(c RouteContext) {
 				called = true
 				c.OK("success")
 			}
@@ -182,14 +182,14 @@ func TestShouldWorkWithComplexRouteContext(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
-	ctx.Params = RouteParams{"id": "123"}
+	ctx.params = RouteParams{"id": "123"}
 
 	nextCalled := false
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
 		// Verify context is still intact
-		assert.Equal(t, "123", c.Params["id"])
-		assert.Equal(t, "Bearer token123", c.Request.Header.Get("Authorization"))
+		assert.Equal(t, "123", c.Params()["id"])
+		assert.Equal(t, "Bearer token123", c.Request().Header.Get("Authorization"))
 		c.OK("user updated")
 	}
 

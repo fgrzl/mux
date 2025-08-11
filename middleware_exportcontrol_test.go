@@ -64,7 +64,7 @@ func TestShouldAllowAccessWhenNoDatabaseConfigured(t *testing.T) {
 	ctx := NewRouteContext(rec, req)
 
 	nextCalled := false
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
 	}
 
@@ -88,7 +88,7 @@ func TestShouldAllowAccessWhenIPCannotBeParsed(t *testing.T) {
 	ctx := NewRouteContext(rec, req)
 
 	nextCalled := false
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
 	}
 
@@ -265,7 +265,7 @@ func TestShouldProcessRequestWhenGeoLookupFails(t *testing.T) {
 	ctx := NewRouteContext(rec, req)
 
 	nextCalled := false
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
 	}
 

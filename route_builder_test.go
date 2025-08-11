@@ -14,18 +14,7 @@ import (
 )
 
 const (
-	paramID         = "id"
-	paramLimit      = "limit"
-	paramStatus     = "status"
-	paramAccept     = "Accept"
-	paramSessionID  = "sessionId"
-	queryIn         = "query"
-	pathIn          = "path"
-	headerIn        = "header"
-	cookieIn        = "cookie"
-	applicationJSON = "application/json"
-	formURLEncoded  = "application/x-www-form-urlencoded"
-	multipartForm   = "multipart/form-data"
+	paramAccept = "Accept"
 )
 
 func TestShouldCreateRouteBuilder(t *testing.T) {

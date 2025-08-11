@@ -38,12 +38,10 @@ type otelMiddleware struct {
 }
 
 // Invoke implements the Middleware interface, adding OpenTelemetry tracing to HTTP requests.
-func (m *otelMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
+func (m *otelMiddleware) Invoke(c RouteContext, next HandlerFunc) {
 	handler := otelhttp.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		c.Request = r
-		c.Response = w
 		next(c)
 	}), m.operation)
 
-	handler.ServeHTTP(c.Response, c.Request)
+	handler.ServeHTTP(c.Response(), c.Request())
 }

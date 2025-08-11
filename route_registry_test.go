@@ -20,7 +20,7 @@ func TestShouldCreateNewRouteRegistry(t *testing.T) {
 func TestShouldRegisterSimpleRoute(t *testing.T) {
 	// Arrange
 	registry := NewRouteRegistry()
-	options := &RouteOptions{Handler: func(c *RouteContext) {}}
+	options := &RouteOptions{Handler: func(c RouteContext) {}}
 
 	// Act
 	registry.Register("/users", http.MethodGet, options)
@@ -36,7 +36,7 @@ func TestShouldRegisterSimpleRoute(t *testing.T) {
 func TestShouldRegisterRouteWithParameters(t *testing.T) {
 	// Arrange
 	registry := NewRouteRegistry()
-	options := &RouteOptions{Handler: func(c *RouteContext) {}}
+	options := &RouteOptions{Handler: func(c RouteContext) {}}
 
 	// Act
 	registry.Register("/users/{id}", http.MethodGet, options)
@@ -52,7 +52,7 @@ func TestShouldRegisterRouteWithParameters(t *testing.T) {
 func TestShouldRegisterRouteWithMultipleParameters(t *testing.T) {
 	// Arrange
 	registry := NewRouteRegistry()
-	options := &RouteOptions{Handler: func(c *RouteContext) {}}
+	options := &RouteOptions{Handler: func(c RouteContext) {}}
 
 	// Act
 	registry.Register("/users/{userId}/posts/{postId}", http.MethodGet, options)
@@ -69,7 +69,7 @@ func TestShouldRegisterRouteWithMultipleParameters(t *testing.T) {
 func TestShouldRegisterRouteWithWildcard(t *testing.T) {
 	// Arrange
 	registry := NewRouteRegistry()
-	options := &RouteOptions{Handler: func(c *RouteContext) {}}
+	options := &RouteOptions{Handler: func(c RouteContext) {}}
 
 	// Act
 	registry.Register("/static/*", http.MethodGet, options)
@@ -85,7 +85,7 @@ func TestShouldRegisterRouteWithWildcard(t *testing.T) {
 func TestShouldRegisterRouteWithCatchAll(t *testing.T) {
 	// Arrange
 	registry := NewRouteRegistry()
-	options := &RouteOptions{Handler: func(c *RouteContext) {}}
+	options := &RouteOptions{Handler: func(c RouteContext) {}}
 
 	// Act
 	registry.Register("/api/**", http.MethodGet, options)
@@ -101,8 +101,8 @@ func TestShouldRegisterRouteWithCatchAll(t *testing.T) {
 func TestShouldRegisterMultipleMethodsForSameRoute(t *testing.T) {
 	// Arrange
 	registry := NewRouteRegistry()
-	getOptions := &RouteOptions{Handler: func(c *RouteContext) {}}
-	postOptions := &RouteOptions{Handler: func(c *RouteContext) {}}
+	getOptions := &RouteOptions{Handler: func(c RouteContext) {}}
+	postOptions := &RouteOptions{Handler: func(c RouteContext) {}}
 
 	// Act
 	registry.Register("/users", http.MethodGet, getOptions)
@@ -132,7 +132,7 @@ func TestShouldReturnFalseForUnregisteredRoute(t *testing.T) {
 func TestShouldReturnFalseForUnregisteredMethod(t *testing.T) {
 	// Arrange
 	registry := NewRouteRegistry()
-	options := &RouteOptions{Handler: func(c *RouteContext) {}}
+	options := &RouteOptions{Handler: func(c RouteContext) {}}
 	registry.Register("/users", http.MethodGet, options)
 
 	// Act
@@ -145,7 +145,7 @@ func TestShouldReturnFalseForUnregisteredMethod(t *testing.T) {
 func TestShouldHandleRootRoute(t *testing.T) {
 	// Arrange
 	registry := NewRouteRegistry()
-	options := &RouteOptions{Handler: func(c *RouteContext) {}}
+	options := &RouteOptions{Handler: func(c RouteContext) {}}
 
 	// Act
 	registry.Register("/", http.MethodGet, options)
@@ -161,7 +161,7 @@ func TestShouldHandleRootRoute(t *testing.T) {
 func TestShouldHandleEmptyRoute(t *testing.T) {
 	// Arrange
 	registry := NewRouteRegistry()
-	options := &RouteOptions{Handler: func(c *RouteContext) {}}
+	options := &RouteOptions{Handler: func(c RouteContext) {}}
 
 	// Act
 	registry.Register("", http.MethodGet, options)
@@ -177,8 +177,8 @@ func TestShouldHandleEmptyRoute(t *testing.T) {
 func TestShouldMatchExactRouteBeforeParameterRoute(t *testing.T) {
 	// Arrange
 	registry := NewRouteRegistry()
-	exactOptions := &RouteOptions{Handler: func(c *RouteContext) { /* exact */ }}
-	paramOptions := &RouteOptions{Handler: func(c *RouteContext) { /* param */ }}
+	exactOptions := &RouteOptions{Handler: func(c RouteContext) { /* exact */ }}
+	paramOptions := &RouteOptions{Handler: func(c RouteContext) { /* param */ }}
 
 	// Act
 	registry.Register("/users/{id}", http.MethodGet, paramOptions)
@@ -201,8 +201,8 @@ func TestShouldMatchExactRouteBeforeParameterRoute(t *testing.T) {
 func TestShouldHandleNestedRoutes(t *testing.T) {
 	// Arrange
 	registry := NewRouteRegistry()
-	options1 := &RouteOptions{Handler: func(c *RouteContext) {}}
-	options2 := &RouteOptions{Handler: func(c *RouteContext) {}}
+	options1 := &RouteOptions{Handler: func(c RouteContext) {}}
+	options2 := &RouteOptions{Handler: func(c RouteContext) {}}
 
 	// Act
 	registry.Register("/api/users", http.MethodGet, options1)
@@ -221,7 +221,7 @@ func TestShouldHandleNestedRoutes(t *testing.T) {
 func TestShouldHandleParameterCleanupOnFailure(t *testing.T) {
 	// Arrange
 	registry := NewRouteRegistry()
-	options := &RouteOptions{Handler: func(c *RouteContext) {}}
+	options := &RouteOptions{Handler: func(c RouteContext) {}}
 	registry.Register("/users/{id}/posts", http.MethodGet, options)
 
 	// Act - try to load a path that partially matches

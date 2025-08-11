@@ -38,7 +38,7 @@ type serviceSetterMiddleware struct {
 }
 
 // Invoke implements the Middleware interface, setting services on the RouteContext.
-func (m *serviceSetterMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
+func (m *serviceSetterMiddleware) Invoke(c RouteContext, next HandlerFunc) {
 	if m.options == nil || m.options.Services == nil {
 		next(c)
 		return

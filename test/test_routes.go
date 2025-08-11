@@ -10,7 +10,7 @@ import (
 func ConfigureRoutes(r *mux.Router) {
 	rg := r.NewRouteGroup("/api/v1")
 
-	rg.GET("/resources/", func(c *mux.RouteContext) {
+	rg.GET("/resources/", func(c mux.RouteContext) {
 		resources := service.ListResources(0)
 		if len(resources) == 0 {
 			c.NotFound()
@@ -24,7 +24,7 @@ func ConfigureRoutes(r *mux.Router) {
 		WithResponse(404, mux.ProblemDetails{}).
 		WithTags("Resources")
 
-	rg.HEAD("/resources/{resourceId}", func(c *mux.RouteContext) {
+	rg.HEAD("/resources/{resourceId}", func(c mux.RouteContext) {
 		resourceIdStr, found := c.Param("resourceId")
 		if !found {
 			c.NotFound()
@@ -47,7 +47,7 @@ func ConfigureRoutes(r *mux.Router) {
 		WithResponse(404, mux.ProblemDetails{}).
 		WithTags("Resources")
 
-	rg.GET("/resources/{resourceId}", func(c *mux.RouteContext) {
+	rg.GET("/resources/{resourceId}", func(c mux.RouteContext) {
 		resourceIdStr, found := c.Param("resourceId")
 		if !found {
 			c.NotFound()
@@ -70,7 +70,7 @@ func ConfigureRoutes(r *mux.Router) {
 		WithResponse(404, mux.ProblemDetails{}).
 		WithTags("Resources")
 
-	rg.GET("/tenants/", func(c *mux.RouteContext) {
+	rg.GET("/tenants/", func(c mux.RouteContext) {
 		tenants := service.ListTenants()
 		if len(tenants) == 0 {
 			c.NotFound()
@@ -83,7 +83,7 @@ func ConfigureRoutes(r *mux.Router) {
 		WithResponse(404, mux.ProblemDetails{}).
 		WithTags("Tenants")
 
-	rg.POST("/tenants/", func(c *mux.RouteContext) {
+	rg.POST("/tenants/", func(c mux.RouteContext) {
 		var tenant Tenant
 		if err := c.Bind(&tenant); err != nil {
 			c.BadRequest("Bad Request", err.Error())
@@ -101,7 +101,7 @@ func ConfigureRoutes(r *mux.Router) {
 		WithResponse(400, mux.ProblemDetails{}).
 		WithTags("Tenants")
 
-	rg.PUT("/tenants/{tenantID}", func(c *mux.RouteContext) {
+	rg.PUT("/tenants/{tenantID}", func(c mux.RouteContext) {
 		var tenant Tenant
 		if err := c.Bind(&tenant); err != nil {
 			c.BadRequest("Bad Request", err.Error())
@@ -116,7 +116,7 @@ func ConfigureRoutes(r *mux.Router) {
 		WithResponse(400, mux.ProblemDetails{}).
 		WithTags("Tenants")
 
-	rg.HEAD("/tenants/{tenantID}", func(c *mux.RouteContext) {
+	rg.HEAD("/tenants/{tenantID}", func(c mux.RouteContext) {
 		tenantIDStr, found := c.Param("tenantID")
 		if !found {
 			c.NotFound()
@@ -139,7 +139,7 @@ func ConfigureRoutes(r *mux.Router) {
 		WithResponse(404, mux.ProblemDetails{}).
 		WithTags("Tenants")
 
-	rg.GET("/tenants/{tenantID}", func(c *mux.RouteContext) {
+	rg.GET("/tenants/{tenantID}", func(c mux.RouteContext) {
 		tenantIDStr, found := c.Param("tenantID")
 		if !found {
 			c.NotFound()
@@ -162,7 +162,7 @@ func ConfigureRoutes(r *mux.Router) {
 		WithResponse(404, mux.ProblemDetails{}).
 		WithTags("Tenants")
 
-	rg.DELETE("/tenants/{tenantID}", func(c *mux.RouteContext) {
+	rg.DELETE("/tenants/{tenantID}", func(c mux.RouteContext) {
 		tenantIDStr, found := c.Param("tenantID")
 		if !found {
 			c.NotFound()
@@ -185,7 +185,7 @@ func ConfigureRoutes(r *mux.Router) {
 		WithResponse(404, mux.ProblemDetails{}).
 		WithTags("Tenants")
 
-	rg.GET("/tenants/{tenantID}/resources", func(c *mux.RouteContext) {
+	rg.GET("/tenants/{tenantID}/resources", func(c mux.RouteContext) {
 		tenantIDStr, found := c.Param("tenantID")
 		if !found {
 			c.NotFound()
@@ -208,7 +208,7 @@ func ConfigureRoutes(r *mux.Router) {
 		WithResponse(404, mux.ProblemDetails{}).
 		WithTags("Tenants", "Resources")
 
-	rg.POST("/tenants/{tenantID}/resources", func(c *mux.RouteContext) {
+	rg.POST("/tenants/{tenantID}/resources", func(c mux.RouteContext) {
 		var resource Resource
 		if err := c.Bind(&resource); err != nil {
 			c.BadRequest("Bad Request", err.Error())

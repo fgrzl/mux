@@ -20,8 +20,8 @@ func TestShouldCompressResponseWithGzip(t *testing.T) {
 	ctx := NewRouteContext(recorder, req)
 
 	response := "This is test response data that should be compressed"
-	next := func(c *RouteContext) {
-		c.Response.Write([]byte(response))
+	next := func(c RouteContext) {
+		c.Response().Write([]byte(response))
 	}
 
 	// Act
@@ -49,8 +49,8 @@ func TestShouldCompressResponseWithDeflate(t *testing.T) {
 	ctx := NewRouteContext(recorder, req)
 
 	response := "This is test response data that should be compressed with deflate"
-	next := func(c *RouteContext) {
-		c.Response.Write([]byte(response))
+	next := func(c RouteContext) {
+		c.Response().Write([]byte(response))
 	}
 
 	// Act
@@ -69,8 +69,8 @@ func TestShouldPreferGzipOverDeflate(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
-	next := func(c *RouteContext) {
-		c.Response.Write([]byte("test"))
+	next := func(c RouteContext) {
+		c.Response().Write([]byte("test"))
 	}
 
 	// Act
@@ -88,8 +88,8 @@ func TestShouldNotCompressWhenNoAcceptEncoding(t *testing.T) {
 	ctx := NewRouteContext(recorder, req)
 
 	response := "This response should not be compressed"
-	next := func(c *RouteContext) {
-		c.Response.Write([]byte(response))
+	next := func(c RouteContext) {
+		c.Response().Write([]byte(response))
 	}
 
 	// Act
@@ -109,8 +109,8 @@ func TestShouldNotCompressWhenUnsupportedEncoding(t *testing.T) {
 	ctx := NewRouteContext(recorder, req)
 
 	response := "This response should not be compressed"
-	next := func(c *RouteContext) {
-		c.Response.Write([]byte(response))
+	next := func(c RouteContext) {
+		c.Response().Write([]byte(response))
 	}
 
 	// Act

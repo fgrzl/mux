@@ -14,7 +14,7 @@ func TestShouldReturnParamValue(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	ctx.Params = RouteParams{"id": "123", "name": "test"}
+	ctx.params = RouteParams{"id": "123", "name": "test"}
 
 	// Act
 	id, ok := ctx.Param("id")
@@ -29,7 +29,7 @@ func TestShouldReturnFalseForMissingParam(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	ctx.Params = RouteParams{}
+	ctx.params = RouteParams{}
 
 	// Act
 	_, ok := ctx.Param("nonexistent")
@@ -44,7 +44,7 @@ func TestShouldParseValidUUIDParam(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 	testUUID := uuid.New()
-	ctx.Params = RouteParams{"id": testUUID.String()}
+	ctx.params = RouteParams{"id": testUUID.String()}
 
 	// Act
 	parsedUUID, ok := ctx.ParamUUID("id")
@@ -59,7 +59,7 @@ func TestShouldReturnFalseForInvalidUUIDParam(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	ctx.Params = RouteParams{"id": "invalid-uuid"}
+	ctx.params = RouteParams{"id": "invalid-uuid"}
 
 	// Act
 	_, ok := ctx.ParamUUID("id")
@@ -73,7 +73,7 @@ func TestShouldReturnFalseForMissingUUIDParam(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	ctx.Params = RouteParams{}
+	ctx.params = RouteParams{}
 
 	// Act
 	parsedUUID, ok := ctx.ParamUUID("missing")
@@ -88,7 +88,7 @@ func TestShouldParseValidIntParam(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	ctx.Params = RouteParams{"count": "42"}
+	ctx.params = RouteParams{"count": "42"}
 
 	// Act
 	count, ok := ctx.ParamInt("count")
@@ -103,7 +103,7 @@ func TestShouldReturnFalseForInvalidIntParam(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	ctx.Params = RouteParams{"count": "not-a-number"}
+	ctx.params = RouteParams{"count": "not-a-number"}
 
 	// Act
 	_, ok := ctx.ParamInt("count")
@@ -117,7 +117,7 @@ func TestShouldParseValidInt16Param(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	ctx.Params = RouteParams{"port": "8080"}
+	ctx.params = RouteParams{"port": "8080"}
 
 	// Act
 	port, ok := ctx.ParamInt16("port")
@@ -132,7 +132,7 @@ func TestShouldReturnFalseForInvalidInt16Param(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	ctx.Params = RouteParams{"port": "99999999"} // Too large for int16
+	ctx.params = RouteParams{"port": "99999999"} // Too large for int16
 
 	// Act
 	_, ok := ctx.ParamInt16("port")
@@ -146,7 +146,7 @@ func TestShouldParseValidInt32Param(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	ctx.Params = RouteParams{"size": "1048576"}
+	ctx.params = RouteParams{"size": "1048576"}
 
 	// Act
 	size, ok := ctx.ParamInt32("size")
@@ -161,7 +161,7 @@ func TestShouldReturnFalseForInvalidInt32Param(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	ctx.Params = RouteParams{"size": "not-a-number"}
+	ctx.params = RouteParams{"size": "not-a-number"}
 
 	// Act
 	_, ok := ctx.ParamInt32("size")
@@ -175,7 +175,7 @@ func TestShouldParseValidInt64Param(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	ctx.Params = RouteParams{"timestamp": "1609459200"}
+	ctx.params = RouteParams{"timestamp": "1609459200"}
 
 	// Act
 	timestamp, ok := ctx.ParamInt64("timestamp")
@@ -190,7 +190,7 @@ func TestShouldReturnFalseForInvalidInt64Param(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	ctx.Params = RouteParams{"timestamp": "invalid"}
+	ctx.params = RouteParams{"timestamp": "invalid"}
 
 	// Act
 	_, ok := ctx.ParamInt64("timestamp")
@@ -204,7 +204,7 @@ func TestShouldReturnZeroForMissingIntParams(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
-	ctx.Params = RouteParams{}
+	ctx.params = RouteParams{}
 
 	// Act & Assert
 	intVal, ok := ctx.ParamInt("missing")
