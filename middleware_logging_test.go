@@ -25,10 +25,10 @@ func TestLoggingMiddlewareShouldLogRequestDetails(t *testing.T) {
 	ctx := NewRouteContext(recorder, req)
 
 	nextCalled := false
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
-		c.Response.WriteHeader(http.StatusOK)
-		c.Response.Write([]byte("test response"))
+		c.Response().WriteHeader(http.StatusOK)
+		c.Response().Write([]byte("test response"))
 	}
 
 	// Act
@@ -58,8 +58,8 @@ func TestLoggingMiddlewareShouldCaptureStatusCode(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
-	next := func(c *RouteContext) {
-		c.Response.WriteHeader(http.StatusCreated)
+	next := func(c RouteContext) {
+		c.Response().WriteHeader(http.StatusCreated)
 	}
 
 	// Act
@@ -81,8 +81,8 @@ func TestLoggingMiddlewareShouldHandleErrorStatus(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
-	next := func(c *RouteContext) {
-		c.Response.WriteHeader(http.StatusInternalServerError)
+	next := func(c RouteContext) {
+		c.Response().WriteHeader(http.StatusInternalServerError)
 	}
 
 	// Act
@@ -104,9 +104,9 @@ func TestLoggingMiddlewareShouldDefaultTo200Status(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		// Don't explicitly set status - should default to 200
-		c.Response.Write([]byte("response"))
+		c.Response().Write([]byte("response"))
 	}
 
 	// Act

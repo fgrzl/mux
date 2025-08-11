@@ -50,19 +50,26 @@ func NewSelectiveRateLimiter(opts ...RateLimiterOption) *SelectiveRateLimiter {
 
 // ---- Middleware ----
 
-func (m *SelectiveRateLimiter) Invoke(c *RouteContext, next HandlerFunc) {
-	opts := c.Options
+func (m *SelectiveRateLimiter) Invoke(c RouteContext, next HandlerFunc) {
+	// Cast to concrete type to access Options and Request
+	c, ok := c.(*DefaultRouteContext)
+	if !ok {
+		next(c)
+		return
+	}
+
+	opts := c.Options()
 	if opts == nil || opts.RateLimit <= 0 {
 		next(c)
 		return
 	}
 
-	ip, _, err := net.SplitHostPort(c.Request.RemoteAddr)
+	ip, _, err := net.SplitHostPort(c.Request().RemoteAddr)
 	if err != nil {
 		// If we can't parse the host:port, use the entire RemoteAddr as IP
-		ip = c.Request.RemoteAddr
+		ip = c.Request().RemoteAddr
 	}
-	v := m.getVisitor(ip, c.Request.Pattern, opts.RateLimit, opts.RateInterval)
+	v := m.getVisitor(ip, c.Request().Pattern, opts.RateLimit, opts.RateInterval)
 
 	if v.tokens <= 0 {
 		c.Problem(&ProblemDetails{
@@ -70,7 +77,7 @@ func (m *SelectiveRateLimiter) Invoke(c *RouteContext, next HandlerFunc) {
 			Detail:   "You have exceeded the allowed number of requests. Please try again later.",
 			Status:   http.StatusTooManyRequests,
 			Type:     "https://httpstatuses.com/429",
-			Instance: getInstanceURI(c.Request),
+			Instance: getInstanceURI(c.Request()),
 		})
 		return
 	}

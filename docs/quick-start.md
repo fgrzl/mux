@@ -346,7 +346,7 @@ func main() {
     // Add endpoint to serve the spec
     router.GET("/openapi.yaml", func(c *mux.RouteContext) {
         c.Response.Header().Set("Content-Type", "application/yaml")
-        spec.MarshalToWriter(c.Response)
+        spec.MarshalToWriter(c.Response())
     })
     
     http.ListenAndServe(":8080", router)
@@ -617,7 +617,7 @@ func main() {
     
     router.GET("/openapi.yaml", func(c *mux.RouteContext) {
         c.Response.Header().Set("Content-Type", "application/yaml")
-        spec.MarshalToWriter(c.Response)
+        spec.MarshalToWriter(c.Response())
     })
     
     http.ListenAndServe(":8080", router)

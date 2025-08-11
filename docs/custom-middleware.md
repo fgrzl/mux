@@ -25,7 +25,7 @@ func (m *TimingMiddleware) Invoke(c *mux.RouteContext, next mux.HandlerFunc) {
     
     // Log execution time
     duration := time.Since(start)
-    log.Printf("Request to %s took %v", c.Request.URL.Path, duration)
+    log.Printf("Request to %s took %v", c.Request().URL.Path, duration)
 }
 
 // Add to router
@@ -49,7 +49,7 @@ func NewRateLimitMiddleware(rpm int) *RateLimitMiddleware {
 }
 
 func (m *RateLimitMiddleware) Invoke(c *mux.RouteContext, next mux.HandlerFunc) {
-    ip := c.Request.RemoteAddr
+    ip := c.Request().RemoteAddr
     
     m.mu.Lock()
     limiter, exists := m.visitors[ip]
@@ -94,7 +94,7 @@ type CORSMiddleware struct {
 }
 
 func (m *CORSMiddleware) Invoke(c *mux.RouteContext, next mux.HandlerFunc) {
-    origin := c.Request.Header.Get("Origin")
+    origin := c.Request().Header.Get("Origin")
     
     // Check if origin is allowed
     allowed := false
@@ -112,7 +112,7 @@ func (m *CORSMiddleware) Invoke(c *mux.RouteContext, next mux.HandlerFunc) {
     }
     
     // Handle preflight requests
-    if c.Request.Method == "OPTIONS" {
+    if c.Request().Method == "OPTIONS" {
         c.Response.WriteHeader(http.StatusOK)
         return
     }
@@ -140,7 +140,7 @@ func (m *ErrorHandlingMiddleware) Invoke(c *mux.RouteContext, next mux.HandlerFu
                 "code":  500,
             }
             
-            json.NewEncoder(c.Response).Encode(errorResponse)
+            json.NewEncoder(c.Response()).Encode(errorResponse)
         }
     }()
     

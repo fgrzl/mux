@@ -134,7 +134,7 @@ func TestOpenAPISpecGenerationWithAnonymousStruct(t *testing.T) {
 	// Create a router with routes using anonymous structs
 	router := NewRouter(WithTitle("Test API"), WithDescription("Test"), WithVersion("1.0.0"))
 
-	router.POST("/test", func(c *RouteContext) {
+	router.POST("/test", func(c RouteContext) {
 		c.Created(nil)
 	}).WithOperationID("testAnonymousStruct").
 		WithJsonBody(struct {

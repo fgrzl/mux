@@ -9,19 +9,19 @@ import (
 
 // ensureFormsParsed parses the request forms if they haven't been parsed yet.
 // It supports both application/x-www-form-urlencoded and multipart/form-data.
-func (c *RouteContext) ensureFormsParsed() error {
+func (c *DefaultRouteContext) ensureFormsParsed() error {
 	if c.formsParsed {
 		return nil
 	}
 
-	ct := c.Request.Header.Get("Content-Type")
+	ct := c.Request().Header.Get("Content-Type")
 	if strings.HasPrefix(ct, "multipart/form-data") {
 		// Parse multipart form with a 32MB max memory
-		if err := c.Request.ParseMultipartForm(32 << 20); err != nil {
+		if err := c.Request().ParseMultipartForm(32 << 20); err != nil {
 			return err
 		}
 	} else if ct == "application/x-www-form-urlencoded" {
-		if err := c.Request.ParseForm(); err != nil {
+		if err := c.Request().ParseForm(); err != nil {
 			return err
 		}
 	}
@@ -31,16 +31,16 @@ func (c *RouteContext) ensureFormsParsed() error {
 }
 
 // FormValue returns the first value for the given form key.
-func (c *RouteContext) FormValue(name string) (string, bool) {
+func (c *DefaultRouteContext) FormValue(name string) (string, bool) {
 	if err := c.ensureFormsParsed(); err != nil {
 		return "", false
 	}
 
-	if c.Request.Form == nil {
+	if c.Request().Form == nil {
 		return "", false
 	}
 
-	vals, ok := c.Request.Form[name]
+	vals, ok := c.Request().Form[name]
 	if ok && len(vals) > 0 {
 		return vals[0], true
 	}
@@ -48,21 +48,21 @@ func (c *RouteContext) FormValue(name string) (string, bool) {
 }
 
 // FormValues returns all values for the given form key.
-func (c *RouteContext) FormValues(name string) ([]string, bool) {
+func (c *DefaultRouteContext) FormValues(name string) ([]string, bool) {
 	if err := c.ensureFormsParsed(); err != nil {
 		return nil, false
 	}
 
-	if c.Request.Form == nil {
+	if c.Request().Form == nil {
 		return nil, false
 	}
 
-	vals, ok := c.Request.Form[name]
+	vals, ok := c.Request().Form[name]
 	return vals, ok
 }
 
 // FormUUID parses a UUID from a form parameter.
-func (c *RouteContext) FormUUID(name string) (uuid.UUID, bool) {
+func (c *DefaultRouteContext) FormUUID(name string) (uuid.UUID, bool) {
 	val, ok := c.FormValue(name)
 	if !ok {
 		return uuid.Nil, false
@@ -72,7 +72,7 @@ func (c *RouteContext) FormUUID(name string) (uuid.UUID, bool) {
 }
 
 // FormUUIDs parses a list of UUIDs from form parameters.
-func (c *RouteContext) FormUUIDs(name string) ([]uuid.UUID, bool) {
+func (c *DefaultRouteContext) FormUUIDs(name string) ([]uuid.UUID, bool) {
 	vals, ok := c.FormValues(name)
 	if !ok {
 		return nil, false
@@ -81,7 +81,7 @@ func (c *RouteContext) FormUUIDs(name string) ([]uuid.UUID, bool) {
 }
 
 // FormInt parses an int from a form parameter.
-func (c *RouteContext) FormInt(name string) (int, bool) {
+func (c *DefaultRouteContext) FormInt(name string) (int, bool) {
 	val, ok := c.FormValue(name)
 	if !ok {
 		return 0, false
@@ -91,7 +91,7 @@ func (c *RouteContext) FormInt(name string) (int, bool) {
 }
 
 // FormInts parses a list of ints from form parameters.
-func (c *RouteContext) FormInts(name string) ([]int, bool) {
+func (c *DefaultRouteContext) FormInts(name string) ([]int, bool) {
 	vals, ok := c.FormValues(name)
 	if !ok {
 		return nil, false
@@ -100,7 +100,7 @@ func (c *RouteContext) FormInts(name string) ([]int, bool) {
 }
 
 // FormInt16 parses an int16 from a form parameter.
-func (c *RouteContext) FormInt16(name string) (int16, bool) {
+func (c *DefaultRouteContext) FormInt16(name string) (int16, bool) {
 	val, ok := c.FormValue(name)
 	if !ok {
 		return 0, false
@@ -110,7 +110,7 @@ func (c *RouteContext) FormInt16(name string) (int16, bool) {
 }
 
 // FormInt16s parses a list of int16s from form parameters.
-func (c *RouteContext) FormInt16s(name string) ([]int16, bool) {
+func (c *DefaultRouteContext) FormInt16s(name string) ([]int16, bool) {
 	vals, ok := c.FormValues(name)
 	if !ok {
 		return nil, false
@@ -122,7 +122,7 @@ func (c *RouteContext) FormInt16s(name string) ([]int16, bool) {
 }
 
 // FormInt32 parses an int32 from a form parameter.
-func (c *RouteContext) FormInt32(name string) (int32, bool) {
+func (c *DefaultRouteContext) FormInt32(name string) (int32, bool) {
 	val, ok := c.FormValue(name)
 	if !ok {
 		return 0, false
@@ -132,7 +132,7 @@ func (c *RouteContext) FormInt32(name string) (int32, bool) {
 }
 
 // FormInt32s parses a list of int32s from form parameters.
-func (c *RouteContext) FormInt32s(name string) ([]int32, bool) {
+func (c *DefaultRouteContext) FormInt32s(name string) ([]int32, bool) {
 	vals, ok := c.FormValues(name)
 	if !ok {
 		return nil, false
@@ -144,7 +144,7 @@ func (c *RouteContext) FormInt32s(name string) ([]int32, bool) {
 }
 
 // FormInt64 parses an int64 from a form parameter.
-func (c *RouteContext) FormInt64(name string) (int64, bool) {
+func (c *DefaultRouteContext) FormInt64(name string) (int64, bool) {
 	val, ok := c.FormValue(name)
 	if !ok {
 		return 0, false
@@ -154,7 +154,7 @@ func (c *RouteContext) FormInt64(name string) (int64, bool) {
 }
 
 // FormInt64s parses a list of int64s from form parameters.
-func (c *RouteContext) FormInt64s(name string) ([]int64, bool) {
+func (c *DefaultRouteContext) FormInt64s(name string) ([]int64, bool) {
 	vals, ok := c.FormValues(name)
 	if !ok {
 		return nil, false
@@ -165,7 +165,7 @@ func (c *RouteContext) FormInt64s(name string) ([]int64, bool) {
 }
 
 // FormBool parses a bool from a form parameter.
-func (c *RouteContext) FormBool(name string) (bool, bool) {
+func (c *DefaultRouteContext) FormBool(name string) (bool, bool) {
 	val, ok := c.FormValue(name)
 	if !ok {
 		return false, false
@@ -175,7 +175,7 @@ func (c *RouteContext) FormBool(name string) (bool, bool) {
 }
 
 // FormBools parses a list of bools from form parameters.
-func (c *RouteContext) FormBools(name string) ([]bool, bool) {
+func (c *DefaultRouteContext) FormBools(name string) ([]bool, bool) {
 	vals, ok := c.FormValues(name)
 	if !ok {
 		return nil, false
@@ -184,7 +184,7 @@ func (c *RouteContext) FormBools(name string) ([]bool, bool) {
 }
 
 // FormFloat32 parses a float32 from a form parameter.
-func (c *RouteContext) FormFloat32(name string) (float32, bool) {
+func (c *DefaultRouteContext) FormFloat32(name string) (float32, bool) {
 	val, ok := c.FormValue(name)
 	if !ok {
 		return 0, false
@@ -194,7 +194,7 @@ func (c *RouteContext) FormFloat32(name string) (float32, bool) {
 }
 
 // FormFloat32s parses a list of float32s from form parameters.
-func (c *RouteContext) FormFloat32s(name string) ([]float32, bool) {
+func (c *DefaultRouteContext) FormFloat32s(name string) ([]float32, bool) {
 	vals, ok := c.FormValues(name)
 	if !ok {
 		return nil, false
@@ -206,7 +206,7 @@ func (c *RouteContext) FormFloat32s(name string) ([]float32, bool) {
 }
 
 // FormFloat64 parses a float64 from a form parameter.
-func (c *RouteContext) FormFloat64(name string) (float64, bool) {
+func (c *DefaultRouteContext) FormFloat64(name string) (float64, bool) {
 	val, ok := c.FormValue(name)
 	if !ok {
 		return 0, false
@@ -216,7 +216,7 @@ func (c *RouteContext) FormFloat64(name string) (float64, bool) {
 }
 
 // FormFloat64s parses a list of float64s from form parameters.
-func (c *RouteContext) FormFloat64s(name string) ([]float64, bool) {
+func (c *DefaultRouteContext) FormFloat64s(name string) ([]float64, bool) {
 	vals, ok := c.FormValues(name)
 	if !ok {
 		return nil, false

@@ -16,9 +16,9 @@ func TestAuthenticateShouldPanicWhenNoTokenProviderIsAvailable(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	res := httptest.NewRecorder()
-	ctx := &RouteContext{
-		Request:  req,
-		Response: res,
+	ctx := &DefaultRouteContext{
+		request:  req,
+		response: res,
 		services: make(map[ServiceKey]any),
 	}
 

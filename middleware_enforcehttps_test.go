@@ -16,7 +16,7 @@ func TestShouldRedirectHTTPToHTTPS(t *testing.T) {
 	ctx := NewRouteContext(recorder, req)
 
 	nextCalled := false
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
 	}
 
@@ -37,7 +37,7 @@ func TestShouldAllowHTTPSRequests(t *testing.T) {
 	ctx := NewRouteContext(recorder, req)
 
 	nextCalled := false
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
 	}
 
@@ -69,7 +69,7 @@ func TestShouldPreserveQueryParametersInRedirect(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
-	next := func(c *RouteContext) {}
+	next := func(c RouteContext) {}
 
 	// Act
 	middleware.Invoke(ctx, next)

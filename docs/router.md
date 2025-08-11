@@ -128,7 +128,7 @@ type LoggingMiddleware struct{}
 
 func (m *LoggingMiddleware) Invoke(c *mux.RouteContext, next mux.HandlerFunc) {
     start := time.Now()
-    log.Printf("Starting request: %s %s", c.Request.Method, c.Request.URL.Path)
+    log.Printf("Starting request: %s %s", c.Request().Method, c.Request().URL.Path)
     
     next(c)
     

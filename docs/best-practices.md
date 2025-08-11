@@ -809,14 +809,14 @@ func (m *MetricsMiddleware) Invoke(c *mux.RouteContext, next mux.HandlerFunc) {
     status := fmt.Sprintf("%d", rec.Status)
     
     m.requestDuration.WithLabelValues(
-        c.Request.Method,
-        c.Request.URL.Path,
+        c.Request().Method,
+        c.Request().URL.Path,
         status,
     ).Observe(duration.Seconds())
     
     m.requestCount.WithLabelValues(
-        c.Request.Method,
-        c.Request.URL.Path,
+        c.Request().Method,
+        c.Request().URL.Path,
         status,
     ).Inc()
 }

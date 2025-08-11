@@ -213,7 +213,7 @@ func createUser(c *mux.RouteContext) {
 **A:** Access multipart form data through the standard request:
 ```go
 func uploadFile(c *mux.RouteContext) {
-    file, header, err := c.Request.FormFile("file")
+    file, header, err := c.Request().FormFile("file")
     if err != nil {
         c.BadRequest("No file provided", err.Error())
         return
@@ -233,7 +233,7 @@ func uploadFile(c *mux.RouteContext) {
 **A:** Use appropriate response helpers or set headers manually:
 ```go
 func handler(c *mux.RouteContext) {
-    accept := c.Request.Header.Get("Accept")
+    accept := c.Request().Header.Get("Accept")
     
     switch {
     case strings.Contains(accept, "application/xml"):
@@ -285,7 +285,7 @@ func (m *CORSMiddleware) Invoke(c *mux.RouteContext, next mux.HandlerFunc) {
     c.Response.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
     c.Response.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
     
-    if c.Request.Method == "OPTIONS" {
+    if c.Request().Method == "OPTIONS" {
         c.Response.WriteHeader(http.StatusOK)
         return
     }
@@ -461,7 +461,7 @@ router.UseLogging() // Logs all requests and responses
 type DebugMiddleware struct{}
 
 func (m *DebugMiddleware) Invoke(c *mux.RouteContext, next mux.HandlerFunc) {
-    log.Printf("Request: %s %s", c.Request.Method, c.Request.URL.Path)
+    log.Printf("Request: %s %s", c.Request().Method, c.Request().URL.Path)
     next(c)
 }
 ```

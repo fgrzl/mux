@@ -9,7 +9,7 @@ import (
 )
 
 // SetCookie writes a cookie with the given attributes.
-func (c *RouteContext) SetCookie(name, value string, maxAge int, path, domain string, secure, httpOnly bool) {
+func (c *DefaultRouteContext) SetCookie(name, value string, maxAge int, path, domain string, secure, httpOnly bool) {
 	cookie := &http.Cookie{
 		Name:     name,
 		Value:    value,
@@ -27,12 +27,12 @@ func (c *RouteContext) SetCookie(name, value string, maxAge int, path, domain st
 		cookie.Expires = time.Unix(1, 0)
 	}
 
-	http.SetCookie(c.Response, cookie)
+	http.SetCookie(c.Response(), cookie)
 }
 
 // GetCookie returns the value of a named cookie, or an error if not found.
-func (c *RouteContext) GetCookie(name string) (string, error) {
-	cookie, err := c.Request.Cookie(name)
+func (c *DefaultRouteContext) GetCookie(name string) (string, error) {
+	cookie, err := c.Request().Cookie(name)
 	if err != nil {
 		return "", err
 	}
@@ -40,8 +40,8 @@ func (c *RouteContext) GetCookie(name string) (string, error) {
 }
 
 // ClearCookie deletes the specified cookie.
-func (c *RouteContext) ClearCookie(name string) {
-	http.SetCookie(c.Response, &http.Cookie{
+func (c *DefaultRouteContext) ClearCookie(name string) {
+	http.SetCookie(c.Response(), &http.Cookie{
 		Name:     name,
 		Value:    "",
 		Path:     "/",
@@ -55,7 +55,7 @@ func (c *RouteContext) ClearCookie(name string) {
 
 // Authenticate creates a JWT token for the user and stores it in a secure cookie.
 // This method requires that authentication middleware has been added to the router using UseAuthentication().
-func (c *RouteContext) Authenticate(cookieName string, user claims.Principal) {
+func (c *DefaultRouteContext) Authenticate(cookieName string, user claims.Principal) {
 	service, ok := c.GetService(ServiceKeyTokenProvider)
 	if !ok {
 		panic("DEVELOPMENT ERROR: No token provider available. Did you forget to call router.UseAuthentication() before using c.Authenticate()?")
@@ -82,7 +82,7 @@ func (c *RouteContext) Authenticate(cookieName string, user claims.Principal) {
 }
 
 // SignIn authenticates the user and redirects to the given URL (or "/" by default).
-func (c *RouteContext) SignIn(user claims.Principal, redirectUrl string) {
+func (c *DefaultRouteContext) SignIn(user claims.Principal, redirectUrl string) {
 	c.Authenticate(GetUserCookieName(), user)
 	if redirectUrl == "" {
 		redirectUrl = "/"
@@ -91,7 +91,7 @@ func (c *RouteContext) SignIn(user claims.Principal, redirectUrl string) {
 }
 
 // SignOut clears user-related cookies and redirects to the logout page.
-func (c *RouteContext) SignOut() {
+func (c *DefaultRouteContext) SignOut() {
 	c.ClearCookie(GetUserCookieName())
 	c.ClearCookie(GetTwoFactorCookieName())
 	c.ClearCookie(GetIdpSessionCookieName())

@@ -7,8 +7,8 @@ import (
 )
 
 // QueryValue returns the first value for the given query key.
-func (c *RouteContext) QueryValue(name string) (string, bool) {
-	vals, ok := c.Request.URL.Query()[name]
+func (c *DefaultRouteContext) QueryValue(name string) (string, bool) {
+	vals, ok := c.Request().URL.Query()[name]
 	if ok && len(vals) > 0 {
 		return vals[0], true
 	}
@@ -16,13 +16,13 @@ func (c *RouteContext) QueryValue(name string) (string, bool) {
 }
 
 // QueryValues returns all values for the given query key.
-func (c *RouteContext) QueryValues(name string) ([]string, bool) {
-	vals, ok := c.Request.URL.Query()[name]
+func (c *DefaultRouteContext) QueryValues(name string) ([]string, bool) {
+	vals, ok := c.Request().URL.Query()[name]
 	return vals, ok
 }
 
 // QueryUUID parses a UUID from a query parameter.
-func (c *RouteContext) QueryUUID(name string) (uuid.UUID, bool) {
+func (c *DefaultRouteContext) QueryUUID(name string) (uuid.UUID, bool) {
 	val, ok := c.QueryValue(name)
 	if !ok {
 		return uuid.Nil, false
@@ -32,7 +32,7 @@ func (c *RouteContext) QueryUUID(name string) (uuid.UUID, bool) {
 }
 
 // QueryUUIDs parses a list of UUIDs from query parameters.
-func (c *RouteContext) QueryUUIDs(name string) ([]uuid.UUID, bool) {
+func (c *DefaultRouteContext) QueryUUIDs(name string) ([]uuid.UUID, bool) {
 	vals, ok := c.QueryValues(name)
 	if !ok {
 		return nil, false
@@ -41,7 +41,7 @@ func (c *RouteContext) QueryUUIDs(name string) ([]uuid.UUID, bool) {
 }
 
 // QueryInt parses an int from a query parameter.
-func (c *RouteContext) QueryInt(name string) (int, bool) {
+func (c *DefaultRouteContext) QueryInt(name string) (int, bool) {
 	val, ok := c.QueryValue(name)
 	if !ok {
 		return 0, false
@@ -51,7 +51,7 @@ func (c *RouteContext) QueryInt(name string) (int, bool) {
 }
 
 // QueryInts parses a list of ints from query parameters.
-func (c *RouteContext) QueryInts(name string) ([]int, bool) {
+func (c *DefaultRouteContext) QueryInts(name string) ([]int, bool) {
 	vals, ok := c.QueryValues(name)
 	if !ok {
 		return nil, false
@@ -60,7 +60,7 @@ func (c *RouteContext) QueryInts(name string) ([]int, bool) {
 }
 
 // QueryInt16 parses an int16 from a query parameter.
-func (c *RouteContext) QueryInt16(name string) (int16, bool) {
+func (c *DefaultRouteContext) QueryInt16(name string) (int16, bool) {
 	val, ok := c.QueryValue(name)
 	if !ok {
 		return 0, false
@@ -70,7 +70,7 @@ func (c *RouteContext) QueryInt16(name string) (int16, bool) {
 }
 
 // QueryInt16s parses a list of int16s from query parameters.
-func (c *RouteContext) QueryInt16s(name string) ([]int16, bool) {
+func (c *DefaultRouteContext) QueryInt16s(name string) ([]int16, bool) {
 	vals, ok := c.QueryValues(name)
 	if !ok {
 		return nil, false
@@ -82,7 +82,7 @@ func (c *RouteContext) QueryInt16s(name string) ([]int16, bool) {
 }
 
 // QueryInt32 parses an int32 from a query parameter.
-func (c *RouteContext) QueryInt32(name string) (int32, bool) {
+func (c *DefaultRouteContext) QueryInt32(name string) (int32, bool) {
 	val, ok := c.QueryValue(name)
 	if !ok {
 		return 0, false
@@ -92,7 +92,7 @@ func (c *RouteContext) QueryInt32(name string) (int32, bool) {
 }
 
 // QueryInt32s parses a list of int32s from query parameters.
-func (c *RouteContext) QueryInt32s(name string) ([]int32, bool) {
+func (c *DefaultRouteContext) QueryInt32s(name string) ([]int32, bool) {
 	vals, ok := c.QueryValues(name)
 	if !ok {
 		return nil, false
@@ -104,7 +104,7 @@ func (c *RouteContext) QueryInt32s(name string) ([]int32, bool) {
 }
 
 // QueryInt64 parses an int64 from a query parameter.
-func (c *RouteContext) QueryInt64(name string) (int64, bool) {
+func (c *DefaultRouteContext) QueryInt64(name string) (int64, bool) {
 	val, ok := c.QueryValue(name)
 	if !ok {
 		return 0, false
@@ -114,7 +114,7 @@ func (c *RouteContext) QueryInt64(name string) (int64, bool) {
 }
 
 // QueryInt64s parses a list of int64s from query parameters.
-func (c *RouteContext) QueryInt64s(name string) ([]int64, bool) {
+func (c *DefaultRouteContext) QueryInt64s(name string) ([]int64, bool) {
 	vals, ok := c.QueryValues(name)
 	if !ok {
 		return nil, false
@@ -125,7 +125,7 @@ func (c *RouteContext) QueryInt64s(name string) ([]int64, bool) {
 }
 
 // QueryBool parses a bool from a query parameter.
-func (c *RouteContext) QueryBool(name string) (bool, bool) {
+func (c *DefaultRouteContext) QueryBool(name string) (bool, bool) {
 	val, ok := c.QueryValue(name)
 	if !ok {
 		return false, false
@@ -135,7 +135,7 @@ func (c *RouteContext) QueryBool(name string) (bool, bool) {
 }
 
 // QueryBools parses a list of bools from query parameters.
-func (c *RouteContext) QueryBools(name string) ([]bool, bool) {
+func (c *DefaultRouteContext) QueryBools(name string) ([]bool, bool) {
 	vals, ok := c.QueryValues(name)
 	if !ok {
 		return nil, false
@@ -144,7 +144,7 @@ func (c *RouteContext) QueryBools(name string) ([]bool, bool) {
 }
 
 // QueryFloat32 parses a float32 from a query parameter.
-func (c *RouteContext) QueryFloat32(name string) (float32, bool) {
+func (c *DefaultRouteContext) QueryFloat32(name string) (float32, bool) {
 	val, ok := c.QueryValue(name)
 	if !ok {
 		return 0, false
@@ -154,7 +154,7 @@ func (c *RouteContext) QueryFloat32(name string) (float32, bool) {
 }
 
 // QueryFloat32s parses a list of float32s from query parameters.
-func (c *RouteContext) QueryFloat32s(name string) ([]float32, bool) {
+func (c *DefaultRouteContext) QueryFloat32s(name string) ([]float32, bool) {
 	vals, ok := c.QueryValues(name)
 	if !ok {
 		return nil, false
@@ -166,7 +166,7 @@ func (c *RouteContext) QueryFloat32s(name string) ([]float32, bool) {
 }
 
 // QueryFloat64 parses a float64 from a query parameter.
-func (c *RouteContext) QueryFloat64(name string) (float64, bool) {
+func (c *DefaultRouteContext) QueryFloat64(name string) (float64, bool) {
 	val, ok := c.QueryValue(name)
 	if !ok {
 		return 0, false
@@ -176,7 +176,7 @@ func (c *RouteContext) QueryFloat64(name string) (float64, bool) {
 }
 
 // QueryFloat64s parses a list of float64s from query parameters.
-func (c *RouteContext) QueryFloat64s(name string) ([]float64, bool) {
+func (c *DefaultRouteContext) QueryFloat64s(name string) ([]float64, bool) {
 	vals, ok := c.QueryValues(name)
 	if !ok {
 		return nil, false
@@ -187,7 +187,7 @@ func (c *RouteContext) QueryFloat64s(name string) ([]float64, bool) {
 }
 
 // GetRedirectURL returns the first matching redirect-related query value or the fallback.
-func (c *RouteContext) GetRedirectURL(defaultRedirect string) string {
+func (c *DefaultRouteContext) GetRedirectURL(defaultRedirect string) string {
 	candidates := []string{
 		"redirect_uri", // OAuth2 convention
 		"redirect_url",

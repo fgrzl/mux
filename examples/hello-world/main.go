@@ -11,12 +11,12 @@ func main() {
 	router := mux.NewRouter()
 
 	// Add a simple hello endpoint
-	router.GET("/", func(c *mux.RouteContext) {
+	router.GET("/", func(c mux.RouteContext) {
 		c.OK("Hello, World!")
 	})
 
 	// Add a greeting endpoint with path parameter
-	router.GET("/hello/{name}", func(c *mux.RouteContext) {
+	router.GET("/hello/{name}", func(c mux.RouteContext) {
 		name, ok := c.Param("name")
 		if !ok {
 			c.BadRequest("Missing name", "name parameter is required")

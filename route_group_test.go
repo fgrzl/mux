@@ -14,7 +14,7 @@ func TestShouldCreateNestedRouteGroupsWhenCallingNewRouteGroup(t *testing.T) {
 	router := NewRouter()
 	api := router.NewRouteGroup("/api")
 	v1 := api.NewRouteGroup("/v1")
-	v1.GET("/users", func(c *RouteContext) {
+	v1.GET("/users", func(c RouteContext) {
 		c.OK("users")
 	})
 
@@ -74,7 +74,7 @@ func TestShouldSupportMultipleLevelsOfNestingWhenCreatingRouteGroups(t *testing.
 	api := router.NewRouteGroup("/api")
 	v1 := api.NewRouteGroup("/v1")
 	users := v1.NewRouteGroup("/users")
-	users.GET("/profile", func(c *RouteContext) {
+	users.GET("/profile", func(c RouteContext) {
 		c.OK("profile")
 	})
 
@@ -123,7 +123,7 @@ func TestShouldInheritParametersWhenCreatingNestedRouteGroup(t *testing.T) {
 
 	// Act: Create nested group and add route
 	v1 := api.NewRouteGroup("/v1")
-	v1.GET("/users", func(c *RouteContext) {
+	v1.GET("/users", func(c RouteContext) {
 		c.OK("users")
 	})
 
@@ -139,7 +139,7 @@ func TestShouldWorkAsExpectedWhenUsingExampleFromIssue(t *testing.T) {
 	router := NewRouter()
 	api := router.NewRouteGroup("/api")
 	v1 := api.NewRouteGroup("/v1")
-	v1.GET("/users", func(c *RouteContext) {
+	v1.GET("/users", func(c RouteContext) {
 		c.OK("users endpoint")
 	})
 

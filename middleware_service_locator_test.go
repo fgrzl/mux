@@ -30,7 +30,7 @@ func TestShouldSetSingleServiceOnRouteContext(t *testing.T) {
 	ctx := NewRouteContext(recorder, req)
 
 	nextCalled := false
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
 		// Verify service was set
 		retrievedService, ok := c.GetService(serviceKey)
@@ -66,7 +66,7 @@ func TestShouldSetMultipleServicesOnRouteContext(t *testing.T) {
 	ctx := NewRouteContext(recorder, req)
 
 	nextCalled := false
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
 		// Verify both services were set
 		retrievedService1, ok1 := c.GetService(serviceKey1)
@@ -94,7 +94,7 @@ func TestShouldHandleNilOptionsGracefully(t *testing.T) {
 	ctx := NewRouteContext(recorder, req)
 
 	nextCalled := false
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
 	}
 
@@ -116,7 +116,7 @@ func TestShouldHandleEmptyServicesMapGracefully(t *testing.T) {
 	ctx := NewRouteContext(recorder, req)
 
 	nextCalled := false
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
 	}
 

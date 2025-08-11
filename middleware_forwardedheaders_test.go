@@ -17,7 +17,7 @@ func TestShouldProcessXForwardedProtoHeader(t *testing.T) {
 	ctx := NewRouteContext(recorder, req)
 
 	nextCalled := false
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
 	}
 
@@ -26,7 +26,7 @@ func TestShouldProcessXForwardedProtoHeader(t *testing.T) {
 
 	// Assert
 	assert.True(t, nextCalled, "next handler should be called")
-	assert.Equal(t, "https", ctx.Request.URL.Scheme)
+	assert.Equal(t, "https", ctx.Request().URL.Scheme)
 }
 
 func TestShouldProcessXForwardedForHeader(t *testing.T) {
@@ -38,7 +38,7 @@ func TestShouldProcessXForwardedForHeader(t *testing.T) {
 	ctx := NewRouteContext(recorder, req)
 
 	nextCalled := false
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
 	}
 
@@ -47,7 +47,7 @@ func TestShouldProcessXForwardedForHeader(t *testing.T) {
 
 	// Assert
 	assert.True(t, nextCalled, "next handler should be called")
-	assert.Equal(t, "192.168.1.100", ctx.Request.RemoteAddr)
+	assert.Equal(t, "192.168.1.100", ctx.Request().RemoteAddr)
 }
 
 func TestShouldProcessBothForwardedHeaders(t *testing.T) {
@@ -60,7 +60,7 @@ func TestShouldProcessBothForwardedHeaders(t *testing.T) {
 	ctx := NewRouteContext(recorder, req)
 
 	nextCalled := false
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
 	}
 
@@ -69,8 +69,8 @@ func TestShouldProcessBothForwardedHeaders(t *testing.T) {
 
 	// Assert
 	assert.True(t, nextCalled, "next handler should be called")
-	assert.Equal(t, "https", ctx.Request.URL.Scheme)
-	assert.Equal(t, "10.0.0.1", ctx.Request.RemoteAddr)
+	assert.Equal(t, "https", ctx.Request().URL.Scheme)
+	assert.Equal(t, "10.0.0.1", ctx.Request().RemoteAddr)
 }
 
 func TestShouldIgnoreEmptyForwardedHeaders(t *testing.T) {
@@ -83,7 +83,7 @@ func TestShouldIgnoreEmptyForwardedHeaders(t *testing.T) {
 	ctx := NewRouteContext(recorder, req)
 
 	nextCalled := false
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
 	}
 
@@ -92,8 +92,8 @@ func TestShouldIgnoreEmptyForwardedHeaders(t *testing.T) {
 
 	// Assert
 	assert.True(t, nextCalled, "next handler should be called")
-	assert.Equal(t, originalScheme, ctx.Request.URL.Scheme)
-	assert.Equal(t, originalRemoteAddr, ctx.Request.RemoteAddr)
+	assert.Equal(t, originalScheme, ctx.Request().URL.Scheme)
+	assert.Equal(t, originalRemoteAddr, ctx.Request().RemoteAddr)
 }
 
 func TestShouldAddForwardedHeadersMiddlewareToRouter(t *testing.T) {

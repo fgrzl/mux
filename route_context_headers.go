@@ -7,13 +7,13 @@ import (
 )
 
 // Header returns a raw header value.
-func (c *RouteContext) Header(name string) (string, bool) {
-	val := c.Request.Header.Get(name)
+func (c *DefaultRouteContext) Header(name string) (string, bool) {
+	val := c.Request().Header.Get(name)
 	return val, val != ""
 }
 
 // HeaderInt parses a header value into an int.
-func (c *RouteContext) HeaderInt(name string) (int, bool) {
+func (c *DefaultRouteContext) HeaderInt(name string) (int, bool) {
 	val, ok := c.Header(name)
 	if !ok {
 		return 0, false
@@ -23,7 +23,7 @@ func (c *RouteContext) HeaderInt(name string) (int, bool) {
 }
 
 // HeaderUUID parses a header value into a UUID.
-func (c *RouteContext) HeaderUUID(name string) (uuid.UUID, bool) {
+func (c *DefaultRouteContext) HeaderUUID(name string) (uuid.UUID, bool) {
 	val, ok := c.Header(name)
 	if !ok {
 		return uuid.Nil, false
@@ -33,7 +33,7 @@ func (c *RouteContext) HeaderUUID(name string) (uuid.UUID, bool) {
 }
 
 // HeaderBool parses a header value into a bool.
-func (c *RouteContext) HeaderBool(name string) (bool, bool) {
+func (c *DefaultRouteContext) HeaderBool(name string) (bool, bool) {
 	val, ok := c.Header(name)
 	if !ok {
 		return false, false
@@ -43,7 +43,7 @@ func (c *RouteContext) HeaderBool(name string) (bool, bool) {
 }
 
 // HeaderFloat64 parses a header value into a float64.
-func (c *RouteContext) HeaderFloat64(name string) (float64, bool) {
+func (c *DefaultRouteContext) HeaderFloat64(name string) (float64, bool) {
 	val, ok := c.Header(name)
 	if !ok {
 		return 0, false
