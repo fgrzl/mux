@@ -39,6 +39,6 @@ func TestShouldRecoverFromPanicInHandler(t *testing.T) {
 // Helper middleware that panics for testing
 type testPanicMiddleware struct{}
 
-func (m *testPanicMiddleware) Invoke(ctx *DefaultRouteContext, next HandlerFunc) {
+func (m *testPanicMiddleware) Invoke(c RouteContext, next HandlerFunc) {
 	panic("middleware panic")
 }

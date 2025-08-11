@@ -43,7 +43,7 @@ type Action struct {
 
 // Middleware defines the interface for HTTP middleware components.
 type Middleware interface {
-	Invoke(ctx RouteContext, next HandlerFunc)
+	Invoke(c RouteContext, next HandlerFunc)
 }
 
 // Router is the main HTTP router that handles routing and middleware execution.
