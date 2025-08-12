@@ -89,7 +89,7 @@ The middleware automatically looks for tokens in multiple locations:
 Access the authenticated user in your handlers:
 
 ```go
-func protectedHandler(c *mux.RouteContext) {
+func protectedHandler(c mux.RouteContext) {
     // Check if user is authenticated
     if !c.User.IsAuthenticated() {
         c.Unauthorized()
@@ -207,7 +207,7 @@ func createJWT(principal claims.Principal, ttl time.Duration) (string, error) {
     // Implementation...
 }
 
-func loginHandler(c *mux.RouteContext) {
+func loginHandler(c mux.RouteContext) {
     // Validate credentials and create user session
     var creds LoginRequest
     if err := c.Bind(&creds); err != nil {
@@ -226,7 +226,7 @@ func loginHandler(c *mux.RouteContext) {
     c.SignIn(user, "/dashboard")
 }
 
-func getProfile(c *mux.RouteContext) {
+func getProfile(c mux.RouteContext) {
     if !c.User.IsAuthenticated() {
         c.Unauthorized()
         return

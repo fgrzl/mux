@@ -33,7 +33,7 @@ import (
 func main() {
     router := mux.NewRouter()
     
-    router.GET("/hello", func(c *mux.RouteContext) {
+    router.GET("/hello", func(c mux.RouteContext) {
         c.OK("Hello, World!")
     })
     
@@ -90,7 +90,7 @@ func main() {
     http.ListenAndServe(":8080", router)
 }
 
-func listUsers(c *mux.RouteContext) {
+func listUsers(c mux.RouteContext) {
     users := []User{
         {ID: uuid.New(), Name: "John Doe", Email: "john@example.com"},
         {ID: uuid.New(), Name: "Jane Smith", Email: "jane@example.com"},
@@ -98,7 +98,7 @@ func listUsers(c *mux.RouteContext) {
     c.OK(users)
 }
 
-func createUser(c *mux.RouteContext) {
+func createUser(c mux.RouteContext) {
     var user User
     if err := c.Bind(&user); err != nil {
         c.BadRequest("Invalid request", err.Error())
@@ -109,7 +109,7 @@ func createUser(c *mux.RouteContext) {
     c.Created(user)
 }
 
-func getUser(c *mux.RouteContext) {
+func getUser(c mux.RouteContext) {
     userID, ok := c.ParamUUID("id")
     if !ok {
         c.BadRequest("Invalid user ID", "")
@@ -158,7 +158,7 @@ api.GET("/health", healthCheck)
 ### Request Handling
 
 ```go
-func createUser(c *mux.RouteContext) {
+func createUser(c mux.RouteContext) {
     // Bind request data to struct
     var user User
     if err := c.Bind(&user); err != nil {

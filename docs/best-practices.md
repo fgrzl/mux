@@ -49,7 +49,7 @@ func NewUserHandler(userService *services.UserService) *UserHandler {
     return &UserHandler{userService: userService}
 }
 
-func (h *UserHandler) CreateUser(c *mux.RouteContext) {
+func (h *UserHandler) CreateUser(c mux.RouteContext) {
     // Handler implementation
 }
 ```
@@ -186,7 +186,7 @@ type UserHandler struct {
     logger      *slog.Logger
 }
 
-func (h *UserHandler) CreateUser(c *mux.RouteContext) {
+func (h *UserHandler) CreateUser(c mux.RouteContext) {
     // 1. Input validation
     var req CreateUserRequest
     if err := c.Bind(&req); err != nil {
@@ -268,7 +268,7 @@ var (
 )
 
 // Centralized error handling
-func handleServiceError(c *mux.RouteContext, err error, operation string) {
+func handleServiceError(c mux.RouteContext, err error, operation string) {
     logger := getLoggerFromContext(c)
     logger.ErrorContext(c, operation+" failed", "error", err)
     
@@ -291,7 +291,7 @@ func handleServiceError(c *mux.RouteContext, err error, operation string) {
 }
 
 // Usage in handlers
-func (h *UserHandler) GetUser(c *mux.RouteContext) {
+func (h *UserHandler) GetUser(c mux.RouteContext) {
     userID, ok := c.ParamUUID("id")
     if !ok {
         c.BadRequest("Invalid ID", "User ID must be a valid UUID")
@@ -525,7 +525,7 @@ func validateToken(tokenString string) (claims.Principal, error) {
 }
 
 // Implement input validation
-func validateInput(c *mux.RouteContext, req interface{}) error {
+func validateInput(c mux.RouteContext, req interface{}) error {
     validate := validator.New()
     if err := validate.Struct(req); err != nil {
         var validationErrors []string
@@ -686,7 +686,7 @@ func main() {
 
 ```go
 func setupHealthChecks(router *mux.Router, db *sql.DB) {
-    router.GET("/health", func(c *mux.RouteContext) {
+    router.GET("/health", func(c mux.RouteContext) {
         c.OK(map[string]string{
             "status":    "healthy",
             "timestamp": time.Now().Format(time.RFC3339),
@@ -694,7 +694,7 @@ func setupHealthChecks(router *mux.Router, db *sql.DB) {
         })
     })
     
-    router.GET("/health/deep", func(c *mux.RouteContext) {
+    router.GET("/health/deep", func(c mux.RouteContext) {
         checks := make(map[string]interface{})
         
         // Database check
@@ -798,10 +798,10 @@ func NewMetricsMiddleware() *MetricsMiddleware {
     }
 }
 
-func (m *MetricsMiddleware) Invoke(c *mux.RouteContext, next mux.HandlerFunc) {
+func (m *MetricsMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
     start := time.Now()
-    rec := &statusRecorder{ResponseWriter: c.Response}
-    c.Response = rec
+    rec := &statusRecorder{ResponseWriter: c.Response()}
+    c.SetResponse(rec)
     
     next(c)
     

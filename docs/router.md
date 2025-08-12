@@ -126,7 +126,7 @@ router.UseExportControl(mux.WithGeoIPDatabase(geoipDB))
 ```go
 type LoggingMiddleware struct{}
 
-func (m *LoggingMiddleware) Invoke(c *mux.RouteContext, next mux.HandlerFunc) {
+func (m *LoggingMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
     start := time.Now()
     log.Printf("Starting request: %s %s", c.Request().Method, c.Request().URL.Path)
     
@@ -160,7 +160,7 @@ router.GET("/users/{userID}/posts/{postID}", getUserPost)
 Query parameters are accessed through the RouteContext:
 
 ```go
-func searchUsers(c *mux.RouteContext) {
+func searchUsers(c mux.RouteContext) {
     query, _ := c.QueryValue("q")
     page, _ := c.QueryInt("page")
     limit, _ := c.QueryInt("limit")
@@ -188,7 +188,7 @@ router.HEAD("/resource/{id}", headResource)
 Handler functions receive a RouteContext with request/response access:
 
 ```go
-func createUser(c *mux.RouteContext) {
+func createUser(c mux.RouteContext) {
     var user User
     if err := c.Bind(&user); err != nil {
         c.BadRequest("Invalid request", err.Error())
@@ -207,7 +207,7 @@ func createUser(c *mux.RouteContext) {
 The router automatically handles panics and returns structured error responses:
 
 ```go
-func riskyHandler(c *mux.RouteContext) {
+func riskyHandler(c mux.RouteContext) {
     panic("Something went wrong") // Automatically recovered
 }
 

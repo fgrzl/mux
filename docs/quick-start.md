@@ -42,7 +42,7 @@ func main() {
     router := mux.NewRouter()
     
     // Add a simple endpoint
-    router.GET("/hello", func(c *mux.RouteContext) {
+    router.GET("/hello", func(c mux.RouteContext) {
         c.OK("Hello, World!")
     })
     
@@ -85,7 +85,7 @@ func main() {
     router.UseLogging()      // Log all requests
     router.UseCompression()  // Compress responses
     
-    router.GET("/hello", func(c *mux.RouteContext) {
+    router.GET("/hello", func(c mux.RouteContext) {
         c.OK("Hello, World!")
     })
     
@@ -147,11 +147,11 @@ func main() {
 }
 
 // Handler functions
-func listUsers(c *mux.RouteContext) {
+func listUsers(c mux.RouteContext) {
     c.OK(users)
 }
 
-func createUser(c *mux.RouteContext) {
+func createUser(c mux.RouteContext) {
     var user User
     if err := c.Bind(&user); err != nil {
         c.BadRequest("Invalid request", err.Error())
@@ -174,7 +174,7 @@ func createUser(c *mux.RouteContext) {
     c.Created(user)
 }
 
-func getUser(c *mux.RouteContext) {
+func getUser(c mux.RouteContext) {
     // Extract UUID from path parameter
     userID, ok := c.ParamUUID("id")
     if !ok {
@@ -277,7 +277,7 @@ func main() {
         WithNotFoundResponse()
     
     // Add health check endpoint
-    router.GET("/health", func(c *mux.RouteContext) {
+    router.GET("/health", func(c mux.RouteContext) {
         c.OK(map[string]string{
             "status":    "healthy",
             "timestamp": time.Now().Format(time.RFC3339),
@@ -288,11 +288,11 @@ func main() {
 }
 
 // ... (handler functions remain the same)
-func listUsers(c *mux.RouteContext) {
+func listUsers(c mux.RouteContext) {
     c.OK(users)
 }
 
-func createUser(c *mux.RouteContext) {
+func createUser(c mux.RouteContext) {
     var user User
     if err := c.Bind(&user); err != nil {
         c.BadRequest("Invalid request", err.Error())
@@ -311,7 +311,7 @@ func createUser(c *mux.RouteContext) {
     c.Created(user)
 }
 
-func getUser(c *mux.RouteContext) {
+func getUser(c mux.RouteContext) {
     userID, ok := c.ParamUUID("id")
     if !ok {
         c.BadRequest("Invalid user ID", "user ID must be a valid UUID")
@@ -344,9 +344,9 @@ func main() {
     spec.MarshalToFile("openapi.yaml")
     
     // Add endpoint to serve the spec
-    router.GET("/openapi.yaml", func(c *mux.RouteContext) {
-        c.Response.Header().Set("Content-Type", "application/yaml")
-        spec.MarshalToWriter(c.Response())
+    router.GET("/openapi.yaml", func(c mux.RouteContext) {
+    c.Response().Header().Set("Content-Type", "application/yaml")
+    spec.MarshalToWriter(c.Response())
     })
     
     http.ListenAndServe(":8080", router)
@@ -364,7 +364,7 @@ curl http://localhost:8080/openapi.yaml
 Improve your API with better error handling:
 
 ```go
-func createUser(c *mux.RouteContext) {
+func createUser(c mux.RouteContext) {
     var user User
     if err := c.Bind(&user); err != nil {
         c.BadRequest("Invalid JSON", err.Error())
@@ -409,7 +409,7 @@ func createUser(c *mux.RouteContext) {
 Let's add pagination and filtering to the list endpoint:
 
 ```go
-func listUsers(c *mux.RouteContext) {
+func listUsers(c mux.RouteContext) {
     // Get query parameters
     page, _ := c.QueryInt("page")      // Default: 0
     limit, _ := c.QueryInt("limit")    // Default: 0
@@ -604,7 +604,7 @@ func main() {
         WithOKResponse(User{}).
         WithNotFoundResponse()
     
-    router.GET("/health", func(c *mux.RouteContext) {
+    router.GET("/health", func(c mux.RouteContext) {
         c.OK(map[string]string{
             "status":    "healthy", 
             "timestamp": time.Now().Format(time.RFC3339),
@@ -615,9 +615,9 @@ func main() {
     spec := generator.GenerateSpec(router)
     spec.MarshalToFile("openapi.yaml")
     
-    router.GET("/openapi.yaml", func(c *mux.RouteContext) {
-        c.Response.Header().Set("Content-Type", "application/yaml")
-        spec.MarshalToWriter(c.Response())
+    router.GET("/openapi.yaml", func(c mux.RouteContext) {
+    c.Response().Header().Set("Content-Type", "application/yaml")
+    spec.MarshalToWriter(c.Response())
     })
     
     http.ListenAndServe(":8080", router)
