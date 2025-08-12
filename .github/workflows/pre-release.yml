@@ -27,14 +27,14 @@ jobs:
         uses: gittools/actions/gitversion/execute@v4.1.0
 
       - name: Tag Commit
-        uses: fgrzl/actions/tag-commit@v0.0.3
+        uses: fgrzl/actions/tag-commit@v0.0.4
         with:
           tag: ${{ steps.version.outputs.semVer }}
 
       - name: Notify Go Proxy
-        uses: fgrzl/actions/notify-go-proxy@v0.0.3
+        uses: fgrzl/actions/notify-go-proxy@v0.0.4
         with:
           tag: ${{ steps.version.outputs.semVer }}
 
       - name: Prune Pre-release Tags
-        uses: fgrzl/actions/prune-tags@v0.0.3
+        uses: fgrzl/actions/prune-tags@v0.0.4
