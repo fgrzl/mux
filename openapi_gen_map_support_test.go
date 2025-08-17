@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestMapSupportInOpenAPIGeneration demonstrates the exact use case from the user request
-func TestMapSupportInOpenAPIGeneration(t *testing.T) {
+// TestShouldGenerateOpenAPISpecWithMapSupportWhenUsingAnonymousStructWithMaps demonstrates the exact use case from the user request
+func TestShouldGenerateOpenAPISpecWithMapSupportWhenUsingAnonymousStructWithMaps(t *testing.T) {
 	// Create a router with OpenAPI info
 	router := NewRouter(
 		WithTitle("Test API"),
@@ -21,7 +21,7 @@ func TestMapSupportInOpenAPIGeneration(t *testing.T) {
 	rg := router.NewRouteGroup("/api/v1")
 
 	// This is the exact code from the user's request, adapted for testing
-	rg.PUT("/{secret_id}", func(c *RouteContext) {
+	rg.PUT("/{secret_id}", func(c RouteContext) {
 		// Mock implementation - in real usage this would call dispatcher.RequestAccepted
 		c.OK(map[string]string{"status": "accepted"})
 	}).
@@ -93,7 +93,7 @@ func TestMapSupportInOpenAPIGeneration(t *testing.T) {
 	t.Logf("Successfully generated OpenAPI spec with map[string]string support!")
 }
 
-func TestWithJsonBodyAnonymousStructWithMaps(t *testing.T) {
+func TestShouldGenerateInlineSchemaWhenUsingJsonBodyWithAnonymousStructContainingMaps(t *testing.T) {
 	// Test anonymous struct with map[string]string
 	rb := Route("POST", "/test").WithJsonBody(struct {
 		Name   string            `json:"name"`
@@ -122,7 +122,7 @@ func TestWithJsonBodyAnonymousStructWithMaps(t *testing.T) {
 	assert.Equal(t, "string", valuesSchema.AdditionalProperties.Type)
 }
 
-func TestWithJsonBodyAnonymousStructWithComplexMaps(t *testing.T) {
+func TestShouldHandleComplexMapTypesWhenUsingJsonBodyWithAnonymousStruct(t *testing.T) {
 	// Test anonymous struct with different map value types
 	rb := Route("POST", "/test").WithJsonBody(struct {
 		StringMap  map[string]string   `json:"string_map"`
@@ -177,7 +177,7 @@ func TestWithJsonBodyAnonymousStructWithComplexMaps(t *testing.T) {
 	assert.Equal(t, "string", stringsMapSchema.AdditionalProperties.Items.Type)
 }
 
-func TestWithJsonBodyAnonymousStructWithNumericKeyMaps(t *testing.T) {
+func TestShouldSupportNumericMapKeysWhenUsingJsonBodyWithAnonymousStruct(t *testing.T) {
 	// Test anonymous struct with numeric key maps
 	rb := Route("POST", "/test").WithJsonBody(struct {
 		IntMap   map[int]string   `json:"int_map"`
@@ -214,7 +214,7 @@ func TestWithJsonBodyAnonymousStructWithNumericKeyMaps(t *testing.T) {
 	assert.Equal(t, "number", uintMapSchema.AdditionalProperties.Type)
 }
 
-func TestQuickSchemaMapTypes(t *testing.T) {
+func TestShouldGenerateCorrectSchemaWhenQuickSchemaProcessesMapTypes(t *testing.T) {
 	// Test quickSchema function directly with map types
 	tests := []struct {
 		name     string
@@ -268,7 +268,7 @@ func TestQuickSchemaMapTypes(t *testing.T) {
 	}
 }
 
-func TestQuickSchemaUnsupportedMapKeyType(t *testing.T) {
+func TestShouldReturnErrorWhenQuickSchemaProcessesUnsupportedMapKeyType(t *testing.T) {
 	// Test that unsupported map key types are rejected (e.g., complex types)
 	complexKeyMapType := reflect.TypeOf(map[struct{ Name string }]string{})
 
@@ -279,7 +279,7 @@ func TestQuickSchemaUnsupportedMapKeyType(t *testing.T) {
 	assert.Contains(t, err.Error(), "only string and numeric keys are supported")
 }
 
-func TestQuickSchemaNumericMapKeys(t *testing.T) {
+func TestShouldSupportNumericMapKeyTypesWhenUsingQuickSchema(t *testing.T) {
 	// Test that numeric key types are now supported
 	tests := []struct {
 		name     string
