@@ -318,6 +318,30 @@ func quickSchema(t reflect.Type) (*Schema, error) {
 			return nil, err
 		}
 		return &Schema{Type: "array", Items: items}, nil
+	case reflect.Map:
+		// Handle map types
+		keyType := t.Key()
+		valueType := t.Elem()
+
+		// Support string keys and numeric keys (which JSON converts to strings)
+		switch keyType.Kind() {
+		case reflect.String, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			// These key types are valid - JSON converts numeric keys to strings
+		default:
+			return nil, fmt.Errorf("unsupported map key type %s, only string and numeric keys are supported", keyType.Kind())
+		}
+
+		// Generate schema for the value type
+		valueSchema, err := quickSchema(valueType)
+		if err != nil {
+			return nil, fmt.Errorf("generating schema for map value type: %w", err)
+		}
+
+		return &Schema{
+			Type:                 "object",
+			AdditionalProperties: valueSchema,
+		}, nil
 	default:
 		return nil, fmt.Errorf("unsupported param kind %s", t.Kind())
 	}
