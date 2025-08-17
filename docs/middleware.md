@@ -8,7 +8,7 @@ Middleware in Mux follows a functional options pattern and implements the `Middl
 
 ```go
 type Middleware interface {
-    Invoke(c *RouteContext, next HandlerFunc)
+    Invoke(c RouteContext, next HandlerFunc)
 }
 ```
 
@@ -119,7 +119,7 @@ router.UseCompression()
 ```go
 router.UseCompression()
 
-router.GET("/api/data", func(c *mux.RouteContext) {
+router.GET("/api/data", func(c mux.RouteContext) {
     // Large JSON response will be automatically compressed
     data := generateLargeDataSet()
     c.OK(data)
@@ -150,7 +150,7 @@ Each request generates a structured log entry with:
   "time": "2024-01-15T10:30:00Z",
   "level": "INFO",
   "msg": "http_request",
-  "method": "GET",
+  "method": http.MethodGet,
   "path": "/api/users",
   "status": 200,
   "remote": "192.168.1.100",
@@ -245,12 +245,12 @@ router.UseForwardedHeaders()
 After adding the middleware, forwarded headers are automatically parsed and made available:
 
 ```go
-func handler(c *mux.RouteContext) {
+func handler(c mux.RouteContext) {
     // Get real client IP (considering forwarded headers)
-    realIP := getRealIP(c.Request)
+    realIP := getRealIP(c.Request())
     
     // Original protocol
-    proto := c.Request.Header.Get("X-Forwarded-Proto")
+    proto := c.Request().Header.Get("X-Forwarded-Proto")
     
     c.OK(map[string]string{
         "client_ip": realIP,
@@ -363,7 +363,7 @@ router.UseServices(
 
 ### Using Services in Handlers
 ```go
-func getUserHandler(c *mux.RouteContext) {
+func getUserHandler(c mux.RouteContext) {
     // Retrieve services from context
     db, ok := c.GetService("db")
     if !ok {
@@ -390,7 +390,7 @@ type Services struct {
     Logger *slog.Logger
 }
 
-func getServicesFromContext(c *mux.RouteContext) *Services {
+func getServicesFromContext(c mux.RouteContext) *Services {
     db, _ := c.GetService("db")
     cache, _ := c.GetService("cache") 
     logger, _ := c.GetService("logger")
@@ -476,7 +476,7 @@ type CustomMiddleware struct {
     options *CustomOptions
 }
 
-func (m *CustomMiddleware) Invoke(c *mux.RouteContext, next mux.HandlerFunc) {
+func (m *CustomMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
     // Pre-processing
     
     next(c) // Always call next

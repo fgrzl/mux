@@ -72,7 +72,7 @@ import (
 func main() {
     router := mux.NewRouter()
     
-    router.GET("/", func(c *mux.RouteContext) {
+    router.GET("/", func(c mux.RouteContext) {
         c.OK("Mux is working!")
     })
     

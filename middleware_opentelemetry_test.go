@@ -1,6 +1,7 @@
 package mux
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -58,7 +59,7 @@ func TestShouldInvokeNextWithOpenTelemetryTracing(t *testing.T) {
 	// Arrange
 	middleware := &otelMiddleware{operation: "test-operation"}
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 
@@ -66,13 +67,13 @@ func TestShouldInvokeNextWithOpenTelemetryTracing(t *testing.T) {
 	requestUpdated := false
 	responseUpdated := false
 
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
 		// Check if context was properly updated
-		if c.Request != nil {
+		if c.Request() != nil {
 			requestUpdated = true
 		}
-		if c.Response != nil {
+		if c.Response() != nil {
 			responseUpdated = true
 		}
 	}
@@ -145,7 +146,7 @@ func TestShouldCreateOtelMiddlewareWithCustomOperation(t *testing.T) {
 
 func TestShouldInvokeWithDifferentHTTPMethods(t *testing.T) {
 	// Test that the middleware works with different HTTP methods
-	methods := []string{"GET", "POST", "PUT", "DELETE", "PATCH"}
+	methods := []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, "PATCH"}
 
 	for _, method := range methods {
 		t.Run(method, func(t *testing.T) {
@@ -157,7 +158,7 @@ func TestShouldInvokeWithDifferentHTTPMethods(t *testing.T) {
 			ctx := NewRouteContext(rec, req)
 
 			called := false
-			next := func(c *RouteContext) {
+			next := func(c RouteContext) {
 				called = true
 				c.OK("success")
 			}
@@ -175,20 +176,20 @@ func TestShouldWorkWithComplexRouteContext(t *testing.T) {
 	// Arrange
 	middleware := &otelMiddleware{operation: "complex-test"}
 
-	req := httptest.NewRequest("POST", "/api/users/123", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/users/123", nil)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer token123")
 
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
-	ctx.Params = RouteParams{"id": "123"}
+	ctx.params = RouteParams{"id": "123"}
 
 	nextCalled := false
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
 		// Verify context is still intact
-		assert.Equal(t, "123", c.Params["id"])
-		assert.Equal(t, "Bearer token123", c.Request.Header.Get("Authorization"))
+		assert.Equal(t, "123", c.Params()["id"])
+		assert.Equal(t, "Bearer token123", c.Request().Header.Get("Authorization"))
 		c.OK("user updated")
 	}
 

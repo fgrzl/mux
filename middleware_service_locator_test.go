@@ -1,6 +1,7 @@
 package mux
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -24,12 +25,12 @@ func TestShouldSetSingleServiceOnRouteContext(t *testing.T) {
 		},
 	}
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
 	nextCalled := false
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
 		// Verify service was set
 		retrievedService, ok := c.GetService(serviceKey)
@@ -60,12 +61,12 @@ func TestShouldSetMultipleServicesOnRouteContext(t *testing.T) {
 		},
 	}
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
 	nextCalled := false
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
 		// Verify both services were set
 		retrievedService1, ok1 := c.GetService(serviceKey1)
@@ -88,12 +89,12 @@ func TestShouldHandleNilOptionsGracefully(t *testing.T) {
 	// Arrange
 	middleware := &serviceSetterMiddleware{options: nil}
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
 	nextCalled := false
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
 	}
 
@@ -110,12 +111,12 @@ func TestShouldHandleEmptyServicesMapGracefully(t *testing.T) {
 		options: &ServiceSetterOptions{Services: nil},
 	}
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
 	nextCalled := false
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
 	}
 

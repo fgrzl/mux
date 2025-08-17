@@ -69,7 +69,14 @@ type authorizationMiddleware struct {
 	options *AuthorizationOptions
 }
 
-func (m *authorizationMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
+func (m *authorizationMiddleware) Invoke(c RouteContext, next HandlerFunc) {
+	// Cast to concrete type to access Options and User
+	c, ok := c.(*DefaultRouteContext)
+	if !ok {
+		next(c)
+		return
+	}
+
 	if !m.checkRoles(c) {
 		c.Forbidden("You do not have the necessary permissions to access this resource.")
 		return
@@ -85,15 +92,15 @@ func (m *authorizationMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
 	next(c)
 }
 
-func (m *authorizationMiddleware) checkRoles(c *RouteContext) bool {
-	valid := c.Options.Roles
+func (m *authorizationMiddleware) checkRoles(c RouteContext) bool {
+	valid := c.Options().Roles
 	if m.options.CheckRoles != nil {
-		return m.options.CheckRoles(c.User, valid)
+		return m.options.CheckRoles(c.User(), valid)
 	}
 	if len(valid) == 0 {
 		return true
 	}
-	user := c.User.Roles()
+	user := c.User().Roles()
 	for _, r := range valid {
 		for _, u := range user {
 			if r == u {
@@ -104,15 +111,15 @@ func (m *authorizationMiddleware) checkRoles(c *RouteContext) bool {
 	return false
 }
 
-func (m *authorizationMiddleware) checkScopes(c *RouteContext) bool {
-	valid := c.Options.Scopes
+func (m *authorizationMiddleware) checkScopes(c RouteContext) bool {
+	valid := c.Options().Scopes
 	if m.options.CheckScopes != nil {
-		return m.options.CheckScopes(c.User, valid)
+		return m.options.CheckScopes(c.User(), valid)
 	}
 	if len(valid) == 0 {
 		return true
 	}
-	user := c.User.Scopes()
+	user := c.User().Scopes()
 	for _, s := range valid {
 		for _, u := range user {
 			if s == u {
@@ -123,15 +130,15 @@ func (m *authorizationMiddleware) checkScopes(c *RouteContext) bool {
 	return false
 }
 
-func (m *authorizationMiddleware) checkPermission(c *RouteContext) bool {
+func (m *authorizationMiddleware) checkPermission(c RouteContext) bool {
 	var merged []string
 	merged = append(merged, m.options.Permissions...)
-	merged = append(merged, c.Options.Permissions...)
+	merged = append(merged, c.Options().Permissions...)
 	if len(merged) == 0 {
 		return true
 	}
-	perms := interpolatePermissions(c.Params, m.options.Permissions, c.Options.Permissions)
-	return m.options.CheckPermissions(c.User, perms)
+	perms := interpolatePermissions(c.Params(), m.options.Permissions, c.Options().Permissions)
+	return m.options.CheckPermissions(c.User(), perms)
 }
 
 // ---- Helpers ----

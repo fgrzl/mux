@@ -59,7 +59,7 @@ Creates a new Mux router instance.
 
 ### Basic Route
 ```go
-router.GET("/", func(c *mux.RouteContext) {
+router.GET("/", func(c mux.RouteContext) {
     c.OK("Hello, World!")
 })
 ```
@@ -68,7 +68,7 @@ router.GET("/", func(c *mux.RouteContext) {
 
 ### Parameterized Route
 ```go
-router.GET("/hello/{name}", func(c *mux.RouteContext) {
+router.GET("/hello/{name}", func(c mux.RouteContext) {
     name := c.Param("name")
     // ...
 })

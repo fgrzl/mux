@@ -59,7 +59,7 @@ server := &http.Server{
 ```go
 // Gorilla Mux
 r := mux.NewRouter()
-r.HandleFunc("/users/{id}", getUserHandler).Methods("GET")
+r.HandleFunc("/users/{id}", getUserHandler).Methods(http.MethodGet)
 
 // Mux
 router := mux.NewRouter()
@@ -93,7 +93,7 @@ router.DELETE("/users/{id}", deleteUser)
 **A:** Mux uses simple path parameters (`{param}`) for maintainability and performance. For complex patterns, handle them in your handler:
 
 ```go
-router.GET("/files/{path}", func(c *mux.RouteContext) {
+router.GET("/files/{path}", func(c mux.RouteContext) {
     path, _ := c.ParamValue("path")
     // Handle complex path logic here
     if matched, _ := regexp.MatchString(`\.jpg$`, path); matched {
@@ -106,7 +106,7 @@ router.GET("/files/{path}", func(c *mux.RouteContext) {
 
 **A:** Use the type-safe query parameter helpers:
 ```go
-func handler(c *mux.RouteContext) {
+func handler(c mux.RouteContext) {
     // String values
     search, _ := c.QueryValue("q")
     
@@ -129,7 +129,7 @@ func handler(c *mux.RouteContext) {
 
 **A:** Use form value helpers or automatic binding:
 ```go
-func handler(c *mux.RouteContext) {
+func handler(c mux.RouteContext) {
     // Individual form fields
     name, _ := c.FormValue("name")
     age, _ := c.FormInt("age")
@@ -174,7 +174,7 @@ router.GET("/api/search", handler).
 ```go
 type CustomMiddleware struct{}
 
-func (m *CustomMiddleware) Invoke(c *mux.RouteContext, next mux.HandlerFunc) {
+func (m *CustomMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
     // Pre-processing
     start := time.Now()
     
@@ -195,7 +195,7 @@ router.Use(&CustomMiddleware{})
 
 **A:** Mux provides automatic JSON handling:
 ```go
-func createUser(c *mux.RouteContext) {
+func createUser(c mux.RouteContext) {
     // Automatic JSON binding
     var user User
     if err := c.Bind(&user); err != nil {
@@ -212,8 +212,8 @@ func createUser(c *mux.RouteContext) {
 
 **A:** Access multipart form data through the standard request:
 ```go
-func uploadFile(c *mux.RouteContext) {
-    file, header, err := c.Request.FormFile("file")
+func uploadFile(c mux.RouteContext) {
+    file, header, err := c.Request().FormFile("file")
     if err != nil {
         c.BadRequest("No file provided", err.Error())
         return
@@ -232,16 +232,16 @@ func uploadFile(c *mux.RouteContext) {
 
 **A:** Use appropriate response helpers or set headers manually:
 ```go
-func handler(c *mux.RouteContext) {
-    accept := c.Request.Header.Get("Accept")
+func handler(c mux.RouteContext) {
+    accept := c.Request().Header.Get("Accept")
     
     switch {
     case strings.Contains(accept, "application/xml"):
-        c.Response.Header().Set("Content-Type", "application/xml")
-        c.Response.Write([]byte("<message>Hello</message>"))
+    c.Response().Header().Set("Content-Type", "application/xml")
+    c.Response().Write([]byte("<message>Hello</message>"))
     case strings.Contains(accept, "text/plain"):
-        c.Response.Header().Set("Content-Type", "text/plain")
-        c.Response.Write([]byte("Hello"))
+    c.Response().Header().Set("Content-Type", "text/plain")
+    c.Response().Write([]byte("Hello"))
     default:
         c.OK("Hello")
     }
@@ -280,13 +280,13 @@ router.POST("/users", createUser).RequirePermissions("write")
 ```go
 type CORSMiddleware struct{}
 
-func (m *CORSMiddleware) Invoke(c *mux.RouteContext, next mux.HandlerFunc) {
-    c.Response.Header().Set("Access-Control-Allow-Origin", "*")
-    c.Response.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
-    c.Response.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+func (m *CORSMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
+    c.Response().Header().Set("Access-Control-Allow-Origin", "*")
+    c.Response().Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
+    c.Response().Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
     
-    if c.Request.Method == "OPTIONS" {
-        c.Response.WriteHeader(http.StatusOK)
+    if c.Request().Method == "OPTIONS" {
+    c.Response().WriteHeader(http.StatusOK)
         return
     }
     
@@ -395,7 +395,7 @@ func TestCreateUser(t *testing.T) {
     router.POST("/users", createUser)
     
     body := `{"name": "John", "email": "john@example.com"}`
-    req := httptest.NewRequest("POST", "/users", strings.NewReader(body))
+    req := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(body))
     req.Header.Set("Content-Type", "application/json")
     
     rec := httptest.NewRecorder()
@@ -415,7 +415,7 @@ func TestAuthenticationMiddleware(t *testing.T) {
     router.GET("/protected", protectedHandler)
     
     // Test with valid token
-    req := httptest.NewRequest("GET", "/protected", nil)
+    req := httptest.NewRequest(http.MethodGet, "/protected", nil)
     req.Header.Set("Authorization", "Bearer valid-token")
     
     rec := httptest.NewRecorder()
@@ -460,8 +460,8 @@ router.UseLogging() // Logs all requests and responses
 // Or add custom debug middleware
 type DebugMiddleware struct{}
 
-func (m *DebugMiddleware) Invoke(c *mux.RouteContext, next mux.HandlerFunc) {
-    log.Printf("Request: %s %s", c.Request.Method, c.Request.URL.Path)
+func (m *DebugMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
+    log.Printf("Request: %s %s", c.Request().Method, c.Request().URL.Path)
     next(c)
 }
 ```

@@ -237,15 +237,21 @@ func (rg *RouteGroup) Healthz() *RouteBuilder {
 
 // HealthzWithReady registers a /healthz endpoint with a custom readiness check.
 func (rg *RouteGroup) HealthzWithReady(isReady func() bool) *RouteBuilder {
-	return rg.registerRoute(http.MethodGet, "/healthz", func(c *RouteContext) {
-		c.Response.Header().Set(HeaderContentType, MimeTextPlain)
-		if isReady() {
-			c.Response.WriteHeader(http.StatusOK)
-			c.Response.Write([]byte("ok"))
+	return rg.registerRoute(http.MethodGet, "/healthz", func(c RouteContext) {
+		// Cast to concrete type to access Response
+		c, ok := c.(*DefaultRouteContext)
+		if !ok {
 			return
 		}
-		c.Response.WriteHeader(http.StatusServiceUnavailable)
-		c.Response.Write([]byte("not ready"))
+
+		c.Response().Header().Set(HeaderContentType, MimeTextPlain)
+		if isReady() {
+			c.Response().WriteHeader(http.StatusOK)
+			c.Response().Write([]byte("ok"))
+			return
+		}
+		c.Response().WriteHeader(http.StatusServiceUnavailable)
+		c.Response().Write([]byte("not ready"))
 	}).AllowAnonymous()
 }
 
@@ -254,26 +260,32 @@ func (rg *RouteGroup) StaticFallback(pattern, dir, fallback string) *RouteBuilde
 	prefix := strings.TrimSuffix(pattern, "**")
 	prefix = strings.TrimRight(prefix, "/")
 
-	handler := func(c *RouteContext) {
-		requestPath := c.Request.URL.Path
+	handler := func(c RouteContext) {
+		// Cast to concrete type to access Request and Response
+		c, ok := c.(*DefaultRouteContext)
+		if !ok {
+			return
+		}
+
+		requestPath := c.Request().URL.Path
 		trimmed := strings.TrimPrefix(requestPath, prefix)
 		trimmed = strings.TrimPrefix(trimmed, "/")
 		fullPath := filepath.Join(dir, trimmed)
 		absFullPath, err := filepath.Abs(fullPath)
 		absDir, dirErr := filepath.Abs(dir)
 		if err != nil || dirErr != nil || !strings.HasPrefix(absFullPath, absDir) {
-			http.ServeFile(c.Response, c.Request, fallback)
+			http.ServeFile(c.Response(), c.Request(), fallback)
 			return
 		}
 		info, err := os.Stat(absFullPath)
 		if err != nil || info.IsDir() {
-			http.ServeFile(c.Response, c.Request, fallback)
+			http.ServeFile(c.Response(), c.Request(), fallback)
 			return
 		}
 		// Serve as static
-		r := *c.Request
+		r := *c.Request()
 		r.URL.Path = "/" + trimmed
-		http.FileServer(http.Dir(dir)).ServeHTTP(c.Response, &r)
+		http.FileServer(http.Dir(dir)).ServeHTTP(c.Response(), &r)
 	}
 	return rg.registerRoute(http.MethodGet, pattern, handler)
 }

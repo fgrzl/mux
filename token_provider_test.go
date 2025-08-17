@@ -2,6 +2,7 @@ package mux
 
 import (
 	"errors"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -12,27 +13,31 @@ import (
 
 // mockTokenProvider implements TokenProvider for testing
 type mockTokenProvider struct {
-	createTokenFunc   func(ctx *RouteContext, principal claims.Principal) (string, error)
-	validateTokenFunc func(ctx *RouteContext, token string) (claims.Principal, error)
-	ttl               time.Duration
+	createTokenFunc   func(ctx RouteContext, principal claims.Principal) (string, error)
+	validateTokenFunc func(ctx RouteContext, token string) (claims.Principal, error)
+	getTTLFunc        func() time.Duration
 	canCreateTokens   bool
+	ttl               time.Duration
 }
 
-func (m *mockTokenProvider) CreateToken(ctx *RouteContext, principal claims.Principal) (string, error) {
+func (m *mockTokenProvider) CreateToken(ctx RouteContext, principal claims.Principal) (string, error) {
 	if m.createTokenFunc != nil {
 		return m.createTokenFunc(ctx, principal)
 	}
-	return "", errors.New("not implemented")
+	return "", errors.New("createTokenFunc not set")
 }
 
-func (m *mockTokenProvider) ValidateToken(ctx *RouteContext, token string) (claims.Principal, error) {
+func (m *mockTokenProvider) ValidateToken(ctx RouteContext, token string) (claims.Principal, error) {
 	if m.validateTokenFunc != nil {
 		return m.validateTokenFunc(ctx, token)
 	}
-	return nil, errors.New("not implemented")
+	return nil, errors.New("validateTokenFunc not set")
 }
 
 func (m *mockTokenProvider) GetTTL() time.Duration {
+	if m.getTTLFunc != nil {
+		return m.getTTLFunc()
+	}
 	return m.ttl
 }
 
@@ -78,12 +83,12 @@ func TestTokenProviderShouldCreateToken(t *testing.T) {
 	// Arrange
 	expectedToken := "test-token-123"
 	principal := &mockPrincipalForToken{subject: "test-user"}
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 
 	provider := &mockTokenProvider{
-		createTokenFunc: func(ctx *RouteContext, principal claims.Principal) (string, error) {
+		createTokenFunc: func(ctx RouteContext, principal claims.Principal) (string, error) {
 			return expectedToken, nil
 		},
 		canCreateTokens: true,
@@ -101,12 +106,12 @@ func TestTokenProviderShouldReturnErrorWhenCreateTokenFails(t *testing.T) {
 	// Arrange
 	expectedError := errors.New("token creation failed")
 	principal := &mockPrincipalForToken{subject: "test-user"}
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 
 	provider := &mockTokenProvider{
-		createTokenFunc: func(ctx *RouteContext, principal claims.Principal) (string, error) {
+		createTokenFunc: func(ctx RouteContext, principal claims.Principal) (string, error) {
 			return "", expectedError
 		},
 		canCreateTokens: true,
@@ -125,12 +130,12 @@ func TestTokenProviderShouldValidateToken(t *testing.T) {
 	// Arrange
 	token := "valid-token-123"
 	expectedPrincipal := &mockPrincipalForToken{subject: "test-user"}
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 
 	provider := &mockTokenProvider{
-		validateTokenFunc: func(ctx *RouteContext, token string) (claims.Principal, error) {
+		validateTokenFunc: func(ctx RouteContext, token string) (claims.Principal, error) {
 			if token == "valid-token-123" {
 				return expectedPrincipal, nil
 			}
@@ -149,12 +154,12 @@ func TestTokenProviderShouldValidateToken(t *testing.T) {
 func TestTokenProviderShouldReturnErrorForInvalidToken(t *testing.T) {
 	// Arrange
 	token := "invalid-token"
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 
 	provider := &mockTokenProvider{
-		validateTokenFunc: func(ctx *RouteContext, token string) (claims.Principal, error) {
+		validateTokenFunc: func(ctx RouteContext, token string) (claims.Principal, error) {
 			return nil, errors.New("invalid token")
 		},
 	}
@@ -218,12 +223,12 @@ func TestTokenProviderShouldIndicateTokenCreationCapability(t *testing.T) {
 
 func TestTokenProviderShouldHandleNilPrincipal(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 
 	provider := &mockTokenProvider{
-		createTokenFunc: func(ctx *RouteContext, principal claims.Principal) (string, error) {
+		createTokenFunc: func(ctx RouteContext, principal claims.Principal) (string, error) {
 			if principal == nil {
 				return "", errors.New("principal cannot be nil")
 			}
@@ -243,12 +248,12 @@ func TestTokenProviderShouldHandleNilPrincipal(t *testing.T) {
 
 func TestTokenProviderShouldHandleEmptyToken(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 
 	provider := &mockTokenProvider{
-		validateTokenFunc: func(ctx *RouteContext, token string) (claims.Principal, error) {
+		validateTokenFunc: func(ctx RouteContext, token string) (claims.Principal, error) {
 			if token == "" {
 				return nil, errors.New("token cannot be empty")
 			}
@@ -267,7 +272,7 @@ func TestTokenProviderShouldHandleEmptyToken(t *testing.T) {
 
 func TestTokenProviderShouldBeUsableInRouteContext(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 

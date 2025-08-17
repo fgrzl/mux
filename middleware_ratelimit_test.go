@@ -1,6 +1,7 @@
 package mux
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -10,7 +11,6 @@ import (
 
 const (
 	testIP1         = "192.168.1.1"
-	testIP2         = "192.168.1.2"
 	testIP1WithPort = "192.168.1.1:12345"
 	testIP2WithPort = "192.168.1.2:12345"
 	testPath        = "/test"
@@ -43,13 +43,13 @@ func TestShouldCreateSelectiveRateLimiterWithCustomOptions(t *testing.T) {
 func TestShouldAllowRequestWhenNoRateLimitSet(t *testing.T) {
 	// Arrange
 	limiter := NewSelectiveRateLimiter()
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
-	ctx.Options = &RouteOptions{} // No rate limit set
+	ctx.options = &RouteOptions{} // No rate limit set
 
 	nextCalled := false
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
 	}
 
@@ -63,13 +63,13 @@ func TestShouldAllowRequestWhenNoRateLimitSet(t *testing.T) {
 func TestShouldAllowRequestWhenZeroRateLimit(t *testing.T) {
 	// Arrange
 	limiter := NewSelectiveRateLimiter()
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
-	ctx.Options = &RouteOptions{RateLimit: 0}
+	ctx.options = &RouteOptions{RateLimit: 0}
 
 	nextCalled := false
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
 	}
 
@@ -83,13 +83,13 @@ func TestShouldAllowRequestWhenZeroRateLimit(t *testing.T) {
 func TestShouldAllowRequestWhenNilOptions(t *testing.T) {
 	// Arrange
 	limiter := NewSelectiveRateLimiter()
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
-	ctx.Options = nil
+	ctx.options = nil
 
 	nextCalled := false
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
 	}
 
@@ -103,17 +103,17 @@ func TestShouldAllowRequestWhenNilOptions(t *testing.T) {
 func TestShouldAllowFirstRequestWithinLimit(t *testing.T) {
 	// Arrange
 	limiter := NewSelectiveRateLimiter()
-	req := httptest.NewRequest("GET", testPath, nil)
+	req := httptest.NewRequest(http.MethodGet, testPath, nil)
 	req.RemoteAddr = testIP1WithPort
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
-	ctx.Options = &RouteOptions{
+	ctx.options = &RouteOptions{
 		RateLimit:    5,
 		RateInterval: time.Minute,
 	}
 
 	nextCalled := false
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
 	}
 
@@ -127,7 +127,7 @@ func TestShouldAllowFirstRequestWithinLimit(t *testing.T) {
 func TestShouldTrackTokensPerVisitor(t *testing.T) {
 	// Arrange
 	limiter := NewSelectiveRateLimiter()
-	req := httptest.NewRequest("GET", testPath, nil)
+	req := httptest.NewRequest(http.MethodGet, testPath, nil)
 	req.RemoteAddr = testIP1WithPort
 
 	// Act - First request should consume a token
@@ -187,33 +187,33 @@ func TestShouldRejectRequestWhenRateLimitExceeded(t *testing.T) {
 
 	// Make requests with limit of 2 - first visitor gets 1 token, so we can make 1 request successfully
 	// First request should succeed
-	req1 := httptest.NewRequest("GET", testPath, nil)
+	req1 := httptest.NewRequest(http.MethodGet, testPath, nil)
 	req1.RemoteAddr = testIP1WithPort
 	rec1 := httptest.NewRecorder()
 	ctx1 := NewRouteContext(rec1, req1)
-	ctx1.Options = &RouteOptions{
+	ctx1.options = &RouteOptions{
 		RateLimit:    2,
 		RateInterval: time.Hour, // Very long interval so no refill
 	}
 
 	nextCalled1 := false
-	next1 := func(c *RouteContext) {
+	next1 := func(c RouteContext) {
 		nextCalled1 = true
 	}
 	limiter.Invoke(ctx1, next1)
 
 	// Second request should be rate limited (visitor has 0 tokens after first request)
-	req2 := httptest.NewRequest("GET", testPath, nil)
+	req2 := httptest.NewRequest(http.MethodGet, testPath, nil)
 	req2.RemoteAddr = testIP1WithPort // Same IP
 	rec2 := httptest.NewRecorder()
 	ctx2 := NewRouteContext(rec2, req2)
-	ctx2.Options = &RouteOptions{
+	ctx2.options = &RouteOptions{
 		RateLimit:    2,
 		RateInterval: time.Hour,
 	}
 
 	nextCalled2 := false
-	next2 := func(c *RouteContext) {
+	next2 := func(c RouteContext) {
 		nextCalled2 = true
 	}
 
@@ -231,31 +231,31 @@ func TestShouldSeparateRateLimitsByIPAddress(t *testing.T) {
 	limiter := NewSelectiveRateLimiter()
 
 	// Create requests from different IP addresses
-	req1 := httptest.NewRequest("GET", testPath, nil)
+	req1 := httptest.NewRequest(http.MethodGet, testPath, nil)
 	req1.RemoteAddr = testIP1WithPort
 	rec1 := httptest.NewRecorder()
 	ctx1 := NewRouteContext(rec1, req1)
-	ctx1.Options = &RouteOptions{
+	ctx1.options = &RouteOptions{
 		RateLimit:    2,
 		RateInterval: time.Hour, // Long interval to prevent refill
 	}
 
-	req2 := httptest.NewRequest("GET", testPath, nil)
+	req2 := httptest.NewRequest(http.MethodGet, testPath, nil)
 	req2.RemoteAddr = testIP2WithPort
 	rec2 := httptest.NewRecorder()
 	ctx2 := NewRouteContext(rec2, req2)
-	ctx2.Options = &RouteOptions{
+	ctx2.options = &RouteOptions{
 		RateLimit:    2,
 		RateInterval: time.Hour,
 	}
 
 	callCount1 := 0
-	next1 := func(c *RouteContext) {
+	next1 := func(c RouteContext) {
 		callCount1++
 	}
 
 	callCount2 := 0
-	next2 := func(c *RouteContext) {
+	next2 := func(c RouteContext) {
 		callCount2++
 	}
 
@@ -291,17 +291,17 @@ func TestShouldSeparateRateLimitsByPattern(t *testing.T) {
 func TestShouldHandleInvalidRemoteAddr(t *testing.T) {
 	// Arrange
 	limiter := NewSelectiveRateLimiter()
-	req := httptest.NewRequest("GET", testPath, nil)
+	req := httptest.NewRequest(http.MethodGet, testPath, nil)
 	req.RemoteAddr = "invalid-address" // No port
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
-	ctx.Options = &RouteOptions{
+	ctx.options = &RouteOptions{
 		RateLimit:    5,
 		RateInterval: time.Minute,
 	}
 
 	nextCalled := false
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
 	}
 
@@ -363,7 +363,7 @@ func TestShouldDecrementTokensOnEachRequest(t *testing.T) {
 
 	// Track calls
 	callCount := 0
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		callCount++
 	}
 
@@ -371,11 +371,11 @@ func TestShouldDecrementTokensOnEachRequest(t *testing.T) {
 	// First visitor gets limit-1 tokens (3), then each request consumes 1 token
 	// So we can make 3 successful requests total
 	for i := 0; i < 4; i++ { // Try 4 requests
-		req := httptest.NewRequest("GET", testPath, nil)
+		req := httptest.NewRequest(http.MethodGet, testPath, nil)
 		req.RemoteAddr = testIP1WithPort
 		rec := httptest.NewRecorder()
 		ctx := NewRouteContext(rec, req)
-		ctx.Options = &RouteOptions{
+		ctx.options = &RouteOptions{
 			RateLimit:    4,
 			RateInterval: time.Hour, // Long interval to prevent refill
 		}

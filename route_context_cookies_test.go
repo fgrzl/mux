@@ -14,11 +14,11 @@ import (
 
 func TestAuthenticateShouldPanicWhenNoTokenProviderIsAvailable(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	res := httptest.NewRecorder()
-	ctx := &RouteContext{
-		Request:  req,
-		Response: res,
+	ctx := &DefaultRouteContext{
+		request:  req,
+		response: res,
 		services: make(map[ServiceKey]any),
 	}
 
@@ -40,7 +40,7 @@ func TestAuthenticateShouldPanicWhenNoTokenProviderIsAvailable(t *testing.T) {
 
 func TestAuthenticateShouldCreateCookieWithTTLWhenProviderIsAvailable(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("POST", "/test", nil)
+	req := httptest.NewRequest(http.MethodPost, "/test", nil)
 	res := httptest.NewRecorder()
 	ctx := NewRouteContext(res, req)
 
@@ -65,7 +65,7 @@ func TestAuthenticateShouldCreateCookieWithTTLWhenProviderIsAvailable(t *testing
 
 func TestSetCookieShouldSetCookieWithAllAttributes(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	res := httptest.NewRecorder()
 	ctx := NewRouteContext(res, req)
 
@@ -85,7 +85,7 @@ func TestSetCookieShouldSetCookieWithAllAttributes(t *testing.T) {
 
 func TestGetCookieShouldReturnCookieValueWhenExists(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.AddCookie(&http.Cookie{Name: "test-cookie", Value: "test-value"})
 	res := httptest.NewRecorder()
 	ctx := NewRouteContext(res, req)
@@ -100,7 +100,7 @@ func TestGetCookieShouldReturnCookieValueWhenExists(t *testing.T) {
 
 func TestGetCookieShouldReturnErrorWhenCookieDoesNotExist(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	res := httptest.NewRecorder()
 	ctx := NewRouteContext(res, req)
 
@@ -115,7 +115,7 @@ func TestGetCookieShouldReturnErrorWhenCookieDoesNotExist(t *testing.T) {
 
 func TestClearCookieShouldSetExpiredCookie(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	res := httptest.NewRecorder()
 	ctx := NewRouteContext(res, req)
 
@@ -135,7 +135,7 @@ func TestClearCookieShouldSetExpiredCookie(t *testing.T) {
 
 func TestSignOutShouldClearAllCookiesAndRedirect(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("POST", "/signout", nil)
+	req := httptest.NewRequest(http.MethodPost, "/signout", nil)
 	res := httptest.NewRecorder()
 	ctx := NewRouteContext(res, req)
 

@@ -85,7 +85,7 @@ type defaultTokenProvider struct {
 }
 
 // CreateToken creates a new token for the given user.
-func (p *defaultTokenProvider) CreateToken(c *RouteContext, user claims.Principal) (string, error) {
+func (p *defaultTokenProvider) CreateToken(c RouteContext, user claims.Principal) (string, error) {
 	if p.signFn == nil {
 		return "", errors.New("signing function is not set")
 	}
@@ -93,7 +93,7 @@ func (p *defaultTokenProvider) CreateToken(c *RouteContext, user claims.Principa
 }
 
 // ValidateToken validates the given token and returns the principal.
-func (p *defaultTokenProvider) ValidateToken(ctx *RouteContext, token string) (claims.Principal, error) {
+func (p *defaultTokenProvider) ValidateToken(ctx RouteContext, token string) (claims.Principal, error) {
 	if p.validateFn == nil {
 		return nil, errors.New("validation function is not set")
 	}
@@ -118,10 +118,10 @@ type authenticationMiddleware struct {
 // ---- Middleware Logic ----
 
 // Invoke implements the middleware interface for authentication.
-func (m *authenticationMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
+func (m *authenticationMiddleware) Invoke(c RouteContext, next HandlerFunc) {
 	c.SetService(ServiceKeyTokenProvider, m.provider)
 
-	if c.Options.AllowAnonymous {
+	if c.Options().AllowAnonymous {
 		slog.DebugContext(c, "authentication skipped: anonymous access allowed")
 		next(c)
 		return
@@ -145,8 +145,9 @@ func (m *authenticationMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
 }
 
 // authenticateViaCookie attempts to authenticate using session cookie.
-func (m *authenticationMiddleware) authenticateViaCookie(c *RouteContext) bool {
-	cookie, err := c.Request.Cookie(GetUserCookieName())
+func (m *authenticationMiddleware) authenticateViaCookie(c RouteContext) bool {
+
+	cookie, err := c.Request().Cookie(GetUserCookieName())
 	if err != nil {
 		return false
 	}
@@ -163,8 +164,9 @@ func (m *authenticationMiddleware) authenticateViaCookie(c *RouteContext) bool {
 }
 
 // authenticateViaBearer attempts to authenticate using bearer token.
-func (m *authenticationMiddleware) authenticateViaBearer(c *RouteContext) bool {
-	token := extractBearerToken(c.Request)
+func (m *authenticationMiddleware) authenticateViaBearer(c RouteContext) bool {
+
+	token := extractBearerToken(c.Request())
 	if token == "" {
 		return false
 	}
@@ -180,18 +182,18 @@ func (m *authenticationMiddleware) authenticateViaBearer(c *RouteContext) bool {
 }
 
 // setAuthenticatedUser sets the authenticated user and logs the success.
-func (m *authenticationMiddleware) setAuthenticatedUser(c *RouteContext, principal claims.Principal, method string) {
+func (m *authenticationMiddleware) setAuthenticatedUser(c RouteContext, principal claims.Principal, method string) {
 	userID := principal.Subject()
 	if userID == "" {
 		userID = "unknown"
 	}
 
-	c.User = principal
+	c.SetUser(principal)
 	slog.DebugContext(c, "authentication success", "method", method, "user", userID)
 }
 
 // extendSessionExpiration extends the session expiration time and renews the token if possible.
-func (m *authenticationMiddleware) extendSessionExpiration(c *RouteContext, cookie *http.Cookie) {
+func (m *authenticationMiddleware) extendSessionExpiration(c RouteContext, cookie *http.Cookie) {
 	ttl := m.provider.GetTTL()
 	if ttl <= 0 {
 		slog.DebugContext(c, "session extension skipped: TTL not set")
@@ -200,18 +202,18 @@ func (m *authenticationMiddleware) extendSessionExpiration(c *RouteContext, cook
 
 	// Renew token if possible
 	if m.provider.CanCreateTokens() {
-		if token, err := m.provider.CreateToken(c, c.User); err == nil {
+		if token, err := m.provider.CreateToken(c, c.User()); err == nil {
 			cookie.Value = token
-			slog.DebugContext(c, "session token renewed", "user", c.User.Subject())
+			slog.DebugContext(c, "session token renewed", "user", c.User().Subject())
 		} else {
 			slog.WarnContext(c, "failed to renew token", "error", err)
 		}
 	}
 
 	// Update cookie properties
-	m.updateCookieProperties(cookie, ttl, c.Request.TLS != nil)
+	m.updateCookieProperties(cookie, ttl, c.Request().TLS != nil)
 
-	http.SetCookie(c.Response, cookie)
+	http.SetCookie(c.Response(), cookie)
 	slog.DebugContext(c, "session cookie extended", "expires", cookie.Expires)
 }
 

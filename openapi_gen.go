@@ -171,7 +171,10 @@ func (g *Generator) ensureComponentSchema(example any, schema *Schema) error {
 	if schema == nil || schema.Ref == "" {
 		return nil
 	}
-	typeName := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
+	rawName, _ := strings.CutPrefix(schema.Ref, "#/components/schemas/")
+	typeName := sanitizeComponentName(rawName)
+	// Ensure the ref used in the operation points to the sanitized name
+	schema.Ref = "#/components/schemas/" + typeName
 	if _, exists := g.spec.Components.Schemas[typeName]; exists {
 		return nil
 	}
@@ -204,25 +207,35 @@ func (g *Generator) GenerateSchemaForType(t reflect.Type) (*Schema, error) {
 		return nil, fmt.Errorf("unnamed types cannot be registered")
 	}
 	if g.visited[t] {
-		return &Schema{Ref: "#/components/schemas/" + t.Name()}, nil
+		return &Schema{Ref: "#/components/schemas/" + sanitizeComponentName(t.Name())}, nil
 	}
 	g.visited[t] = true
 	defer delete(g.visited, t)
 
 	root, components := g.builder.SchemaWithComponents(t)
 
-	for name, raw := range components {
-		if _, exists := g.spec.Components.Schemas[name]; !exists {
-			data, err := json.Marshal(raw)
-			if err != nil {
-				return nil, fmt.Errorf("marshal component schema %q: %w", name, err)
-			}
-			s := &Schema{}
-			if err := json.Unmarshal(data, &s); err != nil {
-				return nil, fmt.Errorf("unmarshal component schema %q: %w", name, err)
-			}
-			g.spec.Components.Schemas[name] = s
+	// Build a name mapping for all components to sanitized names
+	nameMap := make(map[string]string, len(components))
+	for name := range components {
+		nameMap[name] = sanitizeComponentName(name)
+	}
+
+	// Insert/Update components with sanitized names and rewritten refs
+	for oldName, raw := range components {
+		newName := nameMap[oldName]
+		if _, exists := g.spec.Components.Schemas[newName]; exists {
+			continue
 		}
+		data, err := json.Marshal(raw)
+		if err != nil {
+			return nil, fmt.Errorf("marshal component schema %q: %w", oldName, err)
+		}
+		s := &Schema{}
+		if err := json.Unmarshal(data, &s); err != nil {
+			return nil, fmt.Errorf("unmarshal component schema %q: %w", oldName, err)
+		}
+		rewriteSchemaRefs(s, nameMap)
+		g.spec.Components.Schemas[newName] = s
 	}
 
 	data, err := json.Marshal(root)
@@ -233,6 +246,9 @@ func (g *Generator) GenerateSchemaForType(t reflect.Type) (*Schema, error) {
 	if err := json.Unmarshal(data, &schema); err != nil {
 		return nil, fmt.Errorf("unmarshal root schema: %w", err)
 	}
+
+	// Rewrite refs in the root schema too
+	rewriteSchemaRefs(&schema, nameMap)
 
 	return &schema, nil
 }
@@ -260,7 +276,7 @@ func isZero(v any) bool {
 
 func validatePathParameters(path string, params []*ParameterObject) error {
 	pathParams := map[string]bool{}
-	for _, match := range regexp.MustCompile(`\{([^}]+)\}`).FindAllStringSubmatch(path, -1) {
+	for _, match := range pathParamRegex.FindAllStringSubmatch(path, -1) {
 		pathParams[match[1]] = true
 	}
 	for _, p := range params {
@@ -282,6 +298,7 @@ func validatePathParameters(path string, params []*ParameterObject) error {
 }
 
 func getDefaultResponseCode(method string) string {
+	method = strings.ToLower(method)
 	switch method {
 	case "post":
 		return "201"
@@ -312,5 +329,119 @@ func getDefaultResponseDescription(code string) string {
 		return "Internal Server Error"
 	default:
 		return fmt.Sprintf("Response %s", code)
+	}
+}
+
+var pathParamRegex = regexp.MustCompile(`\{([^}]+)\}`)
+
+// sanitizeComponentName converts potentially invalid component names (e.g., generics with package paths)
+// into OpenAPI-safe identifiers. Examples:
+//
+//	"Page[*github.com/acme/project/pkg.Model]" => "PageModel"
+//	"Result[github.com/x/y.User, *github.com/x/y.Error]" => "ResultUserError"
+func sanitizeComponentName(name string) string {
+	if name == "" {
+		return name
+	}
+	base := name
+	var args []string
+	if i := strings.Index(name, "["); i >= 0 {
+		base = name[:i]
+		inner := name[i+1:]
+		if j := strings.LastIndex(inner, "]"); j >= 0 {
+			inner = inner[:j]
+		}
+		// Split by comma for multiple type args
+		parts := strings.Split(inner, ",")
+		if len(parts) > 0 {
+			args = make([]string, 0, len(parts))
+		}
+		for _, p := range parts {
+			p = strings.TrimSpace(p)
+			// Remove pointer and slice/map tokens
+			for strings.HasPrefix(p, "*") || strings.HasPrefix(p, "[]") || strings.HasPrefix(p, "map[") {
+				if after, ok := strings.CutPrefix(p, "*"); ok {
+					p = after
+				} else if after, ok := strings.CutPrefix(p, "[]"); ok {
+					p = after
+				} else if after, ok := strings.CutPrefix(p, "map["); ok {
+					// best-effort: drop map[...] prefix
+					if k := strings.Index(after, "]"); k >= 0 {
+						p = after[k+1:]
+					} else {
+						p = after
+					}
+				}
+				p = strings.TrimSpace(p)
+			}
+			// Strip package path and qualifiers
+			if idx := strings.LastIndex(p, "/"); idx >= 0 {
+				p = p[idx+1:]
+			}
+			if idx := strings.LastIndex(p, "."); idx >= 0 {
+				p = p[idx+1:]
+			}
+			// Remove any remaining non-alphanumeric characters
+			cleaned := make([]rune, 0, len(p))
+			for _, r := range p {
+				if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' {
+					cleaned = append(cleaned, r)
+				}
+			}
+			if len(cleaned) > 0 {
+				args = append(args, string(cleaned))
+			}
+		}
+	}
+	// Clean base similarly (in case it contains package qualifiers)
+	if idx := strings.LastIndex(base, "/"); idx >= 0 {
+		base = base[idx+1:]
+	}
+	if idx := strings.LastIndex(base, "."); idx >= 0 {
+		base = base[idx+1:]
+	}
+	baseClean := make([]rune, 0, len(base))
+	for _, r := range base {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' {
+			baseClean = append(baseClean, r)
+		}
+	}
+	var b strings.Builder
+	b.Grow(len(baseClean) + 16*len(args))
+	b.WriteString(string(baseClean))
+	for _, a := range args {
+		b.WriteString(a)
+	}
+	result := b.String()
+	if result == "" {
+		return name // fallback
+	}
+	return result
+}
+
+// rewriteSchemaRefs updates $ref values in a schema tree according to a name mapping.
+func rewriteSchemaRefs(s *Schema, nameMap map[string]string) {
+	if s == nil {
+		return
+	}
+	if s.Ref != "" {
+		if after, ok := strings.CutPrefix(s.Ref, "#/components/schemas/"); ok {
+			old := after
+			if newName, ok := nameMap[old]; ok && newName != old {
+				s.Ref = "#/components/schemas/" + newName
+			} else {
+				// Also handle already-sanitized names for idempotency
+				s.Ref = "#/components/schemas/" + sanitizeComponentName(old)
+			}
+		}
+	}
+	if s.Items != nil {
+		rewriteSchemaRefs(s.Items, nameMap)
+	}
+	if s.AdditionalProperties != nil {
+		rewriteSchemaRefs(s.AdditionalProperties, nameMap)
+	}
+	for _, prop := range s.Properties {
+		rewriteSchemaRefs(prop, nameMap)
 	}
 }

@@ -17,7 +17,7 @@ func TestLoggingMiddlewareShouldLogRequestDetails(t *testing.T) {
 	slog.SetDefault(logger)
 
 	middleware := &loggingMiddleware{options: &LoggingOptions{}}
-	req := httptest.NewRequest("GET", "/test?param=value", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test?param=value", nil)
 	req.RemoteAddr = "192.168.1.1:8080"
 	req.Header.Set("User-Agent", "test-agent/1.0")
 
@@ -25,10 +25,10 @@ func TestLoggingMiddlewareShouldLogRequestDetails(t *testing.T) {
 	ctx := NewRouteContext(recorder, req)
 
 	nextCalled := false
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		nextCalled = true
-		c.Response.WriteHeader(http.StatusOK)
-		c.Response.Write([]byte("test response"))
+		c.Response().WriteHeader(http.StatusOK)
+		c.Response().Write([]byte("test response"))
 	}
 
 	// Act
@@ -54,12 +54,12 @@ func TestLoggingMiddlewareShouldCaptureStatusCode(t *testing.T) {
 	slog.SetDefault(logger)
 
 	middleware := &loggingMiddleware{options: &LoggingOptions{}}
-	req := httptest.NewRequest("POST", "/test", nil)
+	req := httptest.NewRequest(http.MethodPost, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
-	next := func(c *RouteContext) {
-		c.Response.WriteHeader(http.StatusCreated)
+	next := func(c RouteContext) {
+		c.Response().WriteHeader(http.StatusCreated)
 	}
 
 	// Act
@@ -77,12 +77,12 @@ func TestLoggingMiddlewareShouldHandleErrorStatus(t *testing.T) {
 	slog.SetDefault(logger)
 
 	middleware := &loggingMiddleware{options: &LoggingOptions{}}
-	req := httptest.NewRequest("GET", "/error", nil)
+	req := httptest.NewRequest(http.MethodGet, "/error", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
-	next := func(c *RouteContext) {
-		c.Response.WriteHeader(http.StatusInternalServerError)
+	next := func(c RouteContext) {
+		c.Response().WriteHeader(http.StatusInternalServerError)
 	}
 
 	// Act
@@ -100,13 +100,13 @@ func TestLoggingMiddlewareShouldDefaultTo200Status(t *testing.T) {
 	slog.SetDefault(logger)
 
 	middleware := &loggingMiddleware{options: &LoggingOptions{}}
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
-	next := func(c *RouteContext) {
+	next := func(c RouteContext) {
 		// Don't explicitly set status - should default to 200
-		c.Response.Write([]byte("response"))
+		c.Response().Write([]byte("response"))
 	}
 
 	// Act

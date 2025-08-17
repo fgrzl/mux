@@ -210,6 +210,12 @@ func (rb *RouteBuilder) WithMultipartBody(example any) *RouteBuilder {
 }
 
 func (rb *RouteBuilder) withBody(example any, ctype string) *RouteBuilder {
+
+	method := rb.Options.Method
+	if method == http.MethodHead || method == http.MethodGet || method == http.MethodDelete {
+		panic(fmt.Sprintf("HTTP method %s does not support a request body", method))
+	}
+
 	if example == nil {
 		return rb
 	}

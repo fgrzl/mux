@@ -4,12 +4,13 @@ package mux
 type forwardedHeadersMiddleware struct{}
 
 // Invoke implements the Middleware interface, processing X-Forwarded-Proto and X-Forwarded-For headers.
-func (m *forwardedHeadersMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
-	if proto := c.Request.Header.Get(HeaderXForwardedProto); proto != "" {
-		c.Request.URL.Scheme = proto
+func (m *forwardedHeadersMiddleware) Invoke(c RouteContext, next HandlerFunc) {
+
+	if proto := c.Request().Header.Get(HeaderXForwardedProto); proto != "" {
+		c.Request().URL.Scheme = proto
 	}
-	if ip := c.Request.Header.Get(HeaderXForwardedFor); ip != "" {
-		c.Request.RemoteAddr = ip
+	if ip := c.Request().Header.Get(HeaderXForwardedFor); ip != "" {
+		c.Request().RemoteAddr = ip
 	}
 	next(c)
 }

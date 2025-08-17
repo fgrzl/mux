@@ -13,7 +13,7 @@ import (
 func TestShouldRecoverFromPanicInHandler(t *testing.T) {
 	// Arrange
 	router := NewRouter()
-	router.GET("/panic", func(c *RouteContext) {
+	router.GET("/panic", func(c RouteContext) {
 		panic("test panic")
 	})
 
@@ -39,6 +39,6 @@ func TestShouldRecoverFromPanicInHandler(t *testing.T) {
 // Helper middleware that panics for testing
 type testPanicMiddleware struct{}
 
-func (m *testPanicMiddleware) Invoke(ctx *RouteContext, next HandlerFunc) {
+func (m *testPanicMiddleware) Invoke(c RouteContext, next HandlerFunc) {
 	panic("middleware panic")
 }

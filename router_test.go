@@ -52,7 +52,7 @@ func TestShouldCreateNewRouteGroupWithPrefix(t *testing.T) {
 func TestShouldServeHTTPAndReturnNotFoundForUnknownRoute(t *testing.T) {
 	// Arrange
 	router := NewRouter()
-	req := httptest.NewRequest("GET", "/unknown", nil)
+	req := httptest.NewRequest(http.MethodGet, "/unknown", nil)
 	rec := httptest.NewRecorder()
 
 	// Act
@@ -66,12 +66,12 @@ func TestShouldServeHTTPAndCallRegisteredHandler(t *testing.T) {
 	// Arrange
 	router := NewRouter()
 	called := false
-	router.GET("/test", func(c *RouteContext) {
+	router.GET("/test", func(c RouteContext) {
 		called = true
 		c.OK("success")
 	})
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 
 	// Act
@@ -89,19 +89,19 @@ func TestShouldServeHTTPWithMiddleware(t *testing.T) {
 
 	// Add middleware
 	router.middleware = append(router.middleware, &testMiddleware{
-		invoke: func(c *RouteContext, next HandlerFunc) {
+		invoke: func(c RouteContext, next HandlerFunc) {
 			middlewareExecuted = true
 			next(c)
 		},
 	})
 
 	handlerExecuted := false
-	router.GET("/test", func(c *RouteContext) {
+	router.GET("/test", func(c RouteContext) {
 		handlerExecuted = true
 		c.OK("success")
 	})
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 
 	// Act
@@ -117,12 +117,12 @@ func TestShouldSetRouteParamsInContext(t *testing.T) {
 	// Arrange
 	router := NewRouter()
 	var receivedParams RouteParams
-	router.GET("/users/{id}", func(c *RouteContext) {
-		receivedParams = c.Params
+	router.GET("/users/{id}", func(c RouteContext) {
+		receivedParams = c.Params()
 		c.OK("success")
 	})
 
-	req := httptest.NewRequest("GET", "/users/123", nil)
+	req := httptest.NewRequest(http.MethodGet, "/users/123", nil)
 	rec := httptest.NewRecorder()
 
 	// Act
@@ -141,24 +141,24 @@ func TestShouldExecuteMiddlewareInCorrectOrder(t *testing.T) {
 
 	// Add middleware in order
 	router.middleware = append(router.middleware, &testMiddleware{
-		invoke: func(c *RouteContext, next HandlerFunc) {
+		invoke: func(c RouteContext, next HandlerFunc) {
 			executionOrder = append(executionOrder, 1)
 			next(c)
 		},
 	})
 	router.middleware = append(router.middleware, &testMiddleware{
-		invoke: func(c *RouteContext, next HandlerFunc) {
+		invoke: func(c RouteContext, next HandlerFunc) {
 			executionOrder = append(executionOrder, 2)
 			next(c)
 		},
 	})
 
-	router.GET("/test", func(c *RouteContext) {
+	router.GET("/test", func(c RouteContext) {
 		executionOrder = append(executionOrder, 3)
 		c.OK("success")
 	})
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 
 	// Act
@@ -177,19 +177,19 @@ func TestShouldStopMiddlewareChainWhenNotContinuing(t *testing.T) {
 
 	// Add middleware that doesn't call next
 	router.middleware = append(router.middleware, &testMiddleware{
-		invoke: func(c *RouteContext, next HandlerFunc) {
+		invoke: func(c RouteContext, next HandlerFunc) {
 			middlewareExecuted = true
 			c.Unauthorized()
 			// Don't call next(c)
 		},
 	})
 
-	router.GET("/test", func(c *RouteContext) {
+	router.GET("/test", func(c RouteContext) {
 		handlerExecuted = true
 		c.OK("success")
 	})
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 
 	// Act
@@ -203,9 +203,9 @@ func TestShouldStopMiddlewareChainWhenNotContinuing(t *testing.T) {
 
 // Test middleware implementation for testing
 type testMiddleware struct {
-	invoke func(c *RouteContext, next HandlerFunc)
+	invoke func(c RouteContext, next HandlerFunc)
 }
 
-func (tm *testMiddleware) Invoke(c *RouteContext, next HandlerFunc) {
+func (tm *testMiddleware) Invoke(c RouteContext, next HandlerFunc) {
 	tm.invoke(c, next)
 }

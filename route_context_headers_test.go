@@ -1,6 +1,7 @@
 package mux
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -10,7 +11,7 @@ import (
 
 func TestShouldReturnHeaderValue(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.Header.Set("Authorization", "Bearer token123")
 	req.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()
@@ -26,7 +27,7 @@ func TestShouldReturnHeaderValue(t *testing.T) {
 
 func TestShouldReturnFalseForMissingHeader(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -39,7 +40,7 @@ func TestShouldReturnFalseForMissingHeader(t *testing.T) {
 
 func TestShouldReturnFalseForEmptyHeader(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.Header.Set("Empty-Header", "")
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
@@ -53,7 +54,7 @@ func TestShouldReturnFalseForEmptyHeader(t *testing.T) {
 
 func TestShouldParseValidHeaderInt(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.Header.Set("Content-Length", "1024")
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
@@ -68,7 +69,7 @@ func TestShouldParseValidHeaderInt(t *testing.T) {
 
 func TestShouldReturnFalseForInvalidHeaderInt(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.Header.Set("Content-Length", "not-a-number")
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
@@ -82,7 +83,7 @@ func TestShouldReturnFalseForInvalidHeaderInt(t *testing.T) {
 
 func TestShouldReturnFalseForMissingHeaderInt(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -97,7 +98,7 @@ func TestShouldReturnFalseForMissingHeaderInt(t *testing.T) {
 func TestShouldParseValidHeaderUUID(t *testing.T) {
 	// Arrange
 	testUUID := uuid.New()
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.Header.Set("Request-ID", testUUID.String())
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
@@ -112,7 +113,7 @@ func TestShouldParseValidHeaderUUID(t *testing.T) {
 
 func TestShouldReturnFalseForInvalidHeaderUUID(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.Header.Set("Request-ID", "invalid-uuid")
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
@@ -126,7 +127,7 @@ func TestShouldReturnFalseForInvalidHeaderUUID(t *testing.T) {
 
 func TestShouldReturnFalseForMissingHeaderUUID(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -140,7 +141,7 @@ func TestShouldReturnFalseForMissingHeaderUUID(t *testing.T) {
 
 func TestShouldParseValidHeaderBool(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.Header.Set("X-Debug", "true")
 	req.Header.Set("X-Cache", "false")
 	recorder := httptest.NewRecorder()
@@ -163,7 +164,7 @@ func TestShouldParseValidHeaderBool(t *testing.T) {
 
 func TestShouldReturnFalseForInvalidHeaderBool(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.Header.Set("X-Debug", "maybe")
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
@@ -177,7 +178,7 @@ func TestShouldReturnFalseForInvalidHeaderBool(t *testing.T) {
 
 func TestShouldReturnFalseForMissingHeaderBool(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -191,7 +192,7 @@ func TestShouldReturnFalseForMissingHeaderBool(t *testing.T) {
 
 func TestShouldParseValidHeaderFloat64(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.Header.Set("X-Rating", "4.7")
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
@@ -206,7 +207,7 @@ func TestShouldParseValidHeaderFloat64(t *testing.T) {
 
 func TestShouldReturnFalseForInvalidHeaderFloat64(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.Header.Set("X-Rating", "not-a-float")
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
@@ -220,7 +221,7 @@ func TestShouldReturnFalseForInvalidHeaderFloat64(t *testing.T) {
 
 func TestShouldReturnFalseForMissingHeaderFloat64(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 

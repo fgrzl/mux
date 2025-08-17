@@ -15,10 +15,14 @@ type WebServerOption func(*WebServer)
 
 // WebServer wraps an http.Server and a custom Router, providing methods for starting and stopping the server.
 type WebServer struct {
-	srv      *http.Server // underlying HTTP server
-	router   *Router      // custom router
-	certFile string       // TLS certificate file path
-	keyFile  string       // TLS key file path
+	// underlying HTTP server
+	srv *http.Server
+	// custom router
+	router *Router
+	// TLS certificate file path
+	certFile string
+	// TLS key file path
+	keyFile string
 }
 
 // WithTLS enables HTTPS for the WebServer using the provided certificate and key file paths.
@@ -68,7 +72,6 @@ func WithTLSDiscovery(certsDir, certFile, keyFile string) WebServerOption {
 			slog.Error("Could not find certs directory for TLS discovery", "searched_from", dir)
 		}
 	}
-
 }
 
 // NewServer creates a new WebServer with the given address, router, and optional configuration options.

@@ -109,7 +109,7 @@ func TestShouldHandleTLSDiscoveryWhenCertsDirNotFound(t *testing.T) {
 func TestShouldStartHTTPServerSuccessfully(t *testing.T) {
 	// Arrange
 	router := NewRouter()
-	router.GET("/health", func(c *RouteContext) {
+	router.GET("/health", func(c RouteContext) {
 		c.OK("OK")
 	})
 

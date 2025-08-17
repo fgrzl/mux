@@ -50,7 +50,7 @@ type User struct {
     Email string    `json:"email"`
 }
 
-func updateUser(c *mux.RouteContext) {
+func updateUser(c mux.RouteContext) {
     var user User
     if err := c.Bind(&user); err != nil {
         c.BadRequest("Invalid request", err.Error())
@@ -106,7 +106,7 @@ Custom middleware is easy to implement:
 ```go
 type CustomMiddleware struct{}
 
-func (m *CustomMiddleware) Invoke(c *mux.RouteContext, next mux.HandlerFunc) {
+func (m *CustomMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
     // Pre-processing
     start := time.Now()
     
@@ -161,7 +161,7 @@ router.UseServices(
     mux.WithService("logger", logger),
 )
 
-func handler(c *mux.RouteContext) {
+func handler(c mux.RouteContext) {
     db, _ := c.GetService("db")
     logger, _ := c.GetService("logger")
     // Use services...
