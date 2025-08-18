@@ -57,12 +57,12 @@ type AuthorizationOptions struct {
 	CheckPermissions func(claims.Principal, []string) bool
 }
 
-func (rtr *Router) UseAuthorization(opts ...AuthZOption) {
+func UseAuthorization(router *Router, opts ...AuthZOption) {
 	options := &AuthorizationOptions{}
 	for _, opt := range opts {
 		opt(options)
 	}
-	rtr.middleware = append(rtr.middleware, &authorizationMiddleware{options: options})
+	router.middleware = append(router.middleware, &authorizationMiddleware{options: options})
 }
 
 type authorizationMiddleware struct {

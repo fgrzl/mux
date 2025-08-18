@@ -24,12 +24,12 @@ func WithService(key ServiceKey, svc any) ServiceSetterOption {
 }
 
 // UseServices adds middleware that sets services on the RouteContext.
-func (rtr *Router) UseServices(opts ...ServiceSetterOption) {
+func UseServices(router *Router, opts ...ServiceSetterOption) {
 	options := &ServiceSetterOptions{}
 	for _, opt := range opts {
 		opt(options)
 	}
-	rtr.middleware = append(rtr.middleware, &serviceSetterMiddleware{options: options})
+	router.middleware = append(router.middleware, &serviceSetterMiddleware{options: options})
 }
 
 // serviceSetterMiddleware implements middleware that injects services into the route context.

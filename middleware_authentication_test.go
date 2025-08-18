@@ -196,7 +196,7 @@ func TestDefaultTokenProviderShouldReturnErrorWhenValidateFnFails(t *testing.T) 
 func TestAuthenticationMiddlewareShouldSetTokenProviderAsService(t *testing.T) {
 	// Arrange
 	router := NewRouter()
-	router.UseAuthentication(
+	UseAuthentication(router,
 		WithTokenTTL(30*time.Minute),
 		WithValidator(func(string) (claims.Principal, error) {
 			return newMockPrincipal("test"), nil
@@ -232,7 +232,7 @@ func TestAuthenticationMiddlewareShouldSetTokenProviderAsService(t *testing.T) {
 func TestAuthenticationMiddlewareShouldAllowAnonymousAccessWhenConfigured(t *testing.T) {
 	// Arrange
 	router := NewRouter()
-	router.UseAuthentication(
+	UseAuthentication(router,
 		WithValidator(func(string) (claims.Principal, error) {
 			return nil, errors.New("should not be called")
 		}),
@@ -258,7 +258,7 @@ func TestAuthenticationMiddlewareShouldAllowAnonymousAccessWhenConfigured(t *tes
 func TestAuthenticationMiddlewareShouldRejectRequestWithoutValidAuthentication(t *testing.T) {
 	// Arrange
 	router := NewRouter()
-	router.UseAuthentication(
+	UseAuthentication(router,
 		WithValidator(func(string) (claims.Principal, error) {
 			return nil, errors.New("invalid token")
 		}),
@@ -282,7 +282,7 @@ func TestAuthenticationMiddlewareShouldAuthenticateViaCookie(t *testing.T) {
 	// Arrange
 	mockUser := newMockPrincipal("user123")
 	router := NewRouter()
-	router.UseAuthentication(
+	UseAuthentication(router,
 		WithValidator(func(token string) (claims.Principal, error) {
 			if token == "valid-cookie-token" {
 				return mockUser, nil
@@ -317,7 +317,7 @@ func TestAuthenticationMiddlewareShouldAuthenticateViaBearerToken(t *testing.T) 
 	// Arrange
 	mockUser := newMockPrincipal("user456")
 	router := NewRouter()
-	router.UseAuthentication(
+	UseAuthentication(router,
 		WithValidator(func(token string) (claims.Principal, error) {
 			if token == "valid-bearer-token" {
 				return mockUser, nil

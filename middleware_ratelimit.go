@@ -32,6 +32,12 @@ func WithCleanupInterval(d time.Duration) RateLimiterOption {
 	}
 }
 
+// UseRateLimiter adds rate limiting middleware to the router with the given options.
+func UseRateLimiter(r *Router, opts ...RateLimiterOption) {
+	limiter := NewSelectiveRateLimiter(opts...)
+	r.middleware = append(r.middleware, limiter)
+}
+
 func NewSelectiveRateLimiter(opts ...RateLimiterOption) *SelectiveRateLimiter {
 	config := &RateLimiterOptions{
 		CleanupInterval: 10 * time.Minute,

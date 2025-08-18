@@ -127,7 +127,7 @@ func TestShouldAddCompressionMiddlewareToRouter(t *testing.T) {
 	initialMiddlewareCount := len(router.middleware)
 
 	// Act
-	router.UseCompression()
+	UseCompression(router)
 
 	// Assert
 	assert.Equal(t, initialMiddlewareCount+1, len(router.middleware))

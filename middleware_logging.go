@@ -15,12 +15,12 @@ type LoggingOptions struct{}
 type LoggingOption func(*LoggingOptions)
 
 // UseLogging adds structured request/response logging middleware.
-func (rtr *Router) UseLogging(opts ...LoggingOption) {
+func UseLogging(router *Router, opts ...LoggingOption) {
 	options := &LoggingOptions{}
 	for _, opt := range opts {
 		opt(options)
 	}
-	rtr.middleware = append(rtr.middleware, &loggingMiddleware{options: options})
+	router.middleware = append(router.middleware, &loggingMiddleware{options: options})
 }
 
 // ---- Middleware ----

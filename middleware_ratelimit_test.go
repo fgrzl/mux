@@ -385,3 +385,20 @@ func TestShouldDecrementTokensOnEachRequest(t *testing.T) {
 	// Assert - First visitor starts with 3 tokens (4-1), so 3 successful requests, 1 rejected
 	assert.Equal(t, 3, callCount)
 }
+
+func TestUseRateLimiterShouldAddMiddlewareToRouter(t *testing.T) {
+	// Arrange
+	router := NewRouter()
+	initialMiddlewareCount := len(router.middleware)
+
+	// Act
+	UseRateLimiter(router, WithCleanupInterval(5*time.Minute))
+
+	// Assert
+	assert.Equal(t, initialMiddlewareCount+1, len(router.middleware))
+
+	// Verify the added middleware is a SelectiveRateLimiter
+	addedMiddleware := router.middleware[len(router.middleware)-1]
+	_, ok := addedMiddleware.(*SelectiveRateLimiter)
+	assert.True(t, ok, "Added middleware should be a SelectiveRateLimiter")
+}
