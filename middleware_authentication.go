@@ -12,7 +12,7 @@ import (
 
 // UseAuthentication adds authentication middleware to the router with the given options.
 // This middleware enforces authentication and provides token creation capabilities.
-func (r *Router) UseAuthentication(opts ...AuthOption) {
+func UseAuthentication(router *Router, opts ...AuthOption) {
 	options := &AuthenticationOptions{}
 
 	for _, opt := range opts {
@@ -29,17 +29,17 @@ func (r *Router) UseAuthentication(opts ...AuthOption) {
 		provider: provider,
 	}
 
-	r.middleware = append(r.middleware, m)
+	router.middleware = append(router.middleware, m)
 }
 
 // UseAuthenticationWithProvider adds authentication middleware using a custom token provider.
 // This allows for more advanced token provider implementations.
-func (r *Router) UseAuthenticationWithProvider(provider TokenProvider) {
+func UseAuthenticationWithProvider(router *Router, provider TokenProvider) {
 	m := &authenticationMiddleware{
 		provider: provider,
 	}
 
-	r.middleware = append(r.middleware, m)
+	router.middleware = append(router.middleware, m)
 }
 
 // ---- Functional Options ----

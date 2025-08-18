@@ -115,7 +115,7 @@ func TestShouldAddAuthorizationMiddlewareToRouter(t *testing.T) {
 	initialCount := len(router.middleware)
 
 	// Act
-	router.UseAuthorization(WithRoles("admin"))
+	UseAuthorization(router, WithRoles("admin"))
 
 	// Assert
 	assert.Len(t, router.middleware, initialCount+1)

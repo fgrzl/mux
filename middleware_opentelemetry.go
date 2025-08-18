@@ -24,12 +24,12 @@ func WithOperation(name string) OpenTelemetryOption {
 }
 
 // UseOpenTelemetry adds OpenTelemetry tracing and metrics middleware.
-func (rtr *Router) UseOpenTelemetry(opts ...OpenTelemetryOption) {
+func UseOpenTelemetry(router *Router, opts ...OpenTelemetryOption) {
 	options := &OpenTelemetryOptions{Operation: "http.server"}
 	for _, opt := range opts {
 		opt(options)
 	}
-	rtr.middleware = append(rtr.middleware, &otelMiddleware{operation: options.Operation})
+	router.middleware = append(router.middleware, &otelMiddleware{operation: options.Operation})
 }
 
 // otelMiddleware provides OpenTelemetry integration for HTTP requests.

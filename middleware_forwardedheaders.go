@@ -16,6 +16,6 @@ func (m *forwardedHeadersMiddleware) Invoke(c RouteContext, next HandlerFunc) {
 }
 
 // UseForwardedHeaders adds middleware that processes X-Forwarded-* headers.
-func (rtr *Router) UseForwardedHeaders() {
-	rtr.middleware = append(rtr.middleware, &forwardedHeadersMiddleware{})
+func UseForwardedHeaders(router *Router) {
+	router.middleware = append(router.middleware, &forwardedHeadersMiddleware{})
 }

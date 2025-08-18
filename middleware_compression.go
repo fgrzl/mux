@@ -17,12 +17,12 @@ type CompressionOptions struct{}
 type CompressionOption func(*CompressionOptions)
 
 // UseCompression adds response compression middleware that supports gzip and deflate encoding.
-func (rtr *Router) UseCompression(opts ...CompressionOption) {
+func UseCompression(router *Router, opts ...CompressionOption) {
 	options := &CompressionOptions{}
 	for _, opt := range opts {
 		opt(options)
 	}
-	rtr.middleware = append(rtr.middleware, &compressionMiddleware{options: options})
+	router.middleware = append(router.middleware, &compressionMiddleware{options: options})
 }
 
 // ---- Middleware ----

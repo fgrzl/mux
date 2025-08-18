@@ -23,6 +23,6 @@ func (m *enforceHTTPSMiddleware) Invoke(c RouteContext, next HandlerFunc) {
 }
 
 // UseEnforceHTTPS adds middleware that redirects HTTP requests to HTTPS.
-func (rtr *Router) UseEnforceHTTPS() {
-	rtr.middleware = append(rtr.middleware, &enforceHTTPSMiddleware{})
+func UseEnforceHTTPS(router *Router) {
+	router.middleware = append(router.middleware, &enforceHTTPSMiddleware{})
 }

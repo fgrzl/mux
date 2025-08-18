@@ -22,12 +22,12 @@ func WithGeoIPDatabase(db *geoip2.Reader) ExportControlOption {
 	}
 }
 
-func (rtr *Router) UseExportControl(opts ...ExportControlOption) {
+func UseExportControl(router *Router, opts ...ExportControlOption) {
 	options := &ExportControlOptions{}
 	for _, opt := range opts {
 		opt(options)
 	}
-	rtr.middleware = append(rtr.middleware, &exportControlMiddleware{options: options})
+	router.middleware = append(router.middleware, &exportControlMiddleware{options: options})
 }
 
 // ---- Middleware ----

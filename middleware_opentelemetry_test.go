@@ -27,7 +27,7 @@ func TestShouldAddOpenTelemetryMiddlewareToRouter(t *testing.T) {
 	initialCount := len(router.middleware)
 
 	// Act
-	router.UseOpenTelemetry()
+	UseOpenTelemetry(router)
 
 	// Assert
 	assert.Len(t, router.middleware, initialCount+1)
@@ -39,7 +39,7 @@ func TestShouldAddOpenTelemetryMiddlewareWithCustomOperation(t *testing.T) {
 	customOperation := "my-custom-operation"
 
 	// Act
-	router.UseOpenTelemetry(WithOperation(customOperation))
+	UseOpenTelemetry(router, WithOperation(customOperation))
 
 	// Assert
 	assert.Len(t, router.middleware, 1)
@@ -94,7 +94,7 @@ func TestShouldHandleMultipleOpenTelemetryOptions(t *testing.T) {
 	operationName := "multi-option-operation"
 
 	// Act
-	router.UseOpenTelemetry(
+	UseOpenTelemetry(router,
 		WithOperation(operationName),
 		// Could add more options if they existed
 	)
@@ -108,7 +108,7 @@ func TestShouldSetDefaultOperationWhenNoneProvided(t *testing.T) {
 	router := NewRouter()
 
 	// Act
-	router.UseOpenTelemetry()
+	UseOpenTelemetry(router)
 
 	// Assert
 	// The middleware should be created with default operation "http.server"
