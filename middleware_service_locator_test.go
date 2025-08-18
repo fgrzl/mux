@@ -164,7 +164,7 @@ func TestShouldAddServiceMiddlewareToRouter(t *testing.T) {
 	service := &MockService{Name: "test"}
 
 	// Act
-	router.UseServices(WithService("test", service))
+	UseServices(router, WithService("test", service))
 
 	// Assert
 	assert.Equal(t, initialMiddlewareCount+1, len(router.middleware))

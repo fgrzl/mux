@@ -46,7 +46,7 @@ func TestShouldAddExportControlMiddlewareToRouter(t *testing.T) {
 	initialCount := len(router.middleware)
 
 	// Act
-	router.UseExportControl()
+	UseExportControl(router)
 
 	// Assert
 	assert.Len(t, router.middleware, initialCount+1)
@@ -213,7 +213,7 @@ func TestShouldHandleMultipleExportControlOptions(t *testing.T) {
 	var db *geoip2.Reader // Would be a real DB in production
 
 	// Act
-	router.UseExportControl(
+	UseExportControl(router,
 		WithGeoIPDatabase(db),
 		// Could add more options here
 	)

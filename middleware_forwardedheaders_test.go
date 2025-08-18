@@ -102,7 +102,7 @@ func TestShouldAddForwardedHeadersMiddlewareToRouter(t *testing.T) {
 	initialMiddlewareCount := len(router.middleware)
 
 	// Act
-	router.UseForwardedHeaders()
+	UseForwardedHeaders(router)
 
 	// Assert
 	assert.Equal(t, initialMiddlewareCount+1, len(router.middleware))
