@@ -55,7 +55,6 @@ type Generator struct {
 	builder         *jsonschema.Builder
 	visited         map[reflect.Type]bool
 	withExamples    bool // default is false
-	includePrefix   string
 	includePrefixes []string
 }
 
@@ -101,15 +100,14 @@ func (g *Generator) GenerateSpec(router *Router) (*OpenAPISpec, error) {
 	if err != nil {
 		return nil, err
 	}
-	// If includePrefixes is set, use it; otherwise fall back to includePrefix.
-	if len(g.includePrefixes) > 0 || g.includePrefix != "" {
-		prefixes := g.includePrefixes
-		if len(prefixes) == 0 && g.includePrefix != "" {
-			p := g.includePrefix
+	// If includePrefixes is set, filter routes to those starting with any prefix.
+	if len(g.includePrefixes) > 0 {
+		prefixes := make([]string, 0, len(g.includePrefixes))
+		for _, p := range g.includePrefixes {
 			if !strings.HasPrefix(p, "/") {
 				p = "/" + p
 			}
-			prefixes = []string{p}
+			prefixes = append(prefixes, p)
 		}
 		filtered := make([]routeData, 0, len(routes))
 		for _, rd := range routes {
@@ -145,11 +143,6 @@ func (g *Generator) GenerateAndSave(router *Router, path string) error {
 	}
 	return spec.MarshalToFile(path)
 }
-
-// GenerateAndSave generates an OpenAPI spec for the router and writes it
-// to the given filesystem path. The spec is validated before being saved.
-//
-// Returns an error if generation or file writing fails.
 
 func (g *Generator) ensureComponentInit() {
 	if g.spec.Components == nil {
