@@ -12,22 +12,61 @@ import (
 	"github.com/google/uuid"
 )
 
+// GeneratorOption is a configuration option for the OpenAPI Generator.
+// Options are functional options that mutate the Generator at creation time.
 type GeneratorOption func(*Generator)
 
+// WithExamples configures the Generator to include example values in
+// generated component schemas and request/response bodies.
+// By default examples are omitted.
 func WithExamples() GeneratorOption {
 	return func(g *Generator) {
 		g.withExamples = true
 	}
 }
 
-// Generator generates an OpenAPI 3.1 specification and holds internal state.
-type Generator struct {
-	spec         *OpenAPISpec
-	builder      *jsonschema.Builder
-	visited      map[reflect.Type]bool
-	withExamples bool // default is false
+// WithPathPrefix restricts generated paths to those that start with the
+// provided prefix. The prefix may be provided with or without a leading
+// slash (e.g. "api/v1" or "/api/v1"). If empty, no filtering is applied.
+// WithPathPrefix adds a single path prefix to the Generator filter.
+// Multiple calls to WithPathPrefix will accumulate prefixes. The prefix
+// may be provided with or without a leading slash ("api/v1" or "/api/v1").
+// When set, only routes whose paths start with any configured prefix will
+// be included in the generated spec.
+func WithPathPrefix(prefix string) GeneratorOption {
+	return func(g *Generator) {
+		if prefix == "" {
+			return
+		}
+		p := prefix
+		if !strings.HasPrefix(p, "/") {
+			p = "/" + p
+		}
+		if g.includePrefixes == nil {
+			g.includePrefixes = []string{}
+		}
+		g.includePrefixes = append(g.includePrefixes, p)
+	}
 }
 
+// Generator generates an OpenAPI 3.1 specification and holds internal state.
+type Generator struct {
+	spec            *OpenAPISpec
+	builder         *jsonschema.Builder
+	visited         map[reflect.Type]bool
+	withExamples    bool // default is false
+	includePrefixes []string
+}
+
+// NewGenerator creates a Generator configured with the provided options.
+//
+// The returned Generator can be reused to generate multiple specs with
+// different routers or prefix filters.
+//
+// Example:
+//
+//	gen := NewGenerator(WithExamples(), WithPathPrefix("api/v1"))
+//	spec, err := gen.GenerateSpec(router)
 func NewGenerator(opts ...GeneratorOption) *Generator {
 	gen := &Generator{
 		spec:    NewOpenAPISpec(),
@@ -42,6 +81,13 @@ func NewGenerator(opts ...GeneratorOption) *Generator {
 	return gen
 }
 
+// GenerateSpec builds an OpenAPI specification for the provided Router.
+//
+// The Generator's options control behavior: examples inclusion and path
+// prefix filtering. Only routes with a non-empty OperationID are emitted.
+//
+// The returned *OpenAPISpec is validated before being returned; callers
+// may marshal it to disk with MarshalToFile or inspect it programmatically.
 func (g *Generator) GenerateSpec(router *Router) (*OpenAPISpec, error) {
 	if router == nil || router.options.openapi == nil {
 		return nil, fmt.Errorf("router or router info is nil")
@@ -54,6 +100,27 @@ func (g *Generator) GenerateSpec(router *Router) (*OpenAPISpec, error) {
 	if err != nil {
 		return nil, err
 	}
+	// If includePrefixes is set, filter routes to those starting with any prefix.
+	if len(g.includePrefixes) > 0 {
+		prefixes := make([]string, 0, len(g.includePrefixes))
+		for _, p := range g.includePrefixes {
+			if !strings.HasPrefix(p, "/") {
+				p = "/" + p
+			}
+			prefixes = append(prefixes, p)
+		}
+		filtered := make([]routeData, 0, len(routes))
+		for _, rd := range routes {
+			for _, pref := range prefixes {
+				if strings.HasPrefix(rd.Path, pref) {
+					filtered = append(filtered, rd)
+					break
+				}
+			}
+		}
+		routes = filtered
+	}
+
 	for _, rd := range routes {
 		if rd.Options == nil || rd.Options.OperationID == "" {
 			continue
@@ -65,6 +132,10 @@ func (g *Generator) GenerateSpec(router *Router) (*OpenAPISpec, error) {
 	return g.spec, g.spec.Validate()
 }
 
+// GenerateAndSave generates an OpenAPI spec for the router and writes it
+// to the given filesystem path. The spec is validated before being saved.
+//
+// Returns an error if generation or file writing fails.
 func (g *Generator) GenerateAndSave(router *Router, path string) error {
 	spec, err := g.GenerateSpec(router)
 	if err != nil {
@@ -253,6 +324,10 @@ func (g *Generator) GenerateSchemaForType(t reflect.Type) (*Schema, error) {
 	return &schema, nil
 }
 
+// The function will register any nested component schemas into the
+// Generator's components map and return a Schema that may be a $ref to a
+// component or an inline schema. The provided type must be a named type
+// (non-anonymous) or an error will be returned.
 func isZero(v any) bool {
 	if v == nil {
 		return true
@@ -344,6 +419,7 @@ func sanitizeComponentName(name string) string {
 		return name
 	}
 	base := name
+
 	var args []string
 	if i := strings.Index(name, "["); i >= 0 {
 		base = name[:i]
