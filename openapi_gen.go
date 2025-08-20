@@ -324,8 +324,6 @@ func (g *Generator) GenerateSchemaForType(t reflect.Type) (*Schema, error) {
 	return &schema, nil
 }
 
-// GenerateSchemaForType produces a reusable Schema for the given Go type.
-//
 // The function will register any nested component schemas into the
 // Generator's components map and return a Schema that may be a $ref to a
 // component or an inline schema. The provided type must be a named type
