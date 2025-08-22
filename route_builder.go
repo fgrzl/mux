@@ -1,6 +1,7 @@
 package mux
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -354,11 +355,12 @@ func quickSchema(t reflect.Type) (*Schema, error) {
 }
 
 var knownSchemas = map[reflect.Type]*Schema{
-	reflect.TypeOf(uuid.UUID{}): {Type: "string", Format: "uuid"},
-	reflect.TypeOf(time.Time{}): {Type: "string", Format: "date-time"},
-	reflect.TypeOf([]byte{}):    {Type: "string", Format: "byte"},
-	reflect.TypeOf(net.IP{}):    {Type: "string", Format: "ipv4"},
-	reflect.TypeOf(url.URL{}):   {Type: "string", Format: "uri"},
+	reflect.TypeOf([]byte{}):          {Type: "string", Format: "byte"},
+	reflect.TypeOf(json.RawMessage{}): {},
+	reflect.TypeOf(net.IP{}):          {Type: "string", Format: "ipv4"},
+	reflect.TypeOf(time.Time{}):       {Type: "string", Format: "date-time"},
+	reflect.TypeOf(url.URL{}):         {Type: "string", Format: "uri"},
+	reflect.TypeOf(uuid.UUID{}):       {Type: "string", Format: "uuid"},
 }
 
 func RegisterSchema(t reflect.Type, schema *Schema) {
