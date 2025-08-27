@@ -114,7 +114,7 @@ func (spec *OpenAPISpec) UnmarshalFromFile(path string) error {
 	switch ext := strings.ToLower(filepath.Ext(path)); ext {
 	case ".json":
 		return json.Unmarshal(data, spec)
-	case ".yaml", ".yaml":
+	case ".yml", ".yaml":
 		return yaml.Unmarshal(data, spec)
 	default:
 		return fmt.Errorf("unsupported file extension: %s", ext)
