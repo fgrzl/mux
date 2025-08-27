@@ -89,7 +89,7 @@ func (spec *OpenAPISpec) MarshalToFile(path string) error {
 			return fmt.Errorf("marshaling to JSON: %w", err)
 		}
 		return os.WriteFile(path, data, 0644)
-	case ".yaml", ".yml":
+	case ".yml", ".yaml":
 		file, err := os.Create(path)
 		if err != nil {
 			return fmt.Errorf("creating file %q: %w", path, err)
@@ -114,7 +114,7 @@ func (spec *OpenAPISpec) UnmarshalFromFile(path string) error {
 	switch ext := strings.ToLower(filepath.Ext(path)); ext {
 	case ".json":
 		return json.Unmarshal(data, spec)
-	case ".yaml", ".yml":
+	case ".yaml", ".yaml":
 		return yaml.Unmarshal(data, spec)
 	default:
 		return fmt.Errorf("unsupported file extension: %s", ext)

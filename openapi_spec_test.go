@@ -294,7 +294,7 @@ paths:
           description: Success
 `
 
-	tempFile := filepath.Join(t.TempDir(), "test-unmarshal.yml")
+	tempFile := filepath.Join(t.TempDir(), "test-unmarshal.yaml")
 	require.NoError(t, os.WriteFile(tempFile, []byte(yamlContent), 0644))
 
 	var spec OpenAPISpec
