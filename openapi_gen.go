@@ -167,21 +167,34 @@ func (g *Generator) appendRoute(rd routeData) error {
 	if item == nil {
 		item = new(PathItem)
 	}
+
+	// Work on a copy of the Operation so we don't leak runtime-only state
+	// (like Parameter.Converter) into the generated spec.
 	op := &opt.Operation
-	if len(op.Responses) == 0 {
+	newOp := *op
+	if len(newOp.Responses) == 0 {
 		code := getDefaultResponseCode(method)
-		op.Responses = map[string]*ResponseObject{code: {Description: getDefaultResponseDescription(code)}}
+		newOp.Responses = map[string]*ResponseObject{code: {Description: getDefaultResponseDescription(code)}}
 	}
 
-	for i, param := range op.Parameters {
-		if err := g.ensureComponentSchema(param.Example, param.Schema); err != nil {
-			return err
+	// Clone parameters and clear runtime-only fields
+	if newOp.Parameters != nil {
+		cloned := make([]*ParameterObject, 0, len(newOp.Parameters))
+		for _, param := range newOp.Parameters {
+			if err := g.ensureComponentSchema(param.Example, param.Schema); err != nil {
+				return err
+			}
+			// shallow copy and clear Example/Examples per withExamples flag
+			pcopy := *param
+			if !g.withExamples {
+				pcopy.Example = nil
+				pcopy.Examples = nil
+			}
+			// Remove runtime-only converter from spec copy
+			pcopy.Converter = nil
+			cloned = append(cloned, &pcopy)
 		}
-		if !g.withExamples {
-			param.Example = nil
-			param.Examples = nil
-		}
-		op.Parameters[i] = param
+		newOp.Parameters = cloned
 	}
 
 	if op.RequestBody != nil {
@@ -224,15 +237,15 @@ func (g *Generator) appendRoute(rd routeData) error {
 
 	switch method {
 	case "get":
-		item.Get = op
+		item.Get = &newOp
 	case "post":
-		item.Post = op
+		item.Post = &newOp
 	case "put":
-		item.Put = op
+		item.Put = &newOp
 	case "delete":
-		item.Delete = op
+		item.Delete = &newOp
 	case "patch":
-		item.Patch = op
+		item.Patch = &newOp
 	}
 	g.spec.Paths[path] = item
 	return nil

@@ -188,6 +188,11 @@ type ParameterObject struct {
 	Examples        map[string]*ExampleObject `json:"examples,omitempty" yaml:"examples,omitempty"`
 	Content         map[string]*MediaType     `json:"content,omitempty" yaml:"content,omitempty"`
 	Extensions      map[string]*any           `json:"-,inline" yaml:"-,inline"`
+	// Converter is a runtime-only function that converts raw string values
+	// (possibly multi-valued) into the typed value expected by the handler
+	// and the binding logic. It is intentionally omitted from JSON/YAML
+	// serialization because it's runtime-only.
+	Converter func(values []string) (any, error) `json:"-" yaml:"-"`
 }
 
 // RequestBodyObject describes a request body.
