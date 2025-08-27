@@ -4,11 +4,11 @@ go 1.24.4
 
 require (
 	github.com/fgrzl/claims v0.0.1-alpha.19
-	github.com/fgrzl/json v0.1.0-alpha.51
+	github.com/fgrzl/json v0.1.0-alpha.54
 	github.com/go-faker/faker/v4 v4.6.1
 	github.com/google/uuid v1.6.0
 	github.com/oschwald/geoip2-golang v1.13.0
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.62.0
 	gopkg.in/yaml.v3 v3.0.1
 )
