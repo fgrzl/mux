@@ -1,8 +1,7 @@
 package routing
 
 import (
-	"strconv"
-
+	"github.com/fgrzl/mux/pkg/binder"
 	"github.com/google/uuid"
 )
 
@@ -27,8 +26,7 @@ func (c *DefaultRouteContext) QueryUUID(name string) (uuid.UUID, bool) {
 	if !ok {
 		return uuid.Nil, false
 	}
-	id, err := uuid.Parse(val)
-	return id, err == nil
+	return binder.ParseUUIDVal(val)
 }
 
 // QueryUUIDs parses a list of UUIDs from query parameters.
@@ -37,7 +35,7 @@ func (c *DefaultRouteContext) QueryUUIDs(name string) ([]uuid.UUID, bool) {
 	if !ok {
 		return nil, false
 	}
-	return parseSlice(vals, uuid.Parse)
+	return binder.ParseUUIDSlice(vals)
 }
 
 // QueryInt parses an int from a query parameter.
@@ -46,8 +44,7 @@ func (c *DefaultRouteContext) QueryInt(name string) (int, bool) {
 	if !ok {
 		return 0, false
 	}
-	n, err := strconv.Atoi(val)
-	return n, err == nil
+	return binder.ParseIntVal(val)
 }
 
 // QueryInts parses a list of ints from query parameters.
@@ -56,7 +53,7 @@ func (c *DefaultRouteContext) QueryInts(name string) ([]int, bool) {
 	if !ok {
 		return nil, false
 	}
-	return parseSlice(vals, strconv.Atoi)
+	return binder.ParseIntSlice(vals)
 }
 
 // QueryInt16 parses an int16 from a query parameter.
@@ -65,8 +62,7 @@ func (c *DefaultRouteContext) QueryInt16(name string) (int16, bool) {
 	if !ok {
 		return 0, false
 	}
-	n, err := strconv.ParseInt(val, 10, 16)
-	return int16(n), err == nil
+	return binder.ParseInt16Val(val)
 }
 
 // QueryInt16s parses a list of int16s from query parameters.
@@ -75,10 +71,7 @@ func (c *DefaultRouteContext) QueryInt16s(name string) ([]int16, bool) {
 	if !ok {
 		return nil, false
 	}
-	return parseSlice(vals, func(s string) (int16, error) {
-		n, err := strconv.ParseInt(s, 10, 16)
-		return int16(n), err
-	})
+	return binder.ParseInt16Slice(vals)
 }
 
 // QueryInt32 parses an int32 from a query parameter.
@@ -87,8 +80,7 @@ func (c *DefaultRouteContext) QueryInt32(name string) (int32, bool) {
 	if !ok {
 		return 0, false
 	}
-	n, err := strconv.ParseInt(val, 10, 32)
-	return int32(n), err == nil
+	return binder.ParseInt32Val(val)
 }
 
 // QueryInt32s parses a list of int32s from query parameters.
@@ -97,10 +89,7 @@ func (c *DefaultRouteContext) QueryInt32s(name string) ([]int32, bool) {
 	if !ok {
 		return nil, false
 	}
-	return parseSlice(vals, func(s string) (int32, error) {
-		n, err := strconv.ParseInt(s, 10, 32)
-		return int32(n), err
-	})
+	return binder.ParseInt32Slice(vals)
 }
 
 // QueryInt64 parses an int64 from a query parameter.
@@ -109,8 +98,7 @@ func (c *DefaultRouteContext) QueryInt64(name string) (int64, bool) {
 	if !ok {
 		return 0, false
 	}
-	n, err := strconv.ParseInt(val, 10, 64)
-	return n, err == nil
+	return binder.ParseInt64Val(val)
 }
 
 // QueryInt64s parses a list of int64s from query parameters.
@@ -119,9 +107,7 @@ func (c *DefaultRouteContext) QueryInt64s(name string) ([]int64, bool) {
 	if !ok {
 		return nil, false
 	}
-	return parseSlice(vals, func(s string) (int64, error) {
-		return strconv.ParseInt(s, 10, 64)
-	})
+	return binder.ParseInt64Slice(vals)
 }
 
 // QueryBool parses a bool from a query parameter.
@@ -130,8 +116,7 @@ func (c *DefaultRouteContext) QueryBool(name string) (bool, bool) {
 	if !ok {
 		return false, false
 	}
-	b, err := strconv.ParseBool(val)
-	return b, err == nil
+	return binder.ParseBoolVal(val)
 }
 
 // QueryBools parses a list of bools from query parameters.
@@ -140,7 +125,7 @@ func (c *DefaultRouteContext) QueryBools(name string) ([]bool, bool) {
 	if !ok {
 		return nil, false
 	}
-	return parseSlice(vals, strconv.ParseBool)
+	return binder.ParseBoolSlice(vals)
 }
 
 // QueryFloat32 parses a float32 from a query parameter.
@@ -149,8 +134,7 @@ func (c *DefaultRouteContext) QueryFloat32(name string) (float32, bool) {
 	if !ok {
 		return 0, false
 	}
-	f, err := strconv.ParseFloat(val, 32)
-	return float32(f), err == nil
+	return binder.ParseFloat32Val(val)
 }
 
 // QueryFloat32s parses a list of float32s from query parameters.
@@ -159,10 +143,7 @@ func (c *DefaultRouteContext) QueryFloat32s(name string) ([]float32, bool) {
 	if !ok {
 		return nil, false
 	}
-	return parseSlice(vals, func(s string) (float32, error) {
-		f, err := strconv.ParseFloat(s, 32)
-		return float32(f), err
-	})
+	return binder.ParseFloat32Slice(vals)
 }
 
 // QueryFloat64 parses a float64 from a query parameter.
@@ -171,8 +152,7 @@ func (c *DefaultRouteContext) QueryFloat64(name string) (float64, bool) {
 	if !ok {
 		return 0, false
 	}
-	f, err := strconv.ParseFloat(val, 64)
-	return f, err == nil
+	return binder.ParseFloat64Val(val)
 }
 
 // QueryFloat64s parses a list of float64s from query parameters.
@@ -181,9 +161,7 @@ func (c *DefaultRouteContext) QueryFloat64s(name string) ([]float64, bool) {
 	if !ok {
 		return nil, false
 	}
-	return parseSlice(vals, func(s string) (float64, error) {
-		return strconv.ParseFloat(s, 64)
-	})
+	return binder.ParseFloat64Slice(vals)
 }
 
 // GetRedirectURL returns the first matching redirect-related query value or the fallback.

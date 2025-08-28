@@ -1,9 +1,9 @@
 package routing
 
 import (
-	"strconv"
 	"strings"
 
+	"github.com/fgrzl/mux/pkg/binder"
 	"github.com/google/uuid"
 )
 
@@ -67,8 +67,7 @@ func (c *DefaultRouteContext) FormUUID(name string) (uuid.UUID, bool) {
 	if !ok {
 		return uuid.Nil, false
 	}
-	id, err := uuid.Parse(val)
-	return id, err == nil
+	return binder.ParseUUIDVal(val)
 }
 
 // FormUUIDs parses a list of UUIDs from form parameters.
@@ -77,7 +76,7 @@ func (c *DefaultRouteContext) FormUUIDs(name string) ([]uuid.UUID, bool) {
 	if !ok {
 		return nil, false
 	}
-	return parseSlice(vals, uuid.Parse)
+	return binder.ParseUUIDSlice(vals)
 }
 
 // FormInt parses an int from a form parameter.
@@ -86,8 +85,7 @@ func (c *DefaultRouteContext) FormInt(name string) (int, bool) {
 	if !ok {
 		return 0, false
 	}
-	n, err := strconv.Atoi(val)
-	return n, err == nil
+	return binder.ParseIntVal(val)
 }
 
 // FormInts parses a list of ints from form parameters.
@@ -96,7 +94,7 @@ func (c *DefaultRouteContext) FormInts(name string) ([]int, bool) {
 	if !ok {
 		return nil, false
 	}
-	return parseSlice(vals, strconv.Atoi)
+	return binder.ParseIntSlice(vals)
 }
 
 // FormInt16 parses an int16 from a form parameter.
@@ -105,8 +103,7 @@ func (c *DefaultRouteContext) FormInt16(name string) (int16, bool) {
 	if !ok {
 		return 0, false
 	}
-	n, err := strconv.ParseInt(val, 10, 16)
-	return int16(n), err == nil
+	return binder.ParseInt16Val(val)
 }
 
 // FormInt16s parses a list of int16s from form parameters.
@@ -115,10 +112,7 @@ func (c *DefaultRouteContext) FormInt16s(name string) ([]int16, bool) {
 	if !ok {
 		return nil, false
 	}
-	return parseSlice(vals, func(s string) (int16, error) {
-		n, err := strconv.ParseInt(s, 10, 16)
-		return int16(n), err
-	})
+	return binder.ParseInt16Slice(vals)
 }
 
 // FormInt32 parses an int32 from a form parameter.
@@ -127,8 +121,7 @@ func (c *DefaultRouteContext) FormInt32(name string) (int32, bool) {
 	if !ok {
 		return 0, false
 	}
-	n, err := strconv.ParseInt(val, 10, 32)
-	return int32(n), err == nil
+	return binder.ParseInt32Val(val)
 }
 
 // FormInt32s parses a list of int32s from form parameters.
@@ -137,10 +130,7 @@ func (c *DefaultRouteContext) FormInt32s(name string) ([]int32, bool) {
 	if !ok {
 		return nil, false
 	}
-	return parseSlice(vals, func(s string) (int32, error) {
-		n, err := strconv.ParseInt(s, 10, 32)
-		return int32(n), err
-	})
+	return binder.ParseInt32Slice(vals)
 }
 
 // FormInt64 parses an int64 from a form parameter.
@@ -149,8 +139,7 @@ func (c *DefaultRouteContext) FormInt64(name string) (int64, bool) {
 	if !ok {
 		return 0, false
 	}
-	n, err := strconv.ParseInt(val, 10, 64)
-	return n, err == nil
+	return binder.ParseInt64Val(val)
 }
 
 // FormInt64s parses a list of int64s from form parameters.
@@ -159,9 +148,7 @@ func (c *DefaultRouteContext) FormInt64s(name string) ([]int64, bool) {
 	if !ok {
 		return nil, false
 	}
-	return parseSlice(vals, func(s string) (int64, error) {
-		return strconv.ParseInt(s, 10, 64)
-	})
+	return binder.ParseInt64Slice(vals)
 }
 
 // FormBool parses a bool from a form parameter.
@@ -170,8 +157,7 @@ func (c *DefaultRouteContext) FormBool(name string) (bool, bool) {
 	if !ok {
 		return false, false
 	}
-	b, err := strconv.ParseBool(val)
-	return b, err == nil
+	return binder.ParseBoolVal(val)
 }
 
 // FormBools parses a list of bools from form parameters.
@@ -180,7 +166,7 @@ func (c *DefaultRouteContext) FormBools(name string) ([]bool, bool) {
 	if !ok {
 		return nil, false
 	}
-	return parseSlice(vals, strconv.ParseBool)
+	return binder.ParseBoolSlice(vals)
 }
 
 // FormFloat32 parses a float32 from a form parameter.
@@ -189,8 +175,7 @@ func (c *DefaultRouteContext) FormFloat32(name string) (float32, bool) {
 	if !ok {
 		return 0, false
 	}
-	f, err := strconv.ParseFloat(val, 32)
-	return float32(f), err == nil
+	return binder.ParseFloat32Val(val)
 }
 
 // FormFloat32s parses a list of float32s from form parameters.
@@ -199,10 +184,7 @@ func (c *DefaultRouteContext) FormFloat32s(name string) ([]float32, bool) {
 	if !ok {
 		return nil, false
 	}
-	return parseSlice(vals, func(s string) (float32, error) {
-		f, err := strconv.ParseFloat(s, 32)
-		return float32(f), err
-	})
+	return binder.ParseFloat32Slice(vals)
 }
 
 // FormFloat64 parses a float64 from a form parameter.
@@ -211,8 +193,7 @@ func (c *DefaultRouteContext) FormFloat64(name string) (float64, bool) {
 	if !ok {
 		return 0, false
 	}
-	f, err := strconv.ParseFloat(val, 64)
-	return f, err == nil
+	return binder.ParseFloat64Val(val)
 }
 
 // FormFloat64s parses a list of float64s from form parameters.
@@ -221,7 +202,5 @@ func (c *DefaultRouteContext) FormFloat64s(name string) ([]float64, bool) {
 	if !ok {
 		return nil, false
 	}
-	return parseSlice(vals, func(s string) (float64, error) {
-		return strconv.ParseFloat(s, 64)
-	})
+	return binder.ParseFloat64Slice(vals)
 }

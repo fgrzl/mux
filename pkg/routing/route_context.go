@@ -518,12 +518,10 @@ func (c *DefaultRouteContext) collectJSONBody(staging map[string]any) error {
 func (c *DefaultRouteContext) collectHeaderData(staging map[string]any) error {
 	for key, headerValues := range c.request.Header {
 		// process header parameter consistently via helper
-		if param := c.lookupParameter(key, "header"); param != nil {
-			if handled, err := binder.ProcessParamAndSet(staging, key, headerValues, "header", param); err != nil {
-				return err
-			} else if handled {
-				continue
-			}
+		if handled, hadParam, err := c.processParamForStaging(staging, key, headerValues, "header"); err != nil {
+			return err
+		} else if hadParam && handled {
+			continue
 		}
 		addToStaging(staging, key, headerValues)
 	}
@@ -532,16 +530,27 @@ func (c *DefaultRouteContext) collectHeaderData(staging map[string]any) error {
 
 func (c *DefaultRouteContext) collectParamsData(staging map[string]any) error {
 	for key, paramValue := range c.params {
-		if param := c.lookupParameter(key, "path"); param != nil {
-			if handled, err := binder.ProcessParamAndSet(staging, key, []string{paramValue}, "path", param); err != nil {
-				return err
-			} else if handled {
-				continue
-			}
+		if handled, hadParam, err := c.processParamForStaging(staging, key, []string{paramValue}, "path"); err != nil {
+			return err
+		} else if hadParam && handled {
+			continue
 		}
 		staging[key] = paramValue
 	}
 	return nil
+}
+
+// processParamForStaging centralizes the common pattern of looking up a declared
+// parameter and invoking binder.ProcessParamAndSet. It returns three values:
+// (handled, hadParam, err) where "hadParam" indicates whether a ParameterObject
+// existed for the given key/in and "handled" indicates whether the binder
+// handled and wrote a value into the staging map.
+func (c *DefaultRouteContext) processParamForStaging(staging map[string]any, key string, values []string, in string) (bool, bool, error) {
+	if param := c.lookupParameter(key, in); param != nil {
+		handled, err := binder.ProcessParamAndSet(staging, key, values, in, param)
+		return handled, true, err
+	}
+	return false, false, nil
 }
 
 // lookupParameter finds a ParameterObject in the current RouteOptions by name and location (in).

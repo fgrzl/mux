@@ -1,8 +1,7 @@
 package routing
 
 import (
-	"strconv"
-
+	"github.com/fgrzl/mux/pkg/binder"
 	"github.com/google/uuid"
 )
 
@@ -18,8 +17,7 @@ func (c *DefaultRouteContext) ParamUUID(name string) (uuid.UUID, bool) {
 	if !ok {
 		return uuid.Nil, false
 	}
-	id, err := uuid.Parse(val)
-	return id, err == nil
+	return binder.ParseUUIDVal(val)
 }
 
 // ParamInt parses an int from a route parameter.
@@ -28,8 +26,7 @@ func (c *DefaultRouteContext) ParamInt(name string) (int, bool) {
 	if !ok {
 		return 0, false
 	}
-	n, err := strconv.Atoi(val)
-	return n, err == nil
+	return binder.ParseIntVal(val)
 }
 
 // ParamInt16 parses an int16 from a route parameter.
@@ -38,8 +35,7 @@ func (c *DefaultRouteContext) ParamInt16(name string) (int16, bool) {
 	if !ok {
 		return 0, false
 	}
-	n, err := strconv.ParseInt(val, 10, 16)
-	return int16(n), err == nil
+	return binder.ParseInt16Val(val)
 }
 
 // ParamInt32 parses an int32 from a route parameter.
@@ -48,8 +44,7 @@ func (c *DefaultRouteContext) ParamInt32(name string) (int32, bool) {
 	if !ok {
 		return 0, false
 	}
-	n, err := strconv.ParseInt(val, 10, 32)
-	return int32(n), err == nil
+	return binder.ParseInt32Val(val)
 }
 
 // ParamInt64 parses an int64 from a route parameter.
@@ -58,6 +53,5 @@ func (c *DefaultRouteContext) ParamInt64(name string) (int64, bool) {
 	if !ok {
 		return 0, false
 	}
-	n, err := strconv.ParseInt(val, 10, 64)
-	return n, err == nil
+	return binder.ParseInt64Val(val)
 }

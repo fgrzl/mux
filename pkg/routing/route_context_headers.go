@@ -1,8 +1,7 @@
 package routing
 
 import (
-	"strconv"
-
+	"github.com/fgrzl/mux/pkg/binder"
 	"github.com/google/uuid"
 )
 
@@ -18,8 +17,7 @@ func (c *DefaultRouteContext) HeaderInt(name string) (int, bool) {
 	if !ok {
 		return 0, false
 	}
-	n, err := strconv.Atoi(val)
-	return n, err == nil
+	return binder.ParseIntVal(val)
 }
 
 // HeaderUUID parses a header value into a UUID.
@@ -28,8 +26,7 @@ func (c *DefaultRouteContext) HeaderUUID(name string) (uuid.UUID, bool) {
 	if !ok {
 		return uuid.Nil, false
 	}
-	id, err := uuid.Parse(val)
-	return id, err == nil
+	return binder.ParseUUIDVal(val)
 }
 
 // HeaderBool parses a header value into a bool.
@@ -38,8 +35,7 @@ func (c *DefaultRouteContext) HeaderBool(name string) (bool, bool) {
 	if !ok {
 		return false, false
 	}
-	b, err := strconv.ParseBool(val)
-	return b, err == nil
+	return binder.ParseBoolVal(val)
 }
 
 // HeaderFloat64 parses a header value into a float64.
@@ -48,6 +44,5 @@ func (c *DefaultRouteContext) HeaderFloat64(name string) (float64, bool) {
 	if !ok {
 		return 0, false
 	}
-	f, err := strconv.ParseFloat(val, 64)
-	return f, err == nil
+	return binder.ParseFloat64Val(val)
 }

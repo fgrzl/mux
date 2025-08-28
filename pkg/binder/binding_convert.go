@@ -397,8 +397,8 @@ func parseSliceValues(values []string, param *openapi.ParameterObject) (any, boo
 				switch elem.(type) {
 				case int:
 					if parsed, ok := parseSlice[int](values, func(s string) (int, error) {
-						v, err := strconv.Atoi(s)
-						return v, err
+						v64, err := strconv.ParseInt(s, 10, 0)
+						return int(v64), err
 					}); ok {
 						return parsed, true
 					}
