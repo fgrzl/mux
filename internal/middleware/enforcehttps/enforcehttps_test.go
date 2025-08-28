@@ -52,16 +52,23 @@ func TestShouldAllowHTTPSRequests(t *testing.T) {
 }
 
 func TestShouldAddEnforceHTTPSMiddlewareToRouter(t *testing.T) {
-	// Arrange
 	rtr := router.NewRouter()
-	initialMiddlewareCount := len(rtr.middleware)
 
-	// Act
-	UseEnforceHTTPS(router)
+	// Act - register the middleware
+	UseEnforceHTTPS(rtr)
 
-	// Assert
-	assert.Equal(t, initialMiddlewareCount+1, len(rtr.middleware))
-	assert.IsType(t, &enforceHTTPSMiddleware{}, rtr.middleware[len(rtr.middleware)-1])
+	// Register a route and make an HTTP (non-HTTPS) request to ensure middleware redirects
+	rtr.GET("/test", func(c routing.RouteContext) {
+		c.Response().WriteHeader(http.StatusOK)
+		c.Response().Write([]byte("ok"))
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
+	rec := httptest.NewRecorder()
+	rtr.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusMovedPermanently, rec.Code)
+	assert.Equal(t, "https://example.com/test", rec.Header().Get("Location"))
 }
 
 func TestShouldPreserveQueryParametersInRedirect(t *testing.T) {
