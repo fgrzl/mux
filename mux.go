@@ -76,6 +76,56 @@ type ProblemDetails = common.ProblemDetails
 // library; exported for convenience in tests and consumers.
 var DefaultProblem = common.DefaultProblem
 
+// --- Common MIME types ---
+// Re-export common MIME type constants for convenience.
+const (
+	MimeJSON              = common.MimeJSON
+	MimeXML               = common.MimeXML
+	MimeFormURLEncoded    = common.MimeFormURLEncoded
+	MimeMultipartFormData = common.MimeMultipartFormData
+	MimeTextPlain         = common.MimeTextPlain
+	MimeTextHTML          = common.MimeTextHTML
+	MimeTextCSV           = common.MimeTextCSV
+	MimeOctetStream       = common.MimeOctetStream
+	MimePDF               = common.MimePDF
+	MimeZIP               = common.MimeZIP
+	MimePNG               = common.MimePNG
+	MimeJPEG              = common.MimeJPEG
+	MimeGIF               = common.MimeGIF
+	MimeSVG               = common.MimeSVG
+	MimeWebP              = common.MimeWebP
+	MimeMP4               = common.MimeMP4
+	MimeMP3               = common.MimeMP3
+	MimeWAV               = common.MimeWAV
+	MimeOGG               = common.MimeOGG
+	MimeJSONAPI           = common.MimeJSONAPI
+	MimeOpenAPI           = common.MimeOpenAPI
+	MimeYAML              = common.MimeYAML
+	MimeProblemJSON       = common.MimeProblemJSON
+)
+
+// --- Common HTTP headers ---
+const (
+	HeaderContentType        = common.HeaderContentType
+	HeaderContentDisposition = common.HeaderContentDisposition
+	HeaderXForwardedFor      = common.HeaderXForwardedFor
+	HeaderXForwardedProto    = common.HeaderXForwardedProto
+	HeaderXRealIP            = common.HeaderXRealIP
+	HeaderAcceptEncoding     = common.HeaderAcceptEncoding
+	HeaderContentEncoding    = common.HeaderContentEncoding
+	HeaderUserAgent          = common.HeaderUserAgent
+	HeaderAuthorization      = common.HeaderAuthorization
+	HeaderLocation           = common.HeaderLocation
+	HeaderSetCookie          = common.HeaderSetCookie
+	HeaderCookie             = common.HeaderCookie
+	HeaderAccept             = common.HeaderAccept
+	HeaderRetryAfter         = common.HeaderRetryAfter
+	HeaderCacheControl       = common.HeaderCacheControl
+	HeaderETag               = common.HeaderETag
+	HeaderContentLength      = common.HeaderContentLength
+	HeaderTransferEncoding   = common.HeaderTransferEncoding
+)
+
 // NewGenerator is a variable that references the openapi.NewGenerator function.
 // It can be used to create a new OpenAPI generator instance via this package.
 // By exposing the constructor as a package-level variable, callers can replace
