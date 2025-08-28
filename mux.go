@@ -3,6 +3,7 @@ package mux
 import (
 	"fmt"
 
+	"github.com/fgrzl/mux/pkg/builder"
 	"github.com/fgrzl/mux/pkg/common"
 	"github.com/fgrzl/mux/pkg/middleware/authentication"
 	"github.com/fgrzl/mux/pkg/middleware/authorization"
@@ -31,6 +32,14 @@ type Router = router.Router
 // Using a variable alias keeps the public API as a direct reference to the
 // underlying implementation and matches the project's preferred style.
 var NewRouter = router.NewRouter
+
+// RouteGroup is a type alias for the package's underlying route-group implementation.
+// It represents a collection of routes that share common configuration such as a
+// URL path prefix and middleware. RouteGroup provides methods to register handlers,
+// compose middleware, and create nested subgroups to structure related routes.
+// This alias exists to maintain API stability and allow the concrete implementation
+// to be refactored without requiring changes from callers.
+type RouteGroup = router.RouteGroup
 
 // HandlerFunc is the handler signature used by the router.
 type HandlerFunc = routing.HandlerFunc
@@ -285,3 +294,56 @@ var UseServices = servicelocator.UseServices
 // WithService adds a service instance to be injected by the service
 // locator middleware. Alias of servicelocator.WithService.
 var WithService = servicelocator.WithService
+
+// --- Builder helpers ---
+// RouteBuilder provides a fluent interface for configuring routes. Alias of
+// builder.RouteBuilder.
+type RouteBuilder = builder.RouteBuilder
+
+// Route bootstraps a new RouteBuilder. Alias of builder.Route.
+var Route = builder.Route
+
+// --- Router options and helpers ---
+// RouterOptions configures the top-level router. Alias of
+// router.RouterOptions.
+type RouterOptions = router.RouterOptions
+
+// RouterOption is the functional option type used to configure the router.
+type RouterOption = router.RouterOption
+
+// WithClientURL sets the client URL on the router. Alias of
+// router.WithClientURL.
+var WithClientURL = router.WithClientURL
+
+// WithSummary sets the API summary on the underlying router. Alias of
+// router.WithSummary.
+var WithSummary = router.WithSummary
+
+// WithTermsOfService sets the terms-of-service URL on the router. Alias of
+// router.WithTermsOfService.
+var WithTermsOfService = router.WithTermsOfService
+
+// WithContact sets the contact information for the API. Alias of
+// router.WithContact.
+var WithContact = router.WithContact
+
+// WithLicense sets the license information for the API. Alias of
+// router.WithLicense.
+var WithLicense = router.WithLicense
+
+// Middleware is the interface used by router middleware implementations.
+// Alias of router.Middleware.
+type Middleware = router.Middleware
+
+// --- OpenAPI generator types ---
+// Generator represents the OpenAPI generator. Alias of openapi.Generator.
+type Generator = openapi.Generator
+
+// GeneratorOption is a functional option for configuring Generator. Alias
+// of openapi.GeneratorOption.
+type GeneratorOption = openapi.GeneratorOption
+
+// --- Tokenizer types ---
+// TokenProvider defines the minimal interface for creating and validating
+// tokens. Alias of tokenizer.TokenProvider.
+type TokenProvider = tokenizer.TokenProvider
