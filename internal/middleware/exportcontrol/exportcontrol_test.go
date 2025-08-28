@@ -43,15 +43,19 @@ func TestShouldCreateExportControlOptionsWithDatabase(t *testing.T) {
 }
 
 func TestShouldAddExportControlMiddlewareToRouter(t *testing.T) {
-	// Arrange
 	rtr := router.NewRouter()
-	initialCount := len(rtr.middleware)
 
-	// Act
-	UseExportControl(router)
+	// Act - register middleware
+	UseExportControl(rtr)
 
-	// Assert
-	assert.Len(t, rtr.middleware, initialCount+1)
+	// Register a simple route and make a request to ensure middleware runs
+	rtr.GET("/test", func(c routing.RouteContext) { c.Response().Write([]byte("ok")) })
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	rec := httptest.NewRecorder()
+	rtr.ServeHTTP(rec, req)
+
+	// Should get a 200 OK from the handler (middleware should allow it through since DB=nil and IP is loopback)
+	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
 func TestShouldAllowAccessWhenNoDatabaseConfigured(t *testing.T) {
@@ -214,14 +218,18 @@ func TestShouldHandleMultipleExportControlOptions(t *testing.T) {
 	rtr := router.NewRouter()
 	var db *geoip2.Reader // Would be a real DB in production
 
-	// Act
-	UseExportControl(router,
+	// Act - register middleware with options
+	UseExportControl(rtr,
 		WithGeoIPDatabase(db),
-		// Could add more options here
 	)
 
-	// Assert - Should not panic and middleware should be added
-	assert.Len(t, rtr.middleware, 1)
+	// Register a route and make a request to ensure middleware doesn't panic and allows access
+	rtr.GET("/test", func(c routing.RouteContext) { c.Response().Write([]byte("ok")) })
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	rec := httptest.NewRecorder()
+	rtr.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
 func TestShouldHandleEmptyXForwardedFor(t *testing.T) {

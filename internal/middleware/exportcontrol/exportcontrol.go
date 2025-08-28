@@ -29,7 +29,8 @@ func UseExportControl(rtr *router.Router, opts ...ExportControlOption) {
 	for _, opt := range opts {
 		opt(options)
 	}
-	rtr.middleware = append(rtr.middleware, &exportControlMiddleware{options: options})
+	// Register middleware using the exported API.
+	rtr.Use(&exportControlMiddleware{options: options})
 }
 
 // ---- Middleware ----
@@ -38,7 +39,7 @@ type exportControlMiddleware struct {
 	options *ExportControlOptions
 }
 
-func (m *exportControlMiddleware) Invoke(c routing.RouteContext, next HandlerFunc) {
+func (m *exportControlMiddleware) Invoke(c routing.RouteContext, next router.HandlerFunc) {
 	ip := getRealIP(c.Request())
 	if parsed := net.ParseIP(ip); parsed != nil && m.options.DB != nil {
 		if record, err := m.options.DB.Country(parsed); err == nil {
@@ -63,7 +64,7 @@ var exportRestrictedCountries = map[string]struct{}{
 }
 
 func getRealIP(r *http.Request) string {
-	if xff := r.Header.Get(HeaderXForwardedFor); xff != "" {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 		return strings.TrimSpace(strings.Split(xff, ",")[0])
 	}
 	if xrip := r.Header.Get("X-Real-IP"); xrip != "" {
