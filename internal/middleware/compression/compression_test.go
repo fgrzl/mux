@@ -126,14 +126,22 @@ func TestShouldNotCompressWhenUnsupportedEncoding(t *testing.T) {
 func TestShouldAddCompressionMiddlewareToRouter(t *testing.T) {
 	// Arrange
 	rtr := router.NewRouter()
-	initialMiddlewareCount := len(rtr.middleware)
 
-	// Act
-	UseCompression(router)
+	// Act - register compression middleware
+	UseCompression(rtr)
 
-	// Assert
-	assert.Equal(t, initialMiddlewareCount+1, len(rtr.middleware))
-	assert.IsType(t, &compressionMiddleware{}, rtr.middleware[len(rtr.middleware)-1])
+	// To verify it was added, register a handler that writes a response and make a request
+	rtr.GET("/test", func(c routing.RouteContext) {
+		c.Response().Write([]byte("hello"))
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("Accept-Encoding", "gzip")
+	rec := httptest.NewRecorder()
+	rtr.ServeHTTP(rec, req)
+
+	// Assert that the middleware executed and set the Content-Encoding header
+	assert.Equal(t, "gzip", rec.Header().Get("Content-Encoding"))
 }
 
 func TestCompressionWriterShouldImplementResponseWriter(t *testing.T) {

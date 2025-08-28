@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/fgrzl/mux/internal/router"
-	routerpkg "github.com/fgrzl/mux/internal/router"
 	"github.com/fgrzl/mux/internal/routing"
 )
 
@@ -26,7 +25,9 @@ func UseCompression(rtr *router.Router, opts ...CompressionOption) {
 	for _, opt := range opts {
 		opt(options)
 	}
-	rtr.middleware = append(rtr.middleware, &compressionMiddleware{options: options})
+	// Use the exported API to register middleware so we don't rely on
+	// unexported router internals.
+	rtr.Use(&compressionMiddleware{options: options})
 }
 
 // ---- Middleware ----
@@ -58,7 +59,7 @@ func (cw *compressionWriter) WriteHeader(statusCode int) {
 }
 
 // Invoke implements the Middleware interface, applying compression based on Accept-Encoding headers.
-func (m *compressionMiddleware) Invoke(c routing.RouteContext, next routerpkg.HandlerFunc) {
+func (m *compressionMiddleware) Invoke(c routing.RouteContext, next router.HandlerFunc) {
 
 	acceptEncoding := c.Request().Header.Get("Accept-Encoding")
 	if acceptEncoding == "" {
