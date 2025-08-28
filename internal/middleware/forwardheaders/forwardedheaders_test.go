@@ -99,14 +99,23 @@ func TestShouldIgnoreEmptyForwardedHeaders(t *testing.T) {
 }
 
 func TestShouldAddForwardedHeadersMiddlewareToRouter(t *testing.T) {
-	// Arrange
 	rtr := router.NewRouter()
-	initialMiddlewareCount := len(rtr.middleware)
 
-	// Act
-	UseForwardedHeaders(router)
+	// Act - register middleware
+	UseForwardedHeaders(rtr)
 
-	// Assert
-	assert.Equal(t, initialMiddlewareCount+1, len(rtr.middleware))
-	assert.IsType(t, &forwardedHeadersMiddleware{}, rtr.middleware[len(rtr.middleware)-1])
+	// Register a route whose handler will echo the request scheme and remote addr
+	rtr.GET("/test", func(c routing.RouteContext) {
+		c.Response().Write([]byte(c.Request().URL.Scheme + "|" + c.Request().RemoteAddr))
+	})
+
+	// Make a request with forwarded headers so middleware will modify the request
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
+	req.Header.Set("X-Forwarded-Proto", "https")
+	req.Header.Set("X-Forwarded-For", "1.2.3.4")
+	rec := httptest.NewRecorder()
+	rtr.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "https|1.2.3.4", rec.Body.String())
 }
