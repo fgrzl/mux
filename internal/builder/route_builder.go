@@ -13,8 +13,8 @@ import (
 
 	"github.com/fgrzl/mux/internal/binder"
 	"github.com/fgrzl/mux/internal/common"
-	"github.com/fgrzl/mux/internal/openapi"
 	"github.com/fgrzl/mux/internal/routing"
+	"github.com/fgrzl/mux/pkg/openapi"
 	"github.com/google/uuid"
 )
 

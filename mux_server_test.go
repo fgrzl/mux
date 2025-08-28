@@ -34,13 +34,13 @@ func TestShouldCreateNewServerWithDefaults(t *testing.T) {
 	rtr := router.NewRouter()
 
 	// Act
-	server := NewServer(testAddrHTTP, router)
+	server := NewServer(testAddrHTTP, rtr)
 
 	// Assert
 	assert.NotNil(t, server)
 	assert.NotNil(t, server.srv)
 	assert.Equal(t, testAddrHTTP, server.srv.Addr)
-	assert.Equal(t, router, server.srv.Handler)
+	assert.Equal(t, rtr, server.srv.Handler)
 	assert.Equal(t, testReadTimeout, server.srv.ReadTimeout)
 	assert.Equal(t, testWriteTimeout, server.srv.WriteTimeout)
 	assert.Equal(t, testIdleTimeout, server.srv.IdleTimeout)
@@ -52,7 +52,7 @@ func TestShouldConfigureServerWithTLS(t *testing.T) {
 	// Arrange
 	rtr := router.NewRouter()
 	// Act
-	server := NewServer(testAddrHTTPS, router, WithTLS(testCertFile, testKeyFile))
+	server := NewServer(testAddrHTTPS, rtr, WithTLS(testCertFile, testKeyFile))
 
 	// Assert
 	assert.NotNil(t, server)
@@ -80,7 +80,7 @@ func TestShouldConfigureServerWithTLSDiscovery(t *testing.T) {
 	defer func() { require.NoError(t, os.Chdir(origDir)) }()
 
 	// Act
-	server := NewServer(testAddrHTTPS, router, WithTLSDiscovery(testCertsDir, testCertName, testKeyName))
+	server := NewServer(testAddrHTTPS, rtr, WithTLSDiscovery(testCertsDir, testCertName, testKeyName))
 
 	// Assert
 	assert.NotNil(t, server)
@@ -100,7 +100,7 @@ func TestShouldHandleTLSDiscoveryWhenCertsDirNotFound(t *testing.T) {
 	defer func() { require.NoError(t, os.Chdir(origDir)) }()
 
 	// Act
-	server := NewServer(testAddrHTTPS, router, WithTLSDiscovery(testNonexistentDir, testCertName, testKeyName))
+	server := NewServer(testAddrHTTPS, rtr, WithTLSDiscovery(testNonexistentDir, testCertName, testKeyName))
 
 	// Assert
 	assert.NotNil(t, server)
@@ -111,11 +111,11 @@ func TestShouldHandleTLSDiscoveryWhenCertsDirNotFound(t *testing.T) {
 func TestShouldStartHTTPServerSuccessfully(t *testing.T) {
 	// Arrange
 	rtr := router.NewRouter()
-	router.GET("/health", func(c routing.RouteContext) {
+	rtr.GET("/health", func(c routing.RouteContext) {
 		c.OK("OK")
 	})
 
-	server := NewServer(testAddrLocal, router) // Use 0 for random port
+	server := NewServer(testAddrLocal, rtr) // Use 0 for random port
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -136,7 +136,7 @@ func TestShouldStartHTTPServerSuccessfully(t *testing.T) {
 func TestShouldReturnErrorForInvalidAddress(t *testing.T) {
 	// Arrange
 	rtr := router.NewRouter()
-	server := NewServer(testInvalidAddr, router)
+	server := NewServer(testInvalidAddr, rtr)
 	ctx := context.Background()
 
 	// Act
@@ -149,7 +149,7 @@ func TestShouldReturnErrorForInvalidAddress(t *testing.T) {
 func TestShouldStopServerGracefully(t *testing.T) {
 	// Arrange
 	rtr := router.NewRouter()
-	server := NewServer(testAddrLocal, router)
+	server := NewServer(testAddrLocal, rtr)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Start server
@@ -172,7 +172,7 @@ func TestShouldHandleMultipleOptions(t *testing.T) {
 	// Arrange
 	rtr := router.NewRouter()
 	// Act
-	server := NewServer(testAddrHTTPS, router,
+	server := NewServer(testAddrHTTPS, rtr,
 		WithTLS(testCertFile, testKeyFile),
 		WithTLSDiscovery(testCertsDir, "other.crt", "other.key"), // This should be applied after WithTLS
 	)

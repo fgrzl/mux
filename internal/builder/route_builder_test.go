@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/fgrzl/mux/internal/common"
-	openapi "github.com/fgrzl/mux/internal/openapi"
+	openapi "github.com/fgrzl/mux/pkg/openapi"
 )
 
 const (

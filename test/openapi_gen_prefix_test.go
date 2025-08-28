@@ -3,7 +3,7 @@ package test
 // import (
 // 	"testing"
 
-// 	"github.com/fgrzl/mux/internal/openapi"
+// 	"github.com/fgrzl/mux/pkg/openapi"
 // 	routing "github.com/fgrzl/mux/internal/routing"
 // 	"github.com/stretchr/testify/assert"
 // 	"github.com/stretchr/testify/require"

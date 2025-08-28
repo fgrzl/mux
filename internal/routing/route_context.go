@@ -7,14 +7,19 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strings"
 
 	"github.com/fgrzl/claims"
 	"github.com/fgrzl/mux/internal/binder"
 	"github.com/fgrzl/mux/internal/common"
-	"github.com/fgrzl/mux/internal/openapi"
+	"github.com/fgrzl/mux/pkg/openapi"
 	"github.com/google/uuid"
 )
+
+// ServiceKey is an alias to the common.ServiceKey so the routing package can
+// refer to it unqualified throughout the codebase.
+type ServiceKey = common.ServiceKey
 
 // RouteParams represents path parameters extracted from the URL pattern.
 type RouteParams map[string]string
@@ -355,23 +360,83 @@ func (c *DefaultRouteContext) collectQueryParams(staging map[string]any) error {
 		// deep-object handling: dot-notation or bracket-notation
 		if root, path := parseDeepKey(rawKey); len(path) > 0 {
 			// only handle deep objects when root parameter is declared as object
-			if param := c.lookupParameter(root, "query"); param != nil && param.Schema != nil && param.Schema.Type == "object" {
-				// ensure values is split for CSV if schema for property indicates array
-				// for dot/bracket keys path[0] is property name
-				propName := path[0]
-				propSchema := param.Schema.Properties[propName]
-				// if property expects array and single CSV string provided, split
-				if propSchema != nil && propSchema.Type == "array" && len(values) == 1 && strings.Contains(values[0], ",") {
-					values = splitAndTrim(values[0])
+			if param := c.lookupParameter(root, "query"); param != nil {
+				isObject := false
+				if param.Schema != nil && param.Schema.Type == "object" {
+					isObject = true
 				}
-				// parse value according to property schema
-				parsed, err := binder.ParseValueBySchema(values, propSchema)
-				if err != nil {
-					return fmt.Errorf("query param %q.%s: %w", root, propName, err)
+				if !isObject && param.Example != nil {
+					exT := reflect.TypeOf(param.Example)
+					if exT.Kind() == reflect.Ptr {
+						exT = exT.Elem()
+					}
+					if exT.Kind() == reflect.Struct {
+						isObject = true
+					}
 				}
-				// set nested map structure
-				setNestedMap(staging, root, path, parsed)
-				continue
+				if isObject {
+					// ensure values is split for CSV if schema for property indicates array
+					// for dot/bracket keys path[0] is property name
+					propName := path[0]
+					propSchema := (func() *openapi.Schema {
+						if param.Schema != nil {
+							return param.Schema.Properties[propName]
+						}
+						return nil
+					})()
+					// if property expects array and single CSV string provided, split
+					if propSchema != nil && propSchema.Type == "array" && len(values) == 1 && strings.Contains(values[0], ",") {
+						values = splitAndTrim(values[0])
+					}
+					var parsed any
+					var err error
+					// prefer schema-based parsing
+					if propSchema != nil {
+						parsed, err = binder.ParseValueBySchema(values, propSchema)
+					} else if param.Example != nil {
+						// try to locate the example field within the Example struct and parse by that example
+						exVal := reflect.ValueOf(param.Example)
+						if exVal.Kind() == reflect.Ptr {
+							exVal = exVal.Elem()
+						}
+						if exVal.IsValid() && exVal.Kind() == reflect.Struct {
+							// find field by json tag or name
+							exType := exVal.Type()
+							var fieldExample any
+							for i := 0; i < exType.NumField(); i++ {
+								f := exType.Field(i)
+								tag := f.Tag.Get("json")
+								name := f.Name
+								if tag != "" {
+									// tag may contain options like `json:"name,omitempty"`
+									parts := strings.Split(tag, ",")
+									if parts[0] == propName {
+										fieldExample = exVal.Field(i).Interface()
+										break
+									}
+								}
+								if strings.EqualFold(name, propName) {
+									fieldExample = exVal.Field(i).Interface()
+									break
+								}
+							}
+							if fieldExample != nil {
+								p := &openapi.ParameterObject{Example: fieldExample}
+								if parsedVal, ok := binder.ParseByExample(values[0], p); ok {
+									parsed = parsedVal
+								}
+							}
+						}
+					} else {
+						parsed, err = binder.ParseValueBySchema(values, propSchema)
+					}
+					if err != nil {
+						return fmt.Errorf("query param %q.%s: %w", root, propName, err)
+					}
+					// set nested map structure
+					setNestedMap(staging, root, path, parsed)
+					continue
+				}
 			}
 		}
 

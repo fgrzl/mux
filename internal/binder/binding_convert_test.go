@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/fgrzl/mux/internal/openapi"
+	"github.com/fgrzl/mux/pkg/openapi"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )

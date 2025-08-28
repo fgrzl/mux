@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/fgrzl/claims"
-	"github.com/fgrzl/mux/internal/common"
+	"github.com/fgrzl/mux/pkg/common"
 )
 
 const ServiceKeyTokenProvider common.ServiceKey = "tokenizer.token_provider"

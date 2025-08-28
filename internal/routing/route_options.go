@@ -3,19 +3,8 @@ package routing
 import (
 	"time"
 
-	"github.com/fgrzl/mux/internal/common"
-
-	openapi "github.com/fgrzl/mux/internal/openapi"
+	openapi "github.com/fgrzl/mux/pkg/openapi"
 )
-
-// ServiceKey is the type for service map keys.
-// ServiceKey is an alias for the common.ServiceKey type so routing packages
-// can use the same underlying type without conversion.
-type ServiceKey = common.ServiceKey
-
-// ServiceKeyTokenProvider is the key used to store/retrieve the token provider
-// service in the RouteContext's service map.
-const ServiceKeyTokenProvider ServiceKey = "token.provider"
 
 // HandlerFunc is the handler signature used by routing package.
 // It accepts a RouteContext so implementations can be defined within

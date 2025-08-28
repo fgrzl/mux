@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/fgrzl/mux/internal/openapi"
+	"github.com/fgrzl/mux/pkg/openapi"
 	"github.com/google/uuid"
 )
 

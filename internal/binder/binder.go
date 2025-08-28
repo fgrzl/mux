@@ -3,7 +3,7 @@ package binder
 import (
 	"reflect"
 
-	"github.com/fgrzl/mux/internal/openapi"
+	"github.com/fgrzl/mux/pkg/openapi"
 )
 
 // MakeConverter is a thin wrapper that delegates to the package-local makeConverter

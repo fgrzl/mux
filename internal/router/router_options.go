@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"net/url"
 
-	openapi "github.com/fgrzl/mux/internal/openapi"
+	openapi "github.com/fgrzl/mux/pkg/openapi"
 )
 
 type RouterOptions struct {

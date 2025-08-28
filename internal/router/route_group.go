@@ -9,9 +9,9 @@ import (
 
 	"github.com/fgrzl/mux/internal/builder"
 	"github.com/fgrzl/mux/internal/common"
-	openapi "github.com/fgrzl/mux/internal/openapi"
 	"github.com/fgrzl/mux/internal/registry"
 	"github.com/fgrzl/mux/internal/routing"
+	openapi "github.com/fgrzl/mux/pkg/openapi"
 )
 
 // ---- RouteGroup ----

@@ -3,7 +3,7 @@ package router
 import (
 	"testing"
 
-	openapi "github.com/fgrzl/mux/internal/openapi"
+	openapi "github.com/fgrzl/mux/pkg/openapi"
 	"github.com/stretchr/testify/assert"
 )
 

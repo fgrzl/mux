@@ -85,12 +85,12 @@ func WithTLSDiscovery(certsDir, certFile, keyFile string) WebServerOption {
 func NewServer(addr string, rtr *router.Router, opts ...WebServerOption) *WebServer {
 	srv := &http.Server{
 		Addr:         addr,
-		Handler:      router,
+		Handler:      rtr,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
-	ws := &WebServer{srv: srv, router: router}
+	ws := &WebServer{srv: srv, rtr: rtr}
 	for _, opt := range opts {
 		opt(ws)
 	}

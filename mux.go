@@ -3,9 +3,11 @@ package mux
 import (
 	"fmt"
 
-	openapi "github.com/fgrzl/mux/internal/openapi"
 	"github.com/fgrzl/mux/internal/router"
 	routing "github.com/fgrzl/mux/internal/routing"
+	"github.com/fgrzl/mux/internal/tokenizer"
+	"github.com/fgrzl/mux/pkg/common"
+	openapi "github.com/fgrzl/mux/pkg/openapi"
 )
 
 // Re-export core router types and constructors.
@@ -28,15 +30,33 @@ type RouteOptions = routing.RouteOptions
 // ServiceKey and token provider key
 type ServiceKey = routing.ServiceKey
 
-const ServiceKeyTokenProvider = routing.ServiceKeyTokenProvider
+const ServiceKeyTokenProvider = common.ServiceKeyTokenProvider
 
 // OpenAPI types promoted for public API convenience.
 type Schema = openapi.Schema
 type SecurityRequirement = openapi.SecurityRequirement
 
+// OpenAPISpec is the exported alias for the internal OpenAPI spec structure.
+// Consumers can use this type when interacting with the spec produced by
+// GenerateSpecWithGenerator or the internal openapi package.
+type OpenAPISpec = openapi.OpenAPISpec
+
+// NewOpenAPISpec is a convenience constructor exposed to consumers.
+var NewOpenAPISpec = openapi.NewOpenAPISpec
+
+// ProblemDetails mirrors the public error payload used across the router and
+// middleware. It is an alias to the internal common.ProblemDetails type so
+// consumers can reference it when declaring response types.
+type ProblemDetails = common.ProblemDetails
+
+// DefaultProblem is the package-level default problem instance used by the
+// library; exported for convenience in tests and consumers.
+var DefaultProblem = common.DefaultProblem
+
 // (HTTP constants such as MimeJSON and HeaderXForwarded* are defined in http_constants.go)
 
 var (
+	// Expose generator helpers from the public pkg/openapi package.
 	NewGenerator   = openapi.NewGenerator
 	WithPathPrefix = openapi.WithPathPrefix
 	WithExamples   = openapi.WithExamples

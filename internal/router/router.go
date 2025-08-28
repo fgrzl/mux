@@ -6,9 +6,9 @@ import (
 	"log/slog"
 	"net/http"
 
-	openapi "github.com/fgrzl/mux/internal/openapi"
 	"github.com/fgrzl/mux/internal/registry"
 	"github.com/fgrzl/mux/internal/routing"
+	openapi "github.com/fgrzl/mux/pkg/openapi"
 )
 
 type RouteContext = routing.RouteContext

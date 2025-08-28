@@ -4,7 +4,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	openapi "github.com/fgrzl/mux/internal/openapi"
+	openapi "github.com/fgrzl/mux/pkg/openapi"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"

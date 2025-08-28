@@ -2,9 +2,10 @@ package binder
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
-	"github.com/fgrzl/mux/internal/openapi"
+	"github.com/fgrzl/mux/pkg/openapi"
 )
 
 // ProcessParamAndSet centralizes parameter parsing/conversion logic for query/header/path params.
@@ -14,8 +15,22 @@ func ProcessParamAndSet(staging map[string]any, key string, values []string, loc
 	if param == nil {
 		return false, nil
 	}
-	// if parameter expects array and a single CSV value was given, split it
-	if param.Schema != nil && param.Schema.Type == "array" && len(values) == 1 && strings.Contains(values[0], ",") {
+	// if parameter expects array (via Schema) or Example indicates a slice,
+	// and a single CSV value was given, split it into elements
+	isArray := false
+	if param.Schema != nil && param.Schema.Type == "array" {
+		isArray = true
+	}
+	if !isArray && param.Example != nil {
+		exT := reflect.TypeOf(param.Example)
+		if exT.Kind() == reflect.Ptr {
+			exT = exT.Elem()
+		}
+		if exT.Kind() == reflect.Slice {
+			isArray = true
+		}
+	}
+	if isArray && len(values) == 1 && strings.Contains(values[0], ",") {
 		values = splitAndTrim(values[0])
 	}
 	// converter has highest precedence

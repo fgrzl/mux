@@ -4,7 +4,7 @@ package test
 // 	"reflect"
 // 	"testing"
 
-// 	openapi "github.com/fgrzl/mux/internal/openapi"
+// 	openapi "github.com/fgrzl/mux/pkg/openapi"
 // 	routing "github.com/fgrzl/mux/internal/routing"
 // 	"github.com/google/uuid"
 // 	"github.com/stretchr/testify/assert"
