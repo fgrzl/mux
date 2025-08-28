@@ -144,12 +144,12 @@ func ConfigureRoutes(r *mux.Router) {
 			c.BadRequest("Bad Request", err.Error())
 			return
 		}
-		resourceId, ok := c.ParamInt("resourceId")
+		resourceId, ok := c.ParamInt32("resourceId")
 		if !ok {
 			c.BadRequest("Invalid ResourceID", "resourceId missing or invalid")
 			return
 		}
-		rsrc, found := Service.GetResource(int32(resourceId))
+		rsrc, found := Service.GetResource(resourceId)
 		if !found {
 			c.NotFound()
 			return
