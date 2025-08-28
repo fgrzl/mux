@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/fgrzl/mux/internal/common"
 	"github.com/fgrzl/mux/internal/router"
 	"github.com/fgrzl/mux/internal/routing"
 	"github.com/oschwald/geoip2-golang"
@@ -18,8 +19,8 @@ const (
 	forwardedForList   = "203.0.113.1, 192.168.1.1"
 	forwardedForListW  = " 203.0.113.1 , 192.168.1.1 "
 	realIP             = "203.0.113.2"
-	realIPHeader       = "X-Real-IP"
-	forwardedForHeader = "X-Forwarded-For"
+	realIPHeader       = common.HeaderXRealIP
+	forwardedForHeader = common.HeaderXForwardedFor
 	invalidIP          = "invalid-ip"
 )
 

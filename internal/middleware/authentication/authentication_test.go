@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fgrzl/claims"
+	"github.com/fgrzl/mux/internal/common"
 	"github.com/fgrzl/mux/internal/cookiejar"
 	"github.com/fgrzl/mux/internal/router"
 	"github.com/fgrzl/mux/internal/routing"
@@ -331,7 +332,7 @@ func TestAuthenticationMiddlewareShouldAuthenticateViaBearerToken(t *testing.T) 
 	)
 
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req.Header.Set("Authorization", "Bearer valid-bearer-token")
+	req.Header.Set(common.HeaderAuthorization, "Bearer valid-bearer-token")
 	res := httptest.NewRecorder()
 
 	var authenticatedUser claims.Principal

@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/fgrzl/mux/internal/common"
 	"github.com/fgrzl/mux/internal/router"
 	"github.com/fgrzl/mux/internal/routing"
 	"github.com/stretchr/testify/assert"
@@ -21,7 +22,7 @@ func TestLoggingMiddlewareShouldLogRequestDetails(t *testing.T) {
 	middleware := &loggingMiddleware{options: &LoggingOptions{}}
 	req := httptest.NewRequest(http.MethodGet, "/test?param=value", nil)
 	req.RemoteAddr = "192.168.1.1:8080"
-	req.Header.Set("User-Agent", "test-agent/1.0")
+	req.Header.Set(common.HeaderUserAgent, "test-agent/1.0")
 
 	recorder := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(recorder, req)
@@ -169,7 +170,7 @@ func TestShouldAddLoggingMiddlewareToRouter(t *testing.T) {
 	rtr.GET("/test", func(c routing.RouteContext) { c.Response().Write([]byte("ok")) })
 	req := httptest.NewRequest(http.MethodGet, "/test?param=value", nil)
 	req.RemoteAddr = "192.168.1.1:8080"
-	req.Header.Set("User-Agent", "test-agent/1.0")
+	req.Header.Set(common.HeaderUserAgent, "test-agent/1.0")
 	rec := httptest.NewRecorder()
 	rtr.ServeHTTP(rec, req)
 

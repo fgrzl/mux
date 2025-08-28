@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/fgrzl/mux/internal/common"
 	"github.com/fgrzl/mux/internal/router"
 	"github.com/fgrzl/mux/internal/routing"
 	"github.com/stretchr/testify/assert"
@@ -28,7 +29,7 @@ func TestShouldRedirectHTTPToHTTPS(t *testing.T) {
 	// Assert
 	assert.False(t, nextCalled, "next handler should not be called for HTTP requests")
 	assert.Equal(t, http.StatusMovedPermanently, recorder.Code)
-	assert.Equal(t, "https://example.com/test", recorder.Header().Get("Location"))
+	assert.Equal(t, "https://example.com/test", recorder.Header().Get(common.HeaderLocation))
 }
 
 func TestShouldAllowHTTPSRequests(t *testing.T) {
@@ -68,7 +69,7 @@ func TestShouldAddEnforceHTTPSMiddlewareToRouter(t *testing.T) {
 	rtr.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusMovedPermanently, rec.Code)
-	assert.Equal(t, "https://example.com/test", rec.Header().Get("Location"))
+	assert.Equal(t, "https://example.com/test", rec.Header().Get(common.HeaderLocation))
 }
 
 func TestShouldPreserveQueryParametersInRedirect(t *testing.T) {
@@ -85,5 +86,5 @@ func TestShouldPreserveQueryParametersInRedirect(t *testing.T) {
 
 	// Assert
 	assert.Equal(t, http.StatusMovedPermanently, recorder.Code)
-	assert.Equal(t, "https://example.com/test?param=value&other=123", recorder.Header().Get("Location"))
+	assert.Equal(t, "https://example.com/test?param=value&other=123", recorder.Header().Get(common.HeaderLocation))
 }

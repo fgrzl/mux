@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/fgrzl/mux/internal/common"
 	"github.com/fgrzl/mux/internal/router"
 	"github.com/fgrzl/mux/internal/routing"
 	"github.com/stretchr/testify/assert"
@@ -14,7 +15,7 @@ func TestShouldProcessXForwardedProtoHeader(t *testing.T) {
 	// Arrange
 	middleware := &forwardedHeadersMiddleware{}
 	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
-	req.Header.Set("X-Forwarded-Proto", "https")
+	req.Header.Set(common.HeaderXForwardedProto, "https")
 	recorder := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(recorder, req)
 
@@ -35,7 +36,7 @@ func TestShouldProcessXForwardedForHeader(t *testing.T) {
 	// Arrange
 	middleware := &forwardedHeadersMiddleware{}
 	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
-	req.Header.Set("X-Forwarded-For", "192.168.1.100")
+	req.Header.Set(common.HeaderXForwardedFor, "192.168.1.100")
 	recorder := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(recorder, req)
 
@@ -56,8 +57,8 @@ func TestShouldProcessBothForwardedHeaders(t *testing.T) {
 	// Arrange
 	middleware := &forwardedHeadersMiddleware{}
 	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
-	req.Header.Set("X-Forwarded-Proto", "https")
-	req.Header.Set("X-Forwarded-For", "10.0.0.1")
+	req.Header.Set(common.HeaderXForwardedProto, "https")
+	req.Header.Set(common.HeaderXForwardedFor, "10.0.0.1")
 	recorder := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(recorder, req)
 
@@ -111,8 +112,8 @@ func TestShouldAddForwardedHeadersMiddlewareToRouter(t *testing.T) {
 
 	// Make a request with forwarded headers so middleware will modify the request
 	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
-	req.Header.Set("X-Forwarded-Proto", "https")
-	req.Header.Set("X-Forwarded-For", "1.2.3.4")
+	req.Header.Set(common.HeaderXForwardedProto, "https")
+	req.Header.Set(common.HeaderXForwardedFor, "1.2.3.4")
 	rec := httptest.NewRecorder()
 	rtr.ServeHTTP(rec, req)
 

@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/fgrzl/mux/internal/common"
 	"github.com/fgrzl/mux/internal/router"
 	"github.com/fgrzl/mux/internal/routing"
 	"github.com/stretchr/testify/assert"
@@ -188,7 +189,7 @@ func TestShouldWorkWithComplexRouteContext(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/users/123", nil)
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer token123")
+	req.Header.Set(common.HeaderAuthorization, "Bearer token123")
 
 	rec := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(rec, req)
@@ -199,7 +200,7 @@ func TestShouldWorkWithComplexRouteContext(t *testing.T) {
 		nextCalled = true
 		// Verify context is still intact
 		assert.Equal(t, "123", c.Params()["id"])
-		assert.Equal(t, "Bearer token123", c.Request().Header.Get("Authorization"))
+		assert.Equal(t, "Bearer token123", c.Request().Header.Get(common.HeaderAuthorization))
 		c.OK("user updated")
 	}
 

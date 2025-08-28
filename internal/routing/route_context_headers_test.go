@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/fgrzl/mux/internal/common"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
@@ -12,13 +13,13 @@ import (
 func TestShouldReturnHeaderValue(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req.Header.Set("Authorization", "Bearer token123")
+	req.Header.Set(common.HeaderAuthorization, "Bearer token123")
 	req.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
 	// Act
-	auth, ok := ctx.Header("Authorization")
+	auth, ok := ctx.Header(common.HeaderAuthorization)
 
 	// Assert
 	assert.True(t, ok)
@@ -55,12 +56,12 @@ func TestShouldReturnFalseForEmptyHeader(t *testing.T) {
 func TestShouldParseValidHeaderInt(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req.Header.Set("Content-Length", "1024")
+	req.Header.Set(common.HeaderContentLength, "1024")
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
 	// Act
-	length, ok := ctx.HeaderInt("Content-Length")
+	length, ok := ctx.HeaderInt(common.HeaderContentLength)
 
 	// Assert
 	assert.True(t, ok)
@@ -70,12 +71,12 @@ func TestShouldParseValidHeaderInt(t *testing.T) {
 func TestShouldReturnFalseForInvalidHeaderInt(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req.Header.Set("Content-Length", "not-a-number")
+	req.Header.Set(common.HeaderContentLength, "not-a-number")
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
 	// Act
-	_, ok := ctx.HeaderInt("Content-Length")
+	_, ok := ctx.HeaderInt(common.HeaderContentLength)
 
 	// Assert
 	assert.False(t, ok)

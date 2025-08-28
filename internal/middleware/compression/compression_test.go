@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/fgrzl/mux/internal/common"
 	"github.com/fgrzl/mux/internal/router"
 	"github.com/fgrzl/mux/internal/routing"
 	"github.com/stretchr/testify/assert"
@@ -17,7 +18,7 @@ func TestShouldCompressResponseWithGzip(t *testing.T) {
 	// Arrange
 	middleware := &compressionMiddleware{options: &CompressionOptions{}}
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req.Header.Set("Accept-Encoding", "gzip")
+	req.Header.Set(common.HeaderAcceptEncoding, "gzip")
 	recorder := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(recorder, req)
 
@@ -30,7 +31,7 @@ func TestShouldCompressResponseWithGzip(t *testing.T) {
 	middleware.Invoke(ctx, next)
 
 	// Assert
-	assert.Equal(t, "gzip", recorder.Header().Get("Content-Encoding"))
+	assert.Equal(t, "gzip", recorder.Header().Get(common.HeaderContentEncoding))
 
 	// Decompress and verify content
 	reader, err := gzip.NewReader(recorder.Body)
@@ -46,7 +47,7 @@ func TestShouldCompressResponseWithDeflate(t *testing.T) {
 	// Arrange
 	middleware := &compressionMiddleware{options: &CompressionOptions{}}
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req.Header.Set("Accept-Encoding", "deflate")
+	req.Header.Set(common.HeaderAcceptEncoding, "deflate")
 	recorder := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(recorder, req)
 
@@ -59,7 +60,7 @@ func TestShouldCompressResponseWithDeflate(t *testing.T) {
 	middleware.Invoke(ctx, next)
 
 	// Assert
-	assert.Equal(t, "deflate", recorder.Header().Get("Content-Encoding"))
+	assert.Equal(t, "deflate", recorder.Header().Get(common.HeaderContentEncoding))
 	// Note: deflate decompression test is more complex, so we just verify the header is set
 }
 
@@ -67,7 +68,7 @@ func TestShouldPreferGzipOverDeflate(t *testing.T) {
 	// Arrange
 	middleware := &compressionMiddleware{options: &CompressionOptions{}}
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req.Header.Set("Accept-Encoding", "gzip, deflate")
+	req.Header.Set(common.HeaderAcceptEncoding, "gzip, deflate")
 	recorder := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(recorder, req)
 
@@ -79,7 +80,7 @@ func TestShouldPreferGzipOverDeflate(t *testing.T) {
 	middleware.Invoke(ctx, next)
 
 	// Assert
-	assert.Equal(t, "gzip", recorder.Header().Get("Content-Encoding"))
+	assert.Equal(t, "gzip", recorder.Header().Get(common.HeaderContentEncoding))
 }
 
 func TestShouldNotCompressWhenNoAcceptEncoding(t *testing.T) {
@@ -98,7 +99,7 @@ func TestShouldNotCompressWhenNoAcceptEncoding(t *testing.T) {
 	middleware.Invoke(ctx, next)
 
 	// Assert
-	assert.Empty(t, recorder.Header().Get("Content-Encoding"))
+	assert.Empty(t, recorder.Header().Get(common.HeaderContentEncoding))
 	assert.Equal(t, response, recorder.Body.String())
 }
 
@@ -106,7 +107,7 @@ func TestShouldNotCompressWhenUnsupportedEncoding(t *testing.T) {
 	// Arrange
 	middleware := &compressionMiddleware{options: &CompressionOptions{}}
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req.Header.Set("Accept-Encoding", "br") // Brotli - not supported
+	req.Header.Set(common.HeaderAcceptEncoding, "br") // Brotli - not supported
 	recorder := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(recorder, req)
 
@@ -119,7 +120,7 @@ func TestShouldNotCompressWhenUnsupportedEncoding(t *testing.T) {
 	middleware.Invoke(ctx, next)
 
 	// Assert
-	assert.Empty(t, recorder.Header().Get("Content-Encoding"))
+	assert.Empty(t, recorder.Header().Get(common.HeaderContentEncoding))
 	assert.Equal(t, response, recorder.Body.String())
 }
 
@@ -136,12 +137,12 @@ func TestShouldAddCompressionMiddlewareToRouter(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req.Header.Set("Accept-Encoding", "gzip")
+	req.Header.Set(common.HeaderAcceptEncoding, "gzip")
 	rec := httptest.NewRecorder()
 	rtr.ServeHTTP(rec, req)
 
 	// Assert that the middleware executed and set the Content-Encoding header
-	assert.Equal(t, "gzip", rec.Header().Get("Content-Encoding"))
+	assert.Equal(t, "gzip", rec.Header().Get(common.HeaderContentEncoding))
 }
 
 func TestCompressionWriterShouldImplementResponseWriter(t *testing.T) {

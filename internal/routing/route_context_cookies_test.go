@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fgrzl/claims"
+	"github.com/fgrzl/mux/internal/common"
 	"github.com/fgrzl/mux/internal/cookiejar"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -93,8 +94,8 @@ func TestAuthenticateShouldCreateCookieWithTTLWhenProviderIsAvailable(t *testing
 	ctx.Authenticate("test-cookie", mockUser)
 
 	// Assert
-	assert.Contains(t, res.Header().Get("Set-Cookie"), "test-cookie=test-token-test-user")
-	assert.Contains(t, res.Header().Get("Set-Cookie"), "Max-Age=1800") // 30 minutes = 1800 seconds
+	assert.Contains(t, res.Header().Get(common.HeaderSetCookie), "test-cookie=test-token-test-user")
+	assert.Contains(t, res.Header().Get(common.HeaderSetCookie), "Max-Age=1800") // 30 minutes = 1800 seconds
 }
 
 func TestSetCookieShouldSetCookieWithAllAttributes(t *testing.T) {
@@ -107,7 +108,7 @@ func TestSetCookieShouldSetCookieWithAllAttributes(t *testing.T) {
 	ctx.SetCookie("test-cookie", "test-value", 3600, "/path", "example.com", true, true)
 
 	// Assert
-	setCookieHeader := res.Header().Get("Set-Cookie")
+	setCookieHeader := res.Header().Get(common.HeaderSetCookie)
 	assert.Contains(t, setCookieHeader, "test-cookie=test-value")
 	assert.Contains(t, setCookieHeader, "Max-Age=3600")
 	assert.Contains(t, setCookieHeader, "Path=/path")
@@ -157,7 +158,7 @@ func TestClearCookieShouldSetExpiredCookie(t *testing.T) {
 	ctx.ClearCookie("test-cookie")
 
 	// Assert
-	setCookieHeader := res.Header().Get("Set-Cookie")
+	setCookieHeader := res.Header().Get(common.HeaderSetCookie)
 	assert.Contains(t, setCookieHeader, "test-cookie=")
 	assert.Contains(t, setCookieHeader, "Max-Age=0") // Go changes -1 to 0 in the output
 	assert.Contains(t, setCookieHeader, "Expires=Thu, 01 Jan 1970 00:00:01 GMT")
@@ -177,7 +178,7 @@ func TestSignOutShouldClearAllCookiesAndRedirect(t *testing.T) {
 	ctx.SignOut()
 
 	// Assert
-	setCookieHeaders := res.Header().Values("Set-Cookie")
+	setCookieHeaders := res.Header().Values(common.HeaderSetCookie)
 
 	// Should clear all three cookies
 	userCookieCleared := false
@@ -202,5 +203,5 @@ func TestSignOutShouldClearAllCookiesAndRedirect(t *testing.T) {
 
 	// Should redirect to logout page
 	assert.Equal(t, http.StatusTemporaryRedirect, res.Code)
-	assert.Equal(t, "http://example.com/logout", res.Header().Get("Location"))
+	assert.Equal(t, "http://example.com/logout", res.Header().Get(common.HeaderLocation))
 }

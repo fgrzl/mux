@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/fgrzl/mux/internal/common"
 	"github.com/fgrzl/mux/internal/router"
 	"github.com/fgrzl/mux/internal/routing"
 )
@@ -61,7 +62,7 @@ func (cw *compressionWriter) WriteHeader(statusCode int) {
 // Invoke implements the Middleware interface, applying compression based on Accept-Encoding headers.
 func (m *compressionMiddleware) Invoke(c routing.RouteContext, next router.HandlerFunc) {
 
-	acceptEncoding := c.Request().Header.Get("Accept-Encoding")
+	acceptEncoding := c.Request().Header.Get(common.HeaderAcceptEncoding)
 	if acceptEncoding == "" {
 		next(c)
 		return
@@ -69,10 +70,10 @@ func (m *compressionMiddleware) Invoke(c routing.RouteContext, next router.Handl
 
 	var compressor io.WriteCloser
 	if strings.Contains(acceptEncoding, "gzip") {
-		c.Response().Header().Set("Content-Encoding", "gzip")
+		c.Response().Header().Set(common.HeaderContentEncoding, "gzip")
 		compressor = gzip.NewWriter(c.Response())
 	} else if strings.Contains(acceptEncoding, "deflate") {
-		c.Response().Header().Set("Content-Encoding", "deflate")
+		c.Response().Header().Set(common.HeaderContentEncoding, "deflate")
 		var err error
 		compressor, err = flate.NewWriter(c.Response(), flate.DefaultCompression)
 		if err != nil {

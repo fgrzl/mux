@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fgrzl/claims"
+	"github.com/fgrzl/mux/internal/common"
 	"github.com/fgrzl/mux/internal/cookiejar"
 	"github.com/fgrzl/mux/internal/router"
 	"github.com/fgrzl/mux/internal/routing"
@@ -235,7 +236,7 @@ func (m *authenticationMiddleware) updateCookieProperties(cookie *http.Cookie, t
 
 // extractBearerToken extracts the bearer token from the Authorization header.
 func extractBearerToken(r *http.Request) string {
-	auth := r.Header.Get("Authorization")
+	auth := r.Header.Get(common.HeaderAuthorization)
 	if strings.HasPrefix(auth, "Bearer ") {
 		return strings.TrimPrefix(auth, "Bearer ")
 	}

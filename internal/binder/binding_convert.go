@@ -151,10 +151,11 @@ func makeConverter(t reflect.Type, schema *openapi.Schema) func([]string) (any, 
 		if t.Kind() == reflect.Slice {
 			et := t.Elem()
 			if c := scalarConv(et); c != nil {
+				// reuse the element scalar converter for each element
 				return func(vals []string) (any, error) {
 					out := make([]any, 0, len(vals))
 					for _, s := range vals {
-						parsed, err := scalarConv(et)([]string{s})
+						parsed, err := c([]string{s})
 						if err != nil {
 							return nil, err
 						}
@@ -370,6 +371,18 @@ func parseByExample(val string, param *openapi.ParameterObject) (any, bool) {
 		}
 	}
 	return nil, false
+}
+
+func parseSlice[T any](vals []string, parse func(string) (T, error)) ([]T, bool) {
+	result := make([]T, 0, len(vals))
+	for _, val := range vals {
+		parsed, err := parse(val)
+		if err != nil {
+			return nil, false
+		}
+		result = append(result, parsed)
+	}
+	return result, true
 }
 
 func parseSliceValues(values []string, param *openapi.ParameterObject) (any, bool) {
