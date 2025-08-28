@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/fgrzl/mux/internal/router"
 )
 
 // WebServerOption allows functional options to be passed to NewServer for configuring the WebServer.
@@ -18,7 +20,7 @@ type WebServer struct {
 	// underlying HTTP server
 	srv *http.Server
 	// custom router
-	router *Router
+	rtr *router.Router
 	// TLS certificate file path
 	certFile string
 	// TLS key file path
@@ -80,7 +82,7 @@ func WithTLSDiscovery(certsDir, certFile, keyFile string) WebServerOption {
 // addr:   the address to listen on (e.g., ":8080")
 // router: the router to use for handling requests
 // opts:   optional configuration options (e.g., TLS)
-func NewServer(addr string, router *Router, opts ...WebServerOption) *WebServer {
+func NewServer(addr string, rtr *router.Router, opts ...WebServerOption) *WebServer {
 	srv := &http.Server{
 		Addr:         addr,
 		Handler:      router,

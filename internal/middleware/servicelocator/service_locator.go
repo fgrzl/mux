@@ -1,0 +1,53 @@
+package servicelocator
+
+import (
+	"github.com/fgrzl/mux/internal/router"
+	routerpkg "github.com/fgrzl/mux/internal/router"
+	"github.com/fgrzl/mux/internal/routing"
+)
+
+// ---- Service Middleware ----
+
+// ServiceSetterOptions holds the services to be set on the RouteContext.
+type ServiceSetterOptions struct {
+	Services map[routing.ServiceKey]any
+}
+
+// ServiceSetterOption configures ServiceSetterOptions.
+type ServiceSetterOption func(*ServiceSetterOptions)
+
+// WithService adds a service to the options.
+func WithService(key routing.ServiceKey, svc any) ServiceSetterOption {
+	return func(opts *ServiceSetterOptions) {
+		if opts.Services == nil {
+			opts.Services = make(map[ServiceKey]any)
+		}
+		opts.Services[key] = svc
+	}
+}
+
+// UseServices adds middleware that sets services on the RouteContext.
+func UseServices(rtr *router.Router, opts ...ServiceSetterOption) {
+	options := &ServiceSetterOptions{}
+	for _, opt := range opts {
+		opt(options)
+	}
+	rtr.middleware = append(rtr.middleware, &serviceSetterMiddleware{options: options})
+}
+
+// serviceSetterMiddleware implements middleware that injects services into the route context.
+type serviceSetterMiddleware struct {
+	options *ServiceSetterOptions
+}
+
+// Invoke implements the Middleware interface, setting services on the RouteContext.
+func (m *serviceSetterMiddleware) Invoke(c routing.RouteContext, next routerpkg.HandlerFunc) {
+	if m.options == nil || m.options.Services == nil {
+		next(c)
+		return
+	}
+	for k, v := range m.options.Services {
+		c.SetService(k, v)
+	}
+	next(c)
+}

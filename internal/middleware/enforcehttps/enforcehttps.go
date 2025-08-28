@@ -1,0 +1,27 @@
+package enforcehttps
+
+import (
+	"net/http"
+
+	"github.com/fgrzl/mux/internal/router"
+	routerpkg "github.com/fgrzl/mux/internal/router"
+	"github.com/fgrzl/mux/internal/routing"
+)
+
+// enforceHTTPSMiddleware redirects HTTP requests to HTTPS.
+type enforceHTTPSMiddleware struct{}
+
+// Invoke implements the Middleware interface, redirecting HTTP requests to HTTPS.
+func (m *enforceHTTPSMiddleware) Invoke(c routing.RouteContext, next routerpkg.HandlerFunc) {
+	if c.Request().URL.Scheme != "https" {
+		target := "https://" + c.Request().Host + c.Request().URL.RequestURI()
+		http.Redirect(c.Response(), c.Request(), target, http.StatusMovedPermanently)
+		return
+	}
+	next(c)
+}
+
+// UseEnforceHTTPS adds middleware that redirects HTTP requests to HTTPS.
+func UseEnforceHTTPS(rtr *router.Router) {
+	rtr.middleware = append(rtr.middleware, &enforceHTTPSMiddleware{})
+}

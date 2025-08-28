@@ -188,7 +188,7 @@ func TestShouldGenerateOpenApiSpec(t *testing.T) {
 	generator := mux.NewGenerator()
 
 	// Act
-	spec, err := generator.GenerateSpec(router)
+	spec, err := mux.GenerateSpecWithGenerator(generator, router)
 
 	// if you need to write the file to review
 	// spec.MarshalToFile("openapi.yaml")

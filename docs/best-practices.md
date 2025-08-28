@@ -412,7 +412,7 @@ func TestCreateUser(t *testing.T) {
             req.Header.Set("Content-Type", "application/json")
             rec := httptest.NewRecorder()
             
-            router.ServeHTTP(rec, req)
+            rtr.ServeHTTP(rec, req)
             
             assert.Equal(t, tt.expectedStatus, rec.Code)
             if tt.expectedBody != "" {
@@ -445,7 +445,7 @@ func TestUserAPIIntegration(t *testing.T) {
         req.Header.Set("Content-Type", "application/json")
         rec := httptest.NewRecorder()
         
-        router.ServeHTTP(rec, req)
+        rtr.ServeHTTP(rec, req)
         
         require.Equal(t, http.StatusCreated, rec.Code)
         
@@ -457,7 +457,7 @@ func TestUserAPIIntegration(t *testing.T) {
         req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/users/%s", user.ID), nil)
         rec = httptest.NewRecorder()
         
-        router.ServeHTTP(rec, req)
+        rtr.ServeHTTP(rec, req)
         
         require.Equal(t, http.StatusOK, rec.Code)
         

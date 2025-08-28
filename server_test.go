@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fgrzl/mux/internal/router"
+	routing "github.com/fgrzl/mux/internal/routing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,7 +31,7 @@ const (
 
 func TestShouldCreateNewServerWithDefaults(t *testing.T) {
 	// Arrange
-	router := NewRouter()
+	rtr := router.NewRouter()
 
 	// Act
 	server := NewServer(testAddrHTTP, router)
@@ -48,7 +50,7 @@ func TestShouldCreateNewServerWithDefaults(t *testing.T) {
 
 func TestShouldConfigureServerWithTLS(t *testing.T) {
 	// Arrange
-	router := NewRouter()
+	rtr := router.NewRouter()
 	// Act
 	server := NewServer(testAddrHTTPS, router, WithTLS(testCertFile, testKeyFile))
 
@@ -60,7 +62,7 @@ func TestShouldConfigureServerWithTLS(t *testing.T) {
 
 func TestShouldConfigureServerWithTLSDiscovery(t *testing.T) {
 	// Arrange
-	router := NewRouter()
+	rtr := router.NewRouter()
 	tempDir := t.TempDir()
 	certsDir := filepath.Join(tempDir, testCertsDir)
 	require.NoError(t, os.MkdirAll(certsDir, 0755))
@@ -88,7 +90,7 @@ func TestShouldConfigureServerWithTLSDiscovery(t *testing.T) {
 
 func TestShouldHandleTLSDiscoveryWhenCertsDirNotFound(t *testing.T) {
 	// Arrange
-	router := NewRouter()
+	rtr := router.NewRouter()
 	tempDir := t.TempDir()
 
 	// Change to temp directory and ensure we change back
@@ -108,8 +110,8 @@ func TestShouldHandleTLSDiscoveryWhenCertsDirNotFound(t *testing.T) {
 
 func TestShouldStartHTTPServerSuccessfully(t *testing.T) {
 	// Arrange
-	router := NewRouter()
-	router.GET("/health", func(c RouteContext) {
+	rtr := router.NewRouter()
+	router.GET("/health", func(c routing.RouteContext) {
 		c.OK("OK")
 	})
 
@@ -133,7 +135,7 @@ func TestShouldStartHTTPServerSuccessfully(t *testing.T) {
 
 func TestShouldReturnErrorForInvalidAddress(t *testing.T) {
 	// Arrange
-	router := NewRouter()
+	rtr := router.NewRouter()
 	server := NewServer(testInvalidAddr, router)
 	ctx := context.Background()
 
@@ -146,7 +148,7 @@ func TestShouldReturnErrorForInvalidAddress(t *testing.T) {
 
 func TestShouldStopServerGracefully(t *testing.T) {
 	// Arrange
-	router := NewRouter()
+	rtr := router.NewRouter()
 	server := NewServer(testAddrLocal, router)
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -168,7 +170,7 @@ func TestShouldStopServerGracefully(t *testing.T) {
 
 func TestShouldHandleMultipleOptions(t *testing.T) {
 	// Arrange
-	router := NewRouter()
+	rtr := router.NewRouter()
 	// Act
 	server := NewServer(testAddrHTTPS, router,
 		WithTLS(testCertFile, testKeyFile),
