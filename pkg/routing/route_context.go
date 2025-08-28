@@ -338,6 +338,18 @@ func (c *DefaultRouteContext) Bind(model any) error {
 		return err
 	}
 
+	// If the JSON body was a top-level array, collectJSONBody stores it under
+	// the special key "__root_json_array". In that case we should marshal the
+	// array value directly instead of the staging map so the target model can
+	// be an array/slice type.
+	if root, ok := staging["__root_json_array"]; ok {
+		marshaledData, err := json.Marshal(root)
+		if err != nil {
+			return err
+		}
+		return json.Unmarshal(marshaledData, model)
+	}
+
 	marshaledData, err := json.Marshal(staging)
 	if err != nil {
 		return err
@@ -478,15 +490,29 @@ func (c *DefaultRouteContext) collectFormData(staging map[string]any) error {
 }
 
 func (c *DefaultRouteContext) collectJSONBody(staging map[string]any) error {
-	bodyMap := make(map[string]any)
+	// Read and decode JSON body. Support both object and array roots. If an
+	// array root is provided, store it under a special key so Bind can
+	// marshal the array directly into slice targets.
 	decoder := json.NewDecoder(c.request.Body)
-	if err := decoder.Decode(&bodyMap); err != nil {
+	// Use interface{} to accept either map or slice
+	var bodyAny any
+	if err := decoder.Decode(&bodyAny); err != nil {
 		return err
 	}
-	for key, val := range bodyMap {
-		staging[key] = val
+	switch v := bodyAny.(type) {
+	case map[string]any:
+		for key, val := range v {
+			staging[key] = val
+		}
+		return nil
+	case []any:
+		staging["__root_json_array"] = v
+		return nil
+	default:
+		// For primitive roots (string, number, etc) store under special key
+		staging["__root_json_primitive"] = v
+		return nil
 	}
-	return nil
 }
 
 func (c *DefaultRouteContext) collectHeaderData(staging map[string]any) error {

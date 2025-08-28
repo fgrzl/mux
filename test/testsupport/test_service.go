@@ -95,3 +95,14 @@ func (s *FakeService) PutTenant(tenant *Tenant) *Tenant {
 	s.tenants[tenant.TenantID] = tenant
 	return tenant
 }
+
+// DeleteTenant removes a tenant if it exists and returns true when deleted.
+func (s *FakeService) DeleteTenant(id int32) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.tenants[id]; !ok {
+		return false
+	}
+	delete(s.tenants, id)
+	return true
+}

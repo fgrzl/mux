@@ -7,6 +7,86 @@ jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
 servers:
   - url: /
 paths:
+  /api/v1/filter:
+    get:
+      tags:
+        - Misc
+      operationId: filter
+      parameters:
+        - name: ids
+          in: query
+          schema:
+            type: string
+        - name: uuids
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ids:
+                    type: array
+                    items:
+                      type: integer
+                  uuids:
+                    type: array
+                    items:
+                      type: string
+                      format: uuid
+  /api/v1/form/submit:
+    post:
+      tags:
+        - Misc
+      operationId: submitForm
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+  /api/v1/headers/echo:
+    get:
+      tags:
+        - Misc
+      operationId: echoHeader
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: string
+  /api/v1/items/{itemId}/uuid:
+    get:
+      tags:
+        - Items
+      operationId: getItemByUUID
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+                  format: uuid
   /api/v1/resources:
     get:
       tags:
@@ -50,6 +130,93 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /api/v1/resources/{resourceId}/metadata:
+    put:
+      tags:
+        - Resources
+      operationId: updateResourceMetadata
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                metadata:
+                  type: object
+                  additionalProperties:
+                    type: string
+        required: true
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  metadata:
+                    type: object
+                    additionalProperties:
+                      type: string
+                  resource:
+                    $ref: '#/components/schemas/Resource'
+  /api/v1/resources/bulk:
+    post:
+      tags:
+        - Resources
+      operationId: createResourcesBulk
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Resource'
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Resource'
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /api/v1/resources/search:
+    get:
+      tags:
+        - Resources
+      operationId: searchResources
+      parameters:
+        - name: name
+          in: query
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Resource'
   /api/v1/tenants:
     get:
       tags:
@@ -65,12 +232,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Tenant'
-        "404":
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
     post:
       tags:
         - Tenants
@@ -88,12 +249,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Tenant'
-        "400":
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
   /api/v1/tenants/{tenantID}:
     get:
       tags:
@@ -141,12 +296,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Tenant'
-        "400":
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
     delete:
       tags:
         - Tenants
@@ -217,12 +366,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Resource'
-        "400":
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
 components:
   schemas:
     ProblemDetails:

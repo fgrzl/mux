@@ -220,4 +220,99 @@ func ConfigureRoutes(r *mux.Router) {
 		WithTags("Misc")
 
 	rg.StaticFallback("/**", "static", "static/index.html")
+
+	// Tenant management routes (list, get, create, update, delete)
+	rg.GET("/tenants/", func(c mux.RouteContext) {
+		tenants := Service.ListTenants()
+		if len(tenants) == 0 {
+			c.NotFound()
+			return
+		}
+		c.OK(tenants)
+	}).WithOperationID("listTenants").WithSummary("List all tenants").WithResponse(200, []Tenant{}).WithTags("Tenants")
+
+	rg.POST("/tenants/", func(c mux.RouteContext) {
+		var t Tenant
+		if err := c.Bind(&t); err != nil {
+			c.BadRequest("Bad Request", err.Error())
+			return
+		}
+		created := Service.PutTenant(&t)
+		c.Created(created)
+	}).WithOperationID("createTenant").WithJsonBody(Tenant{}).WithResponse(201, Tenant{}).WithTags("Tenants")
+
+	rg.GET("/tenants/{tenantID}", func(c mux.RouteContext) {
+		id, ok := c.ParamInt("tenantID")
+		if !ok {
+			c.NotFound()
+			return
+		}
+		tenant, found := Service.GetTenant(int32(id))
+		if !found {
+			c.NotFound()
+			return
+		}
+		c.OK(tenant)
+	}).WithOperationID("getTenant").WithParam("tenantID", "path", int(0), true).WithResponse(200, Tenant{}).WithResponse(404, mux.ProblemDetails{}).WithTags("Tenants")
+
+	rg.PUT("/tenants/{tenantID}", func(c mux.RouteContext) {
+		id, ok := c.ParamInt("tenantID")
+		if !ok {
+			c.BadRequest("Invalid TenantID", "tenantID missing or invalid")
+			return
+		}
+		var t Tenant
+		if err := c.Bind(&t); err != nil {
+			c.BadRequest("Bad Request", err.Error())
+			return
+		}
+		t.TenantID = int32(id)
+		updated := Service.PutTenant(&t)
+		c.OK(updated)
+	}).WithOperationID("updateTenant").WithParam("tenantID", "path", int(0), true).WithJsonBody(Tenant{}).WithResponse(200, Tenant{}).WithTags("Tenants")
+
+	rg.DELETE("/tenants/{tenantID}", func(c mux.RouteContext) {
+		id, ok := c.ParamInt("tenantID")
+		if !ok {
+			c.BadRequest("Invalid TenantID", "tenantID missing or invalid")
+			return
+		}
+		deleted := Service.DeleteTenant(int32(id))
+		if !deleted {
+			c.NotFound()
+			return
+		}
+		c.NoContent()
+	}).WithOperationID("deleteTenant").WithParam("tenantID", "path", int(0), true).WithResponse(204, nil).WithResponse(404, mux.ProblemDetails{}).WithTags("Tenants")
+
+	// Tenant resources
+	rg.GET("/tenants/{tenantID}/resources", func(c mux.RouteContext) {
+		id, ok := c.ParamInt("tenantID")
+		if !ok {
+			c.BadRequest("Invalid TenantID", "tenantID missing or invalid")
+			return
+		}
+		resources := Service.ListResources(int32(id))
+		if len(resources) == 0 {
+			c.NotFound()
+			return
+		}
+		c.OK(resources)
+	}).WithOperationID("listTenantResources").WithParam("tenantID", "path", int(0), true).WithResponse(200, []Resource{}).WithResponse(404, mux.ProblemDetails{}).WithTags("Tenants", "Resources")
+
+	rg.POST("/tenants/{tenantID}/resources", func(c mux.RouteContext) {
+		id, ok := c.ParamInt("tenantID")
+		if !ok {
+			c.BadRequest("Invalid TenantID", "tenantID missing or invalid")
+			return
+		}
+		var res Resource
+		if err := c.Bind(&res); err != nil {
+			c.BadRequest("Bad Request", err.Error())
+			return
+		}
+		res.TenantID = int32(id)
+		created := Service.PutResource(&res)
+		c.Created(created)
+	}).WithOperationID("createTenantResource").WithParam("tenantID", "path", int(0), true).WithJsonBody(Resource{}).WithResponse(201, Resource{}).WithTags("Tenants", "Resources")
 }

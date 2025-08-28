@@ -126,10 +126,11 @@ func TestShouldReturnNotFound(t *testing.T) {
 	// Act
 	ctx.NotFound()
 
-	// Assert
+	// Assert: NotFound now returns a Problem Details JSON body
 	assert.Equal(t, http.StatusNotFound, recorder.Code)
-	assert.Equal(t, "text/plain; charset=utf-8", recorder.Header().Get("Content-Type"))
-	assert.Contains(t, recorder.Body.String(), "404 page not found")
+	assert.Equal(t, "application/problem+json", recorder.Header().Get("Content-Type"))
+	assert.Contains(t, recorder.Body.String(), "Not Found")
+	assert.Contains(t, recorder.Body.String(), "\"status\":404")
 }
 
 func TestShouldReturnOKWithData(t *testing.T) {

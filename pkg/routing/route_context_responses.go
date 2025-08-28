@@ -124,7 +124,16 @@ func (c *DefaultRouteContext) NoContent() {
 
 // NotFound writes a 404 Not Found response.
 func (c *DefaultRouteContext) NotFound() {
-	http.NotFound(c.Response(), c.Request())
+	// Return a problem+json body for 404 responses so callers receive a
+	// consistent RFC7807 Problem Details structure (and application/problem+json
+	// content-type) instead of the default plain-text 404 page.
+	c.Problem(&ProblemDetails{
+		Title:    http.StatusText(http.StatusNotFound),
+		Detail:   "",
+		Status:   http.StatusNotFound,
+		Type:     ProblemTypeAboutBlank,
+		Instance: getInstanceURI(c.Request()),
+	})
 }
 
 // Unauthorized writes a 401 Unauthorized response.

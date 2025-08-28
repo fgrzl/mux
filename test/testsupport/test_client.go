@@ -45,21 +45,6 @@ func (c *TestClient) doRequest(req *http.Request, result interface{}) (*http.Res
 	return resp, nil
 }
 
-// Simple wrappers for common routes are included in the original test package when needed.
-
-// Convenience helpers to build requests
-func (c *TestClient) get(path string) (*http.Response, error) {
-	req, _ := http.NewRequest(http.MethodGet, c.BaseURL+path, nil)
-	return c.doRequest(req, nil)
-}
-
-func (c *TestClient) postJSON(path string, body interface{}) (*http.Response, error) {
-	data, _ := json.Marshal(body)
-	req, _ := http.NewRequest(http.MethodPost, c.BaseURL+path, bytes.NewReader(data))
-	req.Header.Set("Content-Type", "application/json")
-	return c.doRequest(req, nil)
-}
-
 // Resource Routes
 func (c *TestClient) ListResources(ctx context.Context) ([]Resource, *http.Response, error) {
 	url := c.BaseURL + "/api/v1/resources/"
