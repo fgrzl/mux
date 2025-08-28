@@ -617,19 +617,19 @@ func parseDeepKey(key string) (string, []string) {
 		root := key[:idx]
 		rest := key[idx:]
 		path := []string{}
-		cur := ""
+		var b strings.Builder
 		inBracket := false
 		for _, r := range rest {
 			switch r {
 			case '[':
 				inBracket = true
-				cur = ""
+				b.Reset()
 			case ']':
 				inBracket = false
-				path = append(path, cur)
+				path = append(path, b.String())
 			default:
 				if inBracket {
-					cur += string(r)
+					b.WriteRune(r)
 				}
 			}
 		}
