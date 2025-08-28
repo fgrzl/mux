@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"reflect"
-	"strconv"
 	"strings"
 
 	"github.com/fgrzl/claims"
@@ -238,6 +236,8 @@ type DefaultRouteContext struct {
 	params      RouteParams
 	services    map[ServiceKey]any
 	formsParsed bool
+	// runtime cache for quick parameter lookups (key: strings.ToLower(in+":"+name))
+	paramIndex map[string]*ParameterObject
 }
 
 func (c *DefaultRouteContext) Response() http.ResponseWriter {
@@ -359,31 +359,10 @@ func (c *DefaultRouteContext) collectQueryParams(staging map[string]any) error {
 		key := rawKey
 		// try to find a declared parameter for this query key
 		if param := c.lookupParameter(key, "query"); param != nil {
-			// if parameter expects array and a single CSV value was given, split it
-			if param.Schema != nil && param.Schema.Type == "array" && len(values) == 1 && strings.Contains(values[0], ",") {
-				values = splitAndTrim(values[0])
-			}
-			// if a Converter is present, use it (best perf)
-			if param.Converter != nil {
-				if typed, err := param.Converter(values); err != nil {
-					return fmt.Errorf("query param %q: %w", key, err)
-				} else if typed != nil {
-					staging[key] = typed
-					continue
-				}
-			}
-			// if single value, try parse to typed value
-			if len(values) == 1 {
-				if parsed, ok := parseByExample(values[0], param); ok {
-					staging[key] = parsed
-					continue
-				}
-			} else {
-				// parse slice
-				if parsedSlice, ok := parseSliceValues(values, param); ok {
-					staging[key] = parsedSlice
-					continue
-				}
+			if handled, err := processParamAndSet(staging, key, values, "query", param); err != nil {
+				return err
+			} else if handled {
+				continue
 			}
 		}
 		addToStaging(staging, key, values)
@@ -428,38 +407,12 @@ func (c *DefaultRouteContext) collectJSONBody(staging map[string]any) error {
 
 func (c *DefaultRouteContext) collectHeaderData(staging map[string]any) error {
 	for key, headerValues := range c.request.Header {
-		// If parameter declared and expects array, allow CSV in single header value
+		// process header parameter consistently via helper
 		if param := c.lookupParameter(key, "header"); param != nil {
-			if param.Schema != nil && param.Schema.Type == "array" {
-				// flatten comma-separated values
-				flat := []string{}
-				for _, v := range headerValues {
-					if strings.Contains(v, ",") {
-						flat = append(flat, splitAndTrim(v)...)
-					} else {
-						flat = append(flat, v)
-					}
-				}
-				headerValues = flat
-			}
-			if param.Converter != nil {
-				if typed, err := param.Converter(headerValues); err != nil {
-					return fmt.Errorf("header %q: %w", key, err)
-				} else if typed != nil {
-					staging[key] = typed
-					continue
-				}
-			}
-			if len(headerValues) == 1 {
-				if parsed, ok := parseByExample(headerValues[0], param); ok {
-					staging[key] = parsed
-					continue
-				}
-			} else {
-				if parsedSlice, ok := parseSliceValues(headerValues, param); ok {
-					staging[key] = parsedSlice
-					continue
-				}
+			if handled, err := processParamAndSet(staging, key, headerValues, "header", param); err != nil {
+				return err
+			} else if handled {
+				continue
 			}
 		}
 		addToStaging(staging, key, headerValues)
@@ -470,16 +423,9 @@ func (c *DefaultRouteContext) collectHeaderData(staging map[string]any) error {
 func (c *DefaultRouteContext) collectParamsData(staging map[string]any) error {
 	for key, paramValue := range c.params {
 		if param := c.lookupParameter(key, "path"); param != nil {
-			if param.Converter != nil {
-				if typed, err := param.Converter([]string{paramValue}); err != nil {
-					return err
-				} else if typed != nil {
-					staging[key] = typed
-					continue
-				}
-			}
-			if parsed, ok := parseByExample(paramValue, param); ok {
-				staging[key] = parsed
+			if handled, err := processParamAndSet(staging, key, []string{paramValue}, "path", param); err != nil {
+				return err
+			} else if handled {
 				continue
 			}
 		}
@@ -488,149 +434,63 @@ func (c *DefaultRouteContext) collectParamsData(staging map[string]any) error {
 	return nil
 }
 
+// processParamAndSet centralizes parameter parsing/conversion logic for query/header/path params.
+// It returns (true, nil) if it set a typed value on staging, (false, nil) if caller should fall back
+// to storing raw values, or (false, err) if a conversion error occurred.
+func processParamAndSet(staging map[string]any, key string, values []string, location string, param *ParameterObject) (bool, error) {
+	if param == nil {
+		return false, nil
+	}
+	// if parameter expects array and a single CSV value was given, split it
+	if param.Schema != nil && param.Schema.Type == "array" && len(values) == 1 && strings.Contains(values[0], ",") {
+		values = splitAndTrim(values[0])
+	}
+	// converter has highest precedence
+	if param.Converter != nil {
+		if typed, err := param.Converter(values); err != nil {
+			return false, fmt.Errorf("%s %q: %w", location, key, err)
+		} else if typed != nil {
+			staging[key] = typed
+			return true, nil
+		}
+	}
+	if len(values) == 1 {
+		if parsed, ok := parseByExample(values[0], param); ok {
+			staging[key] = parsed
+			return true, nil
+		}
+	} else {
+		if parsedSlice, ok := parseSliceValues(values, param); ok {
+			staging[key] = parsedSlice
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // lookupParameter finds a ParameterObject in the current RouteOptions by name and location (in).
 func (c *DefaultRouteContext) lookupParameter(name, in string) *ParameterObject {
 	if c.options == nil || c.options.Parameters == nil {
 		return nil
 	}
-	for _, p := range c.options.Parameters {
-		if strings.EqualFold(p.Name, name) && p.In == in {
-			return p
+	// Build index lazily
+	if c.paramIndex == nil {
+		idx := make(map[string]*ParameterObject, len(c.options.Parameters))
+		for _, p := range c.options.Parameters {
+			key := strings.ToLower(p.In + ":" + p.Name)
+			idx[key] = p
 		}
+		c.paramIndex = idx
+	}
+	key := strings.ToLower(in + ":" + name)
+	if p, ok := c.paramIndex[key]; ok {
+		return p
 	}
 	return nil
 }
 
 // parseByExample attempts to parse a single string value into the type suggested by the ParameterObject's Example or Schema.
-func parseByExample(val string, param *ParameterObject) (any, bool) {
-	if param == nil {
-		return nil, false
-	}
-	// prefer Example if present
-	if param.Example != nil {
-		switch param.Example.(type) {
-		case int:
-			if i, err := strconv.Atoi(val); err == nil {
-				return i, true
-			}
-		case int16:
-			if v, err := strconv.ParseInt(val, 10, 16); err == nil {
-				return int16(v), true
-			}
-		case int32:
-			if v, err := strconv.ParseInt(val, 10, 32); err == nil {
-				return int32(v), true
-			}
-		case int64:
-			if v, err := strconv.ParseInt(val, 10, 64); err == nil {
-				return v, true
-			}
-		case uint:
-			if v, err := strconv.ParseUint(val, 10, 0); err == nil {
-				return uint(v), true
-			}
-		case uint32:
-			if v, err := strconv.ParseUint(val, 10, 32); err == nil {
-				return uint32(v), true
-			}
-		case uint64:
-			if v, err := strconv.ParseUint(val, 10, 64); err == nil {
-				return uint64(v), true
-			}
-		case float32:
-			if v, err := strconv.ParseFloat(val, 32); err == nil {
-				return float32(v), true
-			}
-		case float64:
-			if v, err := strconv.ParseFloat(val, 64); err == nil {
-				return v, true
-			}
-		case bool:
-			if v, err := strconv.ParseBool(val); err == nil {
-				return v, true
-			}
-		case uuid.UUID:
-			if u, err := uuid.Parse(val); err == nil {
-				return u, true
-			}
-		case string:
-			return val, true
-		}
-	}
-	// fallback to schema type if present
-	if param.Schema != nil {
-		switch param.Schema.Type {
-		case "integer":
-			if v, err := strconv.ParseInt(val, 10, 64); err == nil {
-				return v, true
-			}
-		case "number":
-			if v, err := strconv.ParseFloat(val, 64); err == nil {
-				return v, true
-			}
-		case "boolean":
-			if v, err := strconv.ParseBool(val); err == nil {
-				return v, true
-			}
-		case "string":
-			// try uuid format
-			if param.Schema.Format == "uuid" {
-				if u, err := uuid.Parse(val); err == nil {
-					return u, true
-				}
-			}
-			return val, true
-		}
-	}
-	return nil, false
-}
-
-func parseSliceValues(values []string, param *ParameterObject) (any, bool) {
-	if param == nil {
-		return nil, false
-	}
-	// if Example is a slice, attempt to determine element type
-	if param.Example != nil {
-		if reflect.TypeOf(param.Example).Kind() == reflect.Slice {
-			// try to parse based on the first element's type
-			exVal := reflect.ValueOf(param.Example)
-			if exVal.Len() > 0 {
-				elem := exVal.Index(0).Interface()
-				switch elem.(type) {
-				case int:
-					if parsed, ok := parseSlice[int](values, func(s string) (int, error) {
-						v, err := strconv.Atoi(s)
-						return v, err
-					}); ok {
-						return parsed, true
-					}
-				case string:
-					return values, true
-				}
-			}
-		}
-	}
-	// fallback to schema items
-	if param.Schema != nil && param.Schema.Items != nil {
-		switch param.Schema.Items.Type {
-		case "integer":
-			if parsed, ok := parseSlice[int64](values, func(s string) (int64, error) {
-				return strconv.ParseInt(s, 10, 64)
-			}); ok {
-				return parsed, true
-			}
-		case "number":
-			if parsed, ok := parseSlice[float64](values, func(s string) (float64, error) {
-				return strconv.ParseFloat(s, 64)
-			}); ok {
-				return parsed, true
-			}
-		case "string":
-			return values, true
-		}
-	}
-	return nil, false
-}
+// parseByExample, parseSliceValues and parseValueBySchema are implemented in binding_convert.go
 
 func addToStaging(staging map[string]any, key string, values []string) {
 	if len(values) == 1 {
@@ -704,158 +564,31 @@ func splitAndTrim(s string) []string {
 
 // parseValueBySchema attempts to coerce raw string values into a typed value
 // guided by the provided Schema (which may be nil). Returns error on parse failure.
-func parseValueBySchema(values []string, schema *Schema) (any, error) {
-	if schema == nil {
-		// fallback: single string or slice
-		if len(values) == 1 {
-			return values[0], nil
-		}
-		return values, nil
-	}
-	switch schema.Type {
-	case "string":
-		if schema.Format == "uuid" {
-			if len(values) == 1 {
-				u, err := uuid.Parse(values[0])
-				if err != nil {
-					return nil, err
-				}
-				return u, nil
-			}
-			out := make([]uuid.UUID, 0, len(values))
-			for _, s := range values {
-				u, err := uuid.Parse(s)
-				if err != nil {
-					return nil, err
-				}
-				out = append(out, u)
-			}
-			return out, nil
-		}
-		if len(values) == 1 {
-			return values[0], nil
-		}
-		return values, nil
-	case "integer":
-		if len(values) == 1 {
-			v, err := strconv.ParseInt(values[0], 10, 64)
-			if err != nil {
-				return nil, err
-			}
-			return v, nil
-		}
-		out := make([]int64, 0, len(values))
-		for _, s := range values {
-			v, err := strconv.ParseInt(s, 10, 64)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, v)
-		}
-		return out, nil
-	case "number":
-		if len(values) == 1 {
-			v, err := strconv.ParseFloat(values[0], 64)
-			if err != nil {
-				return nil, err
-			}
-			return v, nil
-		}
-		out := make([]float64, 0, len(values))
-		for _, s := range values {
-			v, err := strconv.ParseFloat(s, 64)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, v)
-		}
-		return out, nil
-	case "boolean":
-		if len(values) == 1 {
-			v, err := strconv.ParseBool(values[0])
-			if err != nil {
-				return nil, err
-			}
-			return v, nil
-		}
-		out := make([]bool, 0, len(values))
-		for _, s := range values {
-			v, err := strconv.ParseBool(s)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, v)
-		}
-		return out, nil
-	case "array":
-		// if items schema known, try to parse each element
-		if schema.Items != nil {
-			if schema.Items.Type == "string" {
-				return values, nil
-			}
-			if schema.Items.Type == "integer" {
-				out := make([]int64, 0, len(values))
-				for _, s := range values {
-					v, err := strconv.ParseInt(s, 10, 64)
-					if err != nil {
-						return nil, err
-					}
-					out = append(out, v)
-				}
-				return out, nil
-			}
-			if schema.Items.Type == "number" {
-				out := make([]float64, 0, len(values))
-				for _, s := range values {
-					v, err := strconv.ParseFloat(s, 64)
-					if err != nil {
-						return nil, err
-					}
-					out = append(out, v)
-				}
-				return out, nil
-			}
-		}
-		return values, nil
-	case "object":
-		// not directly parseable here; caller will map property -> value
-		if len(values) == 1 {
-			return values[0], nil
-		}
-		return values, nil
-	default:
-		if len(values) == 1 {
-			return values[0], nil
-		}
-		return values, nil
-	}
-}
+// parseValueBySchema is implemented in binding_convert.go
 
 // setNestedMap sets staging[root][path[0]][path[1]]... = value, creating maps as needed
 func setNestedMap(staging map[string]any, root string, path []string, value any) {
-	var curr any
-	if existing, ok := staging[root]; ok {
-		curr = existing
-	} else {
-		curr = map[string]any{}
+	// ensure root map exists
+	rootMap, _ := staging[root].(map[string]any)
+	if rootMap == nil {
+		rootMap = map[string]any{}
 	}
 
-	m, _ := curr.(map[string]any)
-	if m == nil {
-		m = map[string]any{}
+	node := rootMap
+	// walk/create intermediate maps
+	for i := 0; i < len(path)-1; i++ {
+		key := path[i]
+		next, _ := node[key].(map[string]any)
+		if next == nil {
+			next = map[string]any{}
+			node[key] = next
+		}
+		node = next
 	}
-	if len(path) == 1 {
-		m[path[0]] = value
-		staging[root] = m
-		return
+
+	// set final value
+	if len(path) > 0 {
+		node[path[len(path)-1]] = value
 	}
-	// deeper nesting
-	sub, _ := m[path[0]].(map[string]any)
-	if sub == nil {
-		sub = map[string]any{}
-	}
-	// recursively set
-	setNestedMap(sub, path[0], path[1:], value)
-	m[path[0]] = sub
-	staging[root] = m
+	staging[root] = rootMap
 }
