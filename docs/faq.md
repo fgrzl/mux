@@ -399,7 +399,7 @@ func TestCreateUser(t *testing.T) {
     req.Header.Set("Content-Type", "application/json")
     
     rec := httptest.NewRecorder()
-    router.ServeHTTP(rec, req)
+    rtr.ServeHTTP(rec, req)
     
     assert.Equal(t, http.StatusCreated, rec.Code)
 }
@@ -419,7 +419,7 @@ func TestAuthenticationMiddleware(t *testing.T) {
     req.Header.Set("Authorization", "Bearer valid-token")
     
     rec := httptest.NewRecorder()
-    router.ServeHTTP(rec, req)
+    rtr.ServeHTTP(rec, req)
     
     assert.Equal(t, http.StatusOK, rec.Code)
 }

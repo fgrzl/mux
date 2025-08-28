@@ -8,7 +8,7 @@ Middleware in Mux follows a functional options pattern and implements the `Middl
 
 ```go
 type Middleware interface {
-    Invoke(c RouteContext, next HandlerFunc)
+    Invoke(c routing.RouteContext, next HandlerFunc)
 }
 ```
 
