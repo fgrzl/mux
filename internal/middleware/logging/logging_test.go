@@ -156,14 +156,24 @@ func TestStatusRecorderShouldImplementResponseWriter(t *testing.T) {
 }
 
 func TestShouldAddLoggingMiddlewareToRouter(t *testing.T) {
-	// Arrange
 	rtr := router.NewRouter()
-	initialMiddlewareCount := len(rtr.middleware)
 
-	// Act
-	UseLogging(router)
+	// Act - register middleware
+	UseLogging(rtr)
 
-	// Assert
-	assert.Equal(t, initialMiddlewareCount+1, len(rtr.middleware))
-	assert.IsType(t, &loggingMiddleware{}, rtr.middleware[len(rtr.middleware)-1])
+	// Register a route and make a request to ensure middleware runs and logs
+	var logBuffer bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logBuffer, nil))
+	slog.SetDefault(logger)
+
+	rtr.GET("/test", func(c routing.RouteContext) { c.Response().Write([]byte("ok")) })
+	req := httptest.NewRequest(http.MethodGet, "/test?param=value", nil)
+	req.RemoteAddr = "192.168.1.1:8080"
+	req.Header.Set("User-Agent", "test-agent/1.0")
+	rec := httptest.NewRecorder()
+	rtr.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	// Ensure something was logged
+	assert.Contains(t, logBuffer.String(), "http_request")
 }

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/fgrzl/mux/internal/router"
-	routerpkg "github.com/fgrzl/mux/internal/router"
 	"github.com/fgrzl/mux/internal/routing"
 )
 
@@ -24,7 +23,7 @@ func UseLogging(rtr *router.Router, opts ...LoggingOption) {
 	for _, opt := range opts {
 		opt(options)
 	}
-	rtr.middleware = append(rtr.middleware, &loggingMiddleware{options: options})
+	rtr.Use(&loggingMiddleware{options: options})
 }
 
 // ---- Middleware ----
@@ -35,7 +34,7 @@ type loggingMiddleware struct {
 }
 
 // Invoke implements the Middleware interface, logging request details with structured logging.
-func (m *loggingMiddleware) Invoke(c routing.RouteContext, next routerpkg.HandlerFunc) {
+func (m *loggingMiddleware) Invoke(c routing.RouteContext, next router.HandlerFunc) {
 	start := time.Now()
 	rec := &statusRecorder{ResponseWriter: c.Response()}
 	c.SetResponse(rec)
