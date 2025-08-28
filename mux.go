@@ -85,9 +85,18 @@ var WithPathPrefix = openapi.WithPathPrefix
 // by this package's generation helpers.
 var WithExamples = openapi.WithExamples
 
-// Re-export router options so callers can use them via the top-level mux package.
+// WithTitle sets the API title on the underlying router. It is an alias of
+// router.WithTitle so callers can configure the router via this package.
 var WithTitle = router.WithTitle
+
+// WithDescription sets the API description on the underlying router. It is an
+// alias of router.WithDescription so callers can configure the router via
+// this package.
 var WithDescription = router.WithDescription
+
+// WithVersion sets the API version on the underlying router. It is an alias
+// of router.WithVersion so callers can configure the router via this
+// package.
 var WithVersion = router.WithVersion
 
 // GenerateSpecWithGenerator collects routes from rtr and uses gen to produce
@@ -111,83 +120,168 @@ func GenerateSpecWithGenerator(gen *openapi.Generator, rtr *router.Router) (*ope
 	return gen.GenerateSpecFromRoutes(info, routes)
 }
 
-// LoggingOptions is an alias of logging.LoggingOptions.
+// --- Logging middleware ---
+// LoggingOptions configures the logging middleware. Alias of
+// logging.LoggingOptions.
 type LoggingOptions = logging.LoggingOptions
 
-// LoggingOption is an alias of logging.LoggingOption.
+// LoggingOption is a single functional option for logging middleware.
 type LoggingOption = logging.LoggingOption
 
-// UseLogging is an alias to logging.UseLogging.
+// UseLogging installs the logging middleware on a router. Alias of
+// logging.UseLogging.
 var UseLogging = logging.UseLogging
 
-// AuthOption is an alias of authentication.AuthOption.
+// --- Authentication middleware ---
+// AuthOption is a functional option used to configure the authentication
+// middleware. Alias of authentication.AuthOption.
 type AuthOption = authentication.AuthOption
 
-// AuthenticationOptions is an alias of authentication.AuthenticationOptions.
+// AuthenticationOptions holds configuration for the authentication
+// middleware. Alias of authentication.AuthenticationOptions.
 type AuthenticationOptions = authentication.AuthenticationOptions
 
-// UseAuthentication is an alias to authentication.UseAuthentication.
+// UseAuthentication installs the authentication middleware on a router.
+// Alias of authentication.UseAuthentication.
 var UseAuthentication = authentication.UseAuthentication
 
-// UseAuthenticationWithProvider is an alias to authentication.UseAuthenticationWithProvider.
+// UseAuthenticationWithProvider installs authentication middleware using a
+// specific token provider. Alias of
+// authentication.UseAuthenticationWithProvider.
 var UseAuthenticationWithProvider = authentication.UseAuthenticationWithProvider
 
-// AuthZOption is an alias of authorization.AuthZOption.
+// WithTokenTTL sets the token time-to-live duration for the authentication
+// middleware. Alias of authentication.WithTokenTTL.
+var WithTokenTTL = authentication.WithTokenTTL
+
+// WithValidator sets the token validator function used by the
+// authentication middleware. Alias of authentication.WithValidator.
+var WithValidator = authentication.WithValidator
+
+// WithTokenCreator sets the token creation function used by the
+// authentication middleware. Alias of authentication.WithTokenCreator.
+var WithTokenCreator = authentication.WithTokenCreator
+
+// --- Authorization middleware ---
+// AuthZOption is a functional option used to configure the authorization
+// middleware. Alias of authorization.AuthZOption.
 type AuthZOption = authorization.AuthZOption
 
-// AuthorizationOptions is an alias of authorization.AuthorizationOptions.
+// AuthorizationOptions holds configuration for the authorization
+// middleware. Alias of authorization.AuthorizationOptions.
 type AuthorizationOptions = authorization.AuthorizationOptions
 
-// UseAuthorization is an alias to authorization.UseAuthorization.
+// UseAuthorization installs the authorization middleware on a router.
+// Alias of authorization.UseAuthorization.
 var UseAuthorization = authorization.UseAuthorization
 
-// CompressionOptions is an alias of compression.CompressionOptions.
+// WithRoles configures required roles for the authorization middleware.
+// Alias of authorization.WithRoles.
+var WithRoles = authorization.WithRoles
+
+// WithScopes configures required scopes for the authorization middleware.
+// Alias of authorization.WithScopes.
+var WithScopes = authorization.WithScopes
+
+// WithPermissions configures required permissions for the authorization
+// middleware. Alias of authorization.WithPermissions.
+var WithPermissions = authorization.WithPermissions
+
+// WithRoleChecker sets a custom role-checking function for authorization.
+// Alias of authorization.WithRoleChecker.
+var WithRoleChecker = authorization.WithRoleChecker
+
+// WithScopeChecker sets a custom scope-checking function for authorization.
+// Alias of authorization.WithScopeChecker.
+var WithScopeChecker = authorization.WithScopeChecker
+
+// WithPermissionChecker sets a custom permission-checking function for
+// authorization. Alias of authorization.WithPermissionChecker.
+var WithPermissionChecker = authorization.WithPermissionChecker
+
+// --- Compression middleware ---
+// CompressionOptions configures the compression middleware. Alias of
+// compression.CompressionOptions.
 type CompressionOptions = compression.CompressionOptions
 
-// CompressionOption is an alias of compression.CompressionOption.
+// CompressionOption is a single functional option for compression middleware.
 type CompressionOption = compression.CompressionOption
 
-// UseCompression is an alias to compression.UseCompression.
+// UseCompression installs the compression middleware on a router. Alias of
+// compression.UseCompression.
 var UseCompression = compression.UseCompression
 
-// UseEnforceHTTPS is an alias to enforcehttps.UseEnforceHTTPS.
+// --- Enforce HTTPS middleware ---
+// UseEnforceHTTPS installs middleware that redirects HTTP to HTTPS. Alias of
+// enforcehttps.UseEnforceHTTPS.
 var UseEnforceHTTPS = enforcehttps.UseEnforceHTTPS
 
-// ExportControlOptions is an alias of exportcontrol.ExportControlOptions.
+// --- Export-control middleware ---
+// ExportControlOptions configures the export-control middleware. Alias of
+// exportcontrol.ExportControlOptions.
 type ExportControlOptions = exportcontrol.ExportControlOptions
 
-// ExportControlOption is an alias of exportcontrol.ExportControlOption.
+// ExportControlOption is a single functional option for export-control.
 type ExportControlOption = exportcontrol.ExportControlOption
 
-// UseExportControl is an alias to exportcontrol.UseExportControl.
+// UseExportControl installs the export-control middleware on a router.
+// Alias of exportcontrol.UseExportControl.
 var UseExportControl = exportcontrol.UseExportControl
 
-// UseForwardedHeaders is an alias to forwardheaders.UseForwardedHeaders.
+// WithGeoIPDatabase supplies a geoip2 reader to the export-control middleware
+// for country lookups. Alias of exportcontrol.WithGeoIPDatabase.
+var WithGeoIPDatabase = exportcontrol.WithGeoIPDatabase
+
+// --- Forwarded headers middleware ---
+// UseForwardedHeaders installs the middleware which handles forwarded
+// headers (X-Forwarded-*) on a router. Alias of
+// forwardheaders.UseForwardedHeaders.
 var UseForwardedHeaders = forwardheaders.UseForwardedHeaders
 
-// OpenTelemetryOptions is an alias of opentelemetry.OpenTelemetryOptions.
+// --- OpenTelemetry middleware ---
+// OpenTelemetryOptions configures the OpenTelemetry middleware. Alias of
+// opentelemetry.OpenTelemetryOptions.
 type OpenTelemetryOptions = opentelemetry.OpenTelemetryOptions
 
-// OpenTelemetryOption is an alias of opentelemetry.OpenTelemetryOption.
+// OpenTelemetryOption is a single functional option for OpenTelemetry.
 type OpenTelemetryOption = opentelemetry.OpenTelemetryOption
 
-// UseOpenTelemetry is an alias to opentelemetry.UseOpenTelemetry.
+// UseOpenTelemetry installs the OpenTelemetry middleware on a router.
+// Alias of opentelemetry.UseOpenTelemetry.
 var UseOpenTelemetry = opentelemetry.UseOpenTelemetry
 
-// RateLimiterOptions is an alias of ratelimit.RateLimiterOptions.
+// WithOperation sets the operation name used by the OpenTelemetry middleware
+// when creating spans. Alias of opentelemetry.WithOperation.
+var WithOperation = opentelemetry.WithOperation
+
+// --- Rate-limiter middleware ---
+// RateLimiterOptions configures the rate limiter middleware. Alias of
+// ratelimit.RateLimiterOptions.
 type RateLimiterOptions = ratelimit.RateLimiterOptions
 
-// RateLimiterOption is an alias of ratelimit.RateLimiterOption.
+// RateLimiterOption is a single functional option for the rate limiter.
 type RateLimiterOption = ratelimit.RateLimiterOption
 
-// UseRateLimiter is an alias to ratelimit.UseRateLimiter.
+// UseRateLimiter installs the rate-limiter middleware on a router. Alias of
+// ratelimit.UseRateLimiter.
 var UseRateLimiter = ratelimit.UseRateLimiter
 
-// ServiceSetterOptions is an alias of servicelocator.ServiceSetterOptions.
+// WithCleanupInterval configures the cleanup interval used by the
+// rate-limiter middleware. Alias of ratelimit.WithCleanupInterval.
+var WithCleanupInterval = ratelimit.WithCleanupInterval
+
+// --- Service locator middleware ---
+// ServiceSetterOptions configures the service-locator middleware. Alias of
+// servicelocator.ServiceSetterOptions.
 type ServiceSetterOptions = servicelocator.ServiceSetterOptions
 
-// ServiceSetterOption is an alias of servicelocator.ServiceSetterOption.
+// ServiceSetterOption is a single functional option for the service locator.
 type ServiceSetterOption = servicelocator.ServiceSetterOption
 
-// UseServices is an alias to servicelocator.UseServices.
+// UseServices installs the service locator middleware on a router. Alias of
+// servicelocator.UseServices.
 var UseServices = servicelocator.UseServices
+
+// WithService adds a service instance to be injected by the service
+// locator middleware. Alias of servicelocator.WithService.
+var WithService = servicelocator.WithService
