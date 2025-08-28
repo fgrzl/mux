@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/fgrzl/claims"
-	routerpkg "github.com/fgrzl/mux/internal/router"
+	"github.com/fgrzl/mux/internal/router"
 	"github.com/fgrzl/mux/internal/routing"
 	"github.com/stretchr/testify/assert"
 )
@@ -113,7 +113,7 @@ func TestShouldCreateAuthZOptionsWithPermissionChecker(t *testing.T) {
 
 func TestShouldAddAuthorizationMiddlewareToRouter(t *testing.T) {
 	// Arrange
-	rtr := routerpkg.NewRouter()
+	rtr := router.NewRouter()
 	// Act
 	UseAuthorization(rtr, WithRoles("admin"))
 

@@ -17,11 +17,11 @@ type MockService struct {
 func TestShouldSetSingleServiceOnRouteContext(t *testing.T) {
 	// Arrange
 	service := &MockService{Name: "test-service"}
-	serviceKey := ServiceKey("testService")
+	serviceKey := routing.ServiceKey("testService")
 
 	middleware := &serviceSetterMiddleware{
 		options: &ServiceSetterOptions{
-			Services: map[ServiceKey]any{
+			Services: map[routing.ServiceKey]any{
 				serviceKey: service,
 			},
 		},
@@ -51,12 +51,12 @@ func TestShouldSetMultipleServicesOnRouteContext(t *testing.T) {
 	// Arrange
 	service1 := &MockService{Name: "service1"}
 	service2 := &MockService{Name: "service2"}
-	serviceKey1 := ServiceKey("service1")
-	serviceKey2 := ServiceKey("service2")
+	serviceKey1 := routing.ServiceKey("service1")
+	serviceKey2 := routing.ServiceKey("service2")
 
 	middleware := &serviceSetterMiddleware{
 		options: &ServiceSetterOptions{
-			Services: map[ServiceKey]any{
+			Services: map[routing.ServiceKey]any{
 				serviceKey1: service1,
 				serviceKey2: service2,
 			},
@@ -132,7 +132,7 @@ func TestShouldHandleEmptyServicesMapGracefully(t *testing.T) {
 func TestWithServiceShouldCreateServiceOption(t *testing.T) {
 	// Arrange
 	service := &MockService{Name: "test"}
-	serviceKey := ServiceKey("test")
+	serviceKey := routing.ServiceKey("test")
 	options := &ServiceSetterOptions{}
 
 	// Act
@@ -147,7 +147,7 @@ func TestWithServiceShouldCreateServiceOption(t *testing.T) {
 func TestWithServiceShouldInitializeServicesMap(t *testing.T) {
 	// Arrange
 	service := &MockService{Name: "test"}
-	serviceKey := ServiceKey("test")
+	serviceKey := routing.ServiceKey("test")
 	options := &ServiceSetterOptions{} // Services map is nil
 
 	// Act
@@ -162,13 +162,27 @@ func TestWithServiceShouldInitializeServicesMap(t *testing.T) {
 func TestShouldAddServiceMiddlewareToRouter(t *testing.T) {
 	// Arrange
 	rtr := router.NewRouter()
-	initialMiddlewareCount := len(rtr.middleware)
 	service := &MockService{Name: "test"}
 
-	// Act
-	UseServices(router, WithService("test", service))
+	// Act - register middleware
+	UseServices(rtr, WithService("test", service))
 
-	// Assert
-	assert.Equal(t, initialMiddlewareCount+1, len(rtr.middleware))
-	assert.IsType(t, &serviceSetterMiddleware{}, rtr.middleware[len(rtr.middleware)-1])
+	// Register a route and ensure the middleware injects the service
+	rtr.GET("/test", func(c routing.RouteContext) {
+		s, ok := c.GetService(routing.ServiceKey("test"))
+		if ok {
+			if ms, ok := s.(*MockService); ok {
+				c.Response().Write([]byte(ms.Name))
+				return
+			}
+		}
+		c.Response().Write([]byte("no-service"))
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	rec := httptest.NewRecorder()
+	rtr.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "test", rec.Body.String())
 }

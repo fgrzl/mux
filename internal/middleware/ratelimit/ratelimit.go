@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	routerpkg "github.com/fgrzl/mux/internal/router"
+	"github.com/fgrzl/mux/internal/router"
 	"github.com/fgrzl/mux/internal/routing"
 )
 
@@ -36,9 +36,9 @@ func WithCleanupInterval(d time.Duration) RateLimiterOption {
 }
 
 // UseRateLimiter adds rate limiting middleware to the router with the given options.
-func UseRateLimiter(r *routerpkg.Router, opts ...RateLimiterOption) {
+func UseRateLimiter(r *router.Router, opts ...RateLimiterOption) {
 	limiter := NewSelectiveRateLimiter(opts...)
-	r.Middleware = append(r.Middleware, limiter)
+	r.Use(limiter)
 }
 
 func NewSelectiveRateLimiter(opts ...RateLimiterOption) *SelectiveRateLimiter {
@@ -59,7 +59,7 @@ func NewSelectiveRateLimiter(opts ...RateLimiterOption) *SelectiveRateLimiter {
 
 // ---- Middleware ----
 
-func (m *SelectiveRateLimiter) Invoke(c routing.RouteContext, next routerpkg.HandlerFunc) {
+func (m *SelectiveRateLimiter) Invoke(c routing.RouteContext, next router.HandlerFunc) {
 
 	opts := c.Options()
 	if opts == nil || opts.RateLimit <= 0 {
@@ -107,7 +107,11 @@ func (m *SelectiveRateLimiter) getVisitor(ip, key string, limit int, interval ti
 	elapsed := now.Sub(v.lastAccess)
 	v.lastAccess = now
 
-	refill := int(elapsed / interval)
+	// Guard against zero interval which would cause divide-by-zero panic.
+	refill := 0
+	if interval > 0 {
+		refill = int(elapsed / interval)
+	}
 	if refill > 0 {
 		v.tokens += refill
 		if v.tokens > limit {

@@ -2,7 +2,6 @@ package servicelocator
 
 import (
 	"github.com/fgrzl/mux/internal/router"
-	routerpkg "github.com/fgrzl/mux/internal/router"
 	"github.com/fgrzl/mux/internal/routing"
 )
 
@@ -20,7 +19,7 @@ type ServiceSetterOption func(*ServiceSetterOptions)
 func WithService(key routing.ServiceKey, svc any) ServiceSetterOption {
 	return func(opts *ServiceSetterOptions) {
 		if opts.Services == nil {
-			opts.Services = make(map[ServiceKey]any)
+			opts.Services = make(map[routing.ServiceKey]any)
 		}
 		opts.Services[key] = svc
 	}
@@ -32,7 +31,7 @@ func UseServices(rtr *router.Router, opts ...ServiceSetterOption) {
 	for _, opt := range opts {
 		opt(options)
 	}
-	rtr.middleware = append(rtr.middleware, &serviceSetterMiddleware{options: options})
+	rtr.Use(&serviceSetterMiddleware{options: options})
 }
 
 // serviceSetterMiddleware implements middleware that injects services into the route context.
@@ -41,7 +40,7 @@ type serviceSetterMiddleware struct {
 }
 
 // Invoke implements the Middleware interface, setting services on the RouteContext.
-func (m *serviceSetterMiddleware) Invoke(c routing.RouteContext, next routerpkg.HandlerFunc) {
+func (m *serviceSetterMiddleware) Invoke(c routing.RouteContext, next router.HandlerFunc) {
 	if m.options == nil || m.options.Services == nil {
 		next(c)
 		return

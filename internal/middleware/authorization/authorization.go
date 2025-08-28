@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/fgrzl/claims"
-	routerpkg "github.com/fgrzl/mux/internal/router"
+	"github.com/fgrzl/mux/internal/router"
 	"github.com/fgrzl/mux/internal/routing"
 )
 
@@ -59,7 +59,7 @@ type AuthorizationOptions struct {
 	CheckPermissions func(claims.Principal, []string) bool
 }
 
-func UseAuthorization(rtr *routerpkg.Router, opts ...AuthZOption) {
+func UseAuthorization(rtr *router.Router, opts ...AuthZOption) {
 	options := &AuthorizationOptions{}
 	for _, opt := range opts {
 		opt(options)
@@ -72,7 +72,7 @@ type authorizationMiddleware struct {
 	options *AuthorizationOptions
 }
 
-func (m *authorizationMiddleware) Invoke(c routing.RouteContext, next routerpkg.HandlerFunc) {
+func (m *authorizationMiddleware) Invoke(c routing.RouteContext, next router.HandlerFunc) {
 	if !m.checkRoles(c) {
 		c.Forbidden("You do not have the necessary permissions to access this resource.")
 		return

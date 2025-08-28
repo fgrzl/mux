@@ -4,16 +4,16 @@ import (
 	"fmt"
 
 	openapi "github.com/fgrzl/mux/internal/openapi"
-	routerpkg "github.com/fgrzl/mux/internal/router"
+	"github.com/fgrzl/mux/internal/router"
 	routing "github.com/fgrzl/mux/internal/routing"
 )
 
 // Re-export core router types and constructors.
-type Router = routerpkg.Router
+type Router = router.Router
 
 // NewRouter creates a new Router using the internal router implementation.
-func NewRouter(opts ...routerpkg.RouterOption) *Router {
-	return routerpkg.NewRouter(opts...)
+func NewRouter(opts ...router.RouterOption) *Router {
+	return router.NewRouter(opts...)
 }
 
 // HandlerFunc is the handler signature used by the router.
@@ -45,16 +45,16 @@ var (
 // GenerateSpecWithGenerator is a convenience wrapper that collects routes from
 // the provided Router and runs the given openapi.Generator to produce a spec.
 func GenerateSpecWithGenerator(gen *openapi.Generator, rtr *router.Router) (*openapi.OpenAPISpec, error) {
-	if gen == nil || router == nil {
+	if gen == nil || rtr == nil {
 		return nil, fmt.Errorf("generator or router is nil")
 	}
 
-	info, err := router.InfoObject()
+	info, err := rtr.InfoObject()
 	if err != nil {
 		return nil, err
 	}
 
-	routes, err := router.Routes()
+	routes, err := rtr.Routes()
 	if err != nil {
 		return nil, err
 	}
