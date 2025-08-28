@@ -429,3 +429,6 @@ type GeneratorOption = openapi.GeneratorOption
 // TokenProvider defines the minimal interface for creating and validating
 // tokens. Alias of tokenizer.TokenProvider.
 type TokenProvider = tokenizer.TokenProvider
+
+// APIOption is a generic function type for configuring API components.
+type APIOption[T any] = func(api T)

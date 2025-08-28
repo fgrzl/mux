@@ -29,9 +29,6 @@ func NewRouter(opts ...RouterOption) *Router {
 	}
 }
 
-// APIOption is a generic function type for configuring API components.
-type APIOption[T any] = func(api T)
-
 // HandlerFunc defines the signature for HTTP request handlers.
 type HandlerFunc func(c routing.RouteContext)
 
