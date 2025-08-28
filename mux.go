@@ -5,6 +5,7 @@ import (
 
 	"github.com/fgrzl/mux/pkg/builder"
 	"github.com/fgrzl/mux/pkg/common"
+	"github.com/fgrzl/mux/pkg/cookiejar"
 	"github.com/fgrzl/mux/pkg/middleware/authentication"
 	"github.com/fgrzl/mux/pkg/middleware/authorization"
 	"github.com/fgrzl/mux/pkg/middleware/compression"
@@ -125,6 +126,37 @@ const (
 	HeaderContentLength      = common.HeaderContentLength
 	HeaderTransferEncoding   = common.HeaderTransferEncoding
 )
+
+// --- Cookie defaults and accessors ---
+// DefaultUserCookieName is the default app session cookie name. Alias of
+// cookiejar.DefaultUserCookieName.
+const DefaultUserCookieName = cookiejar.DefaultUserCookieName
+
+// DefaultTwoFactorCookieName is the default two-factor cookie name. Alias of
+// cookiejar.DefaultTwoFactorCookieName.
+const DefaultTwoFactorCookieName = cookiejar.DefaultTwoFactorCookieName
+
+// DefaultIdpUserCookieName is the default identity-provider session cookie
+// name. Alias of cookiejar.DefaultIdpUserCookieName.
+const DefaultIdpUserCookieName = cookiejar.DefaultIdpUserCookieName
+
+// GetUserCookieName returns the current application session cookie name.
+var GetUserCookieName = cookiejar.GetUserCookieName
+
+// SetAppSessionCookieName sets the application session cookie name.
+var SetAppSessionCookieName = cookiejar.SetAppSessionCookieName
+
+// GetTwoFactorCookieName returns the current two-factor authentication cookie name.
+var GetTwoFactorCookieName = cookiejar.GetTwoFactorCookieName
+
+// SetTwoFactorCookieName sets the two-factor authentication cookie name.
+var SetTwoFactorCookieName = cookiejar.SetTwoFactorCookieName
+
+// GetIdpSessionCookieName returns the current identity-provider session cookie name.
+var GetIdpSessionCookieName = cookiejar.GetIdpSessionCookieName
+
+// SetIdpSessionCookieName sets the identity-provider session cookie name.
+var SetIdpSessionCookieName = cookiejar.SetIdpSessionCookieName
 
 // NewGenerator is a variable that references the openapi.NewGenerator function.
 // It can be used to create a new OpenAPI generator instance via this package.
