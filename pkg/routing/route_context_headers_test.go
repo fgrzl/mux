@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/fgrzl/mux/internal/common"
+	"github.com/fgrzl/mux/pkg/common"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )

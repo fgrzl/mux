@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/fgrzl/mux/internal/common"
+	"github.com/fgrzl/mux/pkg/common"
 )
 
 // ProblemDetails mirrors the top-level mux.ProblemDetails structure.

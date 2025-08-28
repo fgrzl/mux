@@ -1,9 +1,9 @@
 package forwardheaders
 
 import (
-	"github.com/fgrzl/mux/internal/common"
-	"github.com/fgrzl/mux/internal/router"
-	"github.com/fgrzl/mux/internal/routing"
+	"github.com/fgrzl/mux/pkg/common"
+	"github.com/fgrzl/mux/pkg/router"
+	"github.com/fgrzl/mux/pkg/routing"
 )
 
 // forwardedHeadersMiddleware processes X-Forwarded-* headers to restore original client information.

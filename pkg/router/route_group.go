@@ -7,11 +7,11 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/fgrzl/mux/internal/builder"
-	"github.com/fgrzl/mux/internal/common"
-	"github.com/fgrzl/mux/internal/registry"
-	"github.com/fgrzl/mux/internal/routing"
+	"github.com/fgrzl/mux/pkg/builder"
+	"github.com/fgrzl/mux/pkg/common"
 	openapi "github.com/fgrzl/mux/pkg/openapi"
+	"github.com/fgrzl/mux/pkg/registry"
+	"github.com/fgrzl/mux/pkg/routing"
 )
 
 // ---- RouteGroup ----

@@ -3,9 +3,6 @@ package common
 // ServiceKey is the type used for service registry keys stored on RouteContext.
 type ServiceKey string
 
-// ServiceKeyTokenProvider is the key under which the token provider is stored.
-const ServiceKeyTokenProvider ServiceKey = "token.provider"
-
 // MIME types shared by internal packages.
 const (
 	MimeJSON              = "application/json"

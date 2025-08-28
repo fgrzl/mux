@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fgrzl/mux/internal/routing"
 	openapi "github.com/fgrzl/mux/pkg/openapi"
+	"github.com/fgrzl/mux/pkg/routing"
 )
 
 // collectRoutesFromNode traverses the router's internal routing.RouteNode tree and

@@ -1,15 +1,13 @@
 package routing
 
 import (
+	"log/slog"
 	"net/http"
 	"time"
 
-	"log/slog"
-
 	"github.com/fgrzl/claims"
-	"github.com/fgrzl/mux/internal/common"
-	"github.com/fgrzl/mux/internal/cookiejar"
-	"github.com/fgrzl/mux/internal/tokenizer"
+	"github.com/fgrzl/mux/pkg/cookiejar"
+	"github.com/fgrzl/mux/pkg/tokenizer"
 )
 
 // ...existing code...
@@ -61,7 +59,7 @@ func (c *DefaultRouteContext) ClearCookie(name string) {
 // Authenticate creates a JWT token for the user and stores it in a secure cookie.
 // This method requires that authentication middleware has been added to the router using UseAuthentication().
 func (c *DefaultRouteContext) Authenticate(cookieName string, user claims.Principal) {
-	service, ok := c.GetService(common.ServiceKeyTokenProvider)
+	service, ok := c.GetService(tokenizer.ServiceKeyTokenProvider)
 	if !ok {
 		panic("DEVELOPMENT ERROR: No token provider available. Did you forget to call router.UseAuthentication() before using c.Authenticate()?")
 	}

@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/fgrzl/mux/internal/router"
+	"github.com/fgrzl/mux/pkg/router"
 )
 
 // WebServerOption allows functional options to be passed to NewServer for configuring the WebServer.

@@ -1,4 +1,4 @@
-package test
+package testsupport
 
 import (
 	sync "sync"
@@ -6,7 +6,7 @@ import (
 	"github.com/go-faker/faker/v4"
 )
 
-var service *FakeService = NewFakeService()
+var Service *FakeService = NewFakeService()
 
 // FakeService is a struct to hold our in-memory "database" and mock methods.
 type FakeService struct {
@@ -28,7 +28,7 @@ func NewFakeService() *FakeService {
 			Name:     faker.DomainName(),
 			Plan:     "diamond",
 		})
-		for i := 0; i < 10; i++ {
+		for j := 0; j < 10; j++ {
 			s.PutResource(&Resource{TenantID: tenantID, Name: faker.MacAddress(), Type: "resource"})
 		}
 	}
@@ -56,7 +56,7 @@ func (s *FakeService) GetResource(id int32) (*Resource, bool) {
 	return res, exists
 }
 
-// CreateResource adds a new Resource.
+// PutResource adds or updates a Resource.
 func (s *FakeService) PutResource(resource *Resource) *Resource {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -88,7 +88,7 @@ func (s *FakeService) GetTenant(id int32) (*Tenant, bool) {
 	return tenant, exists
 }
 
-// CreateTenant adds a new Tenant.
+// PutTenant adds or updates a Tenant.
 func (s *FakeService) PutTenant(tenant *Tenant) *Tenant {
 	s.mu.Lock()
 	defer s.mu.Unlock()

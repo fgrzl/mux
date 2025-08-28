@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/fgrzl/claims"
-	"github.com/fgrzl/mux/internal/router"
-	"github.com/fgrzl/mux/internal/routing"
+	"github.com/fgrzl/mux/pkg/router"
+	"github.com/fgrzl/mux/pkg/routing"
 	"github.com/stretchr/testify/assert"
 )
 

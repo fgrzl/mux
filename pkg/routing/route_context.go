@@ -11,8 +11,8 @@ import (
 	"strings"
 
 	"github.com/fgrzl/claims"
-	"github.com/fgrzl/mux/internal/binder"
-	"github.com/fgrzl/mux/internal/common"
+	"github.com/fgrzl/mux/pkg/binder"
+	"github.com/fgrzl/mux/pkg/common"
 	"github.com/fgrzl/mux/pkg/openapi"
 	"github.com/google/uuid"
 )

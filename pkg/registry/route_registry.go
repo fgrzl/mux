@@ -3,7 +3,7 @@ package registry
 import (
 	"strings"
 
-	"github.com/fgrzl/mux/internal/routing"
+	"github.com/fgrzl/mux/pkg/routing"
 )
 
 type RouteRegistry struct {

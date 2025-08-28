@@ -3,8 +3,8 @@ package enforcehttps
 import (
 	"net/http"
 
-	"github.com/fgrzl/mux/internal/router"
-	"github.com/fgrzl/mux/internal/routing"
+	"github.com/fgrzl/mux/pkg/router"
+	"github.com/fgrzl/mux/pkg/routing"
 )
 
 // enforceHTTPSMiddleware redirects HTTP requests to HTTPS.

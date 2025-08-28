@@ -9,8 +9,9 @@ import (
 	"time"
 
 	"github.com/fgrzl/claims"
-	"github.com/fgrzl/mux/internal/common"
-	"github.com/fgrzl/mux/internal/cookiejar"
+	"github.com/fgrzl/mux/pkg/common"
+	"github.com/fgrzl/mux/pkg/cookiejar"
+	"github.com/fgrzl/mux/pkg/tokenizer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -86,7 +87,7 @@ func TestAuthenticateShouldCreateCookieWithTTLWhenProviderIsAvailable(t *testing
 
 	// Set up the service in context (simulating middleware)
 	provider := &mockProvider{ttl: 30 * time.Minute}
-	ctx.SetService(ServiceKeyTokenProvider, provider)
+	ctx.SetService(tokenizer.ServiceKeyTokenProvider, provider)
 
 	mockUser := newMockPrincipal("test-user")
 

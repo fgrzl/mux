@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/fgrzl/mux/internal/routing"
+	"github.com/fgrzl/mux/pkg/routing"
 	"github.com/stretchr/testify/assert"
 )
 

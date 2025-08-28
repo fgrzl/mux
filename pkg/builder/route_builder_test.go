@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/fgrzl/mux/internal/common"
+	"github.com/fgrzl/mux/pkg/common"
 	openapi "github.com/fgrzl/mux/pkg/openapi"
 )
 

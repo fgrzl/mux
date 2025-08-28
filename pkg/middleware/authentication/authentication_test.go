@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/fgrzl/claims"
-	"github.com/fgrzl/mux/internal/common"
-	"github.com/fgrzl/mux/internal/cookiejar"
-	"github.com/fgrzl/mux/internal/router"
-	"github.com/fgrzl/mux/internal/routing"
-	"github.com/fgrzl/mux/internal/tokenizer"
+	"github.com/fgrzl/mux/pkg/common"
+	"github.com/fgrzl/mux/pkg/cookiejar"
+	"github.com/fgrzl/mux/pkg/router"
+	"github.com/fgrzl/mux/pkg/routing"
+	"github.com/fgrzl/mux/pkg/tokenizer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

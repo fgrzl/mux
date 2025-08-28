@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/fgrzl/mux"
+	"github.com/fgrzl/mux/test/testsupport"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
@@ -25,7 +26,7 @@ func mockServerHandler() *mux.Router {
 
 	// break up your routes
 
-	ConfigureRoutes(r)
+	testsupport.ConfigureRoutes(r)
 
 	return r
 }
@@ -184,7 +185,7 @@ func TestShouldReturnNotFoundWhenTenantDoesNotExist(t *testing.T) {
 func TestShouldGenerateOpenApiSpec(t *testing.T) {
 	// Arrange
 	router := mux.NewRouter(mux.WithTitle("test title"), mux.WithDescription("test description"), mux.WithVersion("1.0.0"))
-	ConfigureRoutes(router)
+	testsupport.ConfigureRoutes(router)
 	generator := mux.NewGenerator()
 
 	// Act
