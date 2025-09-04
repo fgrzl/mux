@@ -277,6 +277,26 @@ func (g *Generator) ensureComponentSchema(example any, schema *Schema) error {
 	if t == nil {
 		return fmt.Errorf("missing type info for schema ref %q", schema.Ref)
 	}
+	// If the example is a pointer, slice/array, or map, unwrap to the
+	// underlying element type so named element types (e.g. []MyModel) can be
+	// registered as components. This ensures nested array/map element types
+	// become top-level component schemas instead of causing "unnamed type"
+	// errors.
+	for {
+		switch t.Kind() {
+		case reflect.Ptr:
+			t = t.Elem()
+		case reflect.Slice, reflect.Array, reflect.Map:
+			// For maps, register the value type
+			t = t.Elem()
+		default:
+			goto doneUnwrap
+		}
+		if t == nil {
+			break
+		}
+	}
+doneUnwrap:
 	s, err := g.GenerateSchemaForType(t)
 	if err != nil {
 		return err

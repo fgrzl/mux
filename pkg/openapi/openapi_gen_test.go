@@ -123,3 +123,160 @@ func TestShouldGenerateSchemaForConcreteGenericType(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, "integer", totalSchema.Type)
 }
+
+func TestShouldRegisterNestedModelFromArrayExample(t *testing.T) {
+	// Arrange
+	gen := NewGenerator()
+	gen.ensureComponentInit()
+
+	info := &InfoObject{Title: "API", Version: "1.0"}
+
+	// Create an operation whose request body is an array of User (example)
+	op := &Operation{
+		OperationID: "createUsers",
+		RequestBody: &RequestBodyObject{
+			Content: map[string]*MediaType{
+				"application/json": {
+					Schema:  &Schema{Ref: "#/components/schemas/UserList"},
+					Example: []User{{ID: 1, Name: "Alice"}},
+				},
+			},
+		},
+	}
+
+	routes := []RouteData{{Path: "/users", Method: "POST", Options: op}}
+
+	// Act
+	spec, err := gen.GenerateSpecFromRoutes(info, routes)
+
+	// Assert
+	require.NoError(t, err)
+	require.NotNil(t, spec)
+
+	// The element type User should be registered as a component
+	assert.Contains(t, gen.spec.Components.Schemas, "User")
+	userSchema := gen.spec.Components.Schemas["User"]
+	assert.Equal(t, "object", userSchema.Type)
+	assert.Contains(t, userSchema.Properties, "id")
+	assert.Contains(t, userSchema.Properties, "name")
+
+	// The named ref used in the request (UserList) should also be present
+	assert.Contains(t, gen.spec.Components.Schemas, "UserList")
+	userList := gen.spec.Components.Schemas["UserList"]
+	// UserList may be the same as User or a schema that references User
+	if userList.Ref != "" {
+		assert.Contains(t, userList.Ref, "User")
+	} else {
+		assert.Equal(t, "object", userList.Type)
+	}
+}
+
+func TestShouldRegisterNestedModelFromMapValueExample(t *testing.T) {
+	// Arrange
+	gen := NewGenerator()
+	gen.ensureComponentInit()
+
+	info := &InfoObject{Title: "API", Version: "1.0"}
+
+	// Create an operation whose request body is a map[string]User (example)
+	op := &Operation{
+		OperationID: "uploadUserMap",
+		RequestBody: &RequestBodyObject{
+			Content: map[string]*MediaType{
+				"application/json": {
+					Schema:  &Schema{Ref: "#/components/schemas/UserMap"},
+					Example: map[string]User{"a": {ID: 2, Name: "Bob"}},
+				},
+			},
+		},
+	}
+
+	routes := []RouteData{{Path: "/usermap", Method: "POST", Options: op}}
+
+	// Act
+	spec, err := gen.GenerateSpecFromRoutes(info, routes)
+
+	// Assert
+	require.NoError(t, err)
+	require.NotNil(t, spec)
+
+	// The element type User should be registered
+	assert.Contains(t, gen.spec.Components.Schemas, "User")
+	userSchema := gen.spec.Components.Schemas["User"]
+	assert.Equal(t, "object", userSchema.Type)
+	assert.Contains(t, userSchema.Properties, "id")
+	assert.Contains(t, userSchema.Properties, "name")
+
+	// The named ref used in the request (UserMap) should be present
+	assert.Contains(t, gen.spec.Components.Schemas, "UserMap")
+}
+
+func TestShouldRegisterNestedModelFromPointerToSliceExample(t *testing.T) {
+	// Arrange
+	gen := NewGenerator()
+	gen.ensureComponentInit()
+
+	info := &InfoObject{Title: "API", Version: "1.0"}
+
+	// Example is a pointer to slice of User
+	list := &[]User{{ID: 3, Name: "Carol"}}
+
+	op := &Operation{
+		OperationID: "createUsersPtr",
+		RequestBody: &RequestBodyObject{
+			Content: map[string]*MediaType{
+				"application/json": {
+					Schema:  &Schema{Ref: "#/components/schemas/UserPtrList"},
+					Example: list,
+				},
+			},
+		},
+	}
+
+	routes := []RouteData{{Path: "/users/ptr", Method: "POST", Options: op}}
+
+	// Act
+	spec, err := gen.GenerateSpecFromRoutes(info, routes)
+
+	// Assert
+	require.NoError(t, err)
+	require.NotNil(t, spec)
+
+	// Ensure User was registered
+	assert.Contains(t, gen.spec.Components.Schemas, "User")
+}
+
+func TestShouldRegisterNestedModelFromNestedArrayExample(t *testing.T) {
+	// Arrange
+	gen := NewGenerator()
+	gen.ensureComponentInit()
+
+	info := &InfoObject{Title: "API", Version: "1.0"}
+
+	// Example is a nested array [][]User
+	double := [][]User{{{ID: 4, Name: "Dave"}}}
+
+	op := &Operation{
+		OperationID: "createUsersNested",
+		RequestBody: &RequestBodyObject{
+			Content: map[string]*MediaType{
+				"application/json": {
+					Schema:  &Schema{Ref: "#/components/schemas/UserDoubleList"},
+					Example: double,
+				},
+			},
+		},
+	}
+
+	routes := []RouteData{{Path: "/users/nested", Method: "POST", Options: op}}
+
+	// Act
+	spec, err := gen.GenerateSpecFromRoutes(info, routes)
+
+	// Assert
+	require.NoError(t, err)
+	require.NotNil(t, spec)
+
+	// Ensure User was registered
+	assert.Contains(t, gen.spec.Components.Schemas, "User")
+}
