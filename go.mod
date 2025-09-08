@@ -4,7 +4,7 @@ go 1.24.4
 
 require (
 	github.com/fgrzl/claims v0.0.1-alpha.19
-	github.com/fgrzl/json v0.1.0-alpha.54
+	github.com/fgrzl/json v0.1.0-alpha.59
 	github.com/go-faker/faker/v4 v4.6.1
 	github.com/google/uuid v1.6.0
 	github.com/oschwald/geoip2-golang v1.13.0
@@ -24,6 +24,6 @@ require (
 	go.opentelemetry.io/otel v1.38.0 // indirect
 	go.opentelemetry.io/otel/metric v1.38.0 // indirect
 	go.opentelemetry.io/otel/trace v1.38.0 // indirect
-	golang.org/x/sys v0.35.0 // indirect
-	golang.org/x/text v0.28.0 // indirect
+	golang.org/x/sys v0.36.0 // indirect
+	golang.org/x/text v0.29.0 // indirect
 )
