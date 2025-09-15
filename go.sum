@@ -6,8 +6,8 @@ github.com/fgrzl/claims v0.0.1-alpha.19 h1:6LerzTa5Ag+FJyMGPO/kNm0yKOxpgjXZLza6h
 github.com/fgrzl/claims v0.0.1-alpha.19/go.mod h1:AOUqWTtgnwlcwaHqJLVoAgmFjuBCCJFhZlyFzazXQ00=
 github.com/fgrzl/json v0.1.0-alpha.59 h1:oMJRtwBMDJaxOEBqISa2XjD2a81lrtfwCdX531pZ0Pc=
 github.com/fgrzl/json v0.1.0-alpha.59/go.mod h1:/aP1mi7tKisgNu8ZRDuCCNm2Sx5ZWCTNlHkSjGvBUoE=
-github.com/go-faker/faker/v4 v4.6.1 h1:xUyVpAjEtB04l6XFY0V/29oR332rOSPWV4lU8RwDt4k=
-github.com/go-faker/faker/v4 v4.6.1/go.mod h1:arSdxNCSt7mOhdk8tEolvHeIJ7eX4OX80wXjKKvkKBY=
+github.com/go-faker/faker/v4 v4.6.2 h1:IR1uQUYotFZnuTL7Iuy0FDGtHM5Rt1Q+2nipH9gnqKs=
+github.com/go-faker/faker/v4 v4.6.2/go.mod h1:u1dIRP5neLB6kTzgyVjdBOV5R1uP7BdxkcWk7tiKQXk=
 github.com/go-logr/logr v1.2.2/go.mod h1:jdQByPbusPIv2/zmleS9BjJVeZ6kBagPoEUsqbVz/1A=
 github.com/go-logr/logr v1.4.3 h1:CjnDlHq8ikf6E492q6eKboGOC0T8CDaOvkHCIg8idEI=
 github.com/go-logr/logr v1.4.3/go.mod h1:9T104GzyrTigFIr8wt5mBrctHMim0Nb2HLGrmQ40KvY=
