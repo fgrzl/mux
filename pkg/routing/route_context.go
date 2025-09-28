@@ -250,7 +250,14 @@ func AcquireContext(w http.ResponseWriter, r *http.Request) *DefaultRouteContext
 	c.clientURL = nil
 	c.user = nil
 	c.options = nil
-	c.params = nil
+	if c.params == nil {
+		c.params = make(RouteParams, 2)
+	} else {
+		// clear
+		for k := range c.params {
+			delete(c.params, k)
+		}
+	}
 	c.services = nil
 	c.formsParsed = false
 	c.paramIndex = nil
@@ -270,7 +277,11 @@ func ReleaseContext(c *DefaultRouteContext) {
 	c.clientURL = nil
 	c.user = nil
 	c.options = nil
-	c.params = nil
+	if c.params != nil {
+		for k := range c.params {
+			delete(c.params, k)
+		}
+	}
 	c.services = nil
 	c.formsParsed = false
 	c.paramIndex = nil

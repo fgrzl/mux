@@ -5,7 +5,6 @@ package router
 import (
 	"log/slog"
 	"net/http"
-	"strings"
 	"sync/atomic"
 
 	openapi "github.com/fgrzl/mux/pkg/openapi"
@@ -133,20 +132,54 @@ func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	// lookup the route options using the pattern and method
-	options, params, ok := rtr.routeRegistry.Load(r.URL.Path, r.Method)
+	// Reuse the context's params map if available to avoid allocs
+	var (
+		params  routing.RouteParams
+		options *routing.RouteOptions
+		det     registry.LoadDetails
+	)
+	if p := c.Params(); p != nil {
+		params = p
+	} else if rtr.options != nil && rtr.options.ContextPooling {
+		params = make(routing.RouteParams, 2)
+	}
+	if params != nil {
+		options, det = rtr.routeRegistry.LoadDetailedInto(r.URL.Path, r.Method, params)
+	} else {
+		// Non-pooled path: allocate params map only if needed in fallback
+		options2, pmap, ok := rtr.routeRegistry.Load(r.URL.Path, r.Method)
+		if ok {
+			options = options2
+			det = registry.LoadDetails{Found: true, MethodOK: true}
+			params = pmap
+		} else {
+			// Try detailed for Allow on method mismatch by allocating a small map
+			tmp := make(routing.RouteParams, 2)
+			_, det = rtr.routeRegistry.LoadDetailedInto(r.URL.Path, r.Method, tmp)
+			// only persist params if we actually matched (MethodOK or not)
+			if det.Found {
+				params = tmp
+			}
+		}
+	}
 	// Optional HEAD->GET fallback when no explicit HEAD route is registered
 	suppressBody := false
-	if !ok && r.Method == http.MethodHead && rtr.options.HeadFallbackToGet {
-		if getOpt, getParams, gok := rtr.routeRegistry.Load(r.URL.Path, http.MethodGet); gok {
-			options, params, ok = getOpt, getParams, true
+	// HEAD fallback: if enabled, attempt to serve via GET regardless of initial match state
+	if r.Method == http.MethodHead && rtr.options.HeadFallbackToGet {
+		if params == nil {
+			params = make(routing.RouteParams, 2)
+		}
+		if getOpt, d := rtr.routeRegistry.LoadDetailedInto(r.URL.Path, http.MethodGet, params); d.Found && d.MethodOK {
+			options = getOpt
+			det = d
 			suppressBody = true
 		}
 	}
-	if !ok {
+	if !det.Found || !det.MethodOK {
 		// If path matches but method not allowed, return 405 with Allow header
-		if methods, matched := rtr.routeRegistry.TryMatchMethods(r.URL.Path); matched {
-			if len(methods) > 0 {
-				w.Header().Set("Allow", strings.Join(methods, ", "))
+		if det.Found && !det.MethodOK {
+			if det.Allow != "" {
+				w.Header().Set("Allow", det.Allow)
 			}
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
@@ -157,7 +190,16 @@ func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	c.SetOptions(options)
-	c.SetParams(params)
+	// only set params map on context if we had one populated
+	if len(params) > 0 {
+		c.SetParams(params)
+	} else if params == nil && !(rtr.options != nil && rtr.options.ContextPooling) {
+		// for non-pooled contexts, ensure params is empty
+		c.SetParams(nil)
+	} else if params != nil && c.Params() == nil {
+		// attach the newly created map to the context
+		c.SetParams(params)
+	}
 	c.SetClientURL(rtr.options.clientURL)
 	// apply max body size option to the context
 	c.SetMaxBodyBytes(rtr.options.MaxBodyBytes)
