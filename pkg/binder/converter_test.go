@@ -345,6 +345,28 @@ func TestShouldConvertVariousUnsignedIntsSingle(t *testing.T) {
 	}
 }
 
+func TestShouldConvertSignedIntMultiUsingMakeConverter(t *testing.T) {
+	// Arrange
+	conv := makeConverter(reflect.TypeOf(int(0)), nil)
+	require.NotNil(t, conv)
+	// Act
+	v, err := conv([]string{"1", "2", "3"})
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, []int64{1, 2, 3}, v)
+}
+
+func TestShouldErrorConvertingSliceElementsWhenOneInvalid(t *testing.T) {
+	// Arrange
+	conv := makeConverter(reflect.TypeOf([]int{}), nil)
+	require.NotNil(t, conv)
+	// Act
+	v, err := conv([]string{"1", "bad"})
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, v)
+}
+
 func TestShouldErrorOnBoolSliceWithInvalidElement(t *testing.T) {
 	conv := makeConverter(reflect.TypeOf(true), nil)
 	require.NotNil(t, conv)
@@ -359,6 +381,12 @@ func TestShouldErrorOnFloatSliceWithInvalidElement(t *testing.T) {
 	v, err := conv([]string{"1.0", "oops"})
 	assert.Error(t, err)
 	assert.Nil(t, v)
+}
+
+func TestShouldReturnNilConverterForUnsupportedSliceElemType(t *testing.T) {
+	type custom struct{ X int }
+	conv := makeConverter(reflect.TypeOf([]custom{}), nil)
+	assert.Nil(t, conv)
 }
 
 func TestShouldSupportPointerToTypeForMakeConverter(t *testing.T) {
