@@ -16,6 +16,9 @@ type RouterOptions struct {
 	// MaxBodyBytes sets the maximum size of request bodies for JSON/form binds.
 	// If zero or negative, a default of 1MB is applied.
 	MaxBodyBytes int64
+	// ContextPooling enables sync.Pool reuse of RouteContext instances to
+	// reduce allocations on the hot path.
+	ContextPooling bool
 }
 
 func (o *RouterOptions) SetClientURL(clientURL *url.URL) {
@@ -106,6 +109,13 @@ func WithHeadFallbackToGet() RouterOption {
 func WithMaxBodyBytes(n int64) RouterOption {
 	return func(o *RouterOptions) {
 		o.MaxBodyBytes = n
+	}
+}
+
+// WithContextPooling enables pooling of RouteContext instances for reduced allocations.
+func WithContextPooling() RouterOption {
+	return func(o *RouterOptions) {
+		o.ContextPooling = true
 	}
 }
 

@@ -50,6 +50,21 @@ func BenchmarkRouter_ExactMatch_SingleRoute(b *testing.B) {
 	}
 }
 
+func BenchmarkRouter_ExactMatch_SingleRoute_Pool(b *testing.B) {
+	r := NewRouter(WithContextPooling())
+	rg := r.NewRouteGroup("")
+	rg.GET("/hello", noopHandler)
+
+	req := httptest.NewRequest(http.MethodGet, "/hello", nil)
+	rr := httptest.NewRecorder()
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r.ServeHTTP(rr, req)
+	}
+}
+
 func BenchmarkRouter_ParamMatch_SingleRoute(b *testing.B) {
 	r := NewRouter()
 	rg := r.NewRouteGroup("")
@@ -65,8 +80,39 @@ func BenchmarkRouter_ParamMatch_SingleRoute(b *testing.B) {
 	}
 }
 
+func BenchmarkRouter_ParamMatch_SingleRoute_Pool(b *testing.B) {
+	r := NewRouter(WithContextPooling())
+	rg := r.NewRouteGroup("")
+	rg.GET("/users/{id}", noopHandler)
+
+	req := httptest.NewRequest(http.MethodGet, "/users/12345", nil)
+	rr := httptest.NewRecorder()
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r.ServeHTTP(rr, req)
+	}
+}
+
 func BenchmarkRouter_Wildcard_CatchAll(b *testing.B) {
 	r := NewRouter()
+	rg := r.NewRouteGroup("")
+	rg.GET("/files/*", noopHandler)
+	rg.GET("/catch/**", noopHandler)
+
+	req := httptest.NewRequest(http.MethodGet, "/files/some/path/file.txt", nil)
+	rr := httptest.NewRecorder()
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r.ServeHTTP(rr, req)
+	}
+}
+
+func BenchmarkRouter_Wildcard_CatchAll_Pool(b *testing.B) {
+	r := NewRouter(WithContextPooling())
 	rg := r.NewRouteGroup("")
 	rg.GET("/files/*", noopHandler)
 	rg.GET("/catch/**", noopHandler)

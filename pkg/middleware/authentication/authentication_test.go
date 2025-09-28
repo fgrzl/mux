@@ -70,23 +70,16 @@ func TestDefaultTokenProviderShouldCreateTokenWhenSignFnIsSet(t *testing.T) {
 	expectedToken := "test-token"
 	mockUser := newMockPrincipal("user123")
 	ttl := 30 * time.Minute
-
-	provider := &defaultTokenProvider{
-		ttl: ttl,
-		signFn: func(user claims.Principal, duration time.Duration) (string, error) {
-			assert.Equal(t, mockUser, user)
-			assert.Equal(t, ttl, duration)
-			return expectedToken, nil
-		},
-	}
-
+	provider := &defaultTokenProvider{ttl: ttl, signFn: func(user claims.Principal, duration time.Duration) (string, error) {
+		assert.Equal(t, mockUser, user)
+		assert.Equal(t, ttl, duration)
+		return expectedToken, nil
+	}}
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	res := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(res, req)
-
 	// Act
 	token, err := provider.CreateToken(ctx, mockUser)
-
 	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, expectedToken, token)
@@ -113,21 +106,13 @@ func TestDefaultTokenProviderShouldReturnErrorWhenSignFnIsNotSet(t *testing.T) {
 func TestDefaultTokenProviderShouldReturnErrorWhenSignFnFails(t *testing.T) {
 	// Arrange
 	expectedError := errors.New("signing failed")
-	provider := &defaultTokenProvider{
-		ttl: 30 * time.Minute,
-		signFn: func(claims.Principal, time.Duration) (string, error) {
-			return "", expectedError
-		},
-	}
+	provider := &defaultTokenProvider{ttl: 30 * time.Minute, signFn: func(claims.Principal, time.Duration) (string, error) { return "", expectedError }}
 	mockUser := newMockPrincipal("user123")
-
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	res := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(res, req)
-
 	// Act
 	token, err := provider.CreateToken(ctx, mockUser)
-
 	// Assert
 	assert.Error(t, err)
 	assert.Empty(t, token)
@@ -138,21 +123,12 @@ func TestDefaultTokenProviderShouldValidateTokenWhenValidateFnIsSet(t *testing.T
 	// Arrange
 	testToken := "valid-token"
 	mockUser := newMockPrincipal("user123")
-
-	provider := &defaultTokenProvider{
-		validateFn: func(token string) (claims.Principal, error) {
-			assert.Equal(t, testToken, token)
-			return mockUser, nil
-		},
-	}
-
+	provider := &defaultTokenProvider{validateFn: func(token string) (claims.Principal, error) { assert.Equal(t, testToken, token); return mockUser, nil }}
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	res := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(res, req)
-
 	// Act
 	principal, err := provider.ValidateToken(ctx, testToken)
-
 	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, mockUser, principal)
@@ -179,19 +155,12 @@ func TestDefaultTokenProviderShouldReturnErrorWhenValidateFnIsNotSet(t *testing.
 func TestDefaultTokenProviderShouldReturnErrorWhenValidateFnFails(t *testing.T) {
 	// Arrange
 	expectedError := errors.New("token invalid")
-	provider := &defaultTokenProvider{
-		validateFn: func(string) (claims.Principal, error) {
-			return nil, expectedError
-		},
-	}
-
+	provider := &defaultTokenProvider{validateFn: func(string) (claims.Principal, error) { return nil, expectedError }}
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	res := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(res, req)
-
 	// Act
 	principal, err := provider.ValidateToken(ctx, "invalid-token")
-
 	// Assert
 	assert.Error(t, err)
 	assert.Nil(t, principal)

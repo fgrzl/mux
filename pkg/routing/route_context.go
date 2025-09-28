@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"reflect"
 	"strings"
+	"sync"
 
 	"github.com/fgrzl/claims"
 	"github.com/fgrzl/mux/pkg/binder"
@@ -232,6 +233,49 @@ func NewRouteContext(w http.ResponseWriter, r *http.Request) *DefaultRouteContex
 		response: w,
 		request:  r,
 	}
+}
+
+var contextPool = sync.Pool{
+	New: func() any { return &DefaultRouteContext{} },
+}
+
+// AcquireContext gets a DefaultRouteContext from the pool and initializes it
+// for the provided http.ResponseWriter and *http.Request.
+func AcquireContext(w http.ResponseWriter, r *http.Request) *DefaultRouteContext {
+	c := contextPool.Get().(*DefaultRouteContext)
+	// Reset minimal fields; leave maps nil to avoid extra work unless needed
+	c.Context = r.Context()
+	c.response = w
+	c.request = r
+	c.clientURL = nil
+	c.user = nil
+	c.options = nil
+	c.params = nil
+	c.services = nil
+	c.formsParsed = false
+	c.paramIndex = nil
+	c.maxBodyBytes = 0
+	return c
+}
+
+// ReleaseContext resets sensitive references and returns the context to the pool.
+func ReleaseContext(c *DefaultRouteContext) {
+	if c == nil {
+		return
+	}
+	// Clear references to avoid leaks between requests
+	c.Context = nil
+	c.response = nil
+	c.request = nil
+	c.clientURL = nil
+	c.user = nil
+	c.options = nil
+	c.params = nil
+	c.services = nil
+	c.formsParsed = false
+	c.paramIndex = nil
+	c.maxBodyBytes = 0
+	contextPool.Put(c)
 }
 
 type DefaultRouteContext struct {

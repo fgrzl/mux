@@ -113,14 +113,22 @@ func (rtr *Router) NewRouteGroup(prefix string) *RouteGroup {
 
 // ServeHTTP implements http.Handler.
 func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Acquire route context (pooled if enabled)
+	var c *routing.DefaultRouteContext
+	if rtr.options != nil && rtr.options.ContextPooling {
+		c = routing.AcquireContext(w, r)
+	} else {
+		c = routing.NewRouteContext(w, r)
+	}
 
-	c := routing.NewRouteContext(w, r)
-
-	// Panic recovery
+	// Panic recovery; then ensure context is released back to pool if enabled
 	defer func() {
 		if err := recover(); err != nil {
 			slog.ErrorContext(c, "panic recovered in ServeHTTP", "error", err, "path", r.URL.Path, "method", r.Method)
 			c.ServerError("Internal Server Error", "An unexpected error occurred")
+		}
+		if rtr.options != nil && rtr.options.ContextPooling {
+			routing.ReleaseContext(c)
 		}
 	}()
 
