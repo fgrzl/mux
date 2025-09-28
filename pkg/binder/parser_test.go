@@ -10,88 +10,129 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestShouldParseIntValAndSlice(t *testing.T) {
+func TestShouldParseIntVal(t *testing.T) {
 	// Arrange & Act
 	v, ok := ParseIntVal("42")
 	// Assert
 	assert.True(t, ok)
 	assert.Equal(t, 42, v)
+}
 
-	// Act (slice)
+func TestShouldParseIntSlice(t *testing.T) {
+	// Act
 	sl, ok := ParseIntSlice([]string{"1", "2"})
+	// Assert
 	assert.True(t, ok)
 	assert.Equal(t, []int{1, 2}, sl)
+}
 
-	// Act (invalid)
-	_, ok = ParseIntSlice([]string{"1", "x"})
+func TestShouldFailParseIntSliceOnInvalid(t *testing.T) {
+	// Act
+	_, ok := ParseIntSlice([]string{"1", "x"})
+	// Assert
 	assert.False(t, ok)
 }
 
-func TestShouldParseInt32AndInt64ValuesAndSlices(t *testing.T) {
+func TestShouldParseInt32Val(t *testing.T) {
 	// Arrange & Act
 	v32, ok := ParseInt32Val("2147483647")
+	// Assert
 	assert.True(t, ok)
 	assert.Equal(t, int32(2147483647), v32)
+}
 
+func TestShouldParseInt64Val(t *testing.T) {
+	// Act
 	v64, ok := ParseInt64Val("9223372036854775807")
+	// Assert
 	assert.True(t, ok)
 	assert.Equal(t, int64(9223372036854775807), v64)
+}
 
-	// Slices
+func TestShouldParseInt32Slice(t *testing.T) {
+	// Act
 	s32, ok := ParseInt32Slice([]string{"1", "2"})
+	// Assert
 	assert.True(t, ok)
 	assert.Equal(t, []int32{1, 2}, s32)
+}
 
+func TestShouldParseInt64Slice(t *testing.T) {
+	// Act
 	s64, ok := ParseInt64Slice([]string{"3", "4"})
+	// Assert
 	assert.True(t, ok)
 	assert.Equal(t, []int64{3, 4}, s64)
+}
 
-	// Failure
-	_, ok = ParseInt32Slice([]string{"1", "bad"})
+func TestShouldFailParseInt32SliceOnInvalid(t *testing.T) {
+	// Act
+	_, ok := ParseInt32Slice([]string{"1", "bad"})
+	// Assert
 	assert.False(t, ok)
 }
 
-func TestShouldParseBoolAndFloatValuesAndSlices(t *testing.T) {
-	// Bool
+func TestShouldParseBoolVal(t *testing.T) {
 	b, ok := ParseBoolVal("true")
 	assert.True(t, ok)
 	assert.True(t, b)
+}
 
+func TestShouldParseBoolSlice(t *testing.T) {
 	bs, ok := ParseBoolSlice([]string{"true", "false"})
 	assert.True(t, ok)
 	assert.Equal(t, []bool{true, false}, bs)
+}
 
-	// Float32
+func TestShouldParseFloat32Val(t *testing.T) {
 	f32, ok := ParseFloat32Val("1.5")
 	assert.True(t, ok)
 	assert.InDelta(t, float32(1.5), f32, 1e-6)
+}
 
+func TestShouldParseFloat32Slice(t *testing.T) {
 	f32s, ok := ParseFloat32Slice([]string{"1.25", "2.5"})
 	assert.True(t, ok)
 	assert.InDeltaSlice(t, []float32{1.25, 2.5}, f32s, 1e-6)
+}
 
-	// Float64
+func TestShouldParseFloat64Val(t *testing.T) {
 	f64, ok := ParseFloat64Val("2.75")
 	assert.True(t, ok)
 	assert.InDelta(t, 2.75, f64, 1e-9)
+}
 
+func TestShouldParseFloat64Slice(t *testing.T) {
 	f64s, ok := ParseFloat64Slice([]string{"3.5", "4.75"})
 	assert.True(t, ok)
 	assert.InDeltaSlice(t, []float64{3.5, 4.75}, f64s, 1e-9)
 }
 
-func TestShouldParseUUIDValueAndSlice(t *testing.T) {
-	// Arrange
-	id1 := uuid.New().String()
-	id2 := uuid.New().String()
-
+func TestShouldParseInt16Slice(t *testing.T) {
 	// Act
-	u, ok := ParseUUIDVal(id1)
+	s, ok := ParseInt16Slice([]string{"10", "20"})
 	// Assert
 	assert.True(t, ok)
-	assert.Equal(t, id1, u.String())
+	assert.Equal(t, []int16{10, 20}, s)
+}
 
-	// Act slice
+func TestShouldFailParseInt16SliceOnInvalid(t *testing.T) {
+	// Act
+	_, ok := ParseInt16Slice([]string{"10", "x"})
+	// Assert
+	assert.False(t, ok)
+}
+
+func TestShouldParseUUIDValue(t *testing.T) {
+	id1 := uuid.New().String()
+	u, ok := ParseUUIDVal(id1)
+	assert.True(t, ok)
+	assert.Equal(t, id1, u.String())
+}
+
+func TestShouldParseUUIDSlice(t *testing.T) {
+	id1 := uuid.New().String()
+	id2 := uuid.New().String()
 	us, ok := ParseUUIDSlice([]string{id1, id2})
 	assert.True(t, ok)
 	require.Len(t, us, 2)
@@ -101,14 +142,17 @@ func TestShouldConvertSignedIntsAndFloatsAndBoolsWithMakeConverter(t *testing.T)
 	// Signed ints
 	kinds := []reflect.Type{reflect.TypeOf(int(0)), reflect.TypeOf(int8(0)), reflect.TypeOf(int16(0)), reflect.TypeOf(int32(0)), reflect.TypeOf(int64(0))}
 	for _, typ := range kinds {
+		// Arrange
 		conv := makeConverter(typ, nil)
 		require.NotNil(t, conv)
-		// Single
+		// Act (single)
 		v, err := conv([]string{"7"})
+		// Assert
 		require.NoError(t, err)
 		assert.NotNil(t, v)
-		// Multi returns []int64
+		// Act (multi)
 		mv, err := conv([]string{"1", "2"})
+		// Assert
 		require.NoError(t, err)
 		assert.IsType(t, []int64{}, mv)
 	}
@@ -134,20 +178,20 @@ func TestShouldConvertSignedIntsAndFloatsAndBoolsWithMakeConverter(t *testing.T)
 	assert.Equal(t, []bool{true, false}, bm)
 }
 
-func TestShouldConvertStringMultiValueAndSliceOfScalarExamples(t *testing.T) {
-	// string scalar -> multi returns []string
+func TestShouldConvertStringMultiValue(t *testing.T) {
 	sconv := makeConverter(reflect.TypeOf(""), nil)
 	require.NotNil(t, sconv)
 	mv, err := sconv([]string{"a", "b"})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, []string{"a", "b"}, mv)
+}
 
-	// example slice of bool => returns []any with bools
+func TestShouldConvertExampleBoolSlice(t *testing.T) {
 	ex := []bool{false}
 	conv := makeConverter(reflect.TypeOf(ex), nil)
 	require.NotNil(t, conv)
 	out, err := conv([]string{"true", "false"})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	arr := out.([]any)
 	require.Len(t, arr, 2)
 	assert.Equal(t, true, arr[0])

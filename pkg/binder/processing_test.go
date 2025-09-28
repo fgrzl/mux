@@ -5,6 +5,7 @@ import (
 
 	"github.com/fgrzl/mux/pkg/openapi"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestShouldParseSliceValuesGivenExampleStringSlice(t *testing.T) {
@@ -15,7 +16,7 @@ func TestShouldParseSliceValuesGivenExampleStringSlice(t *testing.T) {
 	// Assert
 	assert.True(t, ok)
 	arr, ok := v.([]string)
-	assert.True(t, ok)
+	require.True(t, ok)
 	assert.Equal(t, []string{"a", "b"}, arr)
 }
 
@@ -26,11 +27,11 @@ func TestShouldSplitCSVWhenProcessingExampleStringSliceParam(t *testing.T) {
 	// Act
 	handled, err := ProcessParamAndSet(staging, "k", []string{"a,b,c"}, "query", param)
 	// Assert
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, handled)
 	v, ok := staging["k"]
 	assert.True(t, ok)
 	arr, ok := v.([]string)
-	assert.True(t, ok)
+	require.True(t, ok)
 	assert.Equal(t, []string{"a", "b", "c"}, arr)
 }
