@@ -6,6 +6,10 @@ import (
 	"github.com/fgrzl/mux/pkg/routing"
 )
 
+// RouteRegistry holds the routing trie and auxiliary fast-path maps used
+// to register and look up routes. It stores a root RouteNode and an
+// exactRoutes map used for fully static routes to provide a fast-path
+// for lookups that don't involve parameters or wildcards.
 type RouteRegistry struct {
 	root *routing.RouteNode
 	// exactRoutes provides a fast-path for fully static routes (no params or wildcards).
@@ -23,6 +27,9 @@ type LoadDetails struct {
 	Allow    string
 }
 
+// NewRouteRegistry creates and initializes an empty RouteRegistry.
+// The returned registry contains a root RouteNode and an initialized
+// exactRoutes map for static route fast-paths.
 func NewRouteRegistry() *RouteRegistry {
 	return &RouteRegistry{
 		root:        &routing.RouteNode{Children: make(map[string]*routing.RouteNode)},
@@ -30,10 +37,18 @@ func NewRouteRegistry() *RouteRegistry {
 	}
 }
 
+// Root returns the trie root node for this registry. Callers may use
+// the returned node for inspection or debugging; modifications to the
+// node are not recommended outside of the registry methods.
 func (r *RouteRegistry) Root() *routing.RouteNode {
 	return r.root
 }
 
+// Register adds a route for the given pattern and HTTP method to the
+// registry. The pattern may contain parameter tokens ({name}), a single
+// segment wildcard (*), or a catch-all (**) at the end. The provided
+// options are stored and per-node metadata (MethodsMask, AllowHeader)
+// is updated to accelerate lookups.
 func (r *RouteRegistry) Register(pattern string, method string, options *routing.RouteOptions) {
 	segments := strings.Split(strings.Trim(pattern, "/"), "/")
 	node := r.root
@@ -85,6 +100,11 @@ func (r *RouteRegistry) Register(pattern string, method string, options *routing
 	}
 }
 
+// Load performs a route lookup for the supplied path and method. It returns
+// the matched RouteOptions, an extracted params map (or nil for no params),
+// and ok=true when a matching route exists for the path and method. For
+// static registered patterns an internal fast-path is used to avoid trie
+// traversal and allocations.
 func (r *RouteRegistry) Load(path string, method string) (*routing.RouteOptions, map[string]string, bool) {
 	// Fast path: exact registered static route
 	if m, ok := r.exactRoutes[path]; ok {
