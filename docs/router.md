@@ -38,6 +38,19 @@ mux.WithContact("API Support", "https://example.com/support", "support@example.c
 mux.WithLicense("MIT", "https://opensource.org/licenses/MIT")
 ```
 
+### Request Handling Options
+```go
+// Serve HEAD via GET when no explicit HEAD handler exists for a path
+mux.WithHeadFallbackToGet()
+
+// Limit request body size used by Bind (JSON/form). Default is 1MB when <= 0
+mux.WithMaxBodyBytes(2 << 20) // 2MB
+```
+
+Details:
+- WithHeadFallbackToGet: If a HEAD request arrives and no HEAD route is registered for the matched path, the router will execute the GET handler but suppress the response body. Status code and headers are preserved.
+- WithMaxBodyBytes: Sets the maximum size of the request body that Bind will read for JSON or form payloads. Values <= 0 use a default of 1MB.
+
 ### Authentication
 ```go
 signer, _ := jwtkit.NewSigner("secret-key")
@@ -182,6 +195,10 @@ router.PUT("/resource/{id}", updateResource)
 router.DELETE("/resource/{id}", deleteResource)
 router.HEAD("/resource/{id}", headResource)
 ```
+
+Notes:
+- 405 Method Not Allowed: If a path matches but the HTTP method is not allowed, the router responds with 405 and sets the "Allow" header with the permitted methods for that path.
+- Optional HEAD fallback: When WithHeadFallbackToGet() is enabled, HEAD requests without an explicit route will be served by the GET handler with the body suppressed.
 
 ## Handler Functions
 

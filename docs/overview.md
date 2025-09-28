@@ -100,6 +100,9 @@ Mux includes built-in middleware for common needs:
 - **HTTPS Enforcement**: Automatic HTTP to HTTPS redirects
 - **Export Control**: Geographic access restrictions
 - **OpenTelemetry**: Distributed tracing and metrics
+- **Method-aware routing**: Returns 405 Method Not Allowed with an "Allow" header when a path exists but the method is not permitted
+- **Optional HEAD fallback**: Enable serving HEAD via GET handler (headers/status only) when no HEAD route is defined
+- **Configurable body size**: Limit request body size used by Bind with `WithMaxBodyBytes`
 
 Custom middleware is easy to implement:
 

@@ -1,6 +1,7 @@
 package routing
 
 import (
+	"strings"
 	"time"
 
 	openapi "github.com/fgrzl/mux/pkg/openapi"
@@ -31,4 +32,25 @@ type RouteOptions struct {
 
 	// ---- OpenAPI documentation ----
 	openapi.Operation
+
+	// ParamIndex is a runtime index of parameters for fast lookups.
+	// Key format: strings.ToLower(in+":"+name)
+	ParamIndex map[string]*openapi.ParameterObject
+}
+
+// BuildParamIndex constructs a lowercase parameter index keyed by "in:name".
+// It returns nil if params is empty or nil.
+func BuildParamIndex(params []*openapi.ParameterObject) map[string]*openapi.ParameterObject {
+	if len(params) == 0 {
+		return nil
+	}
+	idx := make(map[string]*openapi.ParameterObject, len(params))
+	for _, p := range params {
+		if p == nil {
+			continue
+		}
+		key := strings.ToLower(p.In + ":" + p.Name)
+		idx[key] = p
+	}
+	return idx
 }

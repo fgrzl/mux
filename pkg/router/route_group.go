@@ -138,12 +138,15 @@ func (rg *RouteGroup) Deprecated() *RouteGroup {
 
 // copyDefaults copies all default settings from source to target RouteGroup.
 func (target *RouteGroup) copyDefaults(source *RouteGroup) {
-	target.defaultParams = append([]*openapi.ParameterObject{}, source.defaultParams...)
-	target.defaultRoles = append([]string{}, source.defaultRoles...)
-	target.defaultScopes = append([]string{}, source.defaultScopes...)
-	target.defaultPermissions = append([]string{}, source.defaultPermissions...)
-	target.defaultTags = append([]string{}, source.defaultTags...)
-	target.defaultSecurity = append([]*openapi.SecurityRequirement{}, source.defaultSecurity...)
+	// For startup-only registration we can avoid copying slices and keep
+	// references to reduce allocations. This assumes defaults won't be
+	// mutated concurrently after group creation.
+	target.defaultParams = source.defaultParams
+	target.defaultRoles = source.defaultRoles
+	target.defaultScopes = source.defaultScopes
+	target.defaultPermissions = source.defaultPermissions
+	target.defaultTags = source.defaultTags
+	target.defaultSecurity = source.defaultSecurity
 	target.defaultSummary = source.defaultSummary
 	target.defaultDescription = source.defaultDescription
 	target.defaultAllowAnon = source.defaultAllowAnon
@@ -186,14 +189,15 @@ func (rg *RouteGroup) registerRoute(method, pattern string, handler routing.Hand
 		Responses:   map[string]*openapi.ResponseObject{},
 	}
 
+	// Use references to group defaults to avoid allocations during registration.
 	if len(rg.defaultTags) > 0 {
-		op.Tags = append([]string{}, rg.defaultTags...)
+		op.Tags = rg.defaultTags
 	}
 	if len(rg.defaultSecurity) > 0 {
-		op.Security = append([]*openapi.SecurityRequirement{}, rg.defaultSecurity...)
+		op.Security = rg.defaultSecurity
 	}
 	if len(rg.defaultParams) > 0 {
-		op.Parameters = append([]*openapi.ParameterObject{}, rg.defaultParams...)
+		op.Parameters = rg.defaultParams
 	}
 
 	options := &routing.RouteOptions{
@@ -201,12 +205,16 @@ func (rg *RouteGroup) registerRoute(method, pattern string, handler routing.Hand
 		Pattern:        pattern,
 		Handler:        handler,
 		AllowAnonymous: rg.defaultAllowAnon,
-		Roles:          append([]string{}, rg.defaultRoles...),
-		Scopes:         append([]string{}, rg.defaultScopes...),
-		Permissions:    append([]string{}, rg.defaultPermissions...),
+		Roles:          rg.defaultRoles,
+		Scopes:         rg.defaultScopes,
+		Permissions:    rg.defaultPermissions,
 		RateLimit:      0,
 		RateInterval:   0,
 		Operation:      op,
+	}
+	// Build an initial ParamIndex from group defaults if any are present
+	if len(op.Parameters) > 0 {
+		options.ParamIndex = routing.BuildParamIndex(op.Parameters)
 	}
 
 	rg.routeRegistry.Register(pattern, method, options)
@@ -263,6 +271,9 @@ func (rg *RouteGroup) HealthzWithReady(isReady func() bool) *builder.RouteBuilde
 func (rg *RouteGroup) StaticFallback(pattern, dir, fallback string) *builder.RouteBuilder {
 	prefix := strings.TrimSuffix(pattern, "**")
 	prefix = strings.TrimRight(prefix, "/")
+	// Precompute absolute directory once and reuse a single FileServer
+	absDir, _ := filepath.Abs(dir)
+	fs := http.FileServer(http.Dir(dir))
 
 	handler := func(c routing.RouteContext) {
 		requestPath := c.Request().URL.Path
@@ -270,8 +281,7 @@ func (rg *RouteGroup) StaticFallback(pattern, dir, fallback string) *builder.Rou
 		trimmed = strings.TrimPrefix(trimmed, "/")
 		fullPath := filepath.Join(dir, trimmed)
 		absFullPath, err := filepath.Abs(fullPath)
-		absDir, dirErr := filepath.Abs(dir)
-		if err != nil || dirErr != nil || !strings.HasPrefix(absFullPath, absDir) {
+		if err != nil || !strings.HasPrefix(absFullPath, absDir) {
 			http.ServeFile(c.Response(), c.Request(), fallback)
 			return
 		}
@@ -283,7 +293,7 @@ func (rg *RouteGroup) StaticFallback(pattern, dir, fallback string) *builder.Rou
 		// Serve as static
 		r := *c.Request()
 		r.URL.Path = "/" + trimmed
-		http.FileServer(http.Dir(dir)).ServeHTTP(c.Response(), &r)
+		fs.ServeHTTP(c.Response(), &r)
 	}
 	return rg.registerRoute(http.MethodGet, pattern, handler)
 }
