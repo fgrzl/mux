@@ -14,6 +14,13 @@ type Middleware interface {
 
 All built-in middleware can be added to routers or route groups and will execute in the order they are added.
 
+## Execution Model
+
+- Order: Middleware runs in the order you register it with `router.Use(...)`. The last registered middleware wraps the handler last.
+- Short-circuiting: A middleware may choose not to call `next(c)`. In that case, it terminates the pipeline early (e.g., to reject unauthorized requests).
+- Scope: Middleware added to a `RouteGroup` applies to the routes within that group in addition to any router-level middleware.
+- Performance: Mux composes the middleware pipeline and caches it. The pipeline is rebuilt only when middleware are added, avoiding per-request allocations.
+
 ## Authentication Middleware
 
 Provides JWT token validation and creation capabilities with support for multiple token sources.

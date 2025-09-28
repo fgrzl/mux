@@ -38,6 +38,7 @@ Welcome, Copilot. Please follow these instructions to ensure clean, idiomatic, a
   ```
 
 * Prefer table-driven tests when appropriate.
+* Each test should test one thing
 
 
 ## 📚 Documentation

@@ -10,6 +10,15 @@ import (
 type RouterOptions struct {
 	openapi   *openapi.InfoObject
 	clientURL *url.URL
+	// HeadFallbackToGet, when true, serves HEAD requests using the GET handler
+	// if a HEAD route is not explicitly registered for the matched path.
+	HeadFallbackToGet bool
+	// MaxBodyBytes sets the maximum size of request bodies for JSON/form binds.
+	// If zero or negative, a default of 1MB is applied.
+	MaxBodyBytes int64
+	// ContextPooling enables sync.Pool reuse of RouteContext instances to
+	// reduce allocations on the hot path.
+	ContextPooling bool
 }
 
 func (o *RouterOptions) SetClientURL(clientURL *url.URL) {
@@ -84,6 +93,29 @@ func WithLicense(name, url string) RouterOption {
 			Name: name,
 			URL:  url,
 		}
+	}
+}
+
+// WithHeadFallbackToGet enables serving HEAD requests via the GET handler
+// when a HEAD route isn't registered for a matched path.
+func WithHeadFallbackToGet() RouterOption {
+	return func(o *RouterOptions) {
+		o.HeadFallbackToGet = true
+	}
+}
+
+// WithMaxBodyBytes sets the maximum allowed size for request bodies used in binding.
+// A value <= 0 will cause the router to use a 1MB default.
+func WithMaxBodyBytes(n int64) RouterOption {
+	return func(o *RouterOptions) {
+		o.MaxBodyBytes = n
+	}
+}
+
+// WithContextPooling enables pooling of RouteContext instances for reduced allocations.
+func WithContextPooling() RouterOption {
+	return func(o *RouterOptions) {
+		o.ContextPooling = true
 	}
 }
 

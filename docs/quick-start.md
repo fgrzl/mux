@@ -39,7 +39,12 @@ import (
 
 func main() {
     // Create a new router
-    router := mux.NewRouter()
+    router := mux.NewRouter(
+        // Optional: serve HEAD via GET when no HEAD route is defined
+        mux.WithHeadFallbackToGet(),
+        // Optional: increase body size limit used by Bind (default is 1MB)
+        mux.WithMaxBodyBytes(2<<20), // 2MB
+    )
     
     // Add a simple endpoint
     router.GET("/hello", func(c mux.RouteContext) {
@@ -79,7 +84,10 @@ import (
 )
 
 func main() {
-    router := mux.NewRouter()
+    router := mux.NewRouter(
+        mux.WithHeadFallbackToGet(),
+        mux.WithMaxBodyBytes(2<<20),
+    )
     
     // Add middleware
     router.UseLogging()      // Log all requests

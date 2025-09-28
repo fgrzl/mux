@@ -5,6 +5,7 @@ package router
 import (
 	"log/slog"
 	"net/http"
+	"sync/atomic"
 
 	openapi "github.com/fgrzl/mux/pkg/openapi"
 	"github.com/fgrzl/mux/pkg/registry"
@@ -20,13 +21,22 @@ func NewRouter(opts ...RouterOption) *Router {
 		opt(options)
 	}
 
-	return &Router{
+	r := &Router{
 		RouteGroup: RouteGroup{
 			prefix:        "",
 			routeRegistry: registry.NewRouteRegistry(),
 		},
 		options: options,
 	}
+	// initialize pipeline with a default final handler to avoid storing nil
+	// into atomic.Value (which panics). The handler will call the route's
+	// configured handler when executed. We also store the current middleware
+	// count to detect changes and rebuild lazily in ServeHTTP.
+	defaultHandler := func(c routing.RouteContext) {
+		c.Options().Handler(c)
+	}
+	r.pipeline.Store(pipelineCache{h: HandlerFunc(defaultHandler), mwCount: 0})
+	return r
 }
 
 // HandlerFunc defines the signature for HTTP request handlers.
@@ -55,11 +65,42 @@ type Router struct {
 	options *RouterOptions
 	// Middleware is exported so internal packages and tests can register middleware.
 	middleware []Middleware
+	// pipeline caches the composed middleware chain (HandlerFunc). It is
+	// rebuilt when middleware are added via Use. Stored with atomic.Value
+	// to avoid per-request locking and allocations.
+	pipeline atomic.Value // holds pipelineCache
 }
+
+// pipelineCache stores the composed handler and the middleware count used to build it.
+type pipelineCache struct {
+	h       HandlerFunc
+	mwCount int
+}
+
+// headWriter wraps a ResponseWriter and discards body writes. Used when serving
+// HEAD requests via the GET handler so headers and status codes are preserved
+// but no body is written.
+type headWriter struct{ http.ResponseWriter }
+
+func (hw headWriter) Write(p []byte) (int, error) { return len(p), nil }
 
 // Use registers a middleware with the router.
 func (rtr *Router) Use(m Middleware) {
 	rtr.middleware = append(rtr.middleware, m)
+	// Compose the pipeline immediately and cache it so the first request
+	// doesn't pay for pipeline construction.
+	mw := rtr.middleware
+	var final HandlerFunc = func(c routing.RouteContext) {
+		c.Options().Handler(c)
+	}
+	for i := len(mw) - 1; i >= 0; i-- {
+		m := mw[i]
+		next := final
+		final = func(c routing.RouteContext) {
+			m.Invoke(c, next)
+		}
+	}
+	rtr.pipeline.Store(pipelineCache{h: final, mwCount: len(mw)})
 }
 
 // NewRouteGroup creates a new route group with the specified prefix.
@@ -71,43 +112,127 @@ func (rtr *Router) NewRouteGroup(prefix string) *RouteGroup {
 
 // ServeHTTP implements http.Handler.
 func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Acquire route context (pooled if enabled)
+	var c *routing.DefaultRouteContext
+	if rtr.options != nil && rtr.options.ContextPooling {
+		c = routing.AcquireContext(w, r)
+	} else {
+		c = routing.NewRouteContext(w, r)
+	}
 
-	c := routing.NewRouteContext(w, r)
-
-	// Panic recovery
+	// Panic recovery; then ensure context is released back to pool if enabled
 	defer func() {
 		if err := recover(); err != nil {
 			slog.ErrorContext(c, "panic recovered in ServeHTTP", "error", err, "path", r.URL.Path, "method", r.Method)
 			c.ServerError("Internal Server Error", "An unexpected error occurred")
 		}
+		if rtr.options != nil && rtr.options.ContextPooling {
+			routing.ReleaseContext(c)
+		}
 	}()
 
 	// lookup the route options using the pattern and method
-	options, params, ok := rtr.routeRegistry.Load(r.URL.Path, r.Method)
-	if !ok {
+	// Reuse the context's params map if available to avoid allocs
+	var (
+		params  routing.RouteParams
+		options *routing.RouteOptions
+		det     registry.LoadDetails
+	)
+	if p := c.Params(); p != nil {
+		params = p
+	} else if rtr.options != nil && rtr.options.ContextPooling {
+		params = make(routing.RouteParams, 2)
+	}
+	if params != nil {
+		options, det = rtr.routeRegistry.LoadDetailedInto(r.URL.Path, r.Method, params)
+	} else {
+		// Non-pooled path: allocate params map only if needed in fallback
+		options2, pmap, ok := rtr.routeRegistry.Load(r.URL.Path, r.Method)
+		if ok {
+			options = options2
+			det = registry.LoadDetails{Found: true, MethodOK: true}
+			params = pmap
+		} else {
+			// Try detailed for Allow on method mismatch by allocating a small map
+			tmp := make(routing.RouteParams, 2)
+			_, det = rtr.routeRegistry.LoadDetailedInto(r.URL.Path, r.Method, tmp)
+			// only persist params if we actually matched (MethodOK or not)
+			if det.Found {
+				params = tmp
+			}
+		}
+	}
+	// Optional HEAD->GET fallback when no explicit HEAD route is registered
+	suppressBody := false
+	// HEAD fallback: if enabled, attempt to serve via GET regardless of initial match state
+	if r.Method == http.MethodHead && rtr.options.HeadFallbackToGet {
+		if params == nil {
+			params = make(routing.RouteParams, 2)
+		}
+		if getOpt, d := rtr.routeRegistry.LoadDetailedInto(r.URL.Path, http.MethodGet, params); d.Found && d.MethodOK {
+			options = getOpt
+			det = d
+			suppressBody = true
+		}
+	}
+	if !det.Found || !det.MethodOK {
+		// If path matches but method not allowed, return 405 with Allow header
+		if det.Found && !det.MethodOK {
+			if det.Allow != "" {
+				w.Header().Set("Allow", det.Allow)
+			}
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
 		slog.DebugContext(c, "not found", "path", r.URL.Path, "method", r.Method)
 		c.NotFound()
 		return
 	}
 
 	c.SetOptions(options)
-	c.SetParams(params)
+	// only set params map on context if we had one populated
+	if len(params) > 0 {
+		c.SetParams(params)
+	} else if params == nil && !(rtr.options != nil && rtr.options.ContextPooling) {
+		// for non-pooled contexts, ensure params is empty
+		c.SetParams(nil)
+	} else if params != nil && c.Params() == nil {
+		// attach the newly created map to the context
+		c.SetParams(params)
+	}
 	c.SetClientURL(rtr.options.clientURL)
+	// apply max body size option to the context
+	c.SetMaxBodyBytes(rtr.options.MaxBodyBytes)
 
-	// start the pipeline
-	var next HandlerFunc
-	index := 0
+	// If suppressBody (HEAD fallback), wrap the ResponseWriter to discard body writes
+	if suppressBody {
+		c.SetResponse(headWriter{ResponseWriter: w})
+	}
+
+	// start the pipeline: try to use cached pipeline if middleware haven't changed
 	mw := rtr.middleware
-	next = func(c routing.RouteContext) {
-		if index < len(mw) {
-			current := mw[index]
-			index++
-			current.Invoke(c, next)
-		} else {
-			c.Options().Handler(c)
+	if v := rtr.pipeline.Load(); v != nil {
+		if pc, ok := v.(pipelineCache); ok && pc.h != nil && pc.mwCount == len(mw) {
+			pc.h(c)
+			return
 		}
 	}
-	next(c)
+
+	// Build pipeline and cache it. Building composes the middleware from last
+	// to first so each middleware receives the next handler.
+	var final HandlerFunc = func(c routing.RouteContext) {
+		c.Options().Handler(c)
+	}
+	for i := len(mw) - 1; i >= 0; i-- {
+		m := mw[i]
+		next := final
+		final = func(c routing.RouteContext) {
+			m.Invoke(c, next)
+		}
+	}
+	// Cache the composed pipeline for future requests with the current mw count
+	rtr.pipeline.Store(pipelineCache{h: final, mwCount: len(mw)})
+	final(c)
 }
 
 func (rtr *Router) InfoObject() (*openapi.InfoObject, error) {

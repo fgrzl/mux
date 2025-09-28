@@ -123,6 +123,8 @@ func (rb *RouteBuilder) WithParam(name, in string, example any, required bool) *
 		Example:   example,
 		Converter: conv,
 	})
+	// Keep ParamIndex in sync for fast lookups at runtime
+	rb.Options.ParamIndex = routing.BuildParamIndex(rb.Options.Parameters)
 	return rb
 }
 

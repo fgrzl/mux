@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"reflect"
 	"strings"
+	"sync"
 
 	"github.com/fgrzl/claims"
 	"github.com/fgrzl/mux/pkg/binder"
@@ -234,6 +235,66 @@ func NewRouteContext(w http.ResponseWriter, r *http.Request) *DefaultRouteContex
 	}
 }
 
+// contextPool is a pool of DefaultRouteContext objects used to minimize
+// per-request allocations. Callers should obtain a context instance using
+// AcquireContext(w,r) and return it with ReleaseContext when done. The
+// pool stores zeroed or otherwise-reset DefaultRouteContext values and
+// the Acquire/Release helpers ensure fields are initialized/cleared as
+// appropriate to avoid leaking request-scoped data between requests.
+var contextPool = sync.Pool{
+	New: func() any { return &DefaultRouteContext{} },
+}
+
+// AcquireContext gets a DefaultRouteContext from the pool and initializes it
+// for the provided http.ResponseWriter and *http.Request.
+func AcquireContext(w http.ResponseWriter, r *http.Request) *DefaultRouteContext {
+	c := contextPool.Get().(*DefaultRouteContext)
+	// Reset minimal fields; leave maps nil to avoid extra work unless needed
+	c.Context = r.Context()
+	c.response = w
+	c.request = r
+	c.clientURL = nil
+	c.user = nil
+	c.options = nil
+	if c.params == nil {
+		c.params = make(RouteParams, 2)
+	} else {
+		// clear
+		for k := range c.params {
+			delete(c.params, k)
+		}
+	}
+	c.services = nil
+	c.formsParsed = false
+	c.paramIndex = nil
+	c.maxBodyBytes = 0
+	return c
+}
+
+// ReleaseContext resets sensitive references and returns the context to the pool.
+func ReleaseContext(c *DefaultRouteContext) {
+	if c == nil {
+		return
+	}
+	// Clear references to avoid leaks between requests
+	c.Context = nil
+	c.response = nil
+	c.request = nil
+	c.clientURL = nil
+	c.user = nil
+	c.options = nil
+	if c.params != nil {
+		for k := range c.params {
+			delete(c.params, k)
+		}
+	}
+	c.services = nil
+	c.formsParsed = false
+	c.paramIndex = nil
+	c.maxBodyBytes = 0
+	contextPool.Put(c)
+}
+
 type DefaultRouteContext struct {
 	context.Context
 	response    http.ResponseWriter
@@ -246,6 +307,8 @@ type DefaultRouteContext struct {
 	formsParsed bool
 	// runtime cache for quick parameter lookups (key: strings.ToLower(in+":"+name))
 	paramIndex map[string]*openapi.ParameterObject
+	// maxBodyBytes limits body size for bind operations. 0 means default (1MB).
+	maxBodyBytes int64
 }
 
 func (c *DefaultRouteContext) Response() http.ResponseWriter {
@@ -283,6 +346,10 @@ func (c *DefaultRouteContext) ClientURL() *url.URL {
 func (c *DefaultRouteContext) SetClientURL(u *url.URL) {
 	c.clientURL = u
 }
+
+// SetMaxBodyBytes sets the maximum allowed request body size for this context.
+// A value <= 0 causes a default of 1MB to be applied during binding.
+func (c *DefaultRouteContext) SetMaxBodyBytes(n int64) { c.maxBodyBytes = n }
 
 func (c *DefaultRouteContext) Params() RouteParams {
 	return c.params
@@ -467,7 +534,12 @@ func (c *DefaultRouteContext) collectQueryParams(staging map[string]any) error {
 }
 
 func (c *DefaultRouteContext) collectBodyData(staging map[string]any) error {
-	c.request.Body = http.MaxBytesReader(c.Response(), c.request.Body, 1<<20) // 1MB max
+	// Determine max body size: router option or default 1MB
+	maxBytes := c.maxBodyBytes
+	if maxBytes <= 0 {
+		maxBytes = 1 << 20 // 1MB default
+	}
+	c.request.Body = http.MaxBytesReader(c.Response(), c.request.Body, maxBytes)
 	ct := c.request.Header.Get(common.HeaderContentType)
 	switch {
 	case ct == common.MimeFormURLEncoded:
@@ -558,20 +630,18 @@ func (c *DefaultRouteContext) lookupParameter(name, in string) *openapi.Paramete
 	if c.options == nil || c.options.Parameters == nil {
 		return nil
 	}
-	// Build index lazily
-	if c.paramIndex == nil {
-		idx := make(map[string]*openapi.ParameterObject, len(c.options.Parameters))
-		for _, p := range c.options.Parameters {
-			key := strings.ToLower(p.In + ":" + p.Name)
-			idx[key] = p
+	// Prefer a precomputed per-route index when available
+	if c.options.ParamIndex != nil {
+		if p, ok := c.options.ParamIndex[strings.ToLower(in+":"+name)]; ok {
+			return p
 		}
-		c.paramIndex = idx
+		return nil
 	}
-	key := strings.ToLower(in + ":" + name)
-	if p, ok := c.paramIndex[key]; ok {
-		return p
+	// Fallback: build index once per request
+	if c.paramIndex == nil {
+		c.paramIndex = BuildParamIndex(c.options.Parameters)
 	}
-	return nil
+	return c.paramIndex[strings.ToLower(in+":"+name)]
 }
 
 // parseByExample attempts to parse a single string value into the type suggested by the ParameterObject's Example or Schema.
