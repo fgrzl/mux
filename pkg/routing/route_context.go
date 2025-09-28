@@ -235,6 +235,10 @@ func NewRouteContext(w http.ResponseWriter, r *http.Request) *DefaultRouteContex
 	}
 }
 
+// contextPool is a pool of DefaultRouteContext objects used to minimize
+// allocations and improve performance by reusing RouteContext instances
+// for each HTTP request. Contexts are acquired via AcquireContext and
+// should be reset before reuse and returned with ReleaseContext.
 var contextPool = sync.Pool{
 	New: func() any { return &DefaultRouteContext{} },
 }

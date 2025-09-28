@@ -109,10 +109,8 @@ func (r *RouteRegistry) Load(path string, method string) (*routing.RouteOptions,
 // contains the precomputed Allow header value.
 func (r *RouteRegistry) LoadDetailedInto(path string, method string, dst map[string]string) (*routing.RouteOptions, LoadDetails) {
 	// Clear params map up-front (if provided)
-	if dst != nil {
-		for k := range dst {
-			delete(dst, k)
-		}
+	for k := range dst {
+		delete(dst, k)
 	}
 	// Exact static fast-path
 	if m, ok := r.exactRoutes[path]; ok {
@@ -166,7 +164,6 @@ func (r *RouteRegistry) matchNodeInto(path string, dst map[string]string) (*rout
 			n = n.Wildcard
 		} else if n.CatchAll != nil {
 			n = n.CatchAll
-			s = end
 			break
 		} else {
 			return nil, false
@@ -184,10 +181,8 @@ func (r *RouteRegistry) LoadInto(path string, method string, dst map[string]stri
 	if m, ok := r.exactRoutes[path]; ok {
 		if opt, ok2 := m[method]; ok2 {
 			// Ensure dst is cleared
-			if dst != nil {
-				for k := range dst {
-					delete(dst, k)
-				}
+			for k := range dst {
+				delete(dst, k)
 			}
 			return opt, true
 		}
@@ -215,10 +210,8 @@ func (r *RouteRegistry) walkInto(path string, method string, dst map[string]stri
 		end--
 	}
 
-	if dst != nil {
-		for k := range dst {
-			delete(dst, k)
-		}
+	for k := range dst {
+		delete(dst, k)
 	}
 
 	type frame struct {
@@ -238,7 +231,7 @@ func (r *RouteRegistry) walkInto(path string, method string, dst map[string]stri
 			if opt, ok := atEnd(node, method); ok {
 				return opt, true
 			}
-			if f.paramKey != "" && dst != nil {
+			if f.paramKey != "" {
 				delete(dst, f.paramKey)
 			}
 			stack = stack[:len(stack)-1]
@@ -261,9 +254,7 @@ func (r *RouteRegistry) walkInto(path string, method string, dst map[string]stri
 		case 1:
 			f.stage = 2
 			if node.ParamChild != nil {
-				if dst != nil {
-					dst[node.ParamChild.ParamName] = seg
-				}
+				dst[node.ParamChild.ParamName] = seg
 				stack = append(stack, frame{node: node.ParamChild, s: nextIndex, stage: 0, paramKey: node.ParamChild.ParamName})
 				continue
 			}
@@ -281,7 +272,7 @@ func (r *RouteRegistry) walkInto(path string, method string, dst map[string]stri
 					return opt, true
 				}
 			}
-			if f.paramKey != "" && dst != nil {
+			if f.paramKey != "" {
 				delete(dst, f.paramKey)
 			}
 			stack = stack[:len(stack)-1]
@@ -387,7 +378,9 @@ func allowHeaderFromMap(m map[string]*routing.RouteOptions) string {
 	return strings.Join(out, ", ")
 }
 
-// findNode traverses the tree by path and returns the terminal node if matched.
+// findNode traverses the route tree by the given path and returns the terminal
+// node if the path matches a node in the tree. If no matching node is found,
+// it returns nil.
 func (r *RouteRegistry) findNode(path string) *routing.RouteNode {
 	// We'll scan the path in-place between indices [start,end)
 	start := 0
@@ -415,7 +408,6 @@ func (r *RouteRegistry) findNode(path string) *routing.RouteNode {
 			n = n.Wildcard
 		} else if n.CatchAll != nil {
 			n = n.CatchAll
-			s = end // consume rest
 			break
 		} else {
 			return nil
@@ -425,7 +417,23 @@ func (r *RouteRegistry) findNode(path string) *routing.RouteNode {
 	return n
 }
 
-// walk performs a DFS traversal similar to Load but pluggable end-node predicate.
+// walk performs a pluggable depth-first search (DFS) traversal of the route tree.
+// It traverses the tree according to the given path and invokes the provided
+// atEnd function when a terminal node is reached. This allows custom logic to be
+// applied at the end of traversal, such as matching a route or collecting
+// parameters.
+//
+// Parameters:
+//   - path: The URL path to traverse, which may include parameters or wildcards.
+//   - atEnd: A function called at each terminal node, receiving the current node
+//     and the HTTP method. It should return a pointer to RouteOptions and a
+//     boolean indicating whether a match was found.
+//   - method: The HTTP method to match (e.g., "GET", "POST").
+//
+// Returns:
+//   - *routing.RouteOptions: The matched route options if found, or nil.
+//   - map[string]string: A map of extracted route parameters, if any (may be nil).
+//   - bool: True if a matching route was found, false otherwise.
 func (r *RouteRegistry) walk(path string, atEnd func(*routing.RouteNode, string) (*routing.RouteOptions, bool), method string) (*routing.RouteOptions, map[string]string, bool) {
 	// We'll scan the path in-place between indices [start,end)
 	// Skip leading and trailing slashes without allocating a trimmed string
