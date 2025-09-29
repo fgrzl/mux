@@ -124,7 +124,7 @@ func (r *RouteRegistry) refreshFastPathFlags(n *routing.RouteNode) {
 	// HasOnlyWildcardTerminal when there is a Wildcard and no other next step, and the wildcard node
 	// is a terminal for some method (i.e., has RouteOptions). This allows short-circuiting patterns like /files/*.
 	if n.Wildcard != nil && len(n.Children) == 0 && n.ParamChild == nil && n.CatchAll == nil {
-		n.HasOnlyWildcardTerminal = n.Wildcard != nil && len(n.Wildcard.RouteOptions) > 0
+		n.HasOnlyWildcardTerminal = len(n.Wildcard.RouteOptions) > 0
 	} else {
 		n.HasOnlyWildcardTerminal = false
 	}
