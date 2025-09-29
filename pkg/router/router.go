@@ -3,8 +3,10 @@
 package router
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
+	"runtime/debug"
 	"sync/atomic"
 
 	openapi "github.com/fgrzl/mux/pkg/openapi"
@@ -120,11 +122,32 @@ func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		c = routing.NewRouteContext(w, r)
 	}
 
+	// Normalize empty path (requests like "http://host:port" can produce
+	// an empty URL.Path). Treat empty path as root "/" so registry lookups
+	// and logging behave consistently.
+	if r.URL != nil && r.URL.Path == "" {
+		r.URL.Path = "/"
+	}
+
 	// Panic recovery; then ensure context is released back to pool if enabled
 	defer func() {
 		if err := recover(); err != nil {
-			slog.ErrorContext(c, "panic recovered in ServeHTTP", "error", err, "path", r.URL.Path, "method", r.Method)
-			c.ServerError("Internal Server Error", "An unexpected error occurred")
+			// Use request context where possible; avoid calling methods on c
+			// (which might be a nil pointer receiver) during panic handling.
+			var logCtx context.Context = context.Background()
+			if r != nil && r.Context() != nil {
+				logCtx = r.Context()
+			}
+			// Capture stack for diagnostics
+			stack := debug.Stack()
+			slog.ErrorContext(logCtx, "panic recovered in ServeHTTP", "error", err, "path", r.URL.Path, "method", r.Method, "stack", string(stack))
+			if c != nil {
+				// Prefer to use the RouteContext's ServerError if available.
+				// We check c != nil and avoid calling other methods here.
+				c.ServerError("Internal Server Error", "An unexpected error occurred")
+			} else {
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			}
 		}
 		if rtr.options != nil && rtr.options.ContextPooling {
 			routing.ReleaseContext(c)
@@ -145,13 +168,21 @@ func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	node := rtr.routeRegistry.FindNode(r.URL.Path)
 	if node != nil {
 		if len(node.RouteOptions) == 0 {
-			// No terminal options; compute LoadDetails for Allow/header behavior.
+			// No terminal options on this node (e.g., root '/'). Perform a detailed lookup
+			// to retrieve both LoadDetails and the matched RouteOptions, and capture params
+			// if present. This ensures we set options even when the matched node doesn't store
+			// RouteOptions directly.
 			tmp := routing.AcquireRouteParams()
-			_, det = rtr.routeRegistry.LoadDetailedInto(r.URL.Path, r.Method, tmp)
-			if det.Found {
+			if opt2, det2 := rtr.routeRegistry.LoadDetailedInto(r.URL.Path, r.Method, tmp); det2.Found {
+				det = det2
+				if det2.MethodOK {
+					options = opt2
+				}
+				// Keep params only if some node matched the path; otherwise release.
 				params = tmp
 			} else {
 				routing.ReleaseRouteParams(tmp)
+				det = det2
 			}
 		} else if opt, ok := node.RouteOptions[r.Method]; ok {
 			// Method allowed at this node. Only allocate/populate params if the node has params.

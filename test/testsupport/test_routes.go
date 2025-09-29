@@ -1,16 +1,63 @@
 package testsupport
 
 import (
+	"crypto/sha1"
+	"encoding/base64"
+	"fmt"
+	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/fgrzl/mux"
 	"github.com/google/uuid"
 )
 
+func computeAccept(key string) string {
+	const magic = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+	h := sha1.New()
+	h.Write([]byte(key + magic))
+	return base64.StdEncoding.EncodeToString(h.Sum(nil))
+}
+
 // ConfigureRoutes registers a broad set of routes used by unit and integration
 // tests. These routes exercise many RouteContext features and edge-cases so
 // the test-suite can validate behavior and OpenAPI generation.
 func ConfigureRoutes(r *mux.Router) {
+
+	// Minimal websocket upgrade route at top-level so tests can exercise
+	// Upgrade/Hijack behavior. This route lives at `/ws` (root) instead of
+	// under /api/v1 so test clients can connect directly to /ws.
+	r.GET("/ws", func(c mux.RouteContext) {
+		if !strings.EqualFold(c.Request().Header.Get("Upgrade"), "websocket") {
+			c.NotFound()
+			return
+		}
+		key := c.Request().Header.Get("Sec-WebSocket-Key")
+		if key == "" {
+			c.BadRequest("Missing Sec-WebSocket-Key", "Sec-WebSocket-Key header is required")
+			return
+		}
+		accept := computeAccept(key)
+		rw := c.Response()
+		hj, ok := rw.(http.Hijacker)
+		if !ok {
+			c.ServerError("Hijack unsupported", "ResponseWriter does not support hijack")
+			return
+		}
+		conn, _, err := hj.Hijack()
+		if err != nil {
+			c.ServerError("Hijack failed", err.Error())
+			return
+		}
+		// Write raw upgrade response and close the connection.
+		fmt.Fprintf(conn, "HTTP/1.1 101 Switching Protocols\r\n")
+		fmt.Fprintf(conn, "Upgrade: websocket\r\n")
+		fmt.Fprintf(conn, "Connection: Upgrade\r\n")
+		fmt.Fprintf(conn, "Sec-WebSocket-Accept: %s\r\n", accept)
+		fmt.Fprintf(conn, "\r\n")
+		_ = conn.Close()
+	})
+
 	rg := r.NewRouteGroup("/api/v1")
 
 	// Basic resources list

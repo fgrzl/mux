@@ -73,6 +73,7 @@ type authorizationMiddleware struct {
 }
 
 func (m *authorizationMiddleware) Invoke(c routing.RouteContext, next router.HandlerFunc) {
+	// Be defensive: if middleware was constructed without options, treat as no-op config
 	if !m.checkRoles(c) {
 		c.Forbidden("You do not have the necessary permissions to access this resource.")
 		return
@@ -89,12 +90,38 @@ func (m *authorizationMiddleware) Invoke(c routing.RouteContext, next router.Han
 }
 
 func (m *authorizationMiddleware) checkRoles(c routing.RouteContext) bool {
-	valid := c.Options().Roles
+	opts := c.Options()
+	var valid []string
+	if opts != nil {
+		valid = opts.Roles
+	}
+	// If middleware options are nil, there are no global role requirements or custom checker.
+	if m.options == nil {
+		if len(valid) == 0 {
+			return true
+		}
+		// If route requires roles but user isn't present, deny.
+		if c.User() == nil {
+			return false
+		}
+		user := c.User().Roles()
+		for _, r := range valid {
+			for _, u := range user {
+				if r == u {
+					return true
+				}
+			}
+		}
+		return false
+	}
 	if m.options.CheckRoles != nil {
 		return m.options.CheckRoles(c.User(), valid)
 	}
 	if len(valid) == 0 {
 		return true
+	}
+	if c.User() == nil {
+		return false
 	}
 	user := c.User().Roles()
 	for _, r := range valid {
@@ -108,12 +135,36 @@ func (m *authorizationMiddleware) checkRoles(c routing.RouteContext) bool {
 }
 
 func (m *authorizationMiddleware) checkScopes(c routing.RouteContext) bool {
-	valid := c.Options().Scopes
+	opts := c.Options()
+	var valid []string
+	if opts != nil {
+		valid = opts.Scopes
+	}
+	if m.options == nil {
+		if len(valid) == 0 {
+			return true
+		}
+		if c.User() == nil {
+			return false
+		}
+		user := c.User().Scopes()
+		for _, s := range valid {
+			for _, u := range user {
+				if s == u {
+					return true
+				}
+			}
+		}
+		return false
+	}
 	if m.options.CheckScopes != nil {
 		return m.options.CheckScopes(c.User(), valid)
 	}
 	if len(valid) == 0 {
 		return true
+	}
+	if c.User() == nil {
+		return false
 	}
 	user := c.User().Scopes()
 	for _, s := range valid {
@@ -128,13 +179,31 @@ func (m *authorizationMiddleware) checkScopes(c routing.RouteContext) bool {
 
 func (m *authorizationMiddleware) checkPermission(c routing.RouteContext) bool {
 	var merged []string
-	merged = append(merged, m.options.Permissions...)
-	merged = append(merged, c.Options().Permissions...)
+	if m.options != nil {
+		merged = append(merged, m.options.Permissions...)
+	}
+	opts := c.Options()
+	if opts != nil {
+		merged = append(merged, opts.Permissions...)
+	}
 	if len(merged) == 0 {
 		return true
 	}
-	perms := interpolatePermissions(c.Params(), m.options.Permissions, c.Options().Permissions)
-	if m.options.CheckPermissions != nil {
+	var perms []string
+	if opts != nil {
+		if m.options != nil {
+			perms = interpolatePermissions(c.Params(), m.options.Permissions, opts.Permissions)
+		} else {
+			perms = interpolatePermissions(c.Params(), opts.Permissions)
+		}
+	} else {
+		if m.options != nil {
+			perms = interpolatePermissions(c.Params(), m.options.Permissions)
+		} else {
+			perms = interpolatePermissions(c.Params())
+		}
+	}
+	if m.options != nil && m.options.CheckPermissions != nil {
 		return m.options.CheckPermissions(c.User(), perms)
 	}
 	// If permissions are required but there's no checker, deny by default.

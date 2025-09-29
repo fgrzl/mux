@@ -424,3 +424,45 @@ func TestShouldHandlePermissionCheckingWithCustomChecker(t *testing.T) {
 	// Assert
 	assert.True(t, nextCalled)
 }
+
+func TestShouldDenyWhenNoUserAndRolesRequired(t *testing.T) {
+	// Arrange
+	middleware := &authorizationMiddleware{options: &AuthorizationOptions{}}
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	rec := httptest.NewRecorder()
+	ctx := routing.NewRouteContext(rec, req)
+	// Intentionally do NOT set a user
+	ctx.SetOptions(&routing.RouteOptions{Roles: []string{"admin"}})
+
+	nextCalled := false
+	next := func(c routing.RouteContext) { nextCalled = true }
+
+	// Act
+	middleware.Invoke(ctx, next)
+
+	// Assert
+	assert.False(t, nextCalled)
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+}
+
+func TestShouldDenyWhenNoUserAndRolesRequired_NilOptions(t *testing.T) {
+	// Arrange: middleware constructed without explicit options
+	middleware := &authorizationMiddleware{}
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	rec := httptest.NewRecorder()
+	ctx := routing.NewRouteContext(rec, req)
+	// Route requires a role; with no user set this should deny, not panic
+	ctx.SetOptions(&routing.RouteOptions{Roles: []string{"admin"}})
+
+	nextCalled := false
+	next := func(c routing.RouteContext) { nextCalled = true }
+
+	// Act
+	middleware.Invoke(ctx, next)
+
+	// Assert
+	assert.False(t, nextCalled)
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+}

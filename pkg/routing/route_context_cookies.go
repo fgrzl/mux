@@ -1,6 +1,7 @@
 package routing
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"time"
@@ -100,7 +101,14 @@ func (c *DefaultRouteContext) Authenticate(cookieName string, user claims.Princi
 
 	token, err := provider.CreateToken(c, user)
 	if err != nil {
-		slog.ErrorContext(c, "failed to create token", "error", err)
+		// Use request context for logging to avoid passing the RouteContext
+		// directly (its embedded Context may be nil if the instance was
+		// pooled and later cleared). Fall back to background if unavailable.
+		var logCtx context.Context = context.Background()
+		if c != nil && c.Request() != nil && c.Request().Context() != nil {
+			logCtx = c.Request().Context()
+		}
+		slog.ErrorContext(logCtx, "failed to create token", "error", err)
 		return
 	}
 
