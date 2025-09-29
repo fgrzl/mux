@@ -460,3 +460,54 @@ func loadExpected(t *testing.T) mux.OpenAPISpec {
 	require.NoError(t, err)
 	return expected
 }
+
+func TestShouldReturnStaticFallback200(t *testing.T) {
+
+	tests := []struct {
+		name string
+		path string
+	}{
+		{name: "root path", path: "/"},
+		{name: "one level deep", path: "/foo"},
+		{name: "two levels deep", path: "/foo/bar"},
+		{name: "three levels deep", path: "/foo/bar/baz"},
+	}
+
+	r := mockServerHandler()
+	r.StaticFallback("/**", "static", "static/index.html").AllowAnonymous()
+	server := httptest.NewServer(r)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp, err := http.Get(server.URL + tt.path)
+			assert.NoError(t, err)
+			assert.Equal(t, http.StatusOK, resp.StatusCode)
+		})
+	}
+}
+
+func TestShouldReturnStaticFallback404(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+	}{
+		{name: "root path", path: "/"},
+		{name: "one level deep", path: "/foo"},
+		{name: "two levels deep", path: "/foo/bar"},
+		{name: "three levels deep", path: "/foo/bar/baz"},
+	}
+
+	r := mockServerHandler()
+	r.StaticFallback("/**", "assets", "assets/index.html").AllowAnonymous()
+	server := httptest.NewServer(r)
+
+	defer server.Close()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp, err := http.Get(server.URL + tt.path)
+			assert.NoError(t, err)
+			assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+		})
+	}
+}
