@@ -3,6 +3,7 @@ package logging
 import (
 	"log/slog"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -58,12 +59,15 @@ func (m *loggingMiddleware) Invoke(c routing.RouteContext, next router.HandlerFu
 
 	bufp := attrPool.Get().(*[]slog.Attr)
 	attrs := (*bufp)[:0]
+	// Sanitize potentially user-controlled values to avoid log injection/XSS when logs are viewed in HTML tools
+	safePath := strconv.Quote(req.URL.Path)
+	safeUA := strconv.Quote(req.UserAgent())
 	attrs = append(attrs,
 		slog.String("method", req.Method),
-		slog.String("path", req.URL.Path),
+		slog.String("path", safePath),
 		slog.Int("status", rec.StatusCode()),
 		slog.String("remote", req.RemoteAddr),
-		slog.String("user_agent", req.UserAgent()),
+		slog.String("user_agent", safeUA),
 		slog.Duration("duration", duration),
 	)
 	logger.LogAttrs(c, slog.LevelInfo, "http_request", attrs...)

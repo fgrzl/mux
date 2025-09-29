@@ -44,6 +44,7 @@ func (c *DefaultRouteContext) SetCookie(
 	// enforce Secure if SameSite=None
 	if cookie.SameSite == http.SameSiteNoneMode && !cookie.Secure {
 		cookie.Secure = true
+		slog.Warn("SetCookie: Secure=true enforced because SameSite=None is set; this may break on HTTP in development", "cookieName", cookie.Name)
 	}
 
 	http.SetCookie(c.Response(), cookie)
@@ -65,7 +66,7 @@ func (c *DefaultRouteContext) ClearCookie(name string) {
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
-		Expires:  time.Unix(1, 0), // old enough to be invalid
+		Expires:  time.Unix(1, 0).UTC(), // old enough to be invalid
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,

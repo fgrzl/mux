@@ -72,7 +72,9 @@ func buildOTELHandler(operation string) http.Handler {
 	return otelhttp.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if v := r.Context().Value(otelNextKey{}); v != nil {
 			if data, ok := v.(*otelData); ok && data.c != nil && data.next != nil {
-				if dc, ok2 := data.c.(interface{ SetRequest(*http.Request) }); ok2 {
+				// Prefer a named interface over anonymous for clarity/maintainability
+				type requestSetter interface{ SetRequest(*http.Request) }
+				if dc, ok2 := data.c.(requestSetter); ok2 {
 					dc.SetRequest(r)
 				}
 				data.next(data.c)
