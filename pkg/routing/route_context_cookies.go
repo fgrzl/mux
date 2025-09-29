@@ -38,7 +38,7 @@ func (c *DefaultRouteContext) SetCookie(
 		cookie.Expires = time.Now().Add(time.Duration(maxAge) * time.Second)
 	} else if maxAge < 0 {
 		// delete immediately
-		cookie.Expires = time.Unix(0, 0).UTC()
+		cookie.Expires = time.Unix(1, 0).UTC()
 	}
 
 	// enforce Secure if SameSite=None
