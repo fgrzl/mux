@@ -305,6 +305,19 @@ func (r *RouteRegistry) walkInto(path string, method string, dst map[string]stri
 			stack = stack[:len(stack)-1]
 			continue
 		}
+		// Fast-path for wildcard terminal node to avoid scanning remaining
+		// segments when the wildcard edge is the only possible next step and
+		// it represents a terminal route for some methods.
+		if node.HasOnlyWildcardTerminal {
+			if opt, ok := atEnd(node.Wildcard, method); ok {
+				return opt, true
+			}
+			if f.paramKey != "" {
+				delete(dst, f.paramKey)
+			}
+			stack = stack[:len(stack)-1]
+			continue
+		}
 		j := s
 		for j < end && path[j] != '/' {
 			j++
@@ -578,6 +591,20 @@ func (r *RouteRegistry) walk(path string, atEnd func(*routing.RouteNode, string)
 		// Early short-circuit using precomputed flag
 		if node.HasOnlyCatchAll {
 			if opt, ok := atEnd(node.CatchAll, method); ok {
+				return opt, params, true
+			}
+			if f.paramKey != "" && params != nil {
+				delete(params, f.paramKey)
+			}
+			stack = stack[:len(stack)-1]
+			continue
+		}
+		// Fast-path for wildcard terminal: if the only possible next step is the
+		// wildcard edge and that edge is terminal for some methods, we can
+		// short-circuit and invoke atEnd on the wildcard node directly which
+		// avoids scanning remaining segments and avoids param handling.
+		if node.HasOnlyWildcardTerminal {
+			if opt, ok := atEnd(node.Wildcard, method); ok {
 				return opt, params, true
 			}
 			if f.paramKey != "" && params != nil {
