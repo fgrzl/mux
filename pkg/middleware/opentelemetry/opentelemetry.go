@@ -50,7 +50,9 @@ func (m *otelMiddleware) Invoke(c routing.RouteContext, next router.HandlerFunc)
 	// Attach per-request data (RouteContext and next) into the request context so the
 	// prebuilt handler can retrieve them without capturing per-request closures.
 	data := &otelData{c: c, next: next}
-	reqWithCtx := c.Request().WithContext(context.WithValue(c, otelNextKey{}, data))
+	// use the request context as the base context for the value (safer than using the RouteContext directly)
+	reqCtx := c.Request().Context()
+	reqWithCtx := c.Request().WithContext(context.WithValue(reqCtx, otelNextKey{}, data))
 	m.handler.ServeHTTP(c.Response(), reqWithCtx)
 }
 
@@ -68,13 +70,18 @@ type otelData struct {
 	next router.HandlerFunc
 }
 
+// RequestSetter is implemented by RouteContext types that can update their
+// underlying *http.Request. Having a named interface here improves readability
+// and makes type assertions clearer and testable.
+type RequestSetter interface{ SetRequest(*http.Request) }
+
 func buildOTELHandler(operation string) http.Handler {
 	return otelhttp.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if v := r.Context().Value(otelNextKey{}); v != nil {
 			if data, ok := v.(*otelData); ok && data.c != nil && data.next != nil {
-				// Prefer a named interface over anonymous for clarity/maintainability
-				type requestSetter interface{ SetRequest(*http.Request) }
-				if dc, ok2 := data.c.(requestSetter); ok2 {
+				// Use the named RequestSetter interface so callers and tests can
+				// rely on a clear, documented contract instead of an anonymous type.
+				if dc, ok2 := data.c.(RequestSetter); ok2 {
 					dc.SetRequest(r)
 				}
 				data.next(data.c)

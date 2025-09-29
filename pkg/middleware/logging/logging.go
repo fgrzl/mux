@@ -1,9 +1,9 @@
 package logging
 
 import (
+	"html"
 	"log/slog"
 	"net/http"
-	"strconv"
 	"sync"
 	"time"
 
@@ -59,9 +59,11 @@ func (m *loggingMiddleware) Invoke(c routing.RouteContext, next router.HandlerFu
 
 	bufp := attrPool.Get().(*[]slog.Attr)
 	attrs := (*bufp)[:0]
-	// Sanitize potentially user-controlled values to avoid log injection/XSS when logs are viewed in HTML tools
-	safePath := strconv.Quote(req.URL.Path)
-	safeUA := strconv.Quote(req.UserAgent())
+	// Sanitize potentially user-controlled values to avoid log injection/XSS when logs are viewed
+	// in HTML-based log viewers. We escape HTML special characters and keep the quoted representation
+	// for readability while avoiding reflected XSS issues flagged by CodeQL.
+	safePath := `"` + html.EscapeString(req.URL.Path) + `"`
+	safeUA := `"` + html.EscapeString(req.UserAgent()) + `"`
 	attrs = append(attrs,
 		slog.String("method", req.Method),
 		slog.String("path", safePath),
