@@ -3,6 +3,7 @@ package logging
 import (
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/fgrzl/mux/pkg/router"
@@ -31,6 +32,7 @@ func UseLogging(rtr *router.Router, opts ...LoggingOption) {
 // loggingMiddleware provides structured HTTP request/response logging.
 type loggingMiddleware struct {
 	options *LoggingOptions
+	logger  *slog.Logger
 }
 
 // Invoke implements the Middleware interface, logging request details with structured logging.
@@ -41,8 +43,12 @@ func (m *loggingMiddleware) Invoke(c routing.RouteContext, next router.HandlerFu
 
 	next(c)
 
-	// Use lower-level slog.Record to minimize allocations.
-	logger := slog.Default()
+	// Use pooled attribute slice and LogAttrs to minimize allocations.
+	logger := m.logger
+	if logger == nil {
+		logger = slog.Default()
+		m.logger = logger
+	}
 	if !logger.Enabled(c, slog.LevelInfo) {
 		return
 	}
@@ -50,8 +56,9 @@ func (m *loggingMiddleware) Invoke(c routing.RouteContext, next router.HandlerFu
 	req := c.Request()
 	duration := time.Since(start)
 
-	r := slog.NewRecord(time.Now(), slog.LevelInfo, "http_request", 0)
-	r.AddAttrs(
+	bufp := attrPool.Get().(*[]slog.Attr)
+	attrs := (*bufp)[:0]
+	attrs = append(attrs,
 		slog.String("method", req.Method),
 		slog.String("path", req.URL.Path),
 		slog.Int("status", rec.StatusCode()),
@@ -59,7 +66,10 @@ func (m *loggingMiddleware) Invoke(c routing.RouteContext, next router.HandlerFu
 		slog.String("user_agent", req.UserAgent()),
 		slog.Duration("duration", duration),
 	)
-	_ = logger.Handler().Handle(c, r)
+	logger.LogAttrs(c, slog.LevelInfo, "http_request", attrs...)
+	// reset and return to pool
+	*bufp = attrs[:0]
+	attrPool.Put(bufp)
 }
 
 // ---- Helpers ----
@@ -91,3 +101,9 @@ func (r *statusRecorder) StatusCode() int {
 	}
 	return r.Status
 }
+
+// attrPool reuses []slog.Attr buffers to avoid per-request slice allocations.
+var attrPool = sync.Pool{New: func() any {
+	b := make([]slog.Attr, 0, 8)
+	return &b
+}}

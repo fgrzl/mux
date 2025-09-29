@@ -44,6 +44,8 @@ type RouteContext interface {
 	SetResponse(http.ResponseWriter)
 	// Request returns the underlying *http.Request for this RouteContext.
 	Request() *http.Request
+	// SetRequest replaces the current *http.Request and updates the embedded context.
+	SetRequest(*http.Request)
 	// Options returns the RouteOptions in effect for this request.
 	Options() *RouteOptions
 
@@ -322,6 +324,14 @@ func (c *DefaultRouteContext) SetResponse(w http.ResponseWriter) {
 
 func (c *DefaultRouteContext) Request() *http.Request {
 	return c.request
+}
+
+// SetRequest replaces the current request and updates the embedded context.
+func (c *DefaultRouteContext) SetRequest(r *http.Request) {
+	c.request = r
+	if r != nil {
+		c.Context = r.Context()
+	}
 }
 
 func (c *DefaultRouteContext) Options() *RouteOptions {

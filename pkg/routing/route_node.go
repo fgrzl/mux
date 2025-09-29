@@ -14,4 +14,13 @@ type RouteNode struct {
 	// to detect nodes whose only possible next step is the CatchAll edge. When true,
 	// traversal can short-circuit immediately without scanning remaining segments.
 	HasOnlyCatchAll bool
+	// HasOnlyWildcardTerminal indicates that from this node the only possible next
+	// step is the Wildcard edge and that edge leads to a terminal node for the
+	// pattern (e.g., "/files/*"). Traversal can short-circuit by returning the
+	// wildcard node directly without scanning remaining segments.
+	HasOnlyWildcardTerminal bool
+	// HasParams indicates that the pattern leading to this node included one or more
+	// path parameters (e.g., {id}). Callers can use this to decide whether to build
+	// a params map for the happy path without performing another traversal.
+	HasParams bool
 }

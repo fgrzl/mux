@@ -52,34 +52,36 @@ func (r *RouteRegistry) Root() *routing.RouteNode {
 func (r *RouteRegistry) Register(pattern string, method string, options *routing.RouteOptions) {
 	segments := strings.Split(strings.Trim(pattern, "/"), "/")
 	node := r.root
+	hasParams := false
 
 	for _, seg := range segments {
 		if seg == "**" {
 			if node.CatchAll == nil {
 				node.CatchAll = &routing.RouteNode{Children: make(map[string]*routing.RouteNode)}
 			}
-			// update parent fast-path flag (only catch-all?)
-			r.refreshCatchAllFlag(node)
+			// update parent fast-path flags
+			r.refreshFastPathFlags(node)
 			node = node.CatchAll
 			break
 		} else if seg == "*" {
 			if node.Wildcard == nil {
 				node.Wildcard = &routing.RouteNode{Children: make(map[string]*routing.RouteNode)}
 			}
-			r.refreshCatchAllFlag(node)
+			r.refreshFastPathFlags(node)
 			node = node.Wildcard
 		} else if strings.HasPrefix(seg, "{") && strings.HasSuffix(seg, "}") {
+			hasParams = true
 			if node.ParamChild == nil {
 				node.ParamChild = &routing.RouteNode{Children: make(map[string]*routing.RouteNode)}
 				node.ParamChild.ParamName = seg[1 : len(seg)-1]
 			}
-			r.refreshCatchAllFlag(node)
+			r.refreshFastPathFlags(node)
 			node = node.ParamChild
 		} else {
 			if node.Children[seg] == nil {
 				node.Children[seg] = &routing.RouteNode{Children: make(map[string]*routing.RouteNode)}
 			}
-			r.refreshCatchAllFlag(node)
+			r.refreshFastPathFlags(node)
 			node = node.Children[seg]
 		}
 	}
@@ -89,6 +91,9 @@ func (r *RouteRegistry) Register(pattern string, method string, options *routing
 	}
 
 	node.RouteOptions[method] = options
+	if hasParams {
+		node.HasParams = true
+	}
 	// Update cached method metadata (mask and Allow header)
 	node.MethodsMask = methodsMaskFromMap(node.RouteOptions)
 	node.AllowHeader = allowHeaderFromMap(node.RouteOptions)
@@ -105,8 +110,8 @@ func (r *RouteRegistry) Register(pattern string, method string, options *routing
 	}
 }
 
-// refreshCatchAllFlag recomputes the HasOnlyCatchAll flag for n based on its children pointers.
-func (r *RouteRegistry) refreshCatchAllFlag(n *routing.RouteNode) {
+// refreshFastPathFlags recomputes fast-path flags for n based on its children pointers.
+func (r *RouteRegistry) refreshFastPathFlags(n *routing.RouteNode) {
 	if n == nil {
 		return
 	}
@@ -115,6 +120,13 @@ func (r *RouteRegistry) refreshCatchAllFlag(n *routing.RouteNode) {
 		n.HasOnlyCatchAll = true
 	} else {
 		n.HasOnlyCatchAll = false
+	}
+	// HasOnlyWildcardTerminal when there is a Wildcard and no other next step, and the wildcard node
+	// is a terminal for some method (i.e., has RouteOptions). This allows short-circuiting patterns like /files/*.
+	if n.Wildcard != nil && len(n.Children) == 0 && n.ParamChild == nil && n.CatchAll == nil {
+		n.HasOnlyWildcardTerminal = n.Wildcard != nil && len(n.Wildcard.RouteOptions) > 0
+	} else {
+		n.HasOnlyWildcardTerminal = false
 	}
 }
 
@@ -185,9 +197,12 @@ func (r *RouteRegistry) matchNodeInto(path string, dst map[string]string) (*rout
 	n := r.root
 	s := start
 	for s < end {
-		// Early short-circuit using precomputed flag
+		// Early short-circuits using precomputed flags
 		if n.HasOnlyCatchAll {
 			return n.CatchAll, true
+		}
+		if n.HasOnlyWildcardTerminal {
+			return n.Wildcard, true
 		}
 		j := s
 		for j < end && path[j] != '/' {
@@ -315,6 +330,8 @@ func (r *RouteRegistry) walkInto(path string, method string, dst map[string]stri
 		case 2:
 			f.stage = 3
 			if node.Wildcard != nil {
+				// Wildcard consumes this segment; if terminal-only fast-path was not true,
+				// we still need to continue traversal
 				stack = append(stack, frame{node: node.Wildcard, s: nextIndex, stage: 0})
 				continue
 			}
@@ -447,9 +464,12 @@ func (r *RouteRegistry) findNode(path string) *routing.RouteNode {
 	n := r.root
 	s := start
 	for s < end {
-		// Early short-circuit using precomputed flag
+		// Early short-circuit using precomputed flags
 		if n.HasOnlyCatchAll {
 			return n.CatchAll
+		}
+		if n.HasOnlyWildcardTerminal {
+			return n.Wildcard
 		}
 		j := s
 		for j < end && path[j] != '/' {
