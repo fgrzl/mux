@@ -28,7 +28,7 @@ func ConfigureRoutes(r *mux.Router) {
 	// Upgrade/Hijack behavior. This route lives at `/ws` (root) instead of
 	// under /api/v1 so test clients can connect directly to /ws.
 	r.GET("/ws", func(c mux.RouteContext) {
-		if strings.ToLower(c.Request().Header.Get("Upgrade")) != "websocket" {
+		if !strings.EqualFold(c.Request().Header.Get("Upgrade"), "websocket") {
 			c.NotFound()
 			return
 		}

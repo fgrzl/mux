@@ -74,10 +74,6 @@ type authorizationMiddleware struct {
 
 func (m *authorizationMiddleware) Invoke(c routing.RouteContext, next router.HandlerFunc) {
 	// Be defensive: if middleware was constructed without options, treat as no-op config
-	if m == nil {
-		next(c)
-		return
-	}
 	if !m.checkRoles(c) {
 		c.Forbidden("You do not have the necessary permissions to access this resource.")
 		return

@@ -361,8 +361,8 @@ type DefaultRouteContext struct {
 	services    map[ServiceKey]any
 	formsParsed bool
 	// wasPooled indicates whether this instance was obtained from the pool.
-	// If true, ReleaseContext will return it to the pool; otherwise it will
-	// not be pooled.
+	// It is used to prevent double-returns to the object pool: if true,
+	// ReleaseContext will return it to the pool; otherwise it will not be pooled.
 	wasPooled bool
 	// runtime cache for quick parameter lookups (key: strings.ToLower(in+":"+name))
 	paramIndex map[string]*openapi.ParameterObject

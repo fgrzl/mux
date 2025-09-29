@@ -64,7 +64,7 @@ func (cw *compressionWriter) WriteHeader(statusCode int) {
 func (m *compressionMiddleware) Invoke(c routing.RouteContext, next router.HandlerFunc) {
 	// Never attempt to compress upgraded WebSocket connections; compression wrappers
 	// can break hijacking and raw upgrade semantics.
-	if strings.ToLower(c.Request().Header.Get("Upgrade")) == "websocket" {
+	if strings.EqualFold(c.Request().Header.Get("Upgrade"), "websocket") {
 		next(c)
 		return
 	}
