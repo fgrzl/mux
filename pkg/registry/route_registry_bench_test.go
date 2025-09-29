@@ -20,7 +20,7 @@ func registerNoop(r *RouteRegistry, pattern string, method string) {
 	r.Register(pattern, method, opts)
 }
 
-func BenchmarkRouteRegistry_Load_ExactMatch(b *testing.B) {
+func BenchmarkRouteRegistryLoadExactMatch(b *testing.B) {
 	r := NewRouteRegistry()
 	registerNoop(r, "/hello", "GET")
 
@@ -31,7 +31,7 @@ func BenchmarkRouteRegistry_Load_ExactMatch(b *testing.B) {
 	}
 }
 
-func BenchmarkRouteRegistry_Load_ParamMatch(b *testing.B) {
+func BenchmarkRouteRegistryLoadParamMatch(b *testing.B) {
 	r := NewRouteRegistry()
 	registerNoop(r, "/users/{id}", "GET")
 
@@ -43,7 +43,7 @@ func BenchmarkRouteRegistry_Load_ParamMatch(b *testing.B) {
 	}
 }
 
-func BenchmarkRouteRegistry_Load_Wildcard(b *testing.B) {
+func BenchmarkRouteRegistryLoadWildcard(b *testing.B) {
 	r := NewRouteRegistry()
 	registerNoop(r, "/files/*", "GET")
 
@@ -54,7 +54,7 @@ func BenchmarkRouteRegistry_Load_Wildcard(b *testing.B) {
 	}
 }
 
-func BenchmarkRouteRegistry_Load_CatchAll(b *testing.B) {
+func BenchmarkRouteRegistryLoadCatchAll(b *testing.B) {
 	r := NewRouteRegistry()
 	registerNoop(r, "/catch/**", "GET")
 
@@ -87,11 +87,11 @@ func benchRegistryMany(b *testing.B, n int) {
 	}
 }
 
-func BenchmarkRouteRegistry_Many_100(b *testing.B)   { benchRegistryMany(b, 100) }
-func BenchmarkRouteRegistry_Many_1000(b *testing.B)  { benchRegistryMany(b, 1000) }
-func BenchmarkRouteRegistry_Many_10000(b *testing.B) { benchRegistryMany(b, 10000) }
+func BenchmarkRouteRegistryMany100(b *testing.B)   { benchRegistryMany(b, 100) }
+func BenchmarkRouteRegistryMany1000(b *testing.B)  { benchRegistryMany(b, 1000) }
+func BenchmarkRouteRegistryMany10000(b *testing.B) { benchRegistryMany(b, 10000) }
 
-func BenchmarkRouteRegistry_Load_Parallel(b *testing.B) {
+func BenchmarkRouteRegistryLoadParallel(b *testing.B) {
 	r := NewRouteRegistry()
 	populateRegistry(r, 1000)
 

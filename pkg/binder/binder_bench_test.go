@@ -14,7 +14,7 @@ func init() {
 	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})))
 }
 
-func BenchmarkMakeConverter_String(b *testing.B) {
+func BenchmarkMakeConverterString(b *testing.B) {
 	conv := makeConverter(reflect.TypeOf(""), nil)
 	vals := []string{"hello"}
 
@@ -25,7 +25,7 @@ func BenchmarkMakeConverter_String(b *testing.B) {
 	}
 }
 
-func BenchmarkMakeConverter_IntSlice(b *testing.B) {
+func BenchmarkMakeConverterIntSlice(b *testing.B) {
 	conv := makeConverter(reflect.SliceOf(reflect.TypeOf(int64(0))), nil)
 	vals := []string{"1", "2", "3", "4", "5"}
 
@@ -36,7 +36,7 @@ func BenchmarkMakeConverter_IntSlice(b *testing.B) {
 	}
 }
 
-func BenchmarkParseValueBySchema_Integer(b *testing.B) {
+func BenchmarkParseValueBySchemaInteger(b *testing.B) {
 	schema := &openapi.Schema{Type: "integer"}
 	vals := []string{"12345"}
 
@@ -47,7 +47,7 @@ func BenchmarkParseValueBySchema_Integer(b *testing.B) {
 	}
 }
 
-func BenchmarkParseValueBySchema_StringUUID(b *testing.B) {
+func BenchmarkParseValueBySchemaStringUUID(b *testing.B) {
 	schema := &openapi.Schema{Type: "string", Format: "uuid"}
 	vals := []string{"6ba7b814-9dad-11d1-80b4-00c04fd430c8"}
 
@@ -58,7 +58,7 @@ func BenchmarkParseValueBySchema_StringUUID(b *testing.B) {
 	}
 }
 
-func BenchmarkParseByExample_WithExample(b *testing.B) {
+func BenchmarkParseByExampleWithExample(b *testing.B) {
 	param := &openapi.ParameterObject{Example: 123}
 	val := "123"
 
@@ -69,7 +69,7 @@ func BenchmarkParseByExample_WithExample(b *testing.B) {
 	}
 }
 
-func BenchmarkParseSliceValues_SchemaInteger(b *testing.B) {
+func BenchmarkParseSliceValuesSchemaInteger(b *testing.B) {
 	param := &openapi.ParameterObject{Schema: &openapi.Schema{Type: "array", Items: &openapi.Schema{Type: "integer"}}}
 	vals := []string{"1", "2", "3", "4", "5"}
 

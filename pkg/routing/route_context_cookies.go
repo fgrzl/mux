@@ -10,9 +10,24 @@ import (
 	"github.com/fgrzl/mux/pkg/tokenizer"
 )
 
+// EnforceSecureForSameSiteNone controls whether SetCookie will force the Secure
+// flag when SameSite=None is specified. Default true to match browser
+// expectations; flip to false in local development environments that use plain HTTP.
+var EnforceSecureForSameSiteNone = true
+
 // ...existing code...
 // SetCookie writes a cookie with the given attributes.
-func (c *DefaultRouteContext) SetCookie(name, value string, maxAge int, path, domain string, secure, httpOnly bool) {
+func (c *DefaultRouteContext) SetCookie(
+	name, value string,
+	maxAge int,
+	path, domain string,
+	secure, httpOnly bool,
+	sameSite ...http.SameSite, // optional SameSite (defaults to Lax)
+) {
+	var ss http.SameSite = http.SameSiteLaxMode
+	if len(sameSite) > 0 {
+		ss = sameSite[0]
+	}
 	cookie := &http.Cookie{
 		Name:     name,
 		Value:    value,
@@ -21,13 +36,27 @@ func (c *DefaultRouteContext) SetCookie(name, value string, maxAge int, path, do
 		MaxAge:   maxAge,
 		Secure:   secure,
 		HttpOnly: httpOnly,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: ss,
 	}
 
 	if maxAge > 0 {
 		cookie.Expires = time.Now().Add(time.Duration(maxAge) * time.Second)
 	} else if maxAge < 0 {
-		cookie.Expires = time.Unix(1, 0)
+		// delete immediately
+		cookie.Expires = time.Unix(1, 0).UTC()
+	}
+
+	// enforce Secure if SameSite=None
+	// Behavior note: some browsers require Secure when SameSite=None. Making
+	// this configurable allows development workflows using plain HTTP to opt-out.
+	if cookie.SameSite == http.SameSiteNoneMode && !cookie.Secure {
+		if EnforceSecureForSameSiteNone {
+			cookie.Secure = true
+			slog.Warn("SetCookie: Secure=true enforced because SameSite=None is set; this may break on HTTP in development", "cookieName", cookie.Name)
+		} else {
+			// Log a warning but do not modify the cookie when enforcement is disabled.
+			slog.Warn("SetCookie: SameSite=None set but Secure enforcement is disabled; cookie will be sent without Secure flag", "cookieName", cookie.Name)
+		}
 	}
 
 	http.SetCookie(c.Response(), cookie)
@@ -49,7 +78,7 @@ func (c *DefaultRouteContext) ClearCookie(name string) {
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
-		Expires:  time.Unix(1, 0), // old enough to be invalid
+		Expires:  time.Unix(1, 0).UTC(), // old enough to be invalid
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,

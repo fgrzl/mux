@@ -3,14 +3,17 @@
 [![CI](https://github.com/fgrzl/mux/actions/workflows/ci.yaml/badge.svg)](https://github.com/fgrzl/mux/actions/workflows/ci.yaml)
 [![Dependabot](https://github.com/fgrzl/mux/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/fgrzl/mux/actions/workflows/dependabot/dependabot-updates)
 
-A lightweight, modular HTTP router for Go with middleware, request binding, OpenAPI 3.1 generation, structured responses, and flexible auth support.
+Blazing‑fast, ergonomic HTTP router for Go. Super easy to use. Elite in performance.
+
+Single import. Two lines. Ship.
 
 ## Why Mux?
 
-✨ **API-first Development** - Built-in OpenAPI support without code generation  
-🧩 **Modular & Extensible** - Composable middleware and lifecycle hooks  
-💡 **Ergonomic DSL** - Intuitive route definition and documentation  
-🧪 **Clear & Testable** - Type-safe design with predictable behavior  
+- 🚀 **Elite performance**: nanosecond‑level core routing with zero allocations
+- ✨ **API‑first**: OpenAPI 3.1 built in — no codegen, no extra steps
+- 🧩 **Composable**: first‑class middleware and route groups
+- 💡 **Ergonomic**: clear, predictable DSL with strong helpers
+- 🧪 **Testable**: type‑safe design and great defaults
 
 ## Quick Start
 
@@ -32,13 +35,11 @@ import (
 
 func main() {
     router := mux.NewRouter()
-    
-    router.GET("/hello", func(c mux.RouteContext) {
-        c.OK("Hello, World!")
-    })
-    
+    router.GET("/hello", func(c mux.RouteContext) { c.OK("Hello, World!") })
     http.ListenAndServe(":8080", router)
 }
+
+// That’s it — production‑ready defaults with great throughput.
 ```
 
 ### Simple API
@@ -136,6 +137,22 @@ func getUser(c mux.RouteContext) {
 - **📖 OpenAPI 3.1**: Automatic spec generation with inline documentation
 - **🌍 Geographic Control**: Export control with GeoIP support
 - **📊 Observability**: OpenTelemetry integration and structured logging
+
+## Performance
+
+Mux is engineered for hot‑path efficiency. Representative benchmark results from this repo:
+
+- Core router (pooled context):
+    - Exact/catch‑all routes: ~26–65 ns/op, 0 allocs/op
+    - Param routes: ~128 ns/op, 0 allocs/op
+    - 10k routes in registry: ~267 ns/op
+- Middleware (per request):
+    - Logging: ~1.0 µs, ~12 allocs/op (pooled)
+    - OpenTelemetry: ~2.5 µs, ~37 allocs/op (pooled)
+    - Compression (gzip/deflate): ~10–74 µs depending on body size, ~12–14 allocs/op (pooled)
+- End‑to‑end sample pipeline (router + common middleware): ~1.4 µs, 8 allocs/op (pooled)
+
+Environment: Windows, 12th Gen Intel Core i9‑12900HK. See “Testing” for how to reproduce on your machine — numbers will vary by hardware and OS.
 
 ## Basic Usage
 
@@ -248,6 +265,15 @@ go test ./... -v
 go test ./... -coverprofile=coverage.out
 ```
 
+To reproduce the performance numbers above, run the micro‑benchmarks:
+
+```bash
+go test ./pkg/router -bench . -benchmem
+go test ./pkg/middleware/logging -bench . -benchmem
+go test ./pkg/middleware/opentelemetry -bench . -benchmem
+go test ./pkg/middleware/compression -bench . -benchmem
+```
+
 ## Contributing
 
 1. Fork the repository
@@ -258,6 +284,4 @@ go test ./... -coverprofile=coverage.out
 6. Push to the branch (`git push origin feature/amazing-feature`)
 7. Open a Pull Request
 
-## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

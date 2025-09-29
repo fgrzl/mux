@@ -39,6 +39,7 @@ const (
 	HeaderXRealIP            = "X-Real-IP"
 	HeaderAcceptEncoding     = "Accept-Encoding"
 	HeaderContentEncoding    = "Content-Encoding"
+	HeaderVary               = "Vary"
 	HeaderUserAgent          = "User-Agent"
 	HeaderAuthorization      = "Authorization"
 	HeaderLocation           = "Location"

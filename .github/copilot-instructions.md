@@ -40,6 +40,34 @@ Welcome, Copilot. Please follow these instructions to ensure clean, idiomatic, a
 * Prefer table-driven tests when appropriate.
 * Each test should test one thing
 
+## 🧪 Benchmarking Guidance
+
+Mux includes a comprehensive suite of benchmarks to track performance of the router, registry, middleware, and utilities. When adding new benchmarks, please follow Go’s standard conventions to keep results consistent and easy to interpret.
+
+### Naming Conventions
+
+* All benchmarks must start with the `Benchmark` prefix:
+
+  ```go
+  func BenchmarkRouterExactMatch(b *testing.B) { ... }
+  ```
+* Use **PascalCase** (no underscores, no snake_case).
+* Names should clearly describe **what is being measured**:
+
+  * `BenchmarkRouterParamMatch`
+  * `BenchmarkRouteRegistryManyRoutes`
+  * `BenchmarkCompressionGzipSmall`
+
+### Sub-Benchmarks
+
+For variations (different sizes, modes, etc.), prefer sub-benchmarks instead of encoding details into the function name:
+
+```go
+func BenchmarkCompression(b *testing.B) {
+    b.Run("GzipSmall", func(b *testing.B) { ... })
+    b.Run("GzipLarge", func(b *testing.B) { ... })
+}
+```
 
 ## 📚 Documentation
 
@@ -54,3 +82,8 @@ Welcome, Copilot. Please follow these instructions to ensure clean, idiomatic, a
 * Always pass `context.Context` to log calls.
 
 Thanks for helping us write clean and idiomatic Go!
+
+
+
+
+
