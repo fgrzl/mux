@@ -269,33 +269,50 @@ func (rg *RouteGroup) HealthzWithReady(isReady func() bool) *builder.RouteBuilde
 
 // StaticFallback serves static files with a fallback for SPA routing, with directory safety checks.
 func (rg *RouteGroup) StaticFallback(pattern, dir, fallback string) *builder.RouteBuilder {
+	// Determine the URL prefix (pattern without the trailing "**"), and normalize
 	prefix := strings.TrimSuffix(pattern, "**")
 	prefix = strings.TrimRight(prefix, "/")
-	// Precompute absolute directory once and reuse a single FileServer
-	absDir, _ := filepath.Abs(dir)
-	fs := http.FileServer(http.Dir(dir))
 
+	// Resolve absolute directory and fallback file for robust file serving
+	absDir, _ := filepath.Abs(dir)
+	// Always serve from absolute directory to avoid CWD surprises
+	fs := http.FileServer(http.Dir(absDir))
+	// Resolve fallback to a file within absDir; assume fallback file name lives under dir
+	fallbackAbs := filepath.Join(absDir, filepath.Base(fallback))
+
+	// Catch-all handler: serve static file if it exists within dir, otherwise serve fallback
 	handler := func(c routing.RouteContext) {
 		requestPath := c.Request().URL.Path
 		trimmed := strings.TrimPrefix(requestPath, prefix)
 		trimmed = strings.TrimPrefix(trimmed, "/")
-		fullPath := filepath.Join(dir, trimmed)
-		absFullPath, err := filepath.Abs(fullPath)
-		if err != nil || !strings.HasPrefix(absFullPath, absDir) {
-			http.ServeFile(c.Response(), c.Request(), fallback)
+		absFullPath := filepath.Join(absDir, trimmed)
+		// Safety: ensure the resolved path is within the static directory
+		if !strings.HasPrefix(absFullPath, absDir) {
+			http.ServeFile(c.Response(), c.Request(), fallbackAbs)
 			return
 		}
 		info, err := os.Stat(absFullPath)
 		if err != nil || info.IsDir() {
-			http.ServeFile(c.Response(), c.Request(), fallback)
+			http.ServeFile(c.Response(), c.Request(), fallbackAbs)
 			return
 		}
-		// Serve as static
+		// Serve as static (adjust URL.Path for the FileServer)
 		r := *c.Request()
 		r.URL.Path = "/" + trimmed
 		fs.ServeHTTP(c.Response(), &r)
 	}
-	return rg.registerRoute(http.MethodGet, pattern, handler)
+
+	// Also register a base path route that directly serves the fallback file so
+	// requests to the group root (e.g., "/" or "/app/") return the SPA entry.
+	// We intentionally allow anonymous access for SPA assets by default.
+	baseHandler := func(c routing.RouteContext) {
+		http.ServeFile(c.Response(), c.Request(), fallbackAbs)
+	}
+	// Empty route allows normalizeRoute to map to group base (e.g., prefix or "/").
+	rg.registerRoute(http.MethodGet, "", baseHandler).AllowAnonymous()
+
+	// Register the catch-all route and return its builder for further chaining.
+	return rg.registerRoute(http.MethodGet, pattern, handler).AllowAnonymous()
 }
 
 // ---- Utilities ----
