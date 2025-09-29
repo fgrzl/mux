@@ -35,7 +35,7 @@ func createRouterWithN(n int) *Router {
 	return r
 }
 
-func BenchmarkRouter_ExactMatch_SingleRoute(b *testing.B) {
+func BenchmarkRouterExactMatchSingleRoute(b *testing.B) {
 	r := NewRouter()
 	rg := r.NewRouteGroup("")
 	rg.GET("/hello", noopHandler)
@@ -50,7 +50,7 @@ func BenchmarkRouter_ExactMatch_SingleRoute(b *testing.B) {
 	}
 }
 
-func BenchmarkRouter_ExactMatch_SingleRoute_Pool(b *testing.B) {
+func BenchmarkRouterExactMatchSingleRoutePool(b *testing.B) {
 	r := NewRouter(WithContextPooling())
 	rg := r.NewRouteGroup("")
 	rg.GET("/hello", noopHandler)
@@ -65,7 +65,7 @@ func BenchmarkRouter_ExactMatch_SingleRoute_Pool(b *testing.B) {
 	}
 }
 
-func BenchmarkRouter_ParamMatch_SingleRoute(b *testing.B) {
+func BenchmarkRouterParamMatchSingleRoute(b *testing.B) {
 	r := NewRouter()
 	rg := r.NewRouteGroup("")
 	rg.GET("/users/{id}", noopHandler)
@@ -80,7 +80,7 @@ func BenchmarkRouter_ParamMatch_SingleRoute(b *testing.B) {
 	}
 }
 
-func BenchmarkRouter_ParamMatch_SingleRoute_Pool(b *testing.B) {
+func BenchmarkRouterParamMatchSingleRoutePool(b *testing.B) {
 	r := NewRouter(WithContextPooling())
 	rg := r.NewRouteGroup("")
 	rg.GET("/users/{id}", noopHandler)
@@ -95,7 +95,7 @@ func BenchmarkRouter_ParamMatch_SingleRoute_Pool(b *testing.B) {
 	}
 }
 
-func BenchmarkRouter_Wildcard_CatchAll(b *testing.B) {
+func BenchmarkRouterWildcardCatchAll(b *testing.B) {
 	r := NewRouter()
 	rg := r.NewRouteGroup("")
 	rg.GET("/files/*", noopHandler)
@@ -111,7 +111,7 @@ func BenchmarkRouter_Wildcard_CatchAll(b *testing.B) {
 	}
 }
 
-func BenchmarkRouter_Wildcard_CatchAll_Pool(b *testing.B) {
+func BenchmarkRouterWildcardCatchAllPool(b *testing.B) {
 	r := NewRouter(WithContextPooling())
 	rg := r.NewRouteGroup("")
 	rg.GET("/files/*", noopHandler)
@@ -141,6 +141,6 @@ func benchRouterManyRoutes(b *testing.B, routeCount int) {
 	}
 }
 
-func BenchmarkRouter_ManyRoutes_100(b *testing.B)   { benchRouterManyRoutes(b, 100) }
-func BenchmarkRouter_ManyRoutes_1000(b *testing.B)  { benchRouterManyRoutes(b, 1000) }
-func BenchmarkRouter_ManyRoutes_10000(b *testing.B) { benchRouterManyRoutes(b, 10000) }
+func BenchmarkRouterManyRoutes100(b *testing.B)   { benchRouterManyRoutes(b, 100) }
+func BenchmarkRouterManyRoutes1000(b *testing.B)  { benchRouterManyRoutes(b, 1000) }
+func BenchmarkRouterManyRoutes10000(b *testing.B) { benchRouterManyRoutes(b, 10000) }

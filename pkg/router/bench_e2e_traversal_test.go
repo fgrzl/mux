@@ -25,7 +25,7 @@ func setupComplexRouter() *Router {
 }
 
 // Old pooled behavior: acquire context (pooled) then perform LoadDetailedInto then Load
-func BenchmarkRouter_E2E_Old_Pool(b *testing.B) {
+func BenchmarkRouterE2EOldPool(b *testing.B) {
 	r := setupComplexRouter()
 	req := httptest.NewRequest(http.MethodGet, "/files/some/path/file.txt", nil)
 	rr := httptest.NewRecorder()
@@ -43,7 +43,7 @@ func BenchmarkRouter_E2E_Old_Pool(b *testing.B) {
 }
 
 // New pooled behavior: acquire context then perform single FindNodeInto
-func BenchmarkRouter_E2E_New_Pool(b *testing.B) {
+func BenchmarkRouterE2ENewPool(b *testing.B) {
 	r := setupComplexRouter()
 	req := httptest.NewRequest(http.MethodGet, "/files/some/path/file.txt", nil)
 	rr := httptest.NewRecorder()
@@ -59,7 +59,7 @@ func BenchmarkRouter_E2E_New_Pool(b *testing.B) {
 }
 
 // Old non-pooled behavior: NewRouteContext, Load (fast) then LoadDetailedInto when needed
-func BenchmarkRouter_E2E_Old_NonPool(b *testing.B) {
+func BenchmarkRouterE2EOldNonPool(b *testing.B) {
 	r := NewRouter() // non-pooled
 	rg := r.NewRouteGroup("")
 	rg.GET("/users/{userId}", func(c routing.RouteContext) {})
@@ -86,7 +86,7 @@ func BenchmarkRouter_E2E_Old_NonPool(b *testing.B) {
 }
 
 // New non-pooled behavior: use FindNode (non-allocating) and only allocate when attaching params
-func BenchmarkRouter_E2E_New_NonPool(b *testing.B) {
+func BenchmarkRouterE2ENewNonPool(b *testing.B) {
 	r := NewRouter()
 	rg := r.NewRouteGroup("")
 	rg.GET("/users/{userId}", func(c routing.RouteContext) {})

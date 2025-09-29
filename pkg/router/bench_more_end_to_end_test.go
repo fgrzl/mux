@@ -22,7 +22,7 @@ func buildDeepPath(n int) string {
 }
 
 // Benchmark deep SPA path with catch-all fallback: pooled
-func BenchmarkServeHTTP_SPA_DeepPath_Pool(b *testing.B) {
+func BenchmarkServeHTTPSPADeepPathPool(b *testing.B) {
 	r := router.NewRouter(router.WithContextPooling())
 	rg := r.NewRouteGroup("")
 	rg.GET("/app/**", func(c routing.RouteContext) {
@@ -40,7 +40,7 @@ func BenchmarkServeHTTP_SPA_DeepPath_Pool(b *testing.B) {
 }
 
 // Benchmark deep SPA path with catch-all fallback: non-pooled
-func BenchmarkServeHTTP_SPA_DeepPath_NonPool(b *testing.B) {
+func BenchmarkServeHTTPSPADeepPathNonPool(b *testing.B) {
 	r := router.NewRouter()
 	rg := r.NewRouteGroup("")
 	rg.GET("/app/**", func(c routing.RouteContext) {
@@ -58,7 +58,7 @@ func BenchmarkServeHTTP_SPA_DeepPath_NonPool(b *testing.B) {
 }
 
 // SPA deep-path with logging+compression middleware: pooled
-func BenchmarkServeHTTP_SPA_DeepPath_WithMiddleware_Pool(b *testing.B) {
+func BenchmarkServeHTTPSPADeepPathWithMiddlewarePool(b *testing.B) {
 	r := router.NewRouter(router.WithContextPooling())
 	logging.UseLogging(r)
 	compression.UseCompression(r)
@@ -81,7 +81,7 @@ func BenchmarkServeHTTP_SPA_DeepPath_WithMiddleware_Pool(b *testing.B) {
 }
 
 // SPA deep-path with logging+compression middleware: non-pooled
-func BenchmarkServeHTTP_SPA_DeepPath_WithMiddleware_NonPool(b *testing.B) {
+func BenchmarkServeHTTPSPADeepPathWithMiddlewareNonPool(b *testing.B) {
 	r := router.NewRouter()
 	logging.UseLogging(r)
 	compression.UseCompression(r)
@@ -103,7 +103,7 @@ func BenchmarkServeHTTP_SPA_DeepPath_WithMiddleware_NonPool(b *testing.B) {
 }
 
 // Benchmark HEAD->GET fallback cost on match
-func BenchmarkServeHTTP_HeadFallback_Pool(b *testing.B) {
+func BenchmarkServeHTTPHeadFallbackPool(b *testing.B) {
 	r := router.NewRouter(router.WithContextPooling(), router.WithHeadFallbackToGet())
 	rg := r.NewRouteGroup("")
 	rg.GET("/files/*", func(c routing.RouteContext) {
@@ -119,7 +119,7 @@ func BenchmarkServeHTTP_HeadFallback_Pool(b *testing.B) {
 	}
 }
 
-func BenchmarkServeHTTP_HeadFallback_NonPool(b *testing.B) {
+func BenchmarkServeHTTPHeadFallbackNonPool(b *testing.B) {
 	r := router.NewRouter(router.WithHeadFallbackToGet())
 	rg := r.NewRouteGroup("")
 	rg.GET("/files/*", func(c routing.RouteContext) {
@@ -136,7 +136,7 @@ func BenchmarkServeHTTP_HeadFallback_NonPool(b *testing.B) {
 }
 
 // Param vs wildcard vs catch-all comparison
-func BenchmarkServeHTTP_ParamVsWildcardVsCatchAll(b *testing.B) {
+func BenchmarkServeHTTPParamVsWildcardVsCatchAll(b *testing.B) {
 	cases := []struct {
 		name    string
 		pattern string

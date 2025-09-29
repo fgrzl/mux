@@ -87,9 +87,9 @@ func benchRegistryMany(b *testing.B, n int) {
 	}
 }
 
-func BenchmarkRouteRegistry_Many_100(b *testing.B)   { benchRegistryMany(b, 100) }
-func BenchmarkRouteRegistry_Many_1000(b *testing.B)  { benchRegistryMany(b, 1000) }
-func BenchmarkRouteRegistry_Many_10000(b *testing.B) { benchRegistryMany(b, 10000) }
+func BenchmarkRouteRegistryMany100(b *testing.B)   { benchRegistryMany(b, 100) }
+func BenchmarkRouteRegistryMany1000(b *testing.B)  { benchRegistryMany(b, 1000) }
+func BenchmarkRouteRegistryMany10000(b *testing.B) { benchRegistryMany(b, 10000) }
 
 func BenchmarkRouteRegistry_Load_Parallel(b *testing.B) {
 	r := NewRouteRegistry()
