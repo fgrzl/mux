@@ -215,7 +215,8 @@ type RouteContext interface {
 	// GetCookie returns the cookie value by name or an error if missing.
 	GetCookie(name string) (string, error)
 	// SetCookie sets a cookie with attributes including maxAge, path, domain, and flags.
-	SetCookie(name, value string, maxAge int, path, domain string, secure, httpOnly bool)
+	// The SameSite attribute is optional and defaults to Lax when omitted.
+	SetCookie(name, value string, maxAge int, path, domain string, secure, httpOnly bool, sameSite ...http.SameSite)
 	// ClearCookie removes the named cookie from the client.
 	ClearCookie(name string)
 	// Authenticate persists the user principal using the named cookie.
@@ -257,7 +258,7 @@ func AcquireContext(w http.ResponseWriter, r *http.Request) *DefaultRouteContext
 	c.user = nil
 	c.options = nil
 	if c.params == nil {
-		c.params = make(RouteParams, 2)
+		c.params = AcquireRouteParams()
 	} else {
 		// clear
 		for k := range c.params {
@@ -284,9 +285,9 @@ func ReleaseContext(c *DefaultRouteContext) {
 	c.user = nil
 	c.options = nil
 	if c.params != nil {
-		for k := range c.params {
-			delete(c.params, k)
-		}
+		// return params map to pool
+		ReleaseRouteParams(c.params)
+		c.params = nil
 	}
 	c.services = nil
 	c.formsParsed = false

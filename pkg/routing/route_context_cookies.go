@@ -12,7 +12,17 @@ import (
 
 // ...existing code...
 // SetCookie writes a cookie with the given attributes.
-func (c *DefaultRouteContext) SetCookie(name, value string, maxAge int, path, domain string, secure, httpOnly bool) {
+func (c *DefaultRouteContext) SetCookie(
+	name, value string,
+	maxAge int,
+	path, domain string,
+	secure, httpOnly bool,
+	sameSite ...http.SameSite, // optional SameSite (defaults to Lax)
+) {
+	var ss http.SameSite = http.SameSiteLaxMode
+	if len(sameSite) > 0 {
+		ss = sameSite[0]
+	}
 	cookie := &http.Cookie{
 		Name:     name,
 		Value:    value,
@@ -21,13 +31,19 @@ func (c *DefaultRouteContext) SetCookie(name, value string, maxAge int, path, do
 		MaxAge:   maxAge,
 		Secure:   secure,
 		HttpOnly: httpOnly,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: ss,
 	}
 
 	if maxAge > 0 {
 		cookie.Expires = time.Now().Add(time.Duration(maxAge) * time.Second)
 	} else if maxAge < 0 {
-		cookie.Expires = time.Unix(1, 0)
+		// delete immediately
+		cookie.Expires = time.Unix(0, 0).UTC()
+	}
+
+	// enforce Secure if SameSite=None
+	if cookie.SameSite == http.SameSiteNoneMode && !cookie.Secure {
+		cookie.Secure = true
 	}
 
 	http.SetCookie(c.Response(), cookie)

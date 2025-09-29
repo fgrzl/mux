@@ -117,9 +117,8 @@ func TestLoggingMiddlewareShouldDefaultTo200Status(t *testing.T) {
 
 	// Assert
 	logOutput := logBuffer.String()
-	// When WriteHeader is not called explicitly, the status should be 0 (not set)
-	// but the actual HTTP status will be 200
-	assert.Contains(t, logOutput, "status=0")
+	// When WriteHeader is not called explicitly, our recorder should default to 200 on first Write
+	assert.Contains(t, logOutput, "status=200")
 }
 
 func TestStatusRecorderShouldCaptureStatusCode(t *testing.T) {

@@ -141,24 +141,80 @@ func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if p := c.Params(); p != nil {
 		params = p
 	} else if rtr.options != nil && rtr.options.ContextPooling {
-		params = make(routing.RouteParams, 2)
+		params = routing.AcquireRouteParams()
 	}
 	if params != nil {
-		options, det = rtr.routeRegistry.LoadDetailedInto(r.URL.Path, r.Method, params)
-	} else {
-		// Non-pooled path: allocate params map only if needed in fallback
-		options2, pmap, ok := rtr.routeRegistry.Load(r.URL.Path, r.Method)
-		if ok {
-			options = options2
-			det = registry.LoadDetails{Found: true, MethodOK: true}
-			params = pmap
-		} else {
-			// Try detailed for Allow on method mismatch by allocating a small map
-			tmp := make(routing.RouteParams, 2)
+		// Use single traversal when we have a params map to fill (pooled contexts).
+		node := rtr.routeRegistry.FindNodeInto(r.URL.Path, params)
+		if node == nil || len(node.RouteOptions) == 0 {
+			// No terminal node; compute LoadDetails for Allow/header behavior.
+			tmp := routing.AcquireRouteParams()
 			_, det = rtr.routeRegistry.LoadDetailedInto(r.URL.Path, r.Method, tmp)
-			// only persist params if we actually matched (MethodOK or not)
 			if det.Found {
 				params = tmp
+			} else {
+				routing.ReleaseRouteParams(tmp)
+			}
+		} else {
+			if opt, ok := node.RouteOptions[r.Method]; ok {
+				// method allowed. For non-pooled contexts we still need to populate
+				// a params map (handlers expect c.Params() to be set). Allocate a
+				// temporary params map from the pool and LoadInto it.
+				if c.Params() == nil {
+					tmp := routing.AcquireRouteParams()
+					if opt2, ok2 := rtr.routeRegistry.LoadInto(r.URL.Path, r.Method, tmp); ok2 {
+						options = opt2
+						params = tmp
+						det = registry.LoadDetails{Found: true, MethodOK: true}
+					} else {
+						// shouldn't happen, but release tmp if load failed
+						routing.ReleaseRouteParams(tmp)
+						options = opt
+						det = registry.LoadDetails{Found: true, MethodOK: true}
+					}
+				} else {
+					options = opt
+					det = registry.LoadDetails{Found: true, MethodOK: true}
+				}
+			} else {
+				det = registry.LoadDetails{Found: true, MethodOK: false, Allow: node.AllowHeader}
+			}
+		}
+	} else {
+		// Non-pooled path: avoid allocating params map unless we need them.
+		// Use a non-allocating FindNode to detect whether the path matches a node
+		// and quickly read the precomputed Allow header when the method doesn't match.
+		node := rtr.routeRegistry.FindNode(r.URL.Path)
+		if node == nil || len(node.RouteOptions) == 0 {
+			// No terminal node; compute LoadDetails for Allow/header behavior.
+			tmp := routing.AcquireRouteParams()
+			_, det = rtr.routeRegistry.LoadDetailedInto(r.URL.Path, r.Method, tmp)
+			if det.Found {
+				params = tmp
+			} else {
+				routing.ReleaseRouteParams(tmp)
+			}
+		} else {
+			if opt, ok := node.RouteOptions[r.Method]; ok {
+				// For non-pooled contexts we must not attach a pooled params map
+				// to the context lifetime. Allocate a fresh map here.
+				if c.Params() == nil {
+					tmp := make(routing.RouteParams, 2)
+					if opt2, ok2 := rtr.routeRegistry.LoadInto(r.URL.Path, r.Method, tmp); ok2 {
+						options = opt2
+						params = tmp
+						det = registry.LoadDetails{Found: true, MethodOK: true}
+					} else {
+						// fallback: set options and keep params nil
+						options = opt
+						det = registry.LoadDetails{Found: true, MethodOK: true}
+					}
+				} else {
+					options = opt
+					det = registry.LoadDetails{Found: true, MethodOK: true}
+				}
+			} else {
+				det = registry.LoadDetails{Found: true, MethodOK: false, Allow: node.AllowHeader}
 			}
 		}
 	}
@@ -166,13 +222,20 @@ func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	suppressBody := false
 	// HEAD fallback: if enabled, attempt to serve via GET regardless of initial match state
 	if r.Method == http.MethodHead && rtr.options.HeadFallbackToGet {
+		// If we haven't already found a node, attempt to find one for GET without
+		// allocating another full traversal when possible. Reuse params if available.
 		if params == nil {
-			params = make(routing.RouteParams, 2)
+			params = routing.AcquireRouteParams()
 		}
-		if getOpt, d := rtr.routeRegistry.LoadDetailedInto(r.URL.Path, http.MethodGet, params); d.Found && d.MethodOK {
-			options = getOpt
-			det = d
-			suppressBody = true
+		// Find GET node; if it's the same node we already inspected this is cheap,
+		// otherwise it performs a single traversal.
+		getNode := rtr.routeRegistry.FindNodeInto(r.URL.Path, params)
+		if getNode != nil {
+			if opt, ok := getNode.RouteOptions[http.MethodGet]; ok {
+				options = opt
+				det = registry.LoadDetails{Found: true, MethodOK: true}
+				suppressBody = true
+			}
 		}
 	}
 	if !det.Found || !det.MethodOK {

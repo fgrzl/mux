@@ -58,23 +58,28 @@ func (r *RouteRegistry) Register(pattern string, method string, options *routing
 			if node.CatchAll == nil {
 				node.CatchAll = &routing.RouteNode{Children: make(map[string]*routing.RouteNode)}
 			}
+			// update parent fast-path flag (only catch-all?)
+			r.refreshCatchAllFlag(node)
 			node = node.CatchAll
 			break
 		} else if seg == "*" {
 			if node.Wildcard == nil {
 				node.Wildcard = &routing.RouteNode{Children: make(map[string]*routing.RouteNode)}
 			}
+			r.refreshCatchAllFlag(node)
 			node = node.Wildcard
 		} else if strings.HasPrefix(seg, "{") && strings.HasSuffix(seg, "}") {
 			if node.ParamChild == nil {
 				node.ParamChild = &routing.RouteNode{Children: make(map[string]*routing.RouteNode)}
 				node.ParamChild.ParamName = seg[1 : len(seg)-1]
 			}
+			r.refreshCatchAllFlag(node)
 			node = node.ParamChild
 		} else {
 			if node.Children[seg] == nil {
 				node.Children[seg] = &routing.RouteNode{Children: make(map[string]*routing.RouteNode)}
 			}
+			r.refreshCatchAllFlag(node)
 			node = node.Children[seg]
 		}
 	}
@@ -97,6 +102,19 @@ func (r *RouteRegistry) Register(pattern string, method string, options *routing
 			r.exactRoutes[pattern] = m
 		}
 		m[method] = options
+	}
+}
+
+// refreshCatchAllFlag recomputes the HasOnlyCatchAll flag for n based on its children pointers.
+func (r *RouteRegistry) refreshCatchAllFlag(n *routing.RouteNode) {
+	if n == nil {
+		return
+	}
+	// HasOnlyCatchAll when there is a CatchAll and no other possible next step
+	if n.CatchAll != nil && len(n.Children) == 0 && n.ParamChild == nil && n.Wildcard == nil {
+		n.HasOnlyCatchAll = true
+	} else {
+		n.HasOnlyCatchAll = false
 	}
 }
 
@@ -167,6 +185,10 @@ func (r *RouteRegistry) matchNodeInto(path string, dst map[string]string) (*rout
 	n := r.root
 	s := start
 	for s < end {
+		// Early short-circuit using precomputed flag
+		if n.HasOnlyCatchAll {
+			return n.CatchAll, true
+		}
 		j := s
 		for j < end && path[j] != '/' {
 			j++
@@ -249,6 +271,17 @@ func (r *RouteRegistry) walkInto(path string, method string, dst map[string]stri
 		s := f.s
 		if s >= end {
 			if opt, ok := atEnd(node, method); ok {
+				return opt, true
+			}
+			if f.paramKey != "" {
+				delete(dst, f.paramKey)
+			}
+			stack = stack[:len(stack)-1]
+			continue
+		}
+		// Early short-circuit using precomputed flag
+		if node.HasOnlyCatchAll {
+			if opt, ok := atEnd(node.CatchAll, method); ok {
 				return opt, true
 			}
 			if f.paramKey != "" {
@@ -414,6 +447,10 @@ func (r *RouteRegistry) findNode(path string) *routing.RouteNode {
 	n := r.root
 	s := start
 	for s < end {
+		// Early short-circuit using precomputed flag
+		if n.HasOnlyCatchAll {
+			return n.CatchAll
+		}
 		j := s
 		for j < end && path[j] != '/' {
 			j++
@@ -435,6 +472,31 @@ func (r *RouteRegistry) findNode(path string) *routing.RouteNode {
 		s = nextIndex
 	}
 	return n
+}
+
+// FindNode performs a non-allocating traversal for the given path and returns
+// the terminal RouteNode when the path matches a node in the tree. This
+// function does not populate any params map and therefore avoids allocations
+// when callers only need to inspect the matched node (for example to read
+// Allow header metadata on method mismatch).
+func (r *RouteRegistry) FindNode(path string) *routing.RouteNode {
+	return r.findNode(path)
+}
+
+// FindNodeInto traverses the routing tree for the given path and fills any
+// path parameters into dst (clearing it first). It returns the terminal
+// RouteNode when the path matches a registered node (even if that node
+// doesn't have RouteOptions). If no node matches, it returns nil.
+//
+// This is an exported convenience wrapper around the internal matchNodeInto
+// implementation to allow callers to perform a single traversal and then
+// examine the node's RouteOptions without repeating work.
+func (r *RouteRegistry) FindNodeInto(path string, dst map[string]string) *routing.RouteNode {
+	node, ok := r.matchNodeInto(path, dst)
+	if !ok || node == nil {
+		return nil
+	}
+	return node
 }
 
 // walk performs a pluggable depth-first search (DFS) traversal of the route tree.
@@ -485,6 +547,17 @@ func (r *RouteRegistry) walk(path string, atEnd func(*routing.RouteNode, string)
 		s := f.s
 		if s >= end {
 			if opt, ok := atEnd(node, method); ok {
+				return opt, params, true
+			}
+			if f.paramKey != "" && params != nil {
+				delete(params, f.paramKey)
+			}
+			stack = stack[:len(stack)-1]
+			continue
+		}
+		// Early short-circuit using precomputed flag
+		if node.HasOnlyCatchAll {
+			if opt, ok := atEnd(node.CatchAll, method); ok {
 				return opt, params, true
 			}
 			if f.paramKey != "" && params != nil {

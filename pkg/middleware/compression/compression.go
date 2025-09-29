@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/fgrzl/mux/pkg/common"
 	"github.com/fgrzl/mux/pkg/router"
@@ -71,15 +72,18 @@ func (m *compressionMiddleware) Invoke(c routing.RouteContext, next router.Handl
 	var compressor io.WriteCloser
 	if strings.Contains(acceptEncoding, "gzip") {
 		c.Response().Header().Set(common.HeaderContentEncoding, "gzip")
-		compressor = gzip.NewWriter(c.Response())
+		c.Response().Header().Add(common.HeaderVary, common.HeaderAcceptEncoding)
+		c.Response().Header().Del(common.HeaderContentLength)
+		gw := gzipPool.Get().(*gzip.Writer)
+		gw.Reset(c.Response())
+		compressor = gw
 	} else if strings.Contains(acceptEncoding, "deflate") {
 		c.Response().Header().Set(common.HeaderContentEncoding, "deflate")
-		var err error
-		compressor, err = flate.NewWriter(c.Response(), flate.DefaultCompression)
-		if err != nil {
-			c.ServerError("Compression Failed", err.Error())
-			return
-		}
+		c.Response().Header().Add(common.HeaderVary, common.HeaderAcceptEncoding)
+		c.Response().Header().Del(common.HeaderContentLength)
+		dw := deflatePool.Get().(*flate.Writer)
+		dw.Reset(c.Response())
+		compressor = dw
 	} else {
 		next(c)
 		return
@@ -89,6 +93,22 @@ func (m *compressionMiddleware) Invoke(c routing.RouteContext, next router.Handl
 		w: c.Response(),
 		c: compressor,
 	})
-	defer compressor.Close()
+	defer func() {
+		// Always close to flush
+		_ = compressor.Close()
+		switch z := compressor.(type) {
+		case *gzip.Writer:
+			gzipPool.Put(z)
+		case *flate.Writer:
+			deflatePool.Put(z)
+		}
+	}()
 	next(c)
 }
+
+// Pools for gzip and deflate writers to reduce per-request allocations.
+var gzipPool = sync.Pool{New: func() any { return gzip.NewWriter(io.Discard) }}
+var deflatePool = sync.Pool{New: func() any {
+	w, _ := flate.NewWriter(io.Discard, flate.DefaultCompression)
+	return w
+}}
