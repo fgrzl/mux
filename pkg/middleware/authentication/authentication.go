@@ -128,7 +128,10 @@ type authenticationMiddleware struct {
 func (m *authenticationMiddleware) Invoke(c routing.RouteContext, next router.HandlerFunc) {
 	c.SetService(tokenizer.ServiceKeyTokenProvider, m.provider)
 
-	if c.Options().AllowAnonymous {
+	opts := c.Options()
+	// Options may be nil for some contexts (pooled or partially-initialized).
+	// Treat nil as zero-value options (no AllowAnonymous).
+	if opts != nil && opts.AllowAnonymous {
 		slog.DebugContext(c, "authentication skipped: anonymous access allowed")
 		next(c)
 		return

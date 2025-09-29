@@ -80,7 +80,22 @@ func (ws *WebServer) Start(ctx context.Context) error {
 	if err := ws.validateAddr(); err != nil {
 		return err
 	}
-	go ws.run(ctx, nil)
+
+	// If TLS is configured, validate files early so Start can fail fast.
+	if ws.hasTLS() && !ws.validateTLSFiles() {
+		return errors.New("invalid TLS cert/key files")
+	}
+
+	// Create and bind the listener before returning so callers know the server
+	// is ready to accept connections. Use net.Listen to allocate the socket.
+	ln, err := net.Listen("tcp", ws.srv.Addr)
+	if err != nil {
+		return err
+	}
+
+	// Run the server using the already-bound listener. run will take
+	// ownership of the listener and close it during shutdown.
+	go ws.run(ctx, nil, ln)
 	return nil
 }
 
@@ -89,9 +104,20 @@ func (ws *WebServer) Listen(ctx context.Context) error {
 	if err := ws.validateAddr(); err != nil {
 		return err
 	}
+	// Bind listener first so we can serve from it and still return errors
+	// from the run goroutine.
+	if ws.hasTLS() && !ws.validateTLSFiles() {
+		return errors.New("invalid TLS cert/key files")
+	}
+
+	ln, err := net.Listen("tcp", ws.srv.Addr)
+	if err != nil {
+		return err
+	}
+
 	errCh := make(chan error, 1)
 	done := make(chan struct{})
-	go func() { ws.run(ctx, errCh); close(done) }()
+	go func() { ws.run(ctx, errCh, ln); close(done) }()
 
 	select {
 	case err := <-errCh:
@@ -135,22 +161,49 @@ func (ws *WebServer) validateTLSFiles() bool {
 }
 
 // run manages the server lifecycle: start serving, log errors, shutdown on ctx cancel.
-func (ws *WebServer) run(ctx context.Context, errCh chan<- error) {
+func (ws *WebServer) run(ctx context.Context, errCh chan<- error, ln net.Listener) {
+	// Accept an optional listener so Start/Listen can create the bound
+	// socket before calling run. If no listener was provided, try to
+	// retrieve one from the context (legacy/private contract) as a
+	// fallback.
+	if ln == nil {
+		if v := ctx.Value("listener"); v != nil {
+			if l, ok := v.(net.Listener); ok {
+				ln = l
+			}
+		}
+	}
+
 	srvDone := make(chan error, 1)
 
-	// start server
+	// start server using the provided listener if available
 	go func() {
 		var err error
-		if ws.hasTLS() {
-			if !ws.validateTLSFiles() {
-				srvDone <- errors.New("invalid TLS cert/key files")
-				return
+		if ln != nil {
+			if ws.hasTLS() {
+				slog.InfoContext(ctx, "Starting HTTPS server (with listener)", "addr", ws.srv.Addr, "cert", ws.certFile, "key", ws.keyFile)
+				// Wrap the listener with TLS using the cert/key files
+				// by creating a tls.Config and tls.NewListener when needed.
+				// For simplicity, use ListenAndServeTLS on the server but set
+				// the server's Addr to the empty string so it won't try to
+				// bind again. Use ServeTLS which accepts a listener.
+				err = ws.srv.ServeTLS(ln, ws.certFile, ws.keyFile)
+			} else {
+				slog.InfoContext(ctx, "Starting HTTP server (with listener)", "addr", ws.srv.Addr)
+				err = ws.srv.Serve(ln)
 			}
-			slog.InfoContext(ctx, "Starting HTTPS server", "addr", ws.srv.Addr, "cert", ws.certFile, "key", ws.keyFile)
-			err = ws.srv.ListenAndServeTLS(ws.certFile, ws.keyFile)
 		} else {
-			slog.InfoContext(ctx, "Starting HTTP server", "addr", ws.srv.Addr)
-			err = ws.srv.ListenAndServe()
+			if ws.hasTLS() {
+				if !ws.validateTLSFiles() {
+					srvDone <- errors.New("invalid TLS cert/key files")
+					return
+				}
+				slog.InfoContext(ctx, "Starting HTTPS server", "addr", ws.srv.Addr, "cert", ws.certFile, "key", ws.keyFile)
+				err = ws.srv.ListenAndServeTLS(ws.certFile, ws.keyFile)
+			} else {
+				slog.InfoContext(ctx, "Starting HTTP server", "addr", ws.srv.Addr)
+				err = ws.srv.ListenAndServe()
+			}
 		}
 		srvDone <- err
 	}()

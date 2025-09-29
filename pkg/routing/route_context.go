@@ -235,6 +235,8 @@ func NewRouteContext(w http.ResponseWriter, r *http.Request) *DefaultRouteContex
 		Context:  r.Context(),
 		response: w,
 		request:  r,
+		// New contexts created directly are not pooled
+		wasPooled: false,
 	}
 }
 
@@ -271,6 +273,8 @@ func AcquireContext(w http.ResponseWriter, r *http.Request) *DefaultRouteContext
 	c.formsParsed = false
 	c.paramIndex = nil
 	c.maxBodyBytes = 0
+	// Mark as pooled so ReleaseContext knows to return it
+	c.wasPooled = true
 	return c
 }
 
@@ -295,7 +299,55 @@ func ReleaseContext(c *DefaultRouteContext) {
 	c.formsParsed = false
 	c.paramIndex = nil
 	c.maxBodyBytes = 0
-	contextPool.Put(c)
+	// Only return to the pool if this instance was obtained from it.
+	if c.wasPooled {
+		// reset the flag to avoid double-put if ReleaseContext is called
+		c.wasPooled = false
+		contextPool.Put(c)
+	}
+}
+
+// Detach clones the provided RouteContext into a new non-pooled DefaultRouteContext
+// that is safe to use in goroutines that outlive the request. The returned
+// context must not be released via ReleaseContext.
+func Detach(c RouteContext) *DefaultRouteContext {
+	if c == nil {
+		return nil
+	}
+	d, ok := c.(*DefaultRouteContext)
+	if !ok {
+		return nil
+	}
+	clone := &DefaultRouteContext{
+		Context:      d.Context,
+		response:     d.response,
+		request:      d.request,
+		clientURL:    d.clientURL,
+		user:         d.user,
+		options:      d.options,
+		formsParsed:  d.formsParsed,
+		wasPooled:    false,
+		maxBodyBytes: d.maxBodyBytes,
+	}
+	if d.params != nil {
+		clone.params = make(RouteParams, len(d.params))
+		for k, v := range d.params {
+			clone.params[k] = v
+		}
+	}
+	if d.services != nil {
+		clone.services = make(map[ServiceKey]any, len(d.services))
+		for k, v := range d.services {
+			clone.services[k] = v
+		}
+	}
+	if d.paramIndex != nil {
+		clone.paramIndex = make(map[string]*openapi.ParameterObject, len(d.paramIndex))
+		for k, v := range d.paramIndex {
+			clone.paramIndex[k] = v
+		}
+	}
+	return clone
 }
 
 type DefaultRouteContext struct {
@@ -308,6 +360,10 @@ type DefaultRouteContext struct {
 	params      RouteParams
 	services    map[ServiceKey]any
 	formsParsed bool
+	// wasPooled indicates whether this instance was obtained from the pool.
+	// If true, ReleaseContext will return it to the pool; otherwise it will
+	// not be pooled.
+	wasPooled bool
 	// runtime cache for quick parameter lookups (key: strings.ToLower(in+":"+name))
 	paramIndex map[string]*openapi.ParameterObject
 	// maxBodyBytes limits body size for bind operations. 0 means default (1MB).
