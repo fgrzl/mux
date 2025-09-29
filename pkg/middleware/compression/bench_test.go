@@ -45,13 +45,13 @@ func benchCompression(b *testing.B, encoding string, pooled bool, sizes []int) {
 	}
 }
 
-func BenchmarkCompression_Gzip(b *testing.B) {
+func BenchmarkCompressionGzip(b *testing.B) {
 	sizes := []int{0, 128, 1024, 8192, 32768}
 	benchCompression(b, "gzip", false, sizes)
 	benchCompression(b, "gzip", true, sizes)
 }
 
-func BenchmarkCompression_Deflate(b *testing.B) {
+func BenchmarkCompressionDeflate(b *testing.B) {
 	sizes := []int{0, 128, 1024, 8192, 32768}
 	benchCompression(b, "deflate", false, sizes)
 	benchCompression(b, "deflate", true, sizes)

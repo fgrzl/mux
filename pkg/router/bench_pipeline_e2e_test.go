@@ -13,7 +13,7 @@ import (
 )
 
 // BenchmarkPipeline_E2E_Pool measures a full ServeHTTP including logging and compression middleware with context pooling.
-func BenchmarkPipeline_E2E_Pool(b *testing.B) {
+func BenchmarkPipelineE2EPool(b *testing.B) {
 	r := router.NewRouter(router.WithContextPooling())
 	// register middleware
 	logging.UseLogging(r)
@@ -37,7 +37,7 @@ func BenchmarkPipeline_E2E_Pool(b *testing.B) {
 }
 
 // BenchmarkPipeline_E2E_NonPool measures a full ServeHTTP including logging and compression middleware without pooling.
-func BenchmarkPipeline_E2E_NonPool(b *testing.B) {
+func BenchmarkPipelineE2ENonPool(b *testing.B) {
 	r := router.NewRouter()
 	logging.UseLogging(r)
 	compression.UseCompression(r)

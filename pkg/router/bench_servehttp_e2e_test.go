@@ -10,7 +10,7 @@ import (
 )
 
 // BenchServeHTTP_E2E_Pool measures a full Router.ServeHTTP call for a router with context pooling enabled.
-func BenchmarkServeHTTP_E2E_Pool(b *testing.B) {
+func BenchmarkServeHTTPE2EPool(b *testing.B) {
 	r := NewRouter(WithContextPooling())
 	rg := r.NewRouteGroup("")
 	// register some routes to build the tree
@@ -33,7 +33,7 @@ func BenchmarkServeHTTP_E2E_Pool(b *testing.B) {
 }
 
 // BenchServeHTTP_E2E_NonPool measures a full Router.ServeHTTP call for a router without pooling.
-func BenchmarkServeHTTP_E2E_NonPool(b *testing.B) {
+func BenchmarkServeHTTPE2ENonPool(b *testing.B) {
 	r := NewRouter()
 	rg := r.NewRouteGroup("")
 	// register some routes to build the tree

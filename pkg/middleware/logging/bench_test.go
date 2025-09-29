@@ -52,7 +52,7 @@ func BenchmarkLogging(b *testing.B) {
 }
 
 // Additional benchmark variant that exercises multiple concurrent paths
-func BenchmarkLogging_VariedPaths(b *testing.B) {
+func BenchmarkLoggingVariedPaths(b *testing.B) {
 	slog.SetDefault(slog.New(noopHandler{}))
 
 	for _, pooled := range []bool{false, true} {

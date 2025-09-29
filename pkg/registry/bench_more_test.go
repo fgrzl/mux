@@ -8,7 +8,7 @@ import (
 
 // Benchmark that simulates the "old" behavior: call LoadDetailedInto (to get Allow)
 // then call Load to get options when needed. This isolates repeated traversal cost.
-func BenchmarkRouteRegistry_OldDoubleTraversal_CatchAll(b *testing.B) {
+func BenchmarkRouteRegistryOldDoubleTraversalCatchAll(b *testing.B) {
 	r := NewRouteRegistry()
 	opts := &routing.RouteOptions{Method: "GET", Pattern: "/catch/**", Handler: func(c routing.RouteContext) {}}
 	r.Register("/catch/**", "GET", opts)
@@ -26,7 +26,7 @@ func BenchmarkRouteRegistry_OldDoubleTraversal_CatchAll(b *testing.B) {
 }
 
 // Benchmark the single traversal approach: use FindNodeInto and inspect node
-func BenchmarkRouteRegistry_SingleTraversal_CatchAll(b *testing.B) {
+func BenchmarkRouteRegistrySingleTraversalCatchAll(b *testing.B) {
 	r := NewRouteRegistry()
 	opts := &routing.RouteOptions{Method: "GET", Pattern: "/catch/**", Handler: func(c routing.RouteContext) {}}
 	r.Register("/catch/**", "GET", opts)
