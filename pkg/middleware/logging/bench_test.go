@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/fgrzl/mux/pkg/bench"
 	"github.com/fgrzl/mux/pkg/router"
 	"github.com/fgrzl/mux/pkg/routing"
 )
@@ -29,14 +30,11 @@ func benchLogging(b *testing.B, pooled bool) {
 	} else {
 		r = router.NewRouter()
 	}
-	UseLogging(r)
 	rg := r.NewRouteGroup("")
-	rg.GET("/ok", func(c routing.RouteContext) {
-		// tiny write so status=200 is recorded via WriteHeader or Write
-		c.Response().Write([]byte("ok"))
-	})
+	rg.GET("/ok", func(c routing.RouteContext) { c.Response().Write([]byte("ok")) })
+	UseLogging(r)
 
-	req := httptest.NewRequest(http.MethodGet, "/ok", nil)
+	_, req := bench.NewRecorderRequest(http.MethodGet, "/ok")
 
 	b.ReportAllocs()
 	b.ResetTimer()

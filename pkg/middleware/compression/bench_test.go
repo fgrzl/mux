@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fgrzl/mux/pkg/bench"
 	"github.com/fgrzl/mux/pkg/router"
 	"github.com/fgrzl/mux/pkg/routing"
 )
@@ -32,7 +33,7 @@ func benchCompression(b *testing.B, encoding string, pooled bool, sizes []int) {
 			rg.GET("/data", func(c routing.RouteContext) {
 				c.Response().Write([]byte(payload))
 			})
-			req := httptest.NewRequest(http.MethodGet, "/data", nil)
+			_, req := bench.NewRecorderRequest(http.MethodGet, "/data")
 			req.Header.Set("Accept-Encoding", encoding)
 
 			b.ReportAllocs()

@@ -59,11 +59,11 @@ func (m *loggingMiddleware) Invoke(c routing.RouteContext, next router.HandlerFu
 
 	bufp := attrPool.Get().(*[]slog.Attr)
 	attrs := (*bufp)[:0]
-	// Sanitize potentially user-controlled values to avoid log injection/XSS when logs are viewed
-	// in HTML-based log viewers. We escape HTML special characters and keep the quoted representation
-	// for readability while avoiding reflected XSS issues flagged by CodeQL.
-	safePath := `"` + html.EscapeString(req.URL.Path) + `"`
-	safeUA := `"` + html.EscapeString(req.UserAgent()) + `"`
+	// Sanitize potentially user-controlled values before logging. This helper
+	// escapes HTML special chars and enforces a small maximum length to avoid
+	// accidental log amplification.
+	safePath := `"` + sanitizeForLog(req.URL.Path) + `"`
+	safeUA := `"` + sanitizeForLog(req.UserAgent()) + `"`
 	attrs = append(attrs,
 		slog.String("method", req.Method),
 		slog.String("path", safePath),
@@ -76,6 +76,16 @@ func (m *loggingMiddleware) Invoke(c routing.RouteContext, next router.HandlerFu
 	// reset and return to pool
 	*bufp = attrs[:0]
 	attrPool.Put(bufp)
+}
+
+// sanitizeForLog applies HTML escaping and truncates long values to a sane length.
+func sanitizeForLog(s string) string {
+	const max = 256
+	esc := html.EscapeString(s)
+	if len(esc) > max {
+		return esc[:max] + "..."
+	}
+	return esc
 }
 
 // ---- Helpers ----

@@ -6,20 +6,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fgrzl/mux/pkg/bench"
 	"github.com/fgrzl/mux/pkg/middleware/compression"
 	"github.com/fgrzl/mux/pkg/middleware/logging"
 	"github.com/fgrzl/mux/pkg/router"
 	"github.com/fgrzl/mux/pkg/routing"
 )
-
-// buildDeepPath returns a long path under a base like /app/ with N segments.
-func buildDeepPath(n int) string {
-	segs := make([]string, n)
-	for i := range segs {
-		segs[i] = "seg"
-	}
-	return "/app/" + strings.Join(segs, "/")
-}
 
 // Benchmark deep SPA path with catch-all fallback: pooled
 func BenchmarkServeHTTPSPADeepPathPool(b *testing.B) {
@@ -28,13 +20,13 @@ func BenchmarkServeHTTPSPADeepPathPool(b *testing.B) {
 	rg.GET("/app/**", func(c routing.RouteContext) {
 		c.Response().WriteHeader(http.StatusOK)
 	})
-	path := buildDeepPath(50)
-	req := httptest.NewRequest(http.MethodGet, path, nil)
-	rr := httptest.NewRecorder()
+	path := bench.BuildDeepPath(50)
+	_, req := bench.NewRecorderRequest(http.MethodGet, path)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 	}
 }
@@ -46,13 +38,13 @@ func BenchmarkServeHTTPSPADeepPathNonPool(b *testing.B) {
 	rg.GET("/app/**", func(c routing.RouteContext) {
 		c.Response().WriteHeader(http.StatusOK)
 	})
-	path := buildDeepPath(50)
-	req := httptest.NewRequest(http.MethodGet, path, nil)
-	rr := httptest.NewRecorder()
+	path := bench.BuildDeepPath(50)
+	_, req := bench.NewRecorderRequest(http.MethodGet, path)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 	}
 }
@@ -69,8 +61,7 @@ func BenchmarkServeHTTPSPADeepPathWithMiddlewarePool(b *testing.B) {
 		c.Response().Write([]byte(strings.Repeat("x", 512)))
 	})
 
-	path := buildDeepPath(50)
-	req := httptest.NewRequest(http.MethodGet, path, nil)
+	_, req := bench.NewRecorderRequest(http.MethodGet, bench.BuildDeepPath(50))
 	req.Header.Set("Accept-Encoding", "gzip")
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -91,8 +82,7 @@ func BenchmarkServeHTTPSPADeepPathWithMiddlewareNonPool(b *testing.B) {
 		c.Response().Write([]byte(strings.Repeat("x", 512)))
 	})
 
-	path := buildDeepPath(50)
-	req := httptest.NewRequest(http.MethodGet, path, nil)
+	_, req := bench.NewRecorderRequest(http.MethodGet, bench.BuildDeepPath(50))
 	req.Header.Set("Accept-Encoding", "gzip")
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -109,12 +99,12 @@ func BenchmarkServeHTTPHeadFallbackPool(b *testing.B) {
 	rg.GET("/files/*", func(c routing.RouteContext) {
 		c.Response().WriteHeader(http.StatusOK)
 	})
-	req := httptest.NewRequest(http.MethodHead, "/files/a/b/c.txt", nil)
-	rr := httptest.NewRecorder()
+	_, req := bench.NewRecorderRequest(http.MethodHead, "/files/a/b/c.txt")
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 	}
 }
@@ -125,12 +115,12 @@ func BenchmarkServeHTTPHeadFallbackNonPool(b *testing.B) {
 	rg.GET("/files/*", func(c routing.RouteContext) {
 		c.Response().WriteHeader(http.StatusOK)
 	})
-	req := httptest.NewRequest(http.MethodHead, "/files/a/b/c.txt", nil)
-	rr := httptest.NewRecorder()
+	_, req := bench.NewRecorderRequest(http.MethodHead, "/files/a/b/c.txt")
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 	}
 }
@@ -144,7 +134,7 @@ func BenchmarkServeHTTPParamVsWildcardVsCatchAll(b *testing.B) {
 	}{
 		{"param", "/users/{id}", "/users/12345"},
 		{"wildcard", "/files/*", "/files/a/b/c.txt"},
-		{"catchall", "/app/**", buildDeepPath(10)},
+		{"catchall", "/app/**", bench.BuildDeepPath(10)},
 	}
 	for _, pooled := range []bool{false, true} {
 		for _, tc := range cases {
@@ -162,8 +152,7 @@ func BenchmarkServeHTTPParamVsWildcardVsCatchAll(b *testing.B) {
 				}
 				rg := r.NewRouteGroup("")
 				rg.GET(tc.pattern, func(c routing.RouteContext) { c.Response().WriteHeader(http.StatusOK) })
-				req := httptest.NewRequest(http.MethodGet, tc.path, nil)
-				rr := httptest.NewRecorder()
+				rr, req := bench.NewRecorderRequest(http.MethodGet, tc.path)
 
 				b.ReportAllocs()
 				b.ResetTimer()

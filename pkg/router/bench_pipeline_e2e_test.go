@@ -2,10 +2,10 @@ package router_test
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/fgrzl/mux/pkg/bench"
 	"github.com/fgrzl/mux/pkg/middleware/compression"
 	"github.com/fgrzl/mux/pkg/middleware/logging"
 	"github.com/fgrzl/mux/pkg/router"
@@ -15,19 +15,13 @@ import (
 // BenchmarkPipeline_E2E_Pool measures a full ServeHTTP including logging and compression middleware with context pooling.
 func BenchmarkPipelineE2EPool(b *testing.B) {
 	r := router.NewRouter(router.WithContextPooling())
-	// register middleware
 	logging.UseLogging(r)
 	compression.UseCompression(r)
-
 	rg := r.NewRouteGroup("")
-	rg.GET("/files/*", func(c routing.RouteContext) {
-		// write a response body to exercise compression
-		c.Response().Write([]byte(strings.Repeat("x", 512)))
-	})
+	rg.GET("/files/*", func(c routing.RouteContext) { c.Response().Write([]byte(strings.Repeat("x", 512))) })
 
-	req := httptest.NewRequest(http.MethodGet, "/files/some/path/file.txt", nil)
+	rr, req := bench.NewRecorderRequest(http.MethodGet, "/files/some/path/file.txt")
 	req.Header.Set("Accept-Encoding", "gzip")
-	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -41,15 +35,11 @@ func BenchmarkPipelineE2ENonPool(b *testing.B) {
 	r := router.NewRouter()
 	logging.UseLogging(r)
 	compression.UseCompression(r)
-
 	rg := r.NewRouteGroup("")
-	rg.GET("/files/*", func(c routing.RouteContext) {
-		c.Response().Write([]byte(strings.Repeat("x", 512)))
-	})
+	rg.GET("/files/*", func(c routing.RouteContext) { c.Response().Write([]byte(strings.Repeat("x", 512))) })
 
-	req := httptest.NewRequest(http.MethodGet, "/files/some/path/file.txt", nil)
+	rr, req := bench.NewRecorderRequest(http.MethodGet, "/files/some/path/file.txt")
 	req.Header.Set("Accept-Encoding", "gzip")
-	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
 	b.ResetTimer()

@@ -10,6 +10,11 @@ import (
 	"github.com/fgrzl/mux/pkg/tokenizer"
 )
 
+// EnforceSecureForSameSiteNone controls whether SetCookie will force the Secure
+// flag when SameSite=None is specified. Default true to match browser
+// expectations; flip to false in local development environments that use plain HTTP.
+var EnforceSecureForSameSiteNone = true
+
 // ...existing code...
 // SetCookie writes a cookie with the given attributes.
 func (c *DefaultRouteContext) SetCookie(
@@ -42,9 +47,16 @@ func (c *DefaultRouteContext) SetCookie(
 	}
 
 	// enforce Secure if SameSite=None
+	// Behavior note: some browsers require Secure when SameSite=None. Making
+	// this configurable allows development workflows using plain HTTP to opt-out.
 	if cookie.SameSite == http.SameSiteNoneMode && !cookie.Secure {
-		cookie.Secure = true
-		slog.Warn("SetCookie: Secure=true enforced because SameSite=None is set; this may break on HTTP in development", "cookieName", cookie.Name)
+		if EnforceSecureForSameSiteNone {
+			cookie.Secure = true
+			slog.Warn("SetCookie: Secure=true enforced because SameSite=None is set; this may break on HTTP in development", "cookieName", cookie.Name)
+		} else {
+			// Log a warning but do not modify the cookie when enforcement is disabled.
+			slog.Warn("SetCookie: SameSite=None set but Secure enforcement is disabled; cookie will be sent without Secure flag", "cookieName", cookie.Name)
+		}
 	}
 
 	http.SetCookie(c.Response(), cookie)
