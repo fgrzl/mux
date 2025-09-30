@@ -249,11 +249,11 @@ func (rg *RouteGroup) HEAD(pattern string, handler routing.HandlerFunc) *builder
 
 // Healthz registers a /healthz endpoint that always returns ready.
 func (rg *RouteGroup) Healthz() *builder.RouteBuilder {
-	return rg.HealthzWithReady(func() bool { return true })
+	return rg.HealthzWithReady(func(c routing.RouteContext) bool { return true })
 }
 
 // HealthzWithReady registers a /healthz endpoint with a custom readiness check.
-func (rg *RouteGroup) HealthzWithReady(isReady func() bool) *builder.RouteBuilder {
+func (rg *RouteGroup) HealthzWithReady(isReady func(c routing.RouteContext) bool) *builder.RouteBuilder {
 	return rg.registerRoute(http.MethodGet, "/healthz", func(c routing.RouteContext) {
 		if isReady() {
 			c.Plain(http.StatusOK, []byte("ok"))
@@ -265,11 +265,11 @@ func (rg *RouteGroup) HealthzWithReady(isReady func() bool) *builder.RouteBuilde
 
 // Livez registers a /livez endpoint that always returns live.
 func (rg *RouteGroup) Livez() *builder.RouteBuilder {
-	return rg.LivezWithCheck(func() bool { return true })
+	return rg.LivezWithCheck(func(c routing.RouteContext) bool { return true })
 }
 
 // LivezWithCheck registers a /livez endpoint with a custom liveness check.
-func (rg *RouteGroup) LivezWithCheck(isLive func() bool) *builder.RouteBuilder {
+func (rg *RouteGroup) LivezWithCheck(isLive func(c routing.RouteContext) bool) *builder.RouteBuilder {
 	return rg.registerRoute(http.MethodGet, "/livez", func(c routing.RouteContext) {
 		if isLive() {
 			c.Plain(http.StatusOK, []byte("ok"))
@@ -281,11 +281,11 @@ func (rg *RouteGroup) LivezWithCheck(isLive func() bool) *builder.RouteBuilder {
 
 // Readyz registers a /readyz endpoint that always returns ready.
 func (rg *RouteGroup) Readyz() *builder.RouteBuilder {
-	return rg.ReadyzWithCheck(func() bool { return true })
+	return rg.ReadyzWithCheck(func(c routing.RouteContext) bool { return true })
 }
 
 // ReadyzWithCheck registers a /readyz endpoint with a custom readiness check.
-func (rg *RouteGroup) ReadyzWithCheck(isReady func() bool) *builder.RouteBuilder {
+func (rg *RouteGroup) ReadyzWithCheck(isReady func(c routing.RouteContext) bool) *builder.RouteBuilder {
 	return rg.registerRoute(http.MethodGet, "/readyz", func(c routing.RouteContext) {
 		if isReady() {
 			c.Plain(http.StatusOK, []byte("ok"))
@@ -297,11 +297,11 @@ func (rg *RouteGroup) ReadyzWithCheck(isReady func() bool) *builder.RouteBuilder
 
 // Startupz registers a /startupz endpoint that always returns started.
 func (rg *RouteGroup) Startupz() *builder.RouteBuilder {
-	return rg.StartupzWithCheck(func() bool { return true })
+	return rg.StartupzWithCheck(func(c routing.RouteContext) bool { return true })
 }
 
 // StartupzWithCheck registers a /startupz endpoint with a custom startup check.
-func (rg *RouteGroup) StartupzWithCheck(hasStarted func() bool) *builder.RouteBuilder {
+func (rg *RouteGroup) StartupzWithCheck(hasStarted func(c routing.RouteContext) bool) *builder.RouteBuilder {
 	return rg.registerRoute(http.MethodGet, "/startupz", func(c routing.RouteContext) {
 		if hasStarted() {
 			c.Plain(http.StatusOK, []byte("ok"))
