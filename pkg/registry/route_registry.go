@@ -50,7 +50,37 @@ func (r *RouteRegistry) Root() *routing.RouteNode {
 // options are stored and per-node metadata (MethodsMask, AllowHeader)
 // is updated to accelerate lookups.
 func (r *RouteRegistry) Register(pattern string, method string, options *routing.RouteOptions) {
-	segments := strings.Split(strings.Trim(pattern, "/"), "/")
+	trimmed := strings.Trim(pattern, "/")
+	// If the trimmed pattern is empty, it refers to the root node
+	if trimmed == "" {
+		node := r.root
+		if node.RouteOptions == nil {
+			node.RouteOptions = make(map[string]*routing.RouteOptions)
+		}
+		node.RouteOptions[method] = options
+		// Update metadata on the root node
+		node.MethodsMask = methodsMaskFromMap(node.RouteOptions)
+		node.AllowHeader = allowHeaderFromMap(node.RouteOptions)
+		if !strings.ContainsAny(pattern, "{*}") {
+			m := r.exactRoutes[pattern]
+			if m == nil {
+				m = make(map[string]*routing.RouteOptions)
+				r.exactRoutes[pattern] = m
+			}
+			m[method] = options
+		}
+		return
+	}
+	// Split and ignore any empty segments created by consecutive slashes
+	rawSegs := strings.Split(trimmed, "/")
+	segments := make([]string, 0, len(rawSegs))
+	for _, s := range rawSegs {
+		if s == "" {
+			// skip accidental empty segment
+			continue
+		}
+		segments = append(segments, s)
+	}
 	node := r.root
 	hasParams := false
 
