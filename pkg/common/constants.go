@@ -36,7 +36,10 @@ const (
 	HeaderContentDisposition = "Content-Disposition"
 	HeaderXForwardedFor      = "X-Forwarded-For"
 	HeaderXForwardedProto    = "X-Forwarded-Proto"
+	HeaderXForwardedHost     = "X-Forwarded-Host"
+	HeaderXForwardedPort     = "X-Forwarded-Port"
 	HeaderXRealIP            = "X-Real-IP"
+	HeaderForwarded          = "Forwarded" // RFC 7239
 	HeaderAcceptEncoding     = "Accept-Encoding"
 	HeaderContentEncoding    = "Content-Encoding"
 	HeaderVary               = "Vary"
