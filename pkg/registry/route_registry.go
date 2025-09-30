@@ -76,7 +76,8 @@ func (r *RouteRegistry) Register(pattern string, method string, options *routing
 	segments := make([]string, 0, len(rawSegs))
 	for _, s := range rawSegs {
 		if s == "" {
-			// skip accidental empty segment
+			// Skip empty segments caused by consecutive slashes in pattern.
+			// These should be ignored to avoid creating unintended route nodes.
 			continue
 		}
 		segments = append(segments, s)
