@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/fgrzl/mux/pkg/builder"
-	"github.com/fgrzl/mux/pkg/common"
 	openapi "github.com/fgrzl/mux/pkg/openapi"
 	"github.com/fgrzl/mux/pkg/registry"
 	"github.com/fgrzl/mux/pkg/routing"
@@ -256,14 +255,59 @@ func (rg *RouteGroup) Healthz() *builder.RouteBuilder {
 // HealthzWithReady registers a /healthz endpoint with a custom readiness check.
 func (rg *RouteGroup) HealthzWithReady(isReady func() bool) *builder.RouteBuilder {
 	return rg.registerRoute(http.MethodGet, "/healthz", func(c routing.RouteContext) {
-		c.Response().Header().Set(common.HeaderContentType, common.MimeTextPlain)
 		if isReady() {
-			c.Response().WriteHeader(http.StatusOK)
-			c.Response().Write([]byte("ok"))
+			c.Plain(http.StatusOK, []byte("ok"))
 			return
 		}
-		c.Response().WriteHeader(http.StatusServiceUnavailable)
-		c.Response().Write([]byte("not ready"))
+		c.Plain(http.StatusServiceUnavailable, []byte("not ready"))
+	}).AllowAnonymous()
+}
+
+// Livez registers a /livez endpoint that always returns live.
+func (rg *RouteGroup) Livez() *builder.RouteBuilder {
+	return rg.LivezWithCheck(func() bool { return true })
+}
+
+// LivezWithCheck registers a /livez endpoint with a custom liveness check.
+func (rg *RouteGroup) LivezWithCheck(isLive func() bool) *builder.RouteBuilder {
+	return rg.registerRoute(http.MethodGet, "/livez", func(c routing.RouteContext) {
+		if isLive() {
+			c.Plain(http.StatusOK, []byte("ok"))
+			return
+		}
+		c.Plain(http.StatusServiceUnavailable, []byte("not live"))
+	}).AllowAnonymous()
+}
+
+// Readyz registers a /readyz endpoint that always returns ready.
+func (rg *RouteGroup) Readyz() *builder.RouteBuilder {
+	return rg.ReadyzWithCheck(func() bool { return true })
+}
+
+// ReadyzWithCheck registers a /readyz endpoint with a custom readiness check.
+func (rg *RouteGroup) ReadyzWithCheck(isReady func() bool) *builder.RouteBuilder {
+	return rg.registerRoute(http.MethodGet, "/readyz", func(c routing.RouteContext) {
+		if isReady() {
+			c.Plain(http.StatusOK, []byte("ok"))
+			return
+		}
+		c.Plain(http.StatusServiceUnavailable, []byte("not ready"))
+	}).AllowAnonymous()
+}
+
+// Startupz registers a /startupz endpoint that always returns started.
+func (rg *RouteGroup) Startupz() *builder.RouteBuilder {
+	return rg.StartupzWithCheck(func() bool { return true })
+}
+
+// StartupzWithCheck registers a /startupz endpoint with a custom startup check.
+func (rg *RouteGroup) StartupzWithCheck(hasStarted func() bool) *builder.RouteBuilder {
+	return rg.registerRoute(http.MethodGet, "/startupz", func(c routing.RouteContext) {
+		if hasStarted() {
+			c.Plain(http.StatusOK, []byte("ok"))
+			return
+		}
+		c.Plain(http.StatusServiceUnavailable, []byte("not started"))
 	}).AllowAnonymous()
 }
 
