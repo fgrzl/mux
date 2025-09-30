@@ -13,7 +13,7 @@ func main() {
 	// Add a simple hello endpoint
 	router.GET("/", func(c mux.RouteContext) {
 		c.OK("Hello, World!")
-	})
+	}).WithOperationID("helloRoot")
 
 	// Add a greeting endpoint with path parameter
 	router.GET("/hello/{name}", func(c mux.RouteContext) {
@@ -27,7 +27,7 @@ func main() {
 			"message": "Hello, " + name + "!",
 			"status":  "success",
 		})
-	})
+	}).WithOperationID("helloName")
 
 	// Start the server
 	http.ListenAndServe(":8080", router)
