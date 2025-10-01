@@ -8,19 +8,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type ldResult struct {
-	Found    bool
-	MethodOK bool
-	Allow    string
-	Params   map[string]string
-}
+const (
+	static = "/static"
+	users  = "/users/{id}"
+)
 
 func TestLoadDetailedStaticFoundMethodOK(t *testing.T) {
 	reg := NewRouteRegistry()
-	reg.Register("/static", http.MethodGet, &routing.RouteOptions{Method: http.MethodGet})
+	reg.Register(static, http.MethodGet, &routing.RouteOptions{Method: http.MethodGet})
 
 	params := make(map[string]string)
-	opt, res := reg.LoadDetailedInto("/static", http.MethodGet, params)
+	opt, res := reg.LoadDetailedInto(static, http.MethodGet, params)
 	assert.NotNil(t, opt)
 	assert.True(t, res.Found)
 	assert.True(t, res.MethodOK)
@@ -30,11 +28,11 @@ func TestLoadDetailedStaticFoundMethodOK(t *testing.T) {
 
 func TestLoadDetailedStaticMethodNotAllowedAllowReturned(t *testing.T) {
 	reg := NewRouteRegistry()
-	reg.Register("/static", http.MethodGet, &routing.RouteOptions{Method: http.MethodGet})
-	reg.Register("/static", http.MethodPost, &routing.RouteOptions{Method: http.MethodPost})
+	reg.Register(static, http.MethodGet, &routing.RouteOptions{Method: http.MethodGet})
+	reg.Register(static, http.MethodPost, &routing.RouteOptions{Method: http.MethodPost})
 
 	params := make(map[string]string)
-	opt, res := reg.LoadDetailedInto("/static", http.MethodPut, params)
+	opt, res := reg.LoadDetailedInto(static, http.MethodPut, params)
 	assert.Nil(t, opt)
 	assert.True(t, res.Found)
 	assert.False(t, res.MethodOK)
@@ -43,7 +41,7 @@ func TestLoadDetailedStaticMethodNotAllowedAllowReturned(t *testing.T) {
 
 func TestLoadDetailedParamFoundMethodOK(t *testing.T) {
 	reg := NewRouteRegistry()
-	reg.Register("/users/{id}", http.MethodGet, &routing.RouteOptions{Method: http.MethodGet})
+	reg.Register(users, http.MethodGet, &routing.RouteOptions{Method: http.MethodGet})
 
 	params := make(map[string]string)
 	opt, res := reg.LoadDetailedInto("/users/123", http.MethodGet, params)
@@ -55,8 +53,8 @@ func TestLoadDetailedParamFoundMethodOK(t *testing.T) {
 
 func TestLoadDetailedParamMethodNotAllowedAllowReturned(t *testing.T) {
 	reg := NewRouteRegistry()
-	reg.Register("/users/{id}", http.MethodGet, &routing.RouteOptions{Method: http.MethodGet})
-	reg.Register("/users/{id}", http.MethodDelete, &routing.RouteOptions{Method: http.MethodDelete})
+	reg.Register(users, http.MethodGet, &routing.RouteOptions{Method: http.MethodGet})
+	reg.Register(users, http.MethodDelete, &routing.RouteOptions{Method: http.MethodDelete})
 
 	params := make(map[string]string)
 	opt, res := reg.LoadDetailedInto("/users/123", http.MethodPost, params)

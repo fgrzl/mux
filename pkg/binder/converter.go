@@ -239,117 +239,130 @@ func parseValueBySchema(values []string, schema *openapi.Schema) (any, error) {
 	switch schema.Type {
 	case "string":
 		if schema.Format == "uuid" {
-			if len(values) == 1 {
-				u, err := uuid.Parse(values[0])
-				if err != nil {
-					return nil, err
-				}
-				return u, nil
-			}
-			out := make([]uuid.UUID, 0, len(values))
-			for _, s := range values {
-				u, err := uuid.Parse(s)
-				if err != nil {
-					return nil, err
-				}
-				out = append(out, u)
-			}
-			return out, nil
+			return singleOrSliceUUID(values)
 		}
-		if len(values) == 1 {
-			return values[0], nil
-		}
-		return values, nil
+		return singleOrSliceString(values)
 	case "integer":
-		if len(values) == 1 {
-			v, err := strconv.ParseInt(values[0], 10, 64)
-			if err != nil {
-				return nil, err
-			}
-			return v, nil
-		}
-		out := make([]int64, 0, len(values))
-		for _, s := range values {
-			v, err := strconv.ParseInt(s, 10, 64)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, v)
-		}
-		return out, nil
+		return singleOrSliceInt64(values)
 	case "number":
-		if len(values) == 1 {
-			v, err := strconv.ParseFloat(values[0], 64)
-			if err != nil {
-				return nil, err
-			}
-			return v, nil
-		}
-		out := make([]float64, 0, len(values))
-		for _, s := range values {
-			v, err := strconv.ParseFloat(s, 64)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, v)
-		}
-		return out, nil
+		return singleOrSliceFloat64(values)
 	case "boolean":
-		if len(values) == 1 {
-			v, err := strconv.ParseBool(values[0])
-			if err != nil {
-				return nil, err
-			}
-			return v, nil
-		}
-		out := make([]bool, 0, len(values))
-		for _, s := range values {
-			v, err := strconv.ParseBool(s)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, v)
-		}
-		return out, nil
+		return singleOrSliceBool(values)
 	case "array":
 		if schema.Items != nil {
 			switch schema.Items.Type {
 			case "string":
 				return values, nil
 			case "integer":
-				out := make([]int64, 0, len(values))
-				for _, s := range values {
-					v, err := strconv.ParseInt(s, 10, 64)
-					if err != nil {
-						return nil, err
-					}
-					out = append(out, v)
-				}
-				return out, nil
+				return parseInt64s(values)
 			case "number":
-				out := make([]float64, 0, len(values))
-				for _, s := range values {
-					v, err := strconv.ParseFloat(s, 64)
-					if err != nil {
-						return nil, err
-					}
-					out = append(out, v)
-				}
-				return out, nil
+				return parseFloat64s(values)
 			}
 		}
 		return values, nil
 	case "object":
-		if len(values) == 1 {
-			return values[0], nil
-		}
-		return values, nil
+		return singleOrSliceString(values)
 	default:
-		if len(values) == 1 {
-			return values[0], nil
-		}
-		return values, nil
+		return singleOrSliceString(values)
 	}
+}
+
+// helper: return single string or slice
+func singleOrSliceString(values []string) (any, error) {
+	if len(values) == 1 {
+		return values[0], nil
+	}
+	return values, nil
+}
+
+// helper: parse a slice of int64 values
+func parseInt64s(values []string) (any, error) {
+	out := make([]int64, 0, len(values))
+	for _, s := range values {
+		v, err := strconv.ParseInt(s, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, nil
+}
+
+// helper: parse a slice of float64 values
+func parseFloat64s(values []string) (any, error) {
+	out := make([]float64, 0, len(values))
+	for _, s := range values {
+		v, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, nil
+}
+
+// helper: return a single uuid.UUID or slice of them
+func singleOrSliceUUID(values []string) (any, error) {
+	if len(values) == 1 {
+		u, err := uuid.Parse(values[0])
+		if err != nil {
+			return nil, err
+		}
+		return u, nil
+	}
+	out := make([]uuid.UUID, 0, len(values))
+	for _, s := range values {
+		u, err := uuid.Parse(s)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, u)
+	}
+	return out, nil
+}
+
+// helper: return single int64 or slice
+func singleOrSliceInt64(values []string) (any, error) {
+	if len(values) == 1 {
+		v, err := strconv.ParseInt(values[0], 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		return v, nil
+	}
+	return parseInt64s(values)
+}
+
+// helper: return single float64 or slice
+func singleOrSliceFloat64(values []string) (any, error) {
+	if len(values) == 1 {
+		v, err := strconv.ParseFloat(values[0], 64)
+		if err != nil {
+			return nil, err
+		}
+		return v, nil
+	}
+	return parseFloat64s(values)
+}
+
+// helper: return single bool or slice
+func singleOrSliceBool(values []string) (any, error) {
+	if len(values) == 1 {
+		v, err := strconv.ParseBool(values[0])
+		if err != nil {
+			return nil, err
+		}
+		return v, nil
+	}
+	out := make([]bool, 0, len(values))
+	for _, s := range values {
+		v, err := strconv.ParseBool(s)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, nil
 }
 
 // parseByExample attempts to parse a single string value into the type suggested by the ParameterObject's Example or Schema.
@@ -389,42 +402,63 @@ func parseSliceValues(values []string, param *openapi.ParameterObject) (any, boo
 	if param == nil {
 		return nil, false
 	}
-	if param.Example != nil {
-		if reflect.TypeOf(param.Example).Kind() == reflect.Slice {
-			exVal := reflect.ValueOf(param.Example)
-			if exVal.Len() > 0 {
-				elem := exVal.Index(0).Interface()
-				switch elem.(type) {
-				case int:
-					if parsed, ok := parseSlice[int](values, func(s string) (int, error) {
-						v64, err := strconv.ParseInt(s, 10, 0)
-						return int(v64), err
-					}); ok {
-						return parsed, true
-					}
-				case string:
-					return values, true
-				}
-			}
-		}
+	if parsed, ok := parseSliceFromExample(values, param.Example); ok {
+		return parsed, true
 	}
-	if param.Schema != nil && param.Schema.Items != nil {
-		switch param.Schema.Items.Type {
-		case "integer":
-			if parsed, ok := parseSlice[int64](values, func(s string) (int64, error) {
-				return strconv.ParseInt(s, 10, 64)
-			}); ok {
-				return parsed, true
-			}
-		case "number":
-			if parsed, ok := parseSlice[float64](values, func(s string) (float64, error) {
-				return strconv.ParseFloat(s, 64)
-			}); ok {
-				return parsed, true
-			}
-		case "string":
-			return values, true
+	if parsed, ok := parseSliceFromSchema(values, param.Schema); ok {
+		return parsed, true
+	}
+	return nil, false
+}
+
+// parseSliceFromExample inspects an example value to infer slice element types.
+func parseSliceFromExample(values []string, example any) (any, bool) {
+	if example == nil {
+		return nil, false
+	}
+	t := reflect.TypeOf(example)
+	if t.Kind() != reflect.Slice {
+		return nil, false
+	}
+	exVal := reflect.ValueOf(example)
+	if exVal.Len() == 0 {
+		return nil, false
+	}
+	elem := exVal.Index(0).Interface()
+	switch elem.(type) {
+	case int:
+		if parsed, ok := parseSlice(values, func(s string) (int, error) {
+			v64, err := strconv.ParseInt(s, 10, 0)
+			return int(v64), err
+		}); ok {
+			return parsed, true
 		}
+	case string:
+		return values, true
+	}
+	return nil, false
+}
+
+// parseSliceFromSchema parses slice values based on Schema->Items type.
+func parseSliceFromSchema(values []string, schema *openapi.Schema) (any, bool) {
+	if schema == nil || schema.Items == nil {
+		return nil, false
+	}
+	switch schema.Items.Type {
+	case "integer":
+		if parsed, ok := parseSlice(values, func(s string) (int64, error) {
+			return strconv.ParseInt(s, 10, 64)
+		}); ok {
+			return parsed, true
+		}
+	case "number":
+		if parsed, ok := parseSlice(values, func(s string) (float64, error) {
+			return strconv.ParseFloat(s, 64)
+		}); ok {
+			return parsed, true
+		}
+	case "string":
+		return values, true
 	}
 	return nil, false
 }

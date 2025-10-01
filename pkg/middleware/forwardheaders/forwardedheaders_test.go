@@ -11,10 +11,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	testURL = "http://example.com/test"
+)
+
 func TestShouldProcessXForwardedProtoHeader(t *testing.T) {
 	// Arrange
 	middleware := &forwardedHeadersMiddleware{}
-	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
+
+	req := httptest.NewRequest(http.MethodGet, testURL, nil)
 	req.Header.Set(common.HeaderXForwardedProto, "https")
 	recorder := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(recorder, req)
@@ -35,7 +40,7 @@ func TestShouldProcessXForwardedProtoHeader(t *testing.T) {
 func TestShouldProcessXForwardedForHeader(t *testing.T) {
 	// Arrange
 	middleware := &forwardedHeadersMiddleware{}
-	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
+	req := httptest.NewRequest(http.MethodGet, testURL, nil)
 	req.Header.Set(common.HeaderXForwardedFor, "192.168.1.100")
 	recorder := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(recorder, req)
@@ -56,7 +61,7 @@ func TestShouldProcessXForwardedForHeader(t *testing.T) {
 func TestShouldProcessBothForwardedHeaders(t *testing.T) {
 	// Arrange
 	middleware := &forwardedHeadersMiddleware{}
-	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
+	req := httptest.NewRequest(http.MethodGet, testURL, nil)
 	req.Header.Set(common.HeaderXForwardedProto, "https")
 	req.Header.Set(common.HeaderXForwardedFor, "10.0.0.1")
 	recorder := httptest.NewRecorder()
@@ -79,7 +84,7 @@ func TestShouldProcessBothForwardedHeaders(t *testing.T) {
 func TestShouldIgnoreEmptyForwardedHeaders(t *testing.T) {
 	// Arrange
 	middleware := &forwardedHeadersMiddleware{}
-	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
+	req := httptest.NewRequest(http.MethodGet, testURL, nil)
 	originalScheme := req.URL.Scheme
 	originalRemoteAddr := req.RemoteAddr
 	recorder := httptest.NewRecorder()
@@ -111,7 +116,7 @@ func TestShouldAddForwardedHeadersMiddlewareToRouter(t *testing.T) {
 	})
 
 	// Make a request with forwarded headers so middleware will modify the request
-	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
+	req := httptest.NewRequest(http.MethodGet, testURL, nil)
 	req.Header.Set(common.HeaderXForwardedProto, "https")
 	req.Header.Set(common.HeaderXForwardedFor, "1.2.3.4")
 	rec := httptest.NewRecorder()

@@ -274,6 +274,7 @@ func normalizeIPToken(v string) string {
 	}
 	return v
 }
+
 // Invoke implements the Middleware interface, processing forwarded headers.
 func (m *forwardedHeadersMiddleware) Invoke(c routing.RouteContext, next router.HandlerFunc) {
 	r := c.Request()
@@ -374,7 +375,6 @@ func (m *forwardedHeadersMiddleware) extractForwarded(r *http.Request, fwd, xpro
 	}
 
 	return
-}
 }
 
 // UseForwardedHeaders adds middleware that processes forwarded headers with permissive defaults.
