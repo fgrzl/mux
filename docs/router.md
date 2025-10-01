@@ -4,6 +4,7 @@ The Router is the core component of Mux that handles HTTP request routing and mi
 
 ## Creating a Router
 
+mux.UseAuthentication(router,
 ```go
 // Basic router
 router := mux.NewRouter()
@@ -12,29 +13,17 @@ router := mux.NewRouter()
 router := mux.NewRouter(
     mux.WithTitle("My API"),
     mux.WithVersion("1.0.0"),
-    mux.WithDescription("A sample API built with Mux"),
 )
 ```
 
 ## Router Options
 
-Configure your router with these options:
-
 ### Basic Information
 ```go
 mux.WithTitle("My API")
-mux.WithVersion("1.0.0") 
-mux.WithDescription("API description")
+mux.WithVersion("1.0.0")
 mux.WithTermsOfService("https://example.com/terms")
-```
-
-### Contact Information
-```go
 mux.WithContact("API Support", "https://example.com/support", "support@example.com")
-```
-
-### License Information
-```go
 mux.WithLicense("MIT", "https://opensource.org/licenses/MIT")
 ```
 
@@ -47,15 +36,8 @@ mux.WithHeadFallbackToGet()
 mux.WithMaxBodyBytes(2 << 20) // 2MB
 ```
 
-Details:
-- WithHeadFallbackToGet: If a HEAD request arrives and no HEAD route is registered for the matched path, the router will execute the GET handler but suppress the response body. Status code and headers are preserved.
-- WithMaxBodyBytes: Sets the maximum size of the request body that Bind will read for JSON or form payloads. Values <= 0 use a default of 1MB.
-
-### Authentication
-```go
-signer, _ := jwtkit.NewSigner("secret-key")
-ttl := time.Hour * 24
-mux.WithAuth(signer, &ttl)
+// Built-in middleware helpers (call these with your router instance):
+// mux.UseLogging(router), mux.UseCompression(router), etc.
 ```
 
 ## Adding Routes
@@ -67,7 +49,7 @@ router.GET("/health", healthCheck)
 router.POST("/users", createUser)
 router.PUT("/users/{id}", updateUser)
 router.DELETE("/users/{id}", deleteUser)
-```
+router.Use(&LoggingMiddleware{})
 
 ## Route Groups
 
@@ -94,32 +76,32 @@ Add middleware to apply cross-cutting concerns:
 ### Built-in Middleware
 ```go
 // Request logging
-router.UseLogging()
+mux.UseLogging(router)
 
 // Response compression  
-router.UseCompression()
+mux.UseCompression(router)
 
 // HTTPS enforcement
-router.UseEnforceHTTPS()
+mux.UseEnforceHTTPS(router)
 
 // Parse forwarded headers
-router.UseForwardedHeaders()
+mux.UseForwardedHeaders(router)
 
 // Authentication
-router.UseAuthentication(
+mux.UseAuthentication(router,
     mux.WithValidator(validateToken),
     mux.WithTokenCreator(createToken),
     mux.WithTokenTTL(30 * time.Minute),
 )
 
 // Authorization
-router.UseAuthorization(
+mux.UseAuthorization(router,
     mux.WithRoles("admin", "user"),
     mux.WithPermissions("read", "write"),
 )
 
 // Service injection
-router.UseServices(
+mux.UseServices(router,
     mux.WithService("db", database),
     mux.WithService("cache", redisClient),
 )
@@ -129,10 +111,10 @@ router.GET("/api/data", handler).
     WithRateLimit(100, time.Minute)
 
 // OpenTelemetry tracing
-router.UseOpenTelemetry()
+mux.UseOpenTelemetry(router)
 
 // Export control with GeoIP
-router.UseExportControl(mux.WithGeoIPDatabase(geoipDB))
+mux.UseExportControl(router, mux.WithGeoIPDatabase(geoipDB))
 ```
 
 ### Custom Middleware

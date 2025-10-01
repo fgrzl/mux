@@ -90,8 +90,8 @@ func main() {
     )
     
     // Add middleware
-    router.UseLogging()      // Log all requests
-    router.UseCompression()  // Compress responses
+    mux.UseLogging(router)      // Log all requests
+    mux.UseCompression(router)  // Compress responses
     
     router.GET("/hello", func(c mux.RouteContext) {
         c.OK("Hello, World!")
@@ -143,8 +143,8 @@ var users = []User{
 
 func main() {
     router := mux.NewRouter()
-    router.UseLogging()
-    router.UseCompression()
+    mux.UseLogging(router)
+    mux.UseCompression(router)
     
     // User endpoints
     router.GET("/users", listUsers)
@@ -257,8 +257,8 @@ func main() {
         mux.WithDescription("A simple user management API built with Mux"),
     )
     
-    router.UseLogging()
-    router.UseCompression()
+    mux.UseLogging(router)
+    mux.UseCompression(router)
     
     // Create API v1 route group
     api := router.NewRouteGroup("/api/v1")
@@ -516,7 +516,7 @@ You've built a complete API with Mux! Here are some next steps to explore:
 
 ### 1. Add Authentication
 ```go
-router.UseAuthentication(
+mux.UseAuthentication(router,
     mux.WithValidator(validateToken),
     mux.WithTokenCreator(createToken),
 )
@@ -533,8 +533,8 @@ Replace the in-memory storage with a real database using your preferred Go datab
 
 ### 4. Add More Middleware
 ```go
-router.UseEnforceHTTPS()     // Force HTTPS in production
-router.UseOpenTelemetry()    // Add distributed tracing
+    mux.UseEnforceHTTPS(router)     // Force HTTPS in production
+    mux.UseOpenTelemetry(router)    // Add distributed tracing
 ```
 
 ### 5. Add Tests
@@ -584,8 +584,8 @@ func main() {
         mux.WithDescription("A simple user management API built with Mux"),
     )
     
-    router.UseLogging()
-    router.UseCompression()
+    mux.UseLogging(router)
+    mux.UseCompression(router)
     
     api := router.NewRouteGroup("/api/v1")
     api.WithTags("API v1")

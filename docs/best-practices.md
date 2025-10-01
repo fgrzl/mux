@@ -79,19 +79,19 @@ func NewRouter() *mux.Router {
 
 func setupMiddleware(router *mux.Router) {
     // 1. Infrastructure middleware
-    router.UseForwardedHeaders()
-    router.UseLogging()
+        mux.UseForwardedHeaders(router)
+        mux.UseLogging(router)
     
     // 2. Security middleware
     if os.Getenv("ENFORCE_HTTPS") == "true" {
-        router.UseEnforceHTTPS()
+            mux.UseEnforceHTTPS(router)
     }
     
     // 3. Application middleware
-    router.UseCompression()
+        mux.UseCompression(router)
     
     if os.Getenv("ENABLE_TRACING") == "true" {
-        router.UseOpenTelemetry()
+            mux.UseOpenTelemetry(router)
     }
     
     // 4. Authentication (if needed globally)
@@ -103,7 +103,7 @@ func setupMiddleware(router *mux.Router) {
     }
     
     // 5. Services
-    router.UseServices(
+        mux.UseServices(
         mux.WithService("userService", userService),
         mux.WithService("authService", authService),
     )

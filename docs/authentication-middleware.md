@@ -5,7 +5,7 @@ The authentication middleware provides JWT token validation and creation capabil
 ## Setup
 
 ```go
-router.UseAuthentication(
+mux.UseAuthentication(router,
     mux.WithValidator(validateToken),
     mux.WithTokenCreator(createToken),
     mux.WithTokenTTL(30 * time.Minute),
@@ -38,7 +38,7 @@ func validateToken(tokenString string) (claims.Principal, error) {
     return principal, nil
 }
 
-router.UseAuthentication(
+mux.UseAuthentication(router,
     mux.WithValidator(validateToken),
 )
 ```
@@ -61,7 +61,7 @@ func createToken(principal claims.Principal, ttl time.Duration) (string, error) 
     return token.SignedString([]byte("secret-key"))
 }
 
-router.UseAuthentication(
+mux.UseAuthentication(router,
     mux.WithTokenCreator(createToken),
 )
 ```
@@ -160,8 +160,8 @@ Authentication middleware works seamlessly with authorization:
 
 ```go
 // Authentication first, then authorization
-router.UseAuthentication(...)
-router.UseAuthorization(
+mux.UseAuthentication(...)
+mux.UseAuthorization(router,
     mux.WithRoles("admin", "user"),
 )
 ```
@@ -182,7 +182,7 @@ func main() {
     router := mux.NewRouter()
     
     // Configure authentication
-    router.UseAuthentication(
+    mux.UseAuthentication(router,
         mux.WithValidator(validateJWT),
         mux.WithTokenCreator(createJWT),
         mux.WithTokenTTL(1 * time.Hour),

@@ -63,8 +63,9 @@ func main() {
     router := mux.NewRouter()
     
     // Add basic middleware
-    router.UseLogging()
-    router.UseCompression()
+    mux.UseLogging(router)
+    mux.UseCompression(router)
+    mux.UseEnforceHTTPS(router)
     
     // Create API routes
     api := router.NewRouteGroup("/api/v1")
@@ -200,18 +201,18 @@ func createUser(c mux.RouteContext) {
 
 ```go
 // Built-in middleware
-router.UseLogging()
-router.UseCompression()
-router.UseEnforceHTTPS()
+    mux.UseLogging(router)
+    mux.UseCompression(router)
+    mux.UseEnforceHTTPS(router)
 
 // Authentication
-router.UseAuthentication(
-    mux.WithValidator(validateToken),
-    mux.WithTokenCreator(createToken),
-)
+    mux.UseAuthentication(router,
+        mux.WithValidator(validateToken),
+        mux.WithTokenCreator(createToken),
+    )
 
 // Custom middleware
-router.Use(&CustomMiddleware{})
+    router.Use(&CustomMiddleware{})
 ```
 
 ## Documentation

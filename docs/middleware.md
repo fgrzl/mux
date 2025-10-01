@@ -27,7 +27,7 @@ Provides JWT token validation and creation capabilities with support for multipl
 
 ### Basic Setup
 ```go
-router.UseAuthentication(
+mux.UseAuthentication(router,
     mux.WithValidator(validateToken),
     mux.WithTokenCreator(createToken),
     mux.WithTokenTTL(30 * time.Minute),
@@ -83,7 +83,7 @@ Provides role-based and permission-based access control that works with the auth
 
 ### Setup
 ```go
-router.UseAuthorization(
+mux.UseAuthorization(router,
     mux.WithRoles("admin", "user"),
     mux.WithPermissions("read", "write", "delete"),
 )
@@ -113,7 +113,7 @@ Provides automatic response compression using gzip or deflate encoding based on 
 
 ### Setup
 ```go
-router.UseCompression()
+mux.UseCompression(router)
 ```
 
 ### Features
@@ -139,7 +139,7 @@ Provides structured HTTP request/response logging using Go's structured logging 
 
 ### Setup
 ```go
-router.UseLogging()
+mux.UseLogging(router)
 ```
 
 ### Log Output
@@ -212,7 +212,7 @@ Automatically redirects HTTP requests to HTTPS and sets security headers.
 
 ### Setup
 ```go
-router.UseEnforceHTTPS()
+mux.UseEnforceHTTPS(router)
 ```
 
 ### Features
@@ -239,7 +239,7 @@ Parses and validates forwarded headers from proxies and load balancers.
 
 ### Setup
 ```go
-router.UseForwardedHeaders()
+mux.UseForwardedHeaders(router)
 ```
 
 ### Supported Headers
@@ -280,7 +280,7 @@ if err != nil {
 defer geoipDB.Close()
 
 // Add export control middleware
-router.UseExportControl(
+mux.UseExportControl(router,
     mux.WithGeoIPDatabase(geoipDB),
 )
 ```
@@ -312,7 +312,7 @@ Provides distributed tracing and metrics collection using OpenTelemetry.
 
 ### Setup
 ```go
-router.UseOpenTelemetry(
+mux.UseOpenTelemetry(router,
     mux.WithOperation("my-api"),
 )
 ```
@@ -361,7 +361,7 @@ Provides dependency injection for services, making them available to route handl
 
 ### Setup
 ```go
-router.UseServices(
+mux.UseServices(router,
     mux.WithService("db", databaseConnection),
     mux.WithService("cache", redisClient),
     mux.WithService("logger", logger),
@@ -416,20 +416,20 @@ The order in which middleware is added matters. Here's the recommended order:
 
 ```go
 // 1. Infrastructure middleware (comes first)
-router.UseForwardedHeaders()    // Parse proxy headers
-router.UseLogging()             // Log all requests
+mux.UseForwardedHeaders(router)    // Parse proxy headers
+mux.UseLogging(router)             // Log all requests
 
 // 2. Security middleware  
-router.UseEnforceHTTPS()        // Force HTTPS
-router.UseExportControl(...)    // Geographic restrictions
+mux.UseEnforceHTTPS(router)        // Force HTTPS
+mux.UseExportControl(...)    // Geographic restrictions
 
 // 3. Application middleware
-router.UseCompression()         // Compress responses
-router.UseOpenTelemetry()       // Tracing and metrics
+mux.UseCompression(router)         // Compress responses
+mux.UseOpenTelemetry(router)       // Tracing and metrics
 
 // 4. Authentication & Authorization
-router.UseAuthentication(...)   // Authenticate users
-router.UseAuthorization(...)    // Authorize access
+mux.UseAuthentication(...)   // Authenticate users
+mux.UseAuthorization(router, ...)    // Authorize access
 
 // 5. Application services
 router.UseServices(...)         // Dependency injection
@@ -454,7 +454,7 @@ Use environment variables for middleware configuration in production:
 
 ```go
 if os.Getenv("ENABLE_COMPRESSION") == "true" {
-    router.UseCompression()
+    mux.UseCompression(router)
 }
 
 if os.Getenv("ENABLE_RATE_LIMITING") == "true" {
@@ -468,7 +468,7 @@ Test your middleware independently and as part of the full pipeline:
 ```go
 func TestLoggingMiddleware(t *testing.T) {
     router := mux.NewRouter()
-    router.UseLogging()
+    mux.UseLogging(router)
     
     // Test that requests are logged
     // ...

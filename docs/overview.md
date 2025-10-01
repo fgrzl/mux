@@ -159,7 +159,7 @@ Built-in response helpers automatically create properly structured error respons
 Inject services into route handlers through middleware:
 
 ```go
-router.UseServices(
+mux.UseServices(router,
     mux.WithService("db", database),
     mux.WithService("logger", logger),
 )

@@ -151,8 +151,8 @@ func handler(c mux.RouteContext) {
 
 ```go
 // Router-level (applies to all routes)
-router.UseLogging()
-router.UseAuthentication(...)
+mux.UseLogging(router)
+mux.UseAuthentication(...)
 
 // Route-specific (applies only to this route)
 router.GET("/api/search", handler).
@@ -455,7 +455,7 @@ func TestAuthenticationMiddleware(t *testing.T) {
 
 **A:** Enable request logging and check:
 ```go
-router.UseLogging() // Logs all requests and responses
+mux.UseLogging(router) // Logs all requests and responses
 
 // Or add custom debug middleware
 type DebugMiddleware struct{}
