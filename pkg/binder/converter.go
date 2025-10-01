@@ -15,216 +15,118 @@ func makeConverter(t reflect.Type, schema *openapi.Schema) func([]string) (any, 
 	if t != nil && t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
-
-	// scalar converters
-	scalarConv := func(typ reflect.Type) func([]string) (any, error) {
-		if typ == nil {
-			return nil
-		}
-		switch typ.Kind() {
-		case reflect.String:
-			return func(vals []string) (any, error) {
-				if len(vals) == 1 {
-					return vals[0], nil
-				}
-				return vals, nil
-			}
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			return func(vals []string) (any, error) {
-				if len(vals) == 1 {
-					v, err := strconv.ParseInt(vals[0], 10, typ.Bits())
-					if err != nil {
-						return nil, err
-					}
-					switch typ.Kind() {
-					case reflect.Int:
-						return int(v), nil
-					case reflect.Int8:
-						return int8(v), nil
-					case reflect.Int16:
-						return int16(v), nil
-					case reflect.Int32:
-						return int32(v), nil
-					default:
-						return v, nil
-					}
-				}
-				// parse slice of ints as []int64 by default
-				out := make([]int64, 0, len(vals))
-				for _, s := range vals {
-					v, err := strconv.ParseInt(s, 10, 64)
-					if err != nil {
-						return nil, err
-					}
-					out = append(out, v)
-				}
-				return out, nil
-			}
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			return func(vals []string) (any, error) {
-				if len(vals) == 1 {
-					v, err := strconv.ParseUint(vals[0], 10, typ.Bits())
-					if err != nil {
-						return nil, err
-					}
-					switch typ.Kind() {
-					case reflect.Uint:
-						return uint(v), nil
-					case reflect.Uint8:
-						return uint8(v), nil
-					case reflect.Uint16:
-						return uint16(v), nil
-					case reflect.Uint32:
-						return uint32(v), nil
-					default:
-						return v, nil
-					}
-				}
-				out := make([]uint64, 0, len(vals))
-				for _, s := range vals {
-					v, err := strconv.ParseUint(s, 10, 64)
-					if err != nil {
-						return nil, err
-					}
-					out = append(out, v)
-				}
-				return out, nil
-			}
-		case reflect.Float32, reflect.Float64:
-			bits := 64
-			if typ.Kind() == reflect.Float32 {
-				bits = 32
-			}
-			return func(vals []string) (any, error) {
-				if len(vals) == 1 {
-					v, err := strconv.ParseFloat(vals[0], bits)
-					if err != nil {
-						return nil, err
-					}
-					if bits == 32 {
-						return float32(v), nil
-					}
-					return v, nil
-				}
-				out := make([]float64, 0, len(vals))
-				for _, s := range vals {
-					v, err := strconv.ParseFloat(s, 64)
-					if err != nil {
-						return nil, err
-					}
-					out = append(out, v)
-				}
-				return out, nil
-			}
-		case reflect.Bool:
-			return func(vals []string) (any, error) {
-				if len(vals) == 1 {
-					v, err := strconv.ParseBool(vals[0])
-					if err != nil {
-						return nil, err
-					}
-					return v, nil
-				}
-				out := make([]bool, 0, len(vals))
-				for _, s := range vals {
-					v, err := strconv.ParseBool(s)
-					if err != nil {
-						return nil, err
-					}
-					out = append(out, v)
-				}
-				return out, nil
-			}
-		case reflect.Slice:
-			return nil
-		case reflect.Struct:
-			return nil
-		default:
-			return nil
-		}
-	}
-
 	if t != nil {
-		if c := scalarConv(t); c != nil {
+		if c := scalarConverterForType(t); c != nil {
 			return c
 		}
-		if t.Kind() == reflect.Slice {
-			et := t.Elem()
-			if c := scalarConv(et); c != nil {
-				// reuse the element scalar converter for each element
-				return func(vals []string) (any, error) {
-					out := make([]any, 0, len(vals))
-					for _, s := range vals {
-						parsed, err := c([]string{s})
-						if err != nil {
-							return nil, err
-						}
-						out = append(out, parsed)
-					}
-					return out, nil
-				}
-			}
+		if conv := makeSliceElementConverter(t); conv != nil {
+			return conv
 		}
 	}
 
 	if schema != nil {
-		switch schema.Type {
-		case "integer":
-			return func(vals []string) (any, error) {
-				if len(vals) == 1 {
-					v, err := strconv.ParseInt(vals[0], 10, 64)
-					if err != nil {
-						return nil, err
-					}
-					return v, nil
-				}
-				return nil, nil
-			}
-		case "number":
-			return func(vals []string) (any, error) {
-				if len(vals) == 1 {
-					v, err := strconv.ParseFloat(vals[0], 64)
-					if err != nil {
-						return nil, err
-					}
-					return v, nil
-				}
-				return nil, nil
-			}
-		case "boolean":
-			return func(vals []string) (any, error) {
-				if len(vals) == 1 {
-					v, err := strconv.ParseBool(vals[0])
-					if err != nil {
-						return nil, err
-					}
-					return v, nil
-				}
-				return nil, nil
-			}
-		case "string":
-			if schema.Format == "uuid" {
-				return func(vals []string) (any, error) {
-					if len(vals) == 1 {
-						u, err := uuid.Parse(vals[0])
-						if err != nil {
-							return nil, err
-						}
-						return u, nil
-					}
-					return nil, nil
-				}
-			}
-			return func(vals []string) (any, error) {
-				if len(vals) == 1 {
-					return vals[0], nil
-				}
-				return vals, nil
-			}
-		}
+		return makeConverterFromSchema(schema)
 	}
 
 	return nil
+}
+
+// makeSliceElementConverter returns a converter that parses each element
+// using the element's scalar converter, or nil if not applicable.
+func makeSliceElementConverter(t reflect.Type) func([]string) (any, error) {
+	if t == nil || t.Kind() != reflect.Slice {
+		return nil
+	}
+	et := t.Elem()
+	c := scalarConverterForType(et)
+	if c == nil {
+		return nil
+	}
+	return func(vals []string) (any, error) {
+		out := make([]any, 0, len(vals))
+		for _, s := range vals {
+			parsed, err := c([]string{s})
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, parsed)
+		}
+		return out, nil
+	}
+}
+
+// makeConverterFromSchema creates a converter based on an OpenAPI schema.
+func makeConverterFromSchema(schema *openapi.Schema) func([]string) (any, error) {
+	if schema == nil {
+		return nil
+	}
+	switch schema.Type {
+	case "integer":
+		return converterForInteger()
+	case "number":
+		return converterForNumber()
+	case "boolean":
+		return converterForBoolean()
+	case "string":
+		return converterForString(schema)
+	default:
+		return nil
+	}
+}
+
+func converterForInteger() func([]string) (any, error) {
+	return func(vals []string) (any, error) {
+		if len(vals) == 1 {
+			v, err := strconv.ParseInt(vals[0], 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			return v, nil
+		}
+		return nil, nil
+	}
+}
+
+func converterForNumber() func([]string) (any, error) {
+	return func(vals []string) (any, error) {
+		if len(vals) == 1 {
+			v, err := strconv.ParseFloat(vals[0], 64)
+			if err != nil {
+				return nil, err
+			}
+			return v, nil
+		}
+		return nil, nil
+	}
+}
+
+func converterForBoolean() func([]string) (any, error) {
+	return func(vals []string) (any, error) {
+		if len(vals) == 1 {
+			v, err := strconv.ParseBool(vals[0])
+			if err != nil {
+				return nil, err
+			}
+			return v, nil
+		}
+		return nil, nil
+	}
+}
+
+func converterForString(schema *openapi.Schema) func([]string) (any, error) {
+	if schema != nil && schema.Format == "uuid" {
+		return func(vals []string) (any, error) {
+			if len(vals) == 1 {
+				u, err := uuid.Parse(vals[0])
+				if err != nil {
+					return nil, err
+				}
+				return u, nil
+			}
+			return nil, nil
+		}
+	}
+	return makeStringConverter()
 }
 
 // parseValueBySchema attempts to coerce raw string values into a typed value
@@ -264,6 +166,141 @@ func parseValueBySchema(values []string, schema *openapi.Schema) (any, error) {
 		return singleOrSliceString(values)
 	default:
 		return singleOrSliceString(values)
+	}
+}
+
+// scalarConverterForType returns a converter function for simple scalar types.
+// It mirrors the previous scalarConv closure extracted from makeConverter.
+func scalarConverterForType(typ reflect.Type) func([]string) (any, error) {
+	if typ == nil {
+		return nil
+	}
+	switch typ.Kind() {
+	case reflect.String:
+		return makeStringConverter()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return makeIntConverter(typ)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return makeUintConverter(typ)
+	case reflect.Float32, reflect.Float64:
+		return makeFloatConverter(typ)
+	case reflect.Bool:
+		return makeBoolConverter()
+	case reflect.Slice, reflect.Struct:
+		return nil
+	default:
+		return nil
+	}
+}
+
+func makeStringConverter() func([]string) (any, error) {
+	return func(vals []string) (any, error) {
+		if len(vals) == 1 {
+			return vals[0], nil
+		}
+		return vals, nil
+	}
+}
+
+func makeIntConverter(typ reflect.Type) func([]string) (any, error) {
+	return func(vals []string) (any, error) {
+		if len(vals) == 1 {
+			v, err := strconv.ParseInt(vals[0], 10, typ.Bits())
+			if err != nil {
+				return nil, err
+			}
+			switch typ.Kind() {
+			case reflect.Int:
+				return int(v), nil
+			case reflect.Int8:
+				return int8(v), nil
+			case reflect.Int16:
+				return int16(v), nil
+			case reflect.Int32:
+				return int32(v), nil
+			default:
+				return v, nil
+			}
+		}
+		return parseInt64s(vals)
+	}
+}
+
+func makeUintConverter(typ reflect.Type) func([]string) (any, error) {
+	return func(vals []string) (any, error) {
+		if len(vals) == 1 {
+			v, err := strconv.ParseUint(vals[0], 10, typ.Bits())
+			if err != nil {
+				return nil, err
+			}
+			switch typ.Kind() {
+			case reflect.Uint:
+				return uint(v), nil
+			case reflect.Uint8:
+				return uint8(v), nil
+			case reflect.Uint16:
+				return uint16(v), nil
+			case reflect.Uint32:
+				return uint32(v), nil
+			default:
+				return v, nil
+			}
+		}
+		return parseUint64s(vals)
+	}
+}
+
+// helper: parse a slice of uint64 values
+func parseUint64s(values []string) (any, error) {
+	out := make([]uint64, 0, len(values))
+	for _, s := range values {
+		v, err := strconv.ParseUint(s, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, nil
+}
+
+func makeFloatConverter(typ reflect.Type) func([]string) (any, error) {
+	bits := 64
+	if typ.Kind() == reflect.Float32 {
+		bits = 32
+	}
+	return func(vals []string) (any, error) {
+		if len(vals) == 1 {
+			v, err := strconv.ParseFloat(vals[0], bits)
+			if err != nil {
+				return nil, err
+			}
+			if bits == 32 {
+				return float32(v), nil
+			}
+			return v, nil
+		}
+		return parseFloat64s(vals)
+	}
+}
+
+func makeBoolConverter() func([]string) (any, error) {
+	return func(vals []string) (any, error) {
+		if len(vals) == 1 {
+			v, err := strconv.ParseBool(vals[0])
+			if err != nil {
+				return nil, err
+			}
+			return v, nil
+		}
+		out := make([]bool, 0, len(vals))
+		for _, s := range vals {
+			v, err := strconv.ParseBool(s)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, v)
+		}
+		return out, nil
 	}
 }
 

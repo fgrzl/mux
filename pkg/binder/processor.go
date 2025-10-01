@@ -15,24 +15,8 @@ func ProcessParamAndSet(staging map[string]any, key string, values []string, loc
 	if param == nil {
 		return false, nil
 	}
-	// if parameter expects array (via Schema) or Example indicates a slice,
-	// and a single CSV value was given, split it into elements
-	isArray := false
-	if param.Schema != nil && param.Schema.Type == "array" {
-		isArray = true
-	}
-	if !isArray && param.Example != nil {
-		exT := reflect.TypeOf(param.Example)
-		if exT.Kind() == reflect.Ptr {
-			exT = exT.Elem()
-		}
-		if exT.Kind() == reflect.Slice {
-			isArray = true
-		}
-	}
-	if isArray && len(values) == 1 && strings.Contains(values[0], ",") {
-		values = splitAndTrim(values[0])
-	}
+	// normalize values according to Schema/Example (split CSV into slice when needed)
+	values = normalizeValuesForParam(values, param)
 	// converter has highest precedence
 	if param.Converter != nil {
 		if typed, err := param.Converter(values); err != nil {
@@ -63,4 +47,32 @@ func splitAndTrim(s string) []string {
 		out = append(out, strings.TrimSpace(p))
 	}
 	return out
+}
+
+// isParamArray returns true when the ParameterObject expects an array
+// either via Schema type or Example value being a slice.
+func isParamArray(param *openapi.ParameterObject) bool {
+	if param == nil {
+		return false
+	}
+	if param.Schema != nil && param.Schema.Type == "array" {
+		return true
+	}
+	if param.Example != nil {
+		exT := reflect.TypeOf(param.Example)
+		if exT.Kind() == reflect.Ptr {
+			exT = exT.Elem()
+		}
+		return exT.Kind() == reflect.Slice
+	}
+	return false
+}
+
+// normalizeValuesForParam will split a single CSV value into elements when
+// the parameter is considered an array.
+func normalizeValuesForParam(values []string, param *openapi.ParameterObject) []string {
+	if isParamArray(param) && len(values) == 1 && strings.Contains(values[0], ",") {
+		return splitAndTrim(values[0])
+	}
+	return values
 }
