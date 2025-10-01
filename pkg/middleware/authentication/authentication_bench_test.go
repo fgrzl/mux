@@ -39,15 +39,19 @@ func BenchmarkAuthenticationInvoke(b *testing.B) {
 			},
 		},
 		{
-			name:  "Anonymous_Allowed",
-			setup: func(r *http.Request) {},
+			name: "Anonymous_Allowed",
+			setup: func(r *http.Request) {
+				// noop
+			},
 		},
 	}
 
 	for _, tc := range cases {
 		b.Run(tc.name, func(b *testing.B) {
 			m := newBenchAuthMiddleware()
-			next := func(c routing.RouteContext) {}
+			next := func(c routing.RouteContext) {
+				// noop
+			}
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -90,5 +94,3 @@ func BenchmarkAuthenticationRouterPipeline(b *testing.B) {
 		}
 	})
 }
-
-// helpers moved to helpers_test.go

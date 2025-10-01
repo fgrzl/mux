@@ -11,6 +11,13 @@ import (
 // forbiddenMessage is a shared message used when access is denied.
 const forbiddenMessage = "You do not have the necessary permissions to access this resource."
 
+// Well-known scope constants used by tests and examples.
+const (
+	ScopeAPIRead  = "api:read"
+	ScopeAPIWrite = "api:write"
+	ScopeAPIAdmin = "api:admin"
+)
+
 // ---- Functional Options ----
 
 // AuthZOption represents a functional option for configuring AuthorizationOptions.

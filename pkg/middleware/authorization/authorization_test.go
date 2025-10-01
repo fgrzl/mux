@@ -181,8 +181,8 @@ func TestShouldAllowAccessWhenUserHasRequiredScope(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(rec, req)
-	ctx.SetUser(&mockPrincipalForAuth{scopes: []string{"api:read", "api:write"}})
-	ctx.SetOptions(&routing.RouteOptions{Scopes: []string{"api:read"}})
+	ctx.SetUser(&mockPrincipalForAuth{scopes: []string{ScopeAPIRead, ScopeAPIWrite}})
+	ctx.SetOptions(&routing.RouteOptions{Scopes: []string{ScopeAPIRead}})
 
 	nextCalled := false
 	next := func(c routing.RouteContext) {
@@ -205,8 +205,8 @@ func TestShouldDenyAccessWhenUserLacksRequiredScope(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(rec, req)
-	ctx.SetUser(&mockPrincipalForAuth{scopes: []string{"api:write"}})
-	ctx.SetOptions(&routing.RouteOptions{Scopes: []string{"api:admin"}})
+	ctx.SetUser(&mockPrincipalForAuth{scopes: []string{ScopeAPIWrite}})
+	ctx.SetOptions(&routing.RouteOptions{Scopes: []string{ScopeAPIAdmin}})
 
 	nextCalled := false
 	next := func(c routing.RouteContext) {
@@ -271,8 +271,8 @@ func TestShouldUseCustomScopeChecker(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(rec, req)
-	ctx.SetUser(&mockPrincipalForAuth{scopes: []string{"api:read"}})
-	ctx.SetOptions(&routing.RouteOptions{Scopes: []string{"api:read"}})
+	ctx.SetUser(&mockPrincipalForAuth{scopes: []string{ScopeAPIRead}})
+	ctx.SetOptions(&routing.RouteOptions{Scopes: []string{ScopeAPIRead}})
 
 	nextCalled := false
 	next := func(c routing.RouteContext) {
@@ -287,31 +287,7 @@ func TestShouldUseCustomScopeChecker(t *testing.T) {
 	assert.False(t, nextCalled) // Should be denied because custom checker returns false
 }
 
-func TestShouldAllowAccessWhenNoRolesRequired(t *testing.T) {
-	// Arrange
-	middleware := &authorizationMiddleware{
-		options: &AuthorizationOptions{},
-	}
-
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	rec := httptest.NewRecorder()
-	ctx := routing.NewRouteContext(rec, req)
-	ctx.SetUser(&mockPrincipalForAuth{})
-	ctx.SetOptions(&routing.RouteOptions{}) // No roles required
-
-	nextCalled := false
-	next := func(c routing.RouteContext) {
-		nextCalled = true
-	}
-
-	// Act
-	middleware.Invoke(ctx, next)
-
-	// Assert
-	assert.True(t, nextCalled)
-}
-
-func TestShouldAllowAccessWhenNoScopesRequired(t *testing.T) {
+func TestShouldAllowAccessWhenNoRolesOrScopesRequired(t *testing.T) {
 	// Arrange
 	middleware := &authorizationMiddleware{
 		options: &AuthorizationOptions{},

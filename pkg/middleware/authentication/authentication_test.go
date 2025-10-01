@@ -234,7 +234,7 @@ func TestAuthenticationMiddlewareShouldRejectRequestWithoutValidAuthentication(t
 	rtr := router.NewRouter()
 	UseAuthentication(rtr,
 		WithValidator(func(string) (claims.Principal, error) {
-			return nil, errors.New("invalid token")
+			return nil, ErrorInvalidToken
 		}),
 	)
 
@@ -261,7 +261,7 @@ func TestAuthenticationMiddlewareShouldAuthenticateViaCookie(t *testing.T) {
 			if token == "valid-cookie-token" {
 				return mockUser, nil
 			}
-			return nil, errors.New("invalid token")
+			return nil, ErrorInvalidToken
 		}),
 	)
 
@@ -296,7 +296,7 @@ func TestAuthenticationMiddlewareShouldAuthenticateViaBearerToken(t *testing.T) 
 			if token == "valid-bearer-token" {
 				return mockUser, nil
 			}
-			return nil, errors.New("invalid token")
+			return nil, ErrorInvalidToken
 		}),
 	)
 

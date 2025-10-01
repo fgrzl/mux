@@ -22,8 +22,10 @@ func BenchmarkAuthorizationInvoke(b *testing.B) {
 		run   func(m *authorizationMiddleware, ctx *routing.DefaultRouteContext)
 	}{
 		{
-			name:  "NoReq_NoOp",
-			setup: func(m *authorizationMiddleware) {},
+			name: "NoReq_NoOp",
+			setup: func(m *authorizationMiddleware) {
+				// noop
+			},
 			run: func(m *authorizationMiddleware, ctx *routing.DefaultRouteContext) {
 				m.Invoke(ctx, noop)
 			},
