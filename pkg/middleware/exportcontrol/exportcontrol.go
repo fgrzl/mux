@@ -42,12 +42,15 @@ type exportControlMiddleware struct {
 
 func (m *exportControlMiddleware) Invoke(c routing.RouteContext, next router.HandlerFunc) {
 	ip := getRealIP(c.Request())
-	if parsed := net.ParseIP(ip); parsed != nil && m.options.DB != nil {
-		if record, err := m.options.DB.Country(parsed); err == nil {
-			if _, blocked := exportRestrictedCountries[record.Country.IsoCode]; blocked {
-				c.Response().WriteHeader(http.StatusForbidden)
-				_, _ = c.Response().Write([]byte("Access from your country is restricted due to export control policies."))
-				return
+	if ip != "" && m.options.DB != nil {
+		if parsed := net.ParseIP(ip); parsed != nil {
+			if record, err := m.options.DB.Country(parsed); err == nil {
+				if _, blocked := exportRestrictedCountries[record.Country.IsoCode]; blocked {
+					// Keep response similar to previous behavior but use ResponseWriter helpers.
+					c.Response().WriteHeader(http.StatusForbidden)
+					_, _ = c.Response().Write([]byte("Access from your country is restricted due to export control policies."))
+					return
+				}
 			}
 		}
 	}

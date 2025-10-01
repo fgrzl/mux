@@ -176,7 +176,8 @@ func (m *authenticationMiddleware) authenticateViaCookie(c routing.RouteContext)
 // authenticateViaBearer attempts to authenticate using bearer token.
 func (m *authenticationMiddleware) authenticateViaBearer(c routing.RouteContext) bool {
 
-	token := extractBearerToken(c.Request())
+	req := c.Request()
+	token := extractBearerToken(req.Header.Get(common.HeaderAuthorization))
 	if token == "" {
 		return false
 	}
@@ -237,11 +238,17 @@ func (m *authenticationMiddleware) updateCookieProperties(cookie *http.Cookie, t
 	cookie.Path = "/"
 }
 
-// extractBearerToken extracts the bearer token from the Authorization header.
-func extractBearerToken(r *http.Request) string {
-	auth := r.Header.Get(common.HeaderAuthorization)
-	if strings.HasPrefix(auth, "Bearer ") {
-		return strings.TrimPrefix(auth, "Bearer ")
+// extractBearerToken extracts the bearer token from the Authorization header value.
+func extractBearerToken(authHeader string) string {
+	if authHeader == "" {
+		return ""
+	}
+	const prefix = "Bearer "
+	if len(authHeader) <= len(prefix) {
+		return ""
+	}
+	if strings.HasPrefix(authHeader, prefix) {
+		return authHeader[len(prefix):]
 	}
 	return ""
 }

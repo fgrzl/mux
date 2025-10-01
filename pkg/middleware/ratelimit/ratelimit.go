@@ -72,7 +72,10 @@ func (m *SelectiveRateLimiter) Invoke(c routing.RouteContext, next router.Handle
 		// If we can't parse the host:port, use the entire RemoteAddr as IP
 		ip = c.Request().RemoteAddr
 	}
-	v := m.getVisitor(ip, c.Request().Pattern, opts.RateLimit, opts.RateInterval)
+	// Use the configured route pattern (from options) as the visitor key part.
+	// Reading pattern from the RouteOptions ensures we use the canonical route
+	// identifier registered at startup rather than any request-derived value.
+	v := m.getVisitor(ip, opts.Pattern, opts.RateLimit, opts.RateInterval)
 
 	if v.tokens <= 0 {
 		instance := c.Request().RequestURI
@@ -99,6 +102,8 @@ func (m *SelectiveRateLimiter) getVisitor(ip, key string, limit int, interval ti
 	now := time.Now()
 
 	if !ok {
+		// First access consumes one token; initialize to limit-1 so the
+		// caller's subsequent decrement models immediate consumption.
 		v = &visitor{tokens: limit - 1, lastAccess: now}
 		m.visitors[id] = v
 		return v

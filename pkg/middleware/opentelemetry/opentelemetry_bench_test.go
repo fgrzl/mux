@@ -8,13 +8,13 @@ import (
 	"github.com/fgrzl/mux/pkg/router"
 	"github.com/fgrzl/mux/pkg/routing"
 	"go.opentelemetry.io/otel"
-	oteltrace "go.opentelemetry.io/otel/trace"
+	noop "go.opentelemetry.io/otel/trace/noop"
 )
 
 // Ensure OpenTelemetry uses a no-op tracer provider during benchmarks to avoid
 // external exporter overhead influencing results.
 func init() {
-	otel.SetTracerProvider(oteltrace.NewNoopTracerProvider())
+	otel.SetTracerProvider(noop.NewTracerProvider())
 }
 
 func benchOtel(b *testing.B, pooled bool) {

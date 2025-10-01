@@ -45,10 +45,12 @@ func (m *loggingMiddleware) Invoke(c routing.RouteContext, next router.HandlerFu
 	next(c)
 
 	// Use pooled attribute slice and LogAttrs to minimize allocations.
+	// Avoid writing to m.logger here (would be a race when middleware is used
+	// concurrently). Use the default logger when none is set without caching
+	// it on the middleware struct.
 	logger := m.logger
 	if logger == nil {
 		logger = slog.Default()
-		m.logger = logger
 	}
 	if !logger.Enabled(c, slog.LevelInfo) {
 		return
@@ -62,8 +64,10 @@ func (m *loggingMiddleware) Invoke(c routing.RouteContext, next router.HandlerFu
 	// Sanitize potentially user-controlled values before logging. This helper
 	// escapes HTML special chars and enforces a small maximum length to avoid
 	// accidental log amplification.
-	safePath := `"` + sanitizeForLog(req.URL.Path) + `"`
-	safeUA := `"` + sanitizeForLog(req.UserAgent()) + `"`
+	// Sanitize values but avoid adding extra quoting which creates small
+	// allocations that provide little diagnostic value.
+	safePath := sanitizeForLog(req.URL.Path)
+	safeUA := sanitizeForLog(req.UserAgent())
 	attrs = append(attrs,
 		slog.String("method", req.Method),
 		slog.String("path", safePath),

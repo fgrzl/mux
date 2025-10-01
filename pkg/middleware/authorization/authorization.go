@@ -104,12 +104,14 @@ func (m *authorizationMiddleware) checkRoles(c routing.RouteContext) bool {
 		if c.User() == nil {
 			return false
 		}
-		user := c.User().Roles()
+		// Build a set of user roles to avoid O(n*m) comparisons on large slices.
+		userSet := make(map[string]struct{}, len(c.User().Roles()))
+		for _, u := range c.User().Roles() {
+			userSet[u] = struct{}{}
+		}
 		for _, r := range valid {
-			for _, u := range user {
-				if r == u {
-					return true
-				}
+			if _, ok := userSet[r]; ok {
+				return true
 			}
 		}
 		return false
@@ -123,12 +125,14 @@ func (m *authorizationMiddleware) checkRoles(c routing.RouteContext) bool {
 	if c.User() == nil {
 		return false
 	}
-	user := c.User().Roles()
+	// Use a set to speed up lookups in the common-case.
+	userSet := make(map[string]struct{}, len(c.User().Roles()))
+	for _, u := range c.User().Roles() {
+		userSet[u] = struct{}{}
+	}
 	for _, r := range valid {
-		for _, u := range user {
-			if r == u {
-				return true
-			}
+		if _, ok := userSet[r]; ok {
+			return true
 		}
 	}
 	return false
@@ -147,12 +151,13 @@ func (m *authorizationMiddleware) checkScopes(c routing.RouteContext) bool {
 		if c.User() == nil {
 			return false
 		}
-		user := c.User().Scopes()
+		userSet := make(map[string]struct{}, len(c.User().Scopes()))
+		for _, u := range c.User().Scopes() {
+			userSet[u] = struct{}{}
+		}
 		for _, s := range valid {
-			for _, u := range user {
-				if s == u {
-					return true
-				}
+			if _, ok := userSet[s]; ok {
+				return true
 			}
 		}
 		return false
