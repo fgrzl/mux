@@ -85,22 +85,6 @@ func (m *forwardedHeadersMiddleware) isTrusted(ip net.IP) bool {
 	return false
 }
 
-// splitCSV splits a comma-separated header into trimmed non-empty parts.
-func splitCSV(v string) []string { // kept for compatibility if used by tests; not used in hot path
-	if v == "" {
-		return nil
-	}
-	parts := strings.Split(v, ",")
-	out := make([]string, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			out = append(out, p)
-		}
-	}
-	return out
-}
-
 // firstCSV returns the first comma-separated token, trimmed.
 func firstCSV(v string) string {
 	if v == "" {
@@ -301,12 +285,13 @@ func (m *forwardedHeadersMiddleware) Invoke(c routing.RouteContext, next router.
 	hdr := r.Header
 
 	// Fast-path: if no relevant headers are present, skip work.
-	if hdr.Get(common.HeaderForwarded) == "" &&
-		hdr.Get(common.HeaderXForwardedProto) == "" &&
-		hdr.Get(common.HeaderXForwardedHost) == "" &&
-		hdr.Get(common.HeaderXForwardedPort) == "" &&
-		hdr.Get(common.HeaderXForwardedFor) == "" &&
-		hdr.Get(common.HeaderXRealIP) == "" {
+	fwd := hdr.Get(common.HeaderForwarded)
+	xproto := hdr.Get(common.HeaderXForwardedProto)
+	xhost := hdr.Get(common.HeaderXForwardedHost)
+	xport := hdr.Get(common.HeaderXForwardedPort)
+	xffRaw := hdr.Get(common.HeaderXForwardedFor)
+	xreal := hdr.Get(common.HeaderXRealIP)
+	if fwd == "" && xproto == "" && xhost == "" && xport == "" && xffRaw == "" && xreal == "" {
 		next(c)
 		return
 	}
@@ -321,6 +306,7 @@ func (m *forwardedHeadersMiddleware) Invoke(c routing.RouteContext, next router.
 		if err != nil {
 			hostPart = r.RemoteAddr
 		}
+		// parse once
 		applyHeaders = m.isTrusted(net.ParseIP(hostPart))
 	}
 	if !applyHeaders {
@@ -328,7 +314,7 @@ func (m *forwardedHeadersMiddleware) Invoke(c routing.RouteContext, next router.
 		return
 	}
 	if m.opts.RespectForwarded {
-		if fwd := hdr.Get(common.HeaderForwarded); fwd != "" {
+		if fwd != "" {
 			fip, p, h := parseForwardedRFC(fwd)
 			clientIP, proto, host = fip, p, h
 		}
@@ -336,19 +322,19 @@ func (m *forwardedHeadersMiddleware) Invoke(c routing.RouteContext, next router.
 
 	// Fallback/augment from X-Forwarded-* headers
 	if proto == "" {
-		if p := hdr.Get(common.HeaderXForwardedProto); p != "" {
-			proto = firstCSV(p)
+		if xproto != "" {
+			proto = firstCSV(xproto)
 		}
 	}
 	// Host: prefer X-Forwarded-Host
 	if host == "" {
-		if h := hdr.Get(common.HeaderXForwardedHost); h != "" {
-			host = firstCSV(h)
+		if xhost != "" {
+			host = firstCSV(xhost)
 		}
 	}
 	// If port provided separately, combine
-	if port := hdr.Get(common.HeaderXForwardedPort); port != "" {
-		port = firstCSV(port)
+	if xport != "" {
+		port := firstCSV(xport)
 		if host != "" && !strings.Contains(host, ":") {
 			host = host + ":" + port
 		}
@@ -356,15 +342,13 @@ func (m *forwardedHeadersMiddleware) Invoke(c routing.RouteContext, next router.
 
 	// Determine client IP from X-Forwarded-For or X-Real-IP if not from RFC header
 	if clientIP == "" {
-		if xffRaw := hdr.Get(common.HeaderXForwardedFor); xffRaw != "" {
+		if xffRaw != "" {
 			if chosen := m.chooseClientIPFromRaw(xffRaw, r.RemoteAddr); chosen != "" {
 				clientIP = chosen
 			}
 		}
-		if clientIP == "" {
-			if xr := hdr.Get(common.HeaderXRealIP); xr != "" {
-				clientIP = firstCSV(xr)
-			}
+		if clientIP == "" && xreal != "" {
+			clientIP = firstCSV(xreal)
 		}
 	}
 

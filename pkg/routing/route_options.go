@@ -10,7 +10,7 @@ import (
 // HandlerFunc is the handler signature used by routing package.
 // It accepts a RouteContext so implementations can be defined within
 // the routing package without importing mux, avoiding cycles.
-type HandlerFunc func(RouteContext)
+type HandlerFunc = func(RouteContext)
 
 // RouteOptions holds both runtime routing data (handler, auth etc.) and the
 // OpenAPI Operation object that will be rendered into the spec.

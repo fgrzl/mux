@@ -76,19 +76,21 @@ func (m *compressionMiddleware) Invoke(c routing.RouteContext, next router.Handl
 	}
 
 	var compressor io.WriteCloser
+	res := c.Response()
+	hdr := res.Header()
 	if strings.Contains(acceptEncoding, "gzip") {
-		c.Response().Header().Set(common.HeaderContentEncoding, "gzip")
-		c.Response().Header().Add(common.HeaderVary, common.HeaderAcceptEncoding)
-		c.Response().Header().Del(common.HeaderContentLength)
+		hdr.Set(common.HeaderContentEncoding, "gzip")
+		hdr.Add(common.HeaderVary, common.HeaderAcceptEncoding)
+		hdr.Del(common.HeaderContentLength)
 		gw := gzipPool.Get().(*gzip.Writer)
-		gw.Reset(c.Response())
+		gw.Reset(res)
 		compressor = gw
 	} else if strings.Contains(acceptEncoding, "deflate") {
-		c.Response().Header().Set(common.HeaderContentEncoding, "deflate")
-		c.Response().Header().Add(common.HeaderVary, common.HeaderAcceptEncoding)
-		c.Response().Header().Del(common.HeaderContentLength)
+		hdr.Set(common.HeaderContentEncoding, "deflate")
+		hdr.Add(common.HeaderVary, common.HeaderAcceptEncoding)
+		hdr.Del(common.HeaderContentLength)
 		dw := deflatePool.Get().(*flate.Writer)
-		dw.Reset(c.Response())
+		dw.Reset(res)
 		compressor = dw
 	} else {
 		next(c)

@@ -100,19 +100,10 @@ func (m *authorizationMiddleware) checkRoles(c routing.RouteContext) bool {
 		if len(valid) == 0 {
 			return true
 		}
-		// If route requires roles but user isn't present, deny.
 		if c.User() == nil {
 			return false
 		}
-		user := c.User().Roles()
-		for _, r := range valid {
-			for _, u := range user {
-				if r == u {
-					return true
-				}
-			}
-		}
-		return false
+		return matchAny(valid, c.User().Roles())
 	}
 	if m.options.CheckRoles != nil {
 		return m.options.CheckRoles(c.User(), valid)
@@ -123,15 +114,7 @@ func (m *authorizationMiddleware) checkRoles(c routing.RouteContext) bool {
 	if c.User() == nil {
 		return false
 	}
-	user := c.User().Roles()
-	for _, r := range valid {
-		for _, u := range user {
-			if r == u {
-				return true
-			}
-		}
-	}
-	return false
+	return matchAny(valid, c.User().Roles())
 }
 
 func (m *authorizationMiddleware) checkScopes(c routing.RouteContext) bool {
@@ -147,15 +130,7 @@ func (m *authorizationMiddleware) checkScopes(c routing.RouteContext) bool {
 		if c.User() == nil {
 			return false
 		}
-		user := c.User().Scopes()
-		for _, s := range valid {
-			for _, u := range user {
-				if s == u {
-					return true
-				}
-			}
-		}
-		return false
+		return matchAny(valid, c.User().Scopes())
 	}
 	if m.options.CheckScopes != nil {
 		return m.options.CheckScopes(c.User(), valid)
@@ -166,43 +141,65 @@ func (m *authorizationMiddleware) checkScopes(c routing.RouteContext) bool {
 	if c.User() == nil {
 		return false
 	}
-	user := c.User().Scopes()
-	for _, s := range valid {
-		for _, u := range user {
-			if s == u {
+	return matchAny(valid, c.User().Scopes())
+}
+
+// matchAny returns true if any element in required exists in userVals. If required is empty
+// it returns true. userVals may be nil. The implementation builds a set from the smaller
+// slice to reduce allocations and work when slices differ in size.
+func matchAny(required []string, userVals []string) bool {
+	if len(required) == 0 {
+		return true
+	}
+	if len(userVals) == 0 {
+		return false
+	}
+	// Build set from the smaller slice to reduce allocations.
+	if len(userVals) < len(required) {
+		set := make(map[string]struct{}, len(userVals))
+		for _, v := range userVals {
+			set[v] = struct{}{}
+		}
+		for _, r := range required {
+			if _, ok := set[r]; ok {
 				return true
 			}
+		}
+		return false
+	}
+	set := make(map[string]struct{}, len(required))
+	for _, r := range required {
+		set[r] = struct{}{}
+	}
+	for _, v := range userVals {
+		if _, ok := set[v]; ok {
+			return true
 		}
 	}
 	return false
 }
 
 func (m *authorizationMiddleware) checkPermission(c routing.RouteContext) bool {
-	var merged []string
+	// Gather permission sources in a stable order: first middleware-level, then route-level.
+	var sources [][]string
 	if m.options != nil {
-		merged = append(merged, m.options.Permissions...)
+		sources = append(sources, m.options.Permissions)
 	}
-	opts := c.Options()
-	if opts != nil {
-		merged = append(merged, opts.Permissions...)
+	if opts := c.Options(); opts != nil {
+		sources = append(sources, opts.Permissions)
 	}
-	if len(merged) == 0 {
+
+	// If there are no configured permissions globally or for the route, allow.
+	total := 0
+	for _, s := range sources {
+		total += len(s)
+	}
+	if total == 0 {
 		return true
 	}
-	var perms []string
-	if opts != nil {
-		if m.options != nil {
-			perms = interpolatePermissions(c.Params(), m.options.Permissions, opts.Permissions)
-		} else {
-			perms = interpolatePermissions(c.Params(), opts.Permissions)
-		}
-	} else {
-		if m.options != nil {
-			perms = interpolatePermissions(c.Params(), m.options.Permissions)
-		} else {
-			perms = interpolatePermissions(c.Params())
-		}
-	}
+
+	perms := interpolatePermissions(c.Params(), sources...)
+
 	if m.options != nil && m.options.CheckPermissions != nil {
 		return m.options.CheckPermissions(c.User(), perms)
 	}

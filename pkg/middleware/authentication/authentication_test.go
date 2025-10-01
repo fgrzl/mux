@@ -318,3 +318,26 @@ func TestAuthenticationMiddlewareShouldAuthenticateViaBearerToken(t *testing.T) 
 	assert.NotNil(t, authenticatedUser)
 	assert.Equal(t, "user456", authenticatedUser.Subject())
 }
+
+// newBenchAuthMiddleware returns an authenticationMiddleware with a validator that accepts
+// the token "valid-token" and returns a mock principal. Extracted to avoid duplication
+// across benchmarks and tests.
+func newBenchAuthMiddleware() *authenticationMiddleware {
+	return &authenticationMiddleware{provider: &defaultTokenProvider{validateFn: func(token string) (claims.Principal, error) {
+		if token == "valid-token" {
+			return newMockPrincipal("bench-user"), nil
+		}
+		return nil, errors.New("invalid")
+	}}}
+}
+
+// newBenchRouteContext creates a routing.RouteContext for benchmarks and tests.
+// The optional setup function can modify the request (e.g., set headers/cookies).
+func newBenchRouteContext(setup func(r *http.Request)) routing.RouteContext {
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
+	rec := httptest.NewRecorder()
+	if setup != nil {
+		setup(req)
+	}
+	return routing.NewRouteContext(rec, req)
+}
