@@ -13,12 +13,7 @@ import (
 func BenchmarkAuthorization_Invoke(b *testing.B) {
 	// helper to create a context with a user having roles/scopes
 	makeCtx := func() *routing.DefaultRouteContext {
-		req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
-		rec := httptest.NewRecorder()
-		ctx := routing.NewRouteContext(rec, req)
-		// attach a principal
-		ctx.SetUser(&mockPrincipalForAuth{roles: []string{"admin", "user"}, scopes: []string{"read", "write"}})
-		return ctx
+		return newAuthzCtx(newDefaultAuthzUser(), nil)
 	}
 
 	cases := []struct {

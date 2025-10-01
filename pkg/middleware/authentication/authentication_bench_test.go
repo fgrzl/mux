@@ -46,24 +46,12 @@ func BenchmarkAuthentication_Invoke(b *testing.B) {
 
 	for _, tc := range cases {
 		b.Run(tc.name, func(b *testing.B) {
-			// setup middleware with validator that accepts "valid-token"
-			m := &authenticationMiddleware{provider: &defaultTokenProvider{validateFn: func(token string) (claims.Principal, error) {
-				if token == "valid-token" {
-					return newMockPrincipal("bench-user"), nil
-				}
-				return nil, errors.New("invalid")
-			}}}
-
+			m := newBenchAuthMiddleware()
 			next := func(c routing.RouteContext) {}
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
-				rec := httptest.NewRecorder()
-				if tc.setup != nil {
-					tc.setup(req)
-				}
-				ctx := routing.NewRouteContext(rec, req)
+				ctx := newBenchRouteContext(tc.setup)
 				// for the anonymous allowed case, mark Options accordingly
 				if tc.name == "Anonymous_Allowed" {
 					opts := ctx.Options()
@@ -102,3 +90,5 @@ func BenchmarkAuthentication_RouterPipeline(b *testing.B) {
 		}
 	})
 }
+
+// helpers moved to helpers_test.go

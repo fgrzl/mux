@@ -85,22 +85,6 @@ func (m *forwardedHeadersMiddleware) isTrusted(ip net.IP) bool {
 	return false
 }
 
-// splitCSV splits a comma-separated header into trimmed non-empty parts.
-func splitCSV(v string) []string { // kept for compatibility if used by tests; not used in hot path
-	if v == "" {
-		return nil
-	}
-	parts := strings.Split(v, ",")
-	out := make([]string, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			out = append(out, p)
-		}
-	}
-	return out
-}
-
 // firstCSV returns the first comma-separated token, trimmed.
 func firstCSV(v string) string {
 	if v == "" {

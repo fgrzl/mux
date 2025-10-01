@@ -466,3 +466,23 @@ func TestShouldDenyWhenNoUserAndRolesRequired_NilOptions(t *testing.T) {
 	assert.False(t, nextCalled)
 	assert.Equal(t, http.StatusForbidden, rec.Code)
 }
+
+// newAuthzCtx creates a DefaultRouteContext and attaches the provided user and options.
+// It centralizes request + recorder creation used throughout tests and benchmarks.
+func newAuthzCtx(user *mockPrincipalForAuth, opts *routing.RouteOptions) *routing.DefaultRouteContext {
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
+	rec := httptest.NewRecorder()
+	ctx := routing.NewRouteContext(rec, req)
+	if user != nil {
+		ctx.SetUser(user)
+	}
+	if opts != nil {
+		ctx.SetOptions(opts)
+	}
+	return ctx
+}
+
+// newDefaultAuthzUser returns a mock principal commonly used in benchmarks/tests.
+func newDefaultAuthzUser() *mockPrincipalForAuth {
+	return &mockPrincipalForAuth{roles: []string{"admin", "user"}, scopes: []string{"read", "write"}}
+}

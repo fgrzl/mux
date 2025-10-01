@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/fgrzl/claims"
@@ -31,22 +30,19 @@ func UseAuthentication(rtr *router.Router, opts ...AuthOption) {
 		validateFn: options.Validate,
 	}
 
-	m := &authenticationMiddleware{
-		provider: provider,
-	}
-
-	// Register middleware on the router's middleware pipeline.
-	rtr.Use(m)
+	rtr.Use(newAuthMiddleware(provider))
 }
 
 // UseAuthenticationWithProvider adds authentication middleware using a custom token provider.
 // This allows for more advanced token provider implementations.
 func UseAuthenticationWithProvider(rtr *router.Router, provider tokenizer.TokenProvider) {
-	m := &authenticationMiddleware{
-		provider: provider,
-	}
+	rtr.Use(newAuthMiddleware(provider))
+}
 
-	rtr.Use(m)
+// newAuthMiddleware creates a new authentication middleware instance with the
+// provided token provider. Extracted to reduce duplication between constructors.
+func newAuthMiddleware(provider tokenizer.TokenProvider) *authenticationMiddleware {
+	return &authenticationMiddleware{provider: provider}
 }
 
 // ---- Functional Options ----
@@ -156,39 +152,42 @@ func (m *authenticationMiddleware) Invoke(c routing.RouteContext, next router.Ha
 
 // authenticateViaCookie attempts to authenticate using session cookie.
 func (m *authenticationMiddleware) authenticateViaCookie(c routing.RouteContext) bool {
-
-	cookie, err := c.Request().Cookie(cookiejar.GetUserCookieName())
+	req := c.Request()
+	cookie, err := req.Cookie(cookiejar.GetUserCookieName())
 	if err != nil {
 		return false
 	}
 
-	principal, err := m.provider.ValidateToken(c, cookie.Value)
-	if err != nil {
-		slog.WarnContext(c, "invalid session cookie", "error", err)
+	if !m.validateAndSetUser(c, cookie.Value, "cookie") {
 		return false
 	}
 
-	m.setAuthenticatedUser(c, principal, "cookie")
 	m.extendSessionExpiration(c, cookie)
 	return true
 }
 
 // authenticateViaBearer attempts to authenticate using bearer token.
 func (m *authenticationMiddleware) authenticateViaBearer(c routing.RouteContext) bool {
-
 	req := c.Request()
 	token := extractBearerToken(req.Header.Get(common.HeaderAuthorization))
 	if token == "" {
 		return false
 	}
+	return m.validateAndSetUser(c, token, "bearer")
+}
 
-	principal, err := m.provider.ValidateToken(c, token)
+// validateAndSetUser validates the token using the provider and, if valid, sets
+// the authenticated user on the context and logs the success. Returns true on
+// success, false otherwise.
+func (m *authenticationMiddleware) validateAndSetUser(c routing.RouteContext, token string, method string) bool {
+	p := m.provider
+	principal, err := p.ValidateToken(c, token)
 	if err != nil {
-		slog.WarnContext(c, "invalid bearer token", "error", err)
+		slog.WarnContext(c, "invalid token", "method", method, "error", err)
 		return false
 	}
 
-	m.setAuthenticatedUser(c, principal, "bearer")
+	m.setAuthenticatedUser(c, principal, method)
 	return true
 }
 
@@ -205,24 +204,31 @@ func (m *authenticationMiddleware) setAuthenticatedUser(c routing.RouteContext, 
 
 // extendSessionExpiration extends the session expiration time and renews the token if possible.
 func (m *authenticationMiddleware) extendSessionExpiration(c routing.RouteContext, cookie *http.Cookie) {
-	ttl := m.provider.GetTTL()
+	p := m.provider
+	ttl := p.GetTTL()
 	if ttl <= 0 {
 		slog.DebugContext(c, "session extension skipped: TTL not set")
 		return
 	}
 
 	// Renew token if possible
-	if m.provider.CanCreateTokens() {
-		if token, err := m.provider.CreateToken(c, c.User()); err == nil {
+	if p.CanCreateTokens() {
+		user := c.User()
+		if token, err := p.CreateToken(c, user); err == nil {
 			cookie.Value = token
-			slog.DebugContext(c, "session token renewed", "user", c.User().Subject())
+			if user != nil {
+				slog.DebugContext(c, "session token renewed", "user", user.Subject())
+			} else {
+				slog.DebugContext(c, "session token renewed")
+			}
 		} else {
 			slog.WarnContext(c, "failed to renew token", "error", err)
 		}
 	}
 
 	// Update cookie properties
-	m.updateCookieProperties(cookie, ttl, c.Request().TLS != nil)
+	isSecure := c.Request().TLS != nil
+	m.updateCookieProperties(cookie, ttl, isSecure)
 
 	http.SetCookie(c.Response(), cookie)
 	slog.DebugContext(c, "session cookie extended", "expires", cookie.Expires)
@@ -247,7 +253,8 @@ func extractBearerToken(authHeader string) string {
 	if len(authHeader) <= len(prefix) {
 		return ""
 	}
-	if strings.HasPrefix(authHeader, prefix) {
+	// Direct slice comparison is slightly faster than HasPrefix.
+	if authHeader[:len(prefix)] == prefix {
 		return authHeader[len(prefix):]
 	}
 	return ""
