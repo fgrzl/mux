@@ -8,40 +8,50 @@ import (
 	"github.com/fgrzl/mux/pkg/routing"
 )
 
+// forbiddenMessage is a shared message used when access is denied.
+const forbiddenMessage = "You do not have the necessary permissions to access this resource."
+
 // ---- Functional Options ----
 
+// AuthZOption represents a functional option for configuring AuthorizationOptions.
 type AuthZOption func(*AuthorizationOptions)
 
+// WithRoles appends one or more roles to the middleware's required roles.
 func WithRoles(roles ...string) AuthZOption {
 	return func(o *AuthorizationOptions) {
 		o.Roles = append(o.Roles, roles...)
 	}
 }
 
+// WithScopes appends one or more scopes to the middleware's required scopes.
 func WithScopes(scopes ...string) AuthZOption {
 	return func(o *AuthorizationOptions) {
 		o.Scopes = append(o.Scopes, scopes...)
 	}
 }
 
+// WithPermissions appends one or more permissions to the middleware's required permissions.
 func WithPermissions(perms ...string) AuthZOption {
 	return func(o *AuthorizationOptions) {
 		o.Permissions = append(o.Permissions, perms...)
 	}
 }
 
+// WithRoleChecker overrides the default role checking behavior with a custom function.
 func WithRoleChecker(fn func(claims.Principal, []string) bool) AuthZOption {
 	return func(o *AuthorizationOptions) {
 		o.CheckRoles = fn
 	}
 }
 
+// WithScopeChecker overrides the default scope checking behavior with a custom function.
 func WithScopeChecker(fn func(claims.Principal, []string) bool) AuthZOption {
 	return func(o *AuthorizationOptions) {
 		o.CheckScopes = fn
 	}
 }
 
+// WithPermissionChecker overrides the default permission checking behavior with a custom function.
 func WithPermissionChecker(fn func(claims.Principal, []string) bool) AuthZOption {
 	return func(o *AuthorizationOptions) {
 		o.CheckPermissions = fn
@@ -50,6 +60,8 @@ func WithPermissionChecker(fn func(claims.Principal, []string) bool) AuthZOption
 
 // ---- Authorization ----
 
+// AuthorizationOptions defines configuration for the authorization middleware,
+// including global roles, scopes, permissions, and custom checkers.
 type AuthorizationOptions struct {
 	Roles            []string
 	Scopes           []string
@@ -59,6 +71,8 @@ type AuthorizationOptions struct {
 	CheckPermissions func(claims.Principal, []string) bool
 }
 
+// UseAuthorization registers the authorization middleware on the provided router
+// with the supplied options. Options are collected and applied once at registration time.
 func UseAuthorization(rtr *router.Router, opts ...AuthZOption) {
 	options := &AuthorizationOptions{}
 	for _, opt := range opts {
@@ -75,15 +89,15 @@ type authorizationMiddleware struct {
 func (m *authorizationMiddleware) Invoke(c routing.RouteContext, next router.HandlerFunc) {
 	// Be defensive: if middleware was constructed without options, treat as no-op config
 	if !m.checkRoles(c) {
-		c.Forbidden("You do not have the necessary permissions to access this resource.")
+		c.Forbidden(forbiddenMessage)
 		return
 	}
 	if !m.checkScopes(c) {
-		c.Forbidden("You do not have the necessary permissions to access this resource.")
+		c.Forbidden(forbiddenMessage)
 		return
 	}
 	if !m.checkPermission(c) {
-		c.Forbidden("You do not have the necessary permissions to access this resource.")
+		c.Forbidden(forbiddenMessage)
 		return
 	}
 	next(c)

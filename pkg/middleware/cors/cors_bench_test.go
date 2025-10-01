@@ -17,7 +17,7 @@ func init() {
 }
 
 // BenchmarkCORS_Invoke measures Invoke overhead for simple and preflight requests.
-func BenchmarkCORS_Invoke(b *testing.B) {
+func BenchmarkCORSInvoke(b *testing.B) {
 	cases := []struct {
 		name  string
 		opts  Options
@@ -69,7 +69,7 @@ func BenchmarkCORS_Invoke(b *testing.B) {
 }
 
 // BenchmarkCORS_RouterPipeline measures middleware in a router pipeline.
-func BenchmarkCORS_RouterPipeline(b *testing.B) {
+func BenchmarkCORSRouterPipeline(b *testing.B) {
 	r := router.NewRouter()
 	UseCORS(r, Options{AllowedOrigins: []string{"*"}})
 	r.GET("/test", func(c routing.RouteContext) { c.NoContent() })

@@ -11,7 +11,7 @@ import (
 
 // BenchmarkForwardedHeaders_Invoke measures the overhead of the middleware Invoke method
 // across common header combinations and trust configurations.
-func BenchmarkForwardedHeaders_Invoke(b *testing.B) {
+func BenchmarkForwardedHeadersInvoke(b *testing.B) {
 	cases := []struct {
 		name  string
 		opts  Options
@@ -88,7 +88,7 @@ func BenchmarkForwardedHeaders_Invoke(b *testing.B) {
 }
 
 // BenchmarkForwardedHeaders_RouterPipeline measures the middleware in a router pipeline.
-func BenchmarkForwardedHeaders_RouterPipeline(b *testing.B) {
+func BenchmarkForwardedHeadersRouterPipeline(b *testing.B) {
 	r := router.NewRouter()
 	UseForwardedHeadersWithOptions(r, Options{TrustAll: true, RespectForwarded: true})
 	r.GET("/test", func(c routing.RouteContext) { c.NoContent() })

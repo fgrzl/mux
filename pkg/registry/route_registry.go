@@ -40,10 +40,18 @@ func NewRouteRegistry() *RouteRegistry {
 // Root returns the trie root node for this registry. Callers may use
 // the returned node for inspection or debugging; modifications to the
 // node are not recommended outside of the registry methods.
+// Root returns the trie root node for this registry. Callers may use
+// the returned node for inspection or debugging; modifications to the
+// node are not recommended outside of the registry methods.
 func (r *RouteRegistry) Root() *routing.RouteNode {
 	return r.root
 }
 
+// Register adds a route for the given pattern and HTTP method to the
+// registry. The pattern may contain parameter tokens ({name}), a single
+// segment wildcard (*), or a catch-all (**) at the end. The provided
+// options are stored and per-node metadata (MethodsMask, AllowHeader)
+// is updated to accelerate lookups.
 // Register adds a route for the given pattern and HTTP method to the
 // registry. The pattern may contain parameter tokens ({name}), a single
 // segment wildcard (*), or a catch-all (**) at the end. The provided
@@ -142,6 +150,7 @@ func (r *RouteRegistry) Register(pattern string, method string, options *routing
 }
 
 // refreshFastPathFlags recomputes fast-path flags for n based on its children pointers.
+// refreshFastPathFlags recomputes fast-path flags for n based on its children pointers.
 func (r *RouteRegistry) refreshFastPathFlags(n *routing.RouteNode) {
 	if n == nil {
 		return
@@ -166,6 +175,11 @@ func (r *RouteRegistry) refreshFastPathFlags(n *routing.RouteNode) {
 // and ok=true when a matching route exists for the path and method. For
 // static registered patterns an internal fast-path is used to avoid trie
 // traversal and allocations.
+// Load performs a route lookup for the supplied path and method. It returns
+// the matched RouteOptions, an extracted params map (or nil for no params),
+// and ok=true when a matching route exists for the path and method. For
+// static registered patterns an internal fast-path is used to avoid trie
+// traversal and allocations.
 func (r *RouteRegistry) Load(path string, method string) (*routing.RouteOptions, map[string]string, bool) {
 	// Fast path: exact registered static route
 	if m, ok := r.exactRoutes[path]; ok {
@@ -184,6 +198,10 @@ func (r *RouteRegistry) Load(path string, method string) (*routing.RouteOptions,
 	return opt, params, ok
 }
 
+// LoadDetailedInto performs a route lookup, fills any path params into dst (clearing it first),
+// and returns the matched RouteOptions along with LoadDetails describing the match.
+// If the path matches but the method is not allowed, RouteOptions is nil and details.Allow
+// contains the precomputed Allow header value.
 // LoadDetailedInto performs a route lookup, fills any path params into dst (clearing it first),
 // and returns the matched RouteOptions along with LoadDetails describing the match.
 // If the path matches but the method is not allowed, RouteOptions is nil and details.Allow
@@ -214,6 +232,8 @@ func (r *RouteRegistry) LoadDetailedInto(path string, method string, dst map[str
 	return nil, LoadDetails{Found: true, MethodOK: false, Allow: node.AllowHeader}
 }
 
+// matchNodeInto traverses the routing tree by path and returns the terminal node if matched.
+// It fills any path params into dst (if non-nil), clearing dst is the caller's responsibility.
 // matchNodeInto traverses the routing tree by path and returns the terminal node if matched.
 // It fills any path params into dst (if non-nil), clearing dst is the caller's responsibility.
 func (r *RouteRegistry) matchNodeInto(path string, dst map[string]string) (*routing.RouteNode, bool) {
@@ -264,6 +284,9 @@ func (r *RouteRegistry) matchNodeInto(path string, dst map[string]string) (*rout
 // LoadInto is like Load but writes any extracted route parameters into the provided
 // map to avoid per-call map allocations. The provided map will be cleared first.
 // It returns the matched RouteOptions and ok=true when a matching route exists.
+// LoadInto is like Load but writes any extracted route parameters into the provided
+// map to avoid per-call map allocations. The provided map will be cleared first.
+// It returns the matched RouteOptions and ok=true when a matching route exists.
 func (r *RouteRegistry) LoadInto(path string, method string, dst map[string]string) (*routing.RouteOptions, bool) {
 	// Fast path: exact registered static route
 	if m, ok := r.exactRoutes[path]; ok {
@@ -285,6 +308,8 @@ func (r *RouteRegistry) LoadInto(path string, method string, dst map[string]stri
 	return opt, ok
 }
 
+// walkInto traverses the tree and fills params into dst (which may be nil) without allocating
+// a new map. dst is cleared on entry if non-nil.
 // walkInto traverses the tree and fills params into dst (which may be nil) without allocating
 // a new map. dst is cleared on entry if non-nil.
 func (r *RouteRegistry) walkInto(path string, method string, dst map[string]string, atEnd func(*routing.RouteNode, string) (*routing.RouteOptions, bool)) (*routing.RouteOptions, bool) {
@@ -397,6 +422,8 @@ func (r *RouteRegistry) walkInto(path string, method string, dst map[string]stri
 
 // TryMatchMethods returns the list of allowed HTTP methods for a given path
 // if the path matches any registered route. If the path does not match, ok=false.
+// TryMatchMethods returns the list of allowed HTTP methods for a given path
+// if the path matches any registered route. If the path does not match, ok=false.
 func (r *RouteRegistry) TryMatchMethods(path string) (methods []string, ok bool) {
 	// exact fast-path for static routes
 	if m, ok := r.exactRoutes[path]; ok {
@@ -420,6 +447,8 @@ func (r *RouteRegistry) TryMatchMethods(path string) (methods []string, ok bool)
 
 // TryGetAllowHeader returns a precomputed Allow header value for a matched path.
 // If no route matches the path, ok=false.
+// TryGetAllowHeader returns a precomputed Allow header value for a matched path.
+// If no route matches the path, ok=false.
 func (r *RouteRegistry) TryGetAllowHeader(path string) (string, bool) {
 	if m, ok := r.exactRoutes[path]; ok {
 		return allowHeaderFromMap(m), true
@@ -435,6 +464,7 @@ func (r *RouteRegistry) TryGetAllowHeader(path string) (string, bool) {
 	return allowHeaderFromMap(node.RouteOptions), true
 }
 
+// methodsMaskFromMap builds a bitmask for common HTTP methods from a map key set.
 // methodsMaskFromMap builds a bitmask for common HTTP methods from a map key set.
 func methodsMaskFromMap(m map[string]*routing.RouteOptions) uint32 {
 	var mask uint32
@@ -464,6 +494,7 @@ func methodsMaskFromMap(m map[string]*routing.RouteOptions) uint32 {
 }
 
 // allowHeaderFromMap joins the method keys in a predictable, stable order.
+// allowHeaderFromMap joins the method keys in a predictable, stable order.
 func allowHeaderFromMap(m map[string]*routing.RouteOptions) string {
 	if len(m) == 0 {
 		return ""
@@ -492,6 +523,9 @@ func allowHeaderFromMap(m map[string]*routing.RouteOptions) string {
 	return strings.Join(out, ", ")
 }
 
+// findNode traverses the route tree by the given path and returns the terminal
+// node if the path matches a node in the tree. If no matching node is found,
+// it returns nil.
 // findNode traverses the route tree by the given path and returns the terminal
 // node if the path matches a node in the tree. If no matching node is found,
 // it returns nil.

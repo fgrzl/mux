@@ -15,7 +15,7 @@ type ldResult struct {
 	Params   map[string]string
 }
 
-func TestLoadDetailed_Static_FoundMethodOK(t *testing.T) {
+func TestLoadDetailedStaticFoundMethodOK(t *testing.T) {
 	reg := NewRouteRegistry()
 	reg.Register("/static", http.MethodGet, &routing.RouteOptions{Method: http.MethodGet})
 
@@ -28,7 +28,7 @@ func TestLoadDetailed_Static_FoundMethodOK(t *testing.T) {
 	assert.Empty(t, params)
 }
 
-func TestLoadDetailed_Static_MethodNotAllowed_AllowReturned(t *testing.T) {
+func TestLoadDetailedStaticMethodNotAllowedAllowReturned(t *testing.T) {
 	reg := NewRouteRegistry()
 	reg.Register("/static", http.MethodGet, &routing.RouteOptions{Method: http.MethodGet})
 	reg.Register("/static", http.MethodPost, &routing.RouteOptions{Method: http.MethodPost})
@@ -41,7 +41,7 @@ func TestLoadDetailed_Static_MethodNotAllowed_AllowReturned(t *testing.T) {
 	assert.Equal(t, "GET, POST", res.Allow)
 }
 
-func TestLoadDetailed_Param_FoundMethodOK(t *testing.T) {
+func TestLoadDetailedParamFoundMethodOK(t *testing.T) {
 	reg := NewRouteRegistry()
 	reg.Register("/users/{id}", http.MethodGet, &routing.RouteOptions{Method: http.MethodGet})
 
@@ -53,7 +53,7 @@ func TestLoadDetailed_Param_FoundMethodOK(t *testing.T) {
 	assert.Equal(t, map[string]string{"id": "123"}, params)
 }
 
-func TestLoadDetailed_Param_MethodNotAllowed_AllowReturned(t *testing.T) {
+func TestLoadDetailedParamMethodNotAllowedAllowReturned(t *testing.T) {
 	reg := NewRouteRegistry()
 	reg.Register("/users/{id}", http.MethodGet, &routing.RouteOptions{Method: http.MethodGet})
 	reg.Register("/users/{id}", http.MethodDelete, &routing.RouteOptions{Method: http.MethodDelete})
@@ -66,7 +66,7 @@ func TestLoadDetailed_Param_MethodNotAllowed_AllowReturned(t *testing.T) {
 	assert.Equal(t, "GET, DELETE", res.Allow)
 }
 
-func TestLoadDetailed_NotFound(t *testing.T) {
+func TestLoadDetailedNotFound(t *testing.T) {
 	reg := NewRouteRegistry()
 	reg.Register("/a", http.MethodGet, &routing.RouteOptions{Method: http.MethodGet})
 

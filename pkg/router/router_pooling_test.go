@@ -17,7 +17,7 @@ func init() {
 	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})))
 }
 
-func TestServeHTTP_WithContextPooling_ExactRoute(t *testing.T) {
+func TestServeHTTPWithContextPoolingExactRoute(t *testing.T) {
 	r := NewRouter(WithContextPooling())
 	rg := r.NewRouteGroup("")
 	rg.GET("/hello", func(c routing.RouteContext) {
@@ -35,7 +35,7 @@ func TestServeHTTP_WithContextPooling_ExactRoute(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "\"msg\":\"hi\"")
 }
 
-func TestHeadFallback_ServesViaGet_NoBody(t *testing.T) {
+func TestHeadFallbackServesViaGetNoBody(t *testing.T) {
 	r := NewRouter(WithHeadFallbackToGet())
 	rg := r.NewRouteGroup("")
 	rg.GET("/resource", func(c routing.RouteContext) {
@@ -53,7 +53,7 @@ func TestHeadFallback_ServesViaGet_NoBody(t *testing.T) {
 	assert.Equal(t, 0, rr.Body.Len(), "HEAD fallback must suppress body")
 }
 
-func TestHeadWithoutFallback_Returns405Allow(t *testing.T) {
+func TestHeadWithoutFallbackReturns405Allow(t *testing.T) {
 	r := NewRouter() // no fallback
 	rg := r.NewRouteGroup("")
 	rg.GET("/only-get", func(c routing.RouteContext) { c.OK("ok") })
@@ -69,7 +69,7 @@ func TestHeadWithoutFallback_Returns405Allow(t *testing.T) {
 	assert.True(t, strings.Contains(allow, http.MethodGet))
 }
 
-func TestMethodNotAllowed_Returns405Allow(t *testing.T) {
+func TestMethodNotAllowedReturns405Allow(t *testing.T) {
 	r := NewRouter()
 	rg := r.NewRouteGroup("")
 	rg.GET("/path", func(c routing.RouteContext) { c.OK("ok") })
@@ -84,7 +84,7 @@ func TestMethodNotAllowed_Returns405Allow(t *testing.T) {
 	assert.True(t, strings.Contains(allow, http.MethodGet))
 }
 
-func TestPanicRecovery_Returns500(t *testing.T) {
+func TestPanicRecoveryReturns500(t *testing.T) {
 	r := NewRouter()
 	rg := r.NewRouteGroup("")
 	rg.GET("/panic", func(c routing.RouteContext) { panic("boom") })
@@ -97,7 +97,7 @@ func TestPanicRecovery_Returns500(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)
 }
 
-func TestNotFound_Returns404(t *testing.T) {
+func TestNotFoundReturns404(t *testing.T) {
 	r := NewRouter()
 	req := httptest.NewRequest(http.MethodGet, "/missing", nil)
 	rr := httptest.NewRecorder()
@@ -105,7 +105,7 @@ func TestNotFound_Returns404(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, rr.Code)
 }
 
-func TestHeadNoRoute_NoFallback_Returns404(t *testing.T) {
+func TestHeadNoRouteNoFallbackReturns404(t *testing.T) {
 	r := NewRouter()
 	req := httptest.NewRequest(http.MethodHead, "/missing", nil)
 	rr := httptest.NewRecorder()
@@ -113,7 +113,7 @@ func TestHeadNoRoute_NoFallback_Returns404(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, rr.Code)
 }
 
-func TestHeadFallbackEnabled_NoGetRoute_Returns405Allow(t *testing.T) {
+func TestHeadFallbackEnabledNoGetRouteReturns405Allow(t *testing.T) {
 	r := NewRouter(WithHeadFallbackToGet())
 	rg := r.NewRouteGroup("")
 	rg.POST("/res", func(c routing.RouteContext) { c.OK("ok") })
@@ -149,7 +149,7 @@ func (m *stopMW) Invoke(c routing.RouteContext, next HandlerFunc) {
 	*m.seen = append(*m.seen, "after:"+m.id)
 }
 
-func TestMiddlewareOrder_AndShortCircuit(t *testing.T) {
+func TestMiddlewareOrderAndShortCircuit(t *testing.T) {
 	r := NewRouter()
 	var seen []string
 	r.Use(&orderMW{id: "A", seen: &seen})

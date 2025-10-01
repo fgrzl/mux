@@ -14,6 +14,7 @@ import (
 	"github.com/fgrzl/mux/pkg/routing"
 )
 
+// RouteContext is an alias for routing.RouteContext exposed for callers.
 type RouteContext = routing.RouteContext
 
 // NewRouter creates a new Router with the given options.
@@ -42,8 +43,12 @@ func NewRouter(opts ...RouterOption) *Router {
 }
 
 // HandlerFunc defines the signature for HTTP request handlers.
+// HandlerFunc defines the signature for HTTP request handlers.
+// The function receives a RouteContext which contains request/response helpers
+// and route-specific options.
 type HandlerFunc func(c routing.RouteContext)
 
+// RouteKey uniquely identifies a route by its HTTP method and pattern.
 // RouteKey uniquely identifies a route by its HTTP method and pattern.
 type RouteKey struct {
 	Method  string
@@ -51,16 +56,20 @@ type RouteKey struct {
 }
 
 // Action represents an HTTP action with its method and handler.
+// Action represents an HTTP action with its method and handler.
 type Action struct {
 	Method  string
 	Handler HandlerFunc
 }
 
 // Middleware defines the interface for HTTP middleware components.
+// Middleware defines the interface for HTTP middleware components.
+// Implementations should perform pre/post processing and call next when ready.
 type Middleware interface {
 	Invoke(c routing.RouteContext, next HandlerFunc)
 }
 
+// Router is the main HTTP router that handles routing and middleware execution.
 // Router is the main HTTP router that handles routing and middleware execution.
 type Router struct {
 	RouteGroup
@@ -107,11 +116,14 @@ func (rtr *Router) Use(m Middleware) {
 
 // NewRouteGroup creates a new route group with the specified prefix.
 // The prefix will be added to all routes using this router (e.g., /api/v1).
+// NewRouteGroup creates a new route group with the specified prefix.
+// The prefix will be added to all routes using this router (e.g., /api/v1).
 func (rtr *Router) NewRouteGroup(prefix string) *RouteGroup {
 	prefix = normalizeRoute(prefix, "/")
 	return newRouteGroupBase(prefix, rtr.routeRegistry)
 }
 
+// ServeHTTP implements http.Handler.
 // ServeHTTP implements http.Handler.
 func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Acquire route context (pooled if enabled)
@@ -304,6 +316,7 @@ func (rtr *Router) InfoObject() (*openapi.InfoObject, error) {
 	return rtr.options.openapi, nil
 }
 
+// Routes returns a list of OpenAPI route metadata collected from the registry.
 func (rtr *Router) Routes() ([]openapi.RouteData, error) {
 	root := rtr.routeRegistry.Root()
 	return collectRoutesFromNode(root)

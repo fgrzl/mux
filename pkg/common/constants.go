@@ -51,6 +51,7 @@ const (
 	HeaderCookie                        = "Cookie"
 	HeaderETag                          = "ETag"
 	HeaderForwarded                     = "Forwarded" // RFC 7239
+	HeaderHost                          = "Host"
 	HeaderLocation                      = "Location"
 	HeaderOrigin                        = "Origin"
 	HeaderRetryAfter                    = "Retry-After"

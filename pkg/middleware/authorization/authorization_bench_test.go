@@ -10,7 +10,7 @@ import (
 )
 
 // BenchmarkAuthorization_Invoke measures middleware.Invoke overhead for various checks.
-func BenchmarkAuthorization_Invoke(b *testing.B) {
+func BenchmarkAuthorizationInvoke(b *testing.B) {
 	// helper to create a context with a user having roles/scopes
 	makeCtx := func() *routing.DefaultRouteContext {
 		return newAuthzCtx(newDefaultAuthzUser(), nil)
@@ -78,7 +78,7 @@ func BenchmarkAuthorization_Invoke(b *testing.B) {
 }
 
 // BenchmarkAuthorization_RouterPipeline measures middleware in a router pipeline.
-func BenchmarkAuthorization_RouterPipeline(b *testing.B) {
+func BenchmarkAuthorizationRouterPipeline(b *testing.B) {
 	r := router.NewRouter()
 	UseAuthorization(r, WithRoles("admin"))
 	r.GET("/test", func(c routing.RouteContext) { c.NoContent() })

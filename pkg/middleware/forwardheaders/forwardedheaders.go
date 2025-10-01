@@ -3,6 +3,7 @@ package forwardheaders
 import (
 	"crypto/tls"
 	"net"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -273,14 +274,8 @@ func normalizeIPToken(v string) string {
 	}
 	return v
 }
-
 // Invoke implements the Middleware interface, processing forwarded headers.
 func (m *forwardedHeadersMiddleware) Invoke(c routing.RouteContext, next router.HandlerFunc) {
-	// Back-compat: if constructed without options (zero-value), behave permissively
-	if !m.opts.TrustAll && !m.opts.RespectForwarded && len(m.trusted) == 0 && len(m.opts.TrustedProxies) == 0 {
-		m.opts.TrustAll = true
-		m.opts.RespectForwarded = true
-	}
 	r := c.Request()
 	hdr := r.Header
 
@@ -296,43 +291,69 @@ func (m *forwardedHeadersMiddleware) Invoke(c routing.RouteContext, next router.
 		return
 	}
 
-	// Prefer RFC 7239 Forwarded when enabled
-	var proto, host, clientIP string
+	// Back-compat: if constructed without options (zero-value), behave permissively
+	if !m.opts.TrustAll && !m.opts.RespectForwarded && len(m.trusted) == 0 && len(m.opts.TrustedProxies) == 0 {
+		m.opts.TrustAll = true
+		m.opts.RespectForwarded = true
+	}
 
 	// Trust-gate: if we don't trust headers from this sender, skip parsing entirely
-	applyHeaders := m.opts.TrustAll
-	if !applyHeaders {
-		hostPart, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err != nil {
-			hostPart = r.RemoteAddr
-		}
-		// parse once
-		applyHeaders = m.isTrusted(net.ParseIP(hostPart))
-	}
-	if !applyHeaders {
+	if !m.shouldApplyHeaders(r) {
 		next(c)
 		return
 	}
-	if m.opts.RespectForwarded {
-		if fwd != "" {
-			fip, p, h := parseForwardedRFC(fwd)
-			clientIP, proto, host = fip, p, h
+
+	// Extract effective proto, host and client IP (delegated to reduce complexity)
+	proto, host, clientIP := m.extractForwarded(r, fwd, xproto, xhost, xport, xffRaw, xreal)
+
+	// Apply changes (we've already trust-gated above)
+	if proto != "" {
+		r.URL.Scheme = proto
+		if proto == "https" && r.TLS == nil {
+			// best-effort: mark as TLS by setting a non-nil struct to signal HTTPS
+			r.TLS = &tls.ConnectionState{}
 		}
+	}
+	if host != "" {
+		r.Host = host
+		r.URL.Host = host
+		// ensure Host header aligns for downstream usage
+		r.Header.Set(common.HeaderHost, host)
+	}
+	if clientIP != "" {
+		// Keep RemoteAddr as IP only (tests assume), drop port
+		r.RemoteAddr = clientIP
+	}
+
+	next(c)
+}
+
+// shouldApplyHeaders determines whether forwarded headers from the request should be trusted.
+func (m *forwardedHeadersMiddleware) shouldApplyHeaders(r *http.Request) bool {
+	if m.opts.TrustAll {
+		return true
+	}
+	hostPart, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		hostPart = r.RemoteAddr
+	}
+	return m.isTrusted(net.ParseIP(hostPart))
+}
+
+// extractForwarded centralizes header parsing and fallback logic, returning proto, host and clientIP.
+func (m *forwardedHeadersMiddleware) extractForwarded(r *http.Request, fwd, xproto, xhost, xport, xffRaw, xreal string) (proto, host, clientIP string) {
+	if m.opts.RespectForwarded && fwd != "" {
+		fip, p, h := parseForwardedRFC(fwd)
+		clientIP, proto, host = fip, p, h
 	}
 
 	// Fallback/augment from X-Forwarded-* headers
-	if proto == "" {
-		if xproto != "" {
-			proto = firstCSV(xproto)
-		}
+	if proto == "" && xproto != "" {
+		proto = firstCSV(xproto)
 	}
-	// Host: prefer X-Forwarded-Host
-	if host == "" {
-		if xhost != "" {
-			host = firstCSV(xhost)
-		}
+	if host == "" && xhost != "" {
+		host = firstCSV(xhost)
 	}
-	// If port provided separately, combine
 	if xport != "" {
 		port := firstCSV(xport)
 		if host != "" && !strings.Contains(host, ":") {
@@ -352,28 +373,8 @@ func (m *forwardedHeadersMiddleware) Invoke(c routing.RouteContext, next router.
 		}
 	}
 
-	// Apply changes (we've already trust-gated above)
-	if applyHeaders {
-		if proto != "" {
-			r.URL.Scheme = proto
-			if proto == "https" && r.TLS == nil {
-				// best-effort: mark as TLS by setting a non-nil struct to signal HTTPS
-				r.TLS = &tls.ConnectionState{}
-			}
-		}
-		if host != "" {
-			r.Host = host
-			r.URL.Host = host
-			// ensure Host header aligns for downstream usage
-			r.Header.Set("Host", host)
-		}
-	}
-	if clientIP != "" && applyHeaders {
-		// Keep RemoteAddr as IP only (tests assume), drop port
-		r.RemoteAddr = clientIP
-	}
-
-	next(c)
+	return
+}
 }
 
 // UseForwardedHeaders adds middleware that processes forwarded headers with permissive defaults.

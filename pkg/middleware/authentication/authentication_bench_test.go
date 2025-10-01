@@ -21,7 +21,7 @@ func init() {
 }
 
 // BenchmarkAuthentication_Invoke measures middleware.Invoke overhead for several flows.
-func BenchmarkAuthentication_Invoke(b *testing.B) {
+func BenchmarkAuthenticationInvoke(b *testing.B) {
 	cases := []struct {
 		name  string
 		setup func(r *http.Request)
@@ -68,7 +68,7 @@ func BenchmarkAuthentication_Invoke(b *testing.B) {
 }
 
 // BenchmarkAuthentication_RouterPipeline measures the middleware in a router pipeline.
-func BenchmarkAuthentication_RouterPipeline(b *testing.B) {
+func BenchmarkAuthenticationRouterPipeline(b *testing.B) {
 	r := router.NewRouter()
 	UseAuthentication(r, WithValidator(func(token string) (claims.Principal, error) {
 		if token == "valid-token" {

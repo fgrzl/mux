@@ -446,7 +446,7 @@ func TestShouldDenyWhenNoUserAndRolesRequired(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, rec.Code)
 }
 
-func TestShouldDenyWhenNoUserAndRolesRequired_NilOptions(t *testing.T) {
+func TestShouldDenyWhenNoUserAndRolesRequiredNilOptions(t *testing.T) {
 	// Arrange: middleware constructed without explicit options
 	middleware := &authorizationMiddleware{}
 
