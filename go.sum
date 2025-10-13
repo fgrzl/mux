@@ -2,8 +2,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=
 github.com/felixge/httpsnoop v1.0.4/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
-github.com/fgrzl/claims v0.0.1-alpha.19 h1:6LerzTa5Ag+FJyMGPO/kNm0yKOxpgjXZLza6h8WVscg=
-github.com/fgrzl/claims v0.0.1-alpha.19/go.mod h1:AOUqWTtgnwlcwaHqJLVoAgmFjuBCCJFhZlyFzazXQ00=
+github.com/fgrzl/claims v0.0.1-alpha.22 h1:L2Xv8mTuH24X3mA640cKyWUwkCImtXfhrPodrBmdPbw=
+github.com/fgrzl/claims v0.0.1-alpha.22/go.mod h1:pkdT+RIMZGF8ij7zhVicPHNuKZA5fLOD9p6viVXjcH4=
 github.com/fgrzl/json v0.1.0-alpha.60 h1:7FDbGuBruOfO85DFusCG5UOOHAvPpxPyd26NgwY+WkE=
 github.com/fgrzl/json v0.1.0-alpha.60/go.mod h1:/aP1mi7tKisgNu8ZRDuCCNm2Sx5ZWCTNlHkSjGvBUoE=
 github.com/go-faker/faker/v4 v4.7.0 h1:VboC02cXHl/NuQh5lM2W8b87yp4iFXIu59x4w0RZi4E=

@@ -3,7 +3,7 @@ module github.com/fgrzl/mux
 go 1.24.4
 
 require (
-	github.com/fgrzl/claims v0.0.1-alpha.19
+	github.com/fgrzl/claims v0.0.1-alpha.22
 	github.com/fgrzl/json v0.1.0-alpha.60
 	github.com/go-faker/faker/v4 v4.7.0
 	github.com/google/uuid v1.6.0
