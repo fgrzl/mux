@@ -9,7 +9,43 @@ import (
 	"strings"
 
 	"github.com/fgrzl/mux"
+	"github.com/fgrzl/mux/pkg/common"
 	"github.com/google/uuid"
+)
+
+// Constants to avoid repeating string literals throughout the test routes.
+const (
+	APIPrefix       = "/api/v1"
+	WSPath          = "/ws"
+	ResourcesPath   = "/resources"
+	ResourcesBulk   = "/resources/bulk"
+	ResourcesSearch = "/resources/search"
+	ResourceMeta    = "/resources/{resourceId}/metadata"
+	ResourceIDPath  = "/resources/{resourceId}"
+	ItemsUUIDPath   = "/items/{itemId}/uuid"
+	HeadersEchoPath = "/headers/echo"
+	FilterPath      = "/filter"
+	FormSubmitPath  = "/form/submit"
+	TenantsPath     = "/tenants"
+	TenantIDPath    = "/tenants/{tenantID}"
+	TenantResources = "/tenants/{tenantID}/resources"
+
+	ParamResourceID = "resourceId"
+	ParamTenantID   = "tenantID"
+	ParamItemID     = "itemId"
+
+	TagResources = "Resources"
+	TagTenants   = "Tenants"
+	TagMisc      = "Misc"
+	TagItems     = "Items"
+)
+
+const (
+	ErrInvalidResourceID = "Invalid ResourceID"
+	ErrParseResourceID   = "Failed to parse resource id."
+	ErrBadRequest        = "Bad Request"
+	ErrInvalidTenantID   = "Invalid TenantID"
+	ErrTenantMissing     = "tenantID missing or invalid"
 )
 
 func computeAccept(key string) string {
@@ -27,184 +63,54 @@ func ConfigureRoutes(r *mux.Router) {
 	// Minimal websocket upgrade route at top-level so tests can exercise
 	// Upgrade/Hijack behavior. This route lives at `/ws` (root) instead of
 	// under /api/v1 so test clients can connect directly to /ws.
-	r.GET("/ws", func(c mux.RouteContext) {
-		if !strings.EqualFold(c.Request().Header.Get("Upgrade"), "websocket") {
-			c.NotFound()
-			return
-		}
-		key := c.Request().Header.Get("Sec-WebSocket-Key")
-		if key == "" {
-			c.BadRequest("Missing Sec-WebSocket-Key", "Sec-WebSocket-Key header is required")
-			return
-		}
-		accept := computeAccept(key)
-		rw := c.Response()
-		hj, ok := rw.(http.Hijacker)
-		if !ok {
-			c.ServerError("Hijack unsupported", "ResponseWriter does not support hijack")
-			return
-		}
-		conn, _, err := hj.Hijack()
-		if err != nil {
-			c.ServerError("Hijack failed", err.Error())
-			return
-		}
-		// Write raw upgrade response and close the connection.
-		fmt.Fprintf(conn, "HTTP/1.1 101 Switching Protocols\r\n")
-		fmt.Fprintf(conn, "Upgrade: websocket\r\n")
-		fmt.Fprintf(conn, "Connection: Upgrade\r\n")
-		fmt.Fprintf(conn, "Sec-WebSocket-Accept: %s\r\n", accept)
-		fmt.Fprintf(conn, "\r\n")
-		_ = conn.Close()
-	})
+	r.GET(WSPath, wsHandler)
 
-	rg := r.NewRouteGroup("/api/v1")
+	rg := r.NewRouteGroup(APIPrefix)
 
 	// Basic resources list
-	rg.GET("/resources/", func(c mux.RouteContext) {
-		resources := Service.ListResources(0)
-		if len(resources) == 0 {
-			c.NotFound()
-			return
-		}
-		c.OK(resources)
-	}).AllowAnonymous().
+	rg.GET(ResourcesPath+"/", listResourcesHandler).AllowAnonymous().
 		WithOperationID("listResources").
 		WithSummary("List all resources").
 		WithResponse(200, ResourcePage{}).
 		WithResponse(404, mux.ProblemDetails{}).
-		WithTags("Resources")
+		WithTags(TagResources)
 
 	// HEAD to check existence
-	rg.HEAD("/resources/{resourceId}", func(c mux.RouteContext) {
-		resourceIdStr, found := c.Param("resourceId")
-		if !found {
-			c.NotFound()
-			return
-		}
-		resourceId, err := strconv.ParseInt(resourceIdStr, 10, 32)
-		if err != nil {
-			c.BadRequest("Invalid ResourceID", "Failed to parse resource id.")
-			return
-		}
-		_, found = Service.GetResource(int32(resourceId))
-		if !found {
-			c.NotFound()
-			return
-		}
-		c.NoContent()
-	}).WithOperationID("checkResourceExists").
-		WithParam("resourceId", "path", int(0), true).
+	rg.HEAD(ResourceIDPath, headResourceHandler).
+		WithOperationID("checkResourceExists").
+		WithParam(ParamResourceID, "path", int(0), true).
 		WithResponse(204, nil).
 		WithResponse(404, mux.ProblemDetails{}).
-		WithTags("Resources")
+		WithTags(TagResources)
 
 	// GET a single resource
-	rg.GET("/resources/{resourceId}", func(c mux.RouteContext) {
-		resourceIdStr, found := c.Param("resourceId")
-		if !found {
-			c.NotFound()
-			return
-		}
-		resourceId, err := strconv.ParseInt(resourceIdStr, 10, 32)
-		if err != nil {
-			c.BadRequest("Invalid ResourceID", "Failed to parse resource id.")
-			return
-		}
-		resource, found := Service.GetResource(int32(resourceId))
-		if !found {
-			c.NotFound()
-			return
-		}
-		c.OK(resource)
-	}).WithOperationID("getResource").
-		WithParam("resourceId", "path", int(0), true).
+	rg.GET(ResourceIDPath, getResourceHandler).
+		WithOperationID("getResource").
+		WithParam(ParamResourceID, "path", int(0), true).
 		WithResponse(200, Resource{}).
 		WithResponse(404, mux.ProblemDetails{}).
-		WithTags("Resources")
+		WithTags(TagResources)
 
 	// Search by query params (single and repeated)
-	rg.GET("/resources/search", func(c mux.RouteContext) {
-		name, _ := c.QueryValue("name")
-		types, _ := c.QueryValues("type")
-		var out []Resource
-		for _, rsrc := range Service.ListResources(0) {
-			if name != "" && rsrc.Name != name {
-				continue
-			}
-			if len(types) > 0 {
-				matched := false
-				for _, t := range types {
-					if rsrc.Type == t {
-						matched = true
-						break
-					}
-				}
-				if !matched {
-					continue
-				}
-			}
-			out = append(out, *rsrc)
-		}
-		if len(out) == 0 {
-			c.NotFound()
-			return
-		}
-		c.OK(out)
-	}).WithOperationID("searchResources").
+	rg.GET(ResourcesSearch, searchResourcesHandler).
+		WithOperationID("searchResources").
 		WithParam("name", "query", "", false).
 		WithParam("type", "query", "", false).
 		WithResponse(200, []Resource{}).
-		WithTags("Resources")
+		WithTags(TagResources)
 
 	// Bulk create resources via JSON array
-	rg.POST("/resources/bulk", func(c mux.RouteContext) {
-		var resources []Resource
-		if err := c.Bind(&resources); err != nil {
-			c.BadRequest("Bad Request", err.Error())
-			return
-		}
-		// simple validation
-		if len(resources) == 0 {
-			c.BadRequest("Invalid Input", "no resources provided")
-			return
-		}
-		// pretend to store them
-		var created []Resource
-		for i := range resources {
-			r := Service.PutResource(&resources[i])
-			created = append(created, *r)
-		}
-		c.Created(created)
-	}).WithOperationID("createResourcesBulk").
+	rg.POST(ResourcesBulk, createResourcesBulkHandler).
+		WithOperationID("createResourcesBulk").
 		WithJsonBody([]Resource{}).
 		WithResponse(201, []Resource{}).
 		WithResponse(400, mux.ProblemDetails{}).
-		WithTags("Resources")
+		WithTags(TagResources)
 
 	// Update resource metadata — exercise map/object JSON bodies
-	rg.PUT("/resources/{resourceId}/metadata", func(c mux.RouteContext) {
-		var body struct {
-			Metadata map[string]string `json:"metadata"`
-		}
-		if err := c.Bind(&body); err != nil {
-			c.BadRequest("Bad Request", err.Error())
-			return
-		}
-		resourceId, ok := c.ParamInt32("resourceId")
-		if !ok {
-			c.BadRequest("Invalid ResourceID", "resourceId missing or invalid")
-			return
-		}
-		rsrc, found := Service.GetResource(resourceId)
-		if !found {
-			c.NotFound()
-			return
-		}
-		// For tests we simply echo back the received metadata along with the id
-		c.OK(map[string]any{"resource": rsrc, "metadata": body.Metadata})
-	}).WithOperationID("updateResourceMetadata").
-		WithParam("resourceId", "path", int(0), true).
+	rg.PUT(ResourceMeta, updateResourceMetadataHandler).
+		WithOperationID("updateResourceMetadata").
+		WithParam(ParamResourceID, "path", int(0), true).
 		WithJsonBody(&struct {
 			Metadata map[string]string `json:"metadata"`
 		}{}).
@@ -212,154 +118,367 @@ func ConfigureRoutes(r *mux.Router) {
 			Resource Resource          `json:"resource"`
 			Metadata map[string]string `json:"metadata"`
 		}{}).
-		WithTags("Resources")
+		WithTags(TagResources)
 
 	// UUID path parameter example
-	rg.GET("/items/{itemId}/uuid", func(c mux.RouteContext) {
-		id, ok := c.ParamUUID("itemId")
-		if !ok {
-			c.BadRequest("Invalid UUID", "itemId is required and must be a UUID")
-			return
-		}
-		c.OK(map[string]uuid.UUID{"id": id})
-	}).WithOperationID("getItemByUUID").
-		WithParam("itemId", "path", uuid.Nil, true).
+	rg.GET(ItemsUUIDPath, getItemByUUIDHandler).
+		WithOperationID("getItemByUUID").
+		WithParam(ParamItemID, "path", uuid.Nil, true).
 		WithResponse(200, map[string]uuid.UUID{}).
-		WithTags("Items")
+		WithTags(TagItems)
 
 	// Simple header echo to exercise Header lookup
-	rg.GET("/headers/echo", func(c mux.RouteContext) {
-		if val, ok := c.Header("X-Echo"); ok {
-			c.Plain(200, []byte(val))
-			return
-		}
-		c.NotFound()
-	}).WithOperationID("echoHeader").
+	rg.GET(HeadersEchoPath, headersEchoHandler).
+		WithOperationID("echoHeader").
 		WithResponse(200, "").
-		WithTags("Misc")
+		WithTags(TagMisc)
 
 	// Query multiple ints and UUIDs to exercise QueryInts/QueryUUIDs
-	rg.GET("/filter", func(c mux.RouteContext) {
-		ints, _ := c.QueryInts("ids")
-		uuids, _ := c.QueryUUIDs("uuids")
-		c.OK(map[string]any{"ids": ints, "uuids": uuids})
-	}).WithOperationID("filter").
+	rg.GET(FilterPath, filterHandler).
+		WithOperationID("filter").
 		WithParam("ids", "query", "", false).
 		WithParam("uuids", "query", uuid.Nil, false).
 		WithResponse(200, struct {
 			IDs   []int       `json:"ids"`
 			UUIDs []uuid.UUID `json:"uuids"`
 		}{}).
-		WithTags("Misc")
+		WithTags(TagMisc)
 
 	// Form submission example (Bind should support form-encoded bodies)
-	rg.POST("/form/submit", func(c mux.RouteContext) {
-		var body struct {
-			Field string `json:"field"`
-		}
-		if err := c.Bind(&body); err != nil {
-			c.BadRequest("Bad Request", err.Error())
-			return
-		}
-		c.OK(body)
-	}).WithOperationID("submitForm").
+	rg.POST(FormSubmitPath, formSubmitHandler).
+		WithOperationID("submitForm").
 		WithResponse(200, map[string]string{}).
-		WithTags("Misc")
+		WithTags(TagMisc)
 
 	rg.StaticFallback("/**", "static", "static/index.html")
 
 	// Tenant management routes (list, get, create, update, delete)
-	rg.GET("/tenants/", func(c mux.RouteContext) {
-		tenants := Service.ListTenants()
-		if len(tenants) == 0 {
-			c.NotFound()
-			return
-		}
-		c.OK(tenants)
-	}).WithOperationID("listTenants").WithSummary("List all tenants").WithResponse(200, []Tenant{}).WithTags("Tenants")
+	rg.GET(TenantsPath+"/", listTenantsHandler).
+		WithOperationID("listTenants").
+		WithSummary("List all tenants").
+		WithResponse(200, []Tenant{}).
+		WithTags(TagTenants)
 
-	rg.POST("/tenants/", func(c mux.RouteContext) {
-		var t Tenant
-		if err := c.Bind(&t); err != nil {
-			c.BadRequest("Bad Request", err.Error())
-			return
-		}
-		created := Service.PutTenant(&t)
-		c.Created(created)
-	}).WithOperationID("createTenant").WithJsonBody(Tenant{}).WithResponse(201, Tenant{}).WithTags("Tenants")
+	rg.POST(TenantsPath+"/", createTenantHandler).
+		WithOperationID("createTenant").
+		WithJsonBody(Tenant{}).
+		WithResponse(201, Tenant{}).
+		WithTags(TagTenants)
 
-	rg.GET("/tenants/{tenantID}", func(c mux.RouteContext) {
-		id, ok := c.ParamInt("tenantID")
-		if !ok {
-			c.NotFound()
-			return
-		}
-		tenant, found := Service.GetTenant(int32(id))
-		if !found {
-			c.NotFound()
-			return
-		}
-		c.OK(tenant)
-	}).WithOperationID("getTenant").WithParam("tenantID", "path", int(0), true).WithResponse(200, Tenant{}).WithResponse(404, mux.ProblemDetails{}).WithTags("Tenants")
+	rg.GET(TenantIDPath, getTenantHandler).
+		WithOperationID("getTenant").
+		WithParam(ParamTenantID, "path", int(0), true).
+		WithResponse(200, Tenant{}).
+		WithResponse(404, mux.ProblemDetails{}).
+		WithTags(TagTenants)
 
-	rg.PUT("/tenants/{tenantID}", func(c mux.RouteContext) {
-		id, ok := c.ParamInt("tenantID")
-		if !ok {
-			c.BadRequest("Invalid TenantID", "tenantID missing or invalid")
-			return
-		}
-		var t Tenant
-		if err := c.Bind(&t); err != nil {
-			c.BadRequest("Bad Request", err.Error())
-			return
-		}
-		t.TenantID = int32(id)
-		updated := Service.PutTenant(&t)
-		c.OK(updated)
-	}).WithOperationID("updateTenant").WithParam("tenantID", "path", int(0), true).WithJsonBody(Tenant{}).WithResponse(200, Tenant{}).WithTags("Tenants")
+	rg.PUT(TenantIDPath, updateTenantHandler).
+		WithOperationID("updateTenant").
+		WithParam(ParamTenantID, "path", int(0), true).
+		WithJsonBody(Tenant{}).
+		WithResponse(200, Tenant{}).
+		WithTags(TagTenants)
 
-	rg.DELETE("/tenants/{tenantID}", func(c mux.RouteContext) {
-		id, ok := c.ParamInt("tenantID")
-		if !ok {
-			c.BadRequest("Invalid TenantID", "tenantID missing or invalid")
-			return
-		}
-		deleted := Service.DeleteTenant(int32(id))
-		if !deleted {
-			c.NotFound()
-			return
-		}
-		c.NoContent()
-	}).WithOperationID("deleteTenant").WithParam("tenantID", "path", int(0), true).WithResponse(204, nil).WithResponse(404, mux.ProblemDetails{}).WithTags("Tenants")
+	rg.DELETE(TenantIDPath, deleteTenantHandler).
+		WithOperationID("deleteTenant").
+		WithParam(ParamTenantID, "path", int(0), true).
+		WithResponse(204, nil).
+		WithResponse(404, mux.ProblemDetails{}).
+		WithTags(TagTenants)
 
 	// Tenant resources
-	rg.GET("/tenants/{tenantID}/resources", func(c mux.RouteContext) {
-		id, ok := c.ParamInt("tenantID")
-		if !ok {
-			c.BadRequest("Invalid TenantID", "tenantID missing or invalid")
-			return
-		}
-		resources := Service.ListResources(int32(id))
-		if len(resources) == 0 {
-			c.NotFound()
-			return
-		}
-		c.OK(resources)
-	}).WithOperationID("listTenantResources").WithParam("tenantID", "path", int(0), true).WithResponse(200, []Resource{}).WithResponse(404, mux.ProblemDetails{}).WithTags("Tenants", "Resources")
+	rg.GET(TenantResources, listTenantResourcesHandler).
+		WithOperationID("listTenantResources").
+		WithParam(ParamTenantID, "path", int(0), true).
+		WithResponse(200, []Resource{}).
+		WithResponse(404, mux.ProblemDetails{}).
+		WithTags(TagTenants, TagResources)
 
-	rg.POST("/tenants/{tenantID}/resources", func(c mux.RouteContext) {
-		id, ok := c.ParamInt("tenantID")
-		if !ok {
-			c.BadRequest("Invalid TenantID", "tenantID missing or invalid")
-			return
+	rg.POST(TenantResources, createTenantResourceHandler).
+		WithOperationID("createTenantResource").
+		WithParam(ParamTenantID, "path", int(0), true).
+		WithJsonBody(Resource{}).
+		WithResponse(201, Resource{}).
+		WithTags(TagTenants, TagResources)
+}
+
+// Handlers extracted to reduce cognitive complexity of ConfigureRoutes.
+
+func wsHandler(c mux.RouteContext) {
+	if !strings.EqualFold(c.Request().Header.Get("Upgrade"), "websocket") {
+		c.NotFound()
+		return
+	}
+	key := c.Request().Header.Get("Sec-WebSocket-Key")
+	if key == "" {
+		c.BadRequest("Missing Sec-WebSocket-Key", "Sec-WebSocket-Key header is required")
+		return
+	}
+	accept := computeAccept(key)
+	rw := c.Response()
+	hj, ok := rw.(http.Hijacker)
+	if !ok {
+		c.ServerError("Hijack unsupported", "ResponseWriter does not support hijack")
+		return
+	}
+	conn, _, err := hj.Hijack()
+	if err != nil {
+		c.ServerError("Hijack failed", err.Error())
+		return
+	}
+	// Write raw upgrade response and close the connection.
+	fmt.Fprintf(conn, "HTTP/1.1 101 Switching Protocols\r\n")
+	fmt.Fprintf(conn, "Upgrade: websocket\r\n")
+	fmt.Fprintf(conn, "Connection: Upgrade\r\n")
+	fmt.Fprintf(conn, "Sec-WebSocket-Accept: %s\r\n", accept)
+	fmt.Fprintf(conn, "\r\n")
+	_ = conn.Close()
+}
+
+func listResourcesHandler(c mux.RouteContext) {
+	resources := Service.ListResources(0)
+	if len(resources) == 0 {
+		c.NotFound()
+		return
+	}
+	c.OK(resources)
+}
+
+func headResourceHandler(c mux.RouteContext) {
+	resourceIdStr, found := c.Param(ParamResourceID)
+	if !found {
+		c.NotFound()
+		return
+	}
+	resourceId, err := strconv.ParseInt(resourceIdStr, 10, 32)
+	if err != nil {
+		c.BadRequest(ErrInvalidResourceID, ErrParseResourceID)
+		return
+	}
+	_, found = Service.GetResource(int32(resourceId))
+	if !found {
+		c.NotFound()
+		return
+	}
+	c.NoContent()
+}
+
+func getResourceHandler(c mux.RouteContext) {
+	resourceIdStr, found := c.Param(ParamResourceID)
+	if !found {
+		c.NotFound()
+		return
+	}
+	resourceId, err := strconv.ParseInt(resourceIdStr, 10, 32)
+	if err != nil {
+		c.BadRequest(ErrInvalidResourceID, ErrParseResourceID)
+		return
+	}
+	resource, found := Service.GetResource(int32(resourceId))
+	if !found {
+		c.NotFound()
+		return
+	}
+	c.OK(resource)
+}
+
+func typesMatch(rsrcType string, types []string) bool {
+	if len(types) == 0 {
+		return true
+	}
+	for _, t := range types {
+		if rsrcType == t {
+			return true
 		}
-		var res Resource
-		if err := c.Bind(&res); err != nil {
-			c.BadRequest("Bad Request", err.Error())
-			return
+	}
+	return false
+}
+
+func searchResourcesHandler(c mux.RouteContext) {
+	name, _ := c.QueryValue("name")
+	types, _ := c.QueryValues("type")
+	var out []Resource
+	for _, rsrc := range Service.ListResources(0) {
+		if name != "" && rsrc.Name != name {
+			continue
 		}
-		res.TenantID = int32(id)
-		created := Service.PutResource(&res)
-		c.Created(created)
-	}).WithOperationID("createTenantResource").WithParam("tenantID", "path", int(0), true).WithJsonBody(Resource{}).WithResponse(201, Resource{}).WithTags("Tenants", "Resources")
+		if !typesMatch(rsrc.Type, types) {
+			continue
+		}
+		out = append(out, *rsrc)
+	}
+	if len(out) == 0 {
+		c.NotFound()
+		return
+	}
+	c.OK(out)
+}
+
+func createResourcesBulkHandler(c mux.RouteContext) {
+	var resources []Resource
+	if err := c.Bind(&resources); err != nil {
+		c.BadRequest(ErrBadRequest, err.Error())
+		return
+	}
+	// simple validation
+	if len(resources) == 0 {
+		c.BadRequest("Invalid Input", "no resources provided")
+		return
+	}
+	// pretend to store them
+	var created []Resource
+	for i := range resources {
+		r := Service.PutResource(&resources[i])
+		created = append(created, *r)
+	}
+	c.Created(created)
+}
+
+func updateResourceMetadataHandler(c mux.RouteContext) {
+	var body struct {
+		Metadata map[string]string `json:"metadata"`
+	}
+	if err := c.Bind(&body); err != nil {
+		c.BadRequest(ErrBadRequest, err.Error())
+		return
+	}
+	resourceId, ok := c.ParamInt32(ParamResourceID)
+	if !ok {
+		c.BadRequest(ErrInvalidResourceID, ErrTenantMissing)
+		return
+	}
+	rsrc, found := Service.GetResource(resourceId)
+	if !found {
+		c.NotFound()
+		return
+	}
+	// For tests we simply echo back the received metadata along with the id
+	c.OK(map[string]any{"resource": rsrc, "metadata": body.Metadata})
+}
+
+func getItemByUUIDHandler(c mux.RouteContext) {
+	id, ok := c.ParamUUID(ParamItemID)
+	if !ok {
+		c.BadRequest("Invalid UUID", "itemId is required and must be a UUID")
+		return
+	}
+	c.OK(map[string]uuid.UUID{"id": id})
+}
+
+func headersEchoHandler(c mux.RouteContext) {
+	if val, ok := c.Header(common.HeaderXEcho); ok {
+		c.Plain(200, []byte(val))
+		return
+	}
+	c.NotFound()
+}
+
+func filterHandler(c mux.RouteContext) {
+	ints, _ := c.QueryInts("ids")
+	uuids, _ := c.QueryUUIDs("uuids")
+	c.OK(map[string]any{"ids": ints, "uuids": uuids})
+}
+
+func formSubmitHandler(c mux.RouteContext) {
+	var body struct {
+		Field string `json:"field"`
+	}
+	if err := c.Bind(&body); err != nil {
+		c.BadRequest(ErrBadRequest, err.Error())
+		return
+	}
+	c.OK(body)
+}
+
+func listTenantsHandler(c mux.RouteContext) {
+	tenants := Service.ListTenants()
+	if len(tenants) == 0 {
+		c.NotFound()
+		return
+	}
+	c.OK(tenants)
+}
+
+func createTenantHandler(c mux.RouteContext) {
+	var t Tenant
+	if err := c.Bind(&t); err != nil {
+		c.BadRequest(ErrBadRequest, err.Error())
+		return
+	}
+	created := Service.PutTenant(&t)
+	c.Created(created)
+}
+
+func getTenantHandler(c mux.RouteContext) {
+	id, ok := c.ParamInt(ParamTenantID)
+	if !ok {
+		c.NotFound()
+		return
+	}
+	tenant, found := Service.GetTenant(int32(id))
+	if !found {
+		c.NotFound()
+		return
+	}
+	c.OK(tenant)
+}
+
+func updateTenantHandler(c mux.RouteContext) {
+	id, ok := c.ParamInt(ParamTenantID)
+	if !ok {
+		c.BadRequest(ErrInvalidTenantID, ErrTenantMissing)
+		return
+	}
+	var t Tenant
+	if err := c.Bind(&t); err != nil {
+		c.BadRequest(ErrBadRequest, err.Error())
+		return
+	}
+	t.TenantID = int32(id)
+	updated := Service.PutTenant(&t)
+	c.OK(updated)
+}
+
+func deleteTenantHandler(c mux.RouteContext) {
+	id, ok := c.ParamInt(ParamTenantID)
+	if !ok {
+		c.BadRequest(ErrInvalidTenantID, ErrTenantMissing)
+		return
+	}
+	deleted := Service.DeleteTenant(int32(id))
+	if !deleted {
+		c.NotFound()
+		return
+	}
+	c.NoContent()
+}
+
+func listTenantResourcesHandler(c mux.RouteContext) {
+	id, ok := c.ParamInt(ParamTenantID)
+	if !ok {
+		c.BadRequest(ErrInvalidTenantID, ErrTenantMissing)
+		return
+	}
+	resources := Service.ListResources(int32(id))
+	if len(resources) == 0 {
+		c.NotFound()
+		return
+	}
+	c.OK(resources)
+}
+
+func createTenantResourceHandler(c mux.RouteContext) {
+	id, ok := c.ParamInt(ParamTenantID)
+	if !ok {
+		c.BadRequest(ErrInvalidTenantID, ErrTenantMissing)
+		return
+	}
+	var res Resource
+	if err := c.Bind(&res); err != nil {
+		c.BadRequest(ErrBadRequest, err.Error())
+		return
+	}
+	res.TenantID = int32(id)
+	created := Service.PutResource(&res)
+	c.Created(created)
 }
