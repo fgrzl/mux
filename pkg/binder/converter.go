@@ -206,13 +206,19 @@ func makeStringConverter() func([]string) (any, error) {
 func makeIntConverter(typ reflect.Type) func([]string) (any, error) {
 	return func(vals []string) (any, error) {
 		if len(vals) == 1 {
+			if typ.Kind() == reflect.Int {
+				iv, err := parsePlatformInt(vals[0])
+				if err != nil {
+					return nil, err
+				}
+				return iv, nil
+			}
+
 			v, err := strconv.ParseInt(vals[0], 10, typ.Bits())
 			if err != nil {
 				return nil, err
 			}
 			switch typ.Kind() {
-			case reflect.Int:
-				return int(v), nil
 			case reflect.Int8:
 				return int8(v), nil
 			case reflect.Int16:
@@ -230,13 +236,19 @@ func makeIntConverter(typ reflect.Type) func([]string) (any, error) {
 func makeUintConverter(typ reflect.Type) func([]string) (any, error) {
 	return func(vals []string) (any, error) {
 		if len(vals) == 1 {
+			if typ.Kind() == reflect.Uint {
+				uv, err := parsePlatformUint(vals[0])
+				if err != nil {
+					return nil, err
+				}
+				return uv, nil
+			}
+
 			v, err := strconv.ParseUint(vals[0], 10, typ.Bits())
 			if err != nil {
 				return nil, err
 			}
 			switch typ.Kind() {
-			case reflect.Uint:
-				return uint(v), nil
 			case reflect.Uint8:
 				return uint8(v), nil
 			case reflect.Uint16:
@@ -249,6 +261,33 @@ func makeUintConverter(typ reflect.Type) func([]string) (any, error) {
 		}
 		return parseUint64s(vals)
 	}
+}
+
+// parsePlatformInt parses s as a 64-bit integer and ensures it fits into the
+// host platform's int size before returning it as int.
+func parsePlatformInt(s string) (int, error) {
+	v64, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	if v64 < int64(math.MinInt) || v64 > int64(math.MaxInt) {
+		return 0, strconv.ErrRange
+	}
+	return int(v64), nil
+}
+
+// parsePlatformUint parses s as a 64-bit unsigned integer and ensures it fits
+// into the host platform's uint size before returning it as uint.
+func parsePlatformUint(s string) (uint, error) {
+	v64, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	maxUint := uint64(^uint(0))
+	if v64 > maxUint {
+		return 0, strconv.ErrRange
+	}
+	return uint(v64), nil
 }
 
 // helper: parse a slice of uint64 values

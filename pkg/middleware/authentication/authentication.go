@@ -118,8 +118,8 @@ type authenticationMiddleware struct {
 	provider tokenizer.TokenProvider
 }
 
-// ErrorInvalidToken is returned when a provided token is invalid.
-var ErrorInvalidToken = errors.New("invalid token")
+// ErrInvalidToken is returned when a provided token is invalid.
+var ErrInvalidToken = errors.New("invalid token")
 
 // ---- Middleware Logic ----
 

@@ -183,7 +183,7 @@ func (rb *RouteBuilder) WithStandardErrors() *RouteBuilder {
 
 // WithJsonBody describes a JSON request body (required=true).
 func (rb *RouteBuilder) WithJsonBody(example any) *RouteBuilder {
-	return rb.withBody(example, "application/json")
+	return rb.withBody(example, common.MimeJSON)
 }
 
 // WithFormBody describes an urlencoded form body.

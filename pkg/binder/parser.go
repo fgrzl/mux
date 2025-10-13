@@ -35,26 +35,50 @@ func ParseIntSlice(vals []string) ([]int, bool) {
 }
 
 func ParseInt16Val(val string) (int16, bool) {
-	n, err := strconv.ParseInt(val, 10, 16)
-	return int16(n), err == nil
+	n64, err := strconv.ParseInt(val, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	if n64 < math.MinInt16 || n64 > math.MaxInt16 {
+		return 0, false
+	}
+	return int16(n64), true
 }
 
 func ParseInt16Slice(vals []string) ([]int16, bool) {
 	return parseSlice(vals, func(s string) (int16, error) {
-		n, err := strconv.ParseInt(s, 10, 16)
-		return int16(n), err
+		n64, err := strconv.ParseInt(s, 10, 64)
+		if err != nil {
+			return 0, err
+		}
+		if n64 < math.MinInt16 || n64 > math.MaxInt16 {
+			return 0, strconv.ErrRange
+		}
+		return int16(n64), nil
 	})
 }
 
 func ParseInt32Val(val string) (int32, bool) {
-	n, err := strconv.ParseInt(val, 10, 32)
-	return int32(n), err == nil
+	n64, err := strconv.ParseInt(val, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	if n64 < math.MinInt32 || n64 > math.MaxInt32 {
+		return 0, false
+	}
+	return int32(n64), true
 }
 
 func ParseInt32Slice(vals []string) ([]int32, bool) {
 	return parseSlice(vals, func(s string) (int32, error) {
-		n, err := strconv.ParseInt(s, 10, 32)
-		return int32(n), err
+		n64, err := strconv.ParseInt(s, 10, 64)
+		if err != nil {
+			return 0, err
+		}
+		if n64 < math.MinInt32 || n64 > math.MaxInt32 {
+			return 0, strconv.ErrRange
+		}
+		return int32(n64), nil
 	})
 }
 
