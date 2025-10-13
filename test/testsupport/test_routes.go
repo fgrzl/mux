@@ -4,6 +4,7 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -250,12 +251,17 @@ func headResourceHandler(c mux.RouteContext) {
 		c.NotFound()
 		return
 	}
-	resourceId, err := strconv.ParseInt(resourceIdStr, 10, 32)
+	id64, err := strconv.ParseInt(resourceIdStr, 10, 64)
 	if err != nil {
 		c.BadRequest(ErrInvalidResourceID, ErrParseResourceID)
 		return
 	}
-	_, found = Service.GetResource(int32(resourceId))
+	if id64 < math.MinInt32 || id64 > math.MaxInt32 {
+		c.BadRequest(ErrInvalidResourceID, ErrParseResourceID)
+		return
+	}
+	resourceId := int32(id64)
+	_, found = Service.GetResource(resourceId)
 	if !found {
 		c.NotFound()
 		return
@@ -269,12 +275,17 @@ func getResourceHandler(c mux.RouteContext) {
 		c.NotFound()
 		return
 	}
-	resourceId, err := strconv.ParseInt(resourceIdStr, 10, 32)
+	id64, err := strconv.ParseInt(resourceIdStr, 10, 64)
 	if err != nil {
 		c.BadRequest(ErrInvalidResourceID, ErrParseResourceID)
 		return
 	}
-	resource, found := Service.GetResource(int32(resourceId))
+	if id64 < math.MinInt32 || id64 > math.MaxInt32 {
+		c.BadRequest(ErrInvalidResourceID, ErrParseResourceID)
+		return
+	}
+	resourceId := int32(id64)
+	resource, found := Service.GetResource(resourceId)
 	if !found {
 		c.NotFound()
 		return
@@ -344,7 +355,7 @@ func updateResourceMetadataHandler(c mux.RouteContext) {
 	}
 	resourceId, ok := c.ParamInt32(ParamResourceID)
 	if !ok {
-		c.BadRequest(ErrInvalidResourceID, ErrTenantMissing)
+		c.BadRequest(ErrInvalidResourceID, ErrParseResourceID)
 		return
 	}
 	rsrc, found := Service.GetResource(resourceId)

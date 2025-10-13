@@ -1,6 +1,7 @@
 package binder
 
 import (
+	"math"
 	"reflect"
 	"strconv"
 
@@ -465,8 +466,14 @@ func parseSliceFromExample(values []string, example any) (any, bool) {
 	switch elem.(type) {
 	case int:
 		if parsed, ok := parseSlice(values, func(s string) (int, error) {
-			v64, err := strconv.ParseInt(s, 10, 0)
-			return int(v64), err
+			v64, err := strconv.ParseInt(s, 10, 64)
+			if err != nil {
+				return 0, err
+			}
+			if v64 < int64(math.MinInt) || v64 > int64(math.MaxInt) {
+				return 0, strconv.ErrRange
+			}
+			return int(v64), nil
 		}); ok {
 			return parsed, true
 		}

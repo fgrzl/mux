@@ -153,7 +153,7 @@ func (c *TestClient) CreateTenantResource(ctx context.Context, tenantID int32, r
 }
 
 func (c *TestClient) GetTenantResource(ctx context.Context, tenantID, resourceId int32) (*Resource, *http.Response, error) {
-	url := c.BaseURL + fmt.Sprintf(APITenantResources+"/%d", tenantID, resourceId)
+	url := c.BaseURL + fmt.Sprintf(APITenantResourceByID, tenantID, resourceId)
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 
 	var resource Resource
@@ -162,7 +162,7 @@ func (c *TestClient) GetTenantResource(ctx context.Context, tenantID, resourceId
 }
 
 func (c *TestClient) HeadTenantResource(ctx context.Context, tenantID, resourceId int32) (*http.Response, error) {
-	url := c.BaseURL + fmt.Sprintf(APITenantResources+"/%d", tenantID, resourceId)
+	url := c.BaseURL + fmt.Sprintf(APITenantResourceByID, tenantID, resourceId)
 	req, _ := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
 
 	resp, err := c.doRequest(req, nil)
@@ -170,7 +170,7 @@ func (c *TestClient) HeadTenantResource(ctx context.Context, tenantID, resourceI
 }
 
 func (c *TestClient) UpdateTenantResource(ctx context.Context, tenantID, resourceId int32, resource *Resource) (*http.Response, error) {
-	url := c.BaseURL + fmt.Sprintf(APITenantResources+"/%d", tenantID, resourceId)
+	url := c.BaseURL + fmt.Sprintf(APITenantResourceByID, tenantID, resourceId)
 
 	data, _ := json.Marshal(resource)
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewReader(data))
@@ -181,7 +181,7 @@ func (c *TestClient) UpdateTenantResource(ctx context.Context, tenantID, resourc
 }
 
 func (c *TestClient) DeleteTenantResource(ctx context.Context, tenantID, resourceId int32) (*http.Response, error) {
-	url := c.BaseURL + fmt.Sprintf(APITenantResources+"/%d", tenantID, resourceId)
+	url := c.BaseURL + fmt.Sprintf(APITenantResourceByID, tenantID, resourceId)
 	req, _ := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
 
 	resp, err := c.doRequest(req, nil)

@@ -1,6 +1,7 @@
 package binder
 
 import (
+	"math"
 	"strconv"
 
 	"github.com/google/uuid"
@@ -10,14 +11,26 @@ import (
 // same conversions and avoid duplication.
 
 func ParseIntVal(val string) (int, bool) {
-	n64, err := strconv.ParseInt(val, 10, 0)
-	return int(n64), err == nil
+	n64, err := strconv.ParseInt(val, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	if n64 < int64(math.MinInt) || n64 > int64(math.MaxInt) {
+		return 0, false
+	}
+	return int(n64), true
 }
 
 func ParseIntSlice(vals []string) ([]int, bool) {
 	return parseSlice(vals, func(s string) (int, error) {
-		n64, err := strconv.ParseInt(s, 10, 0)
-		return int(n64), err
+		n64, err := strconv.ParseInt(s, 10, 64)
+		if err != nil {
+			return 0, err
+		}
+		if n64 < int64(math.MinInt) || n64 > int64(math.MaxInt) {
+			return 0, strconv.ErrRange
+		}
+		return int(n64), nil
 	})
 }
 

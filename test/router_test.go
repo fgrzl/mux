@@ -284,7 +284,7 @@ func TestShouldEchoHeaderAndReturnFilterResultsWhenQueriesProvided(t *testing.T)
 	assert.Contains(t, string(body), "hello")
 
 	// filter with ints and uuids
-	u := server.URL + "/api/v1/filter?ids=1&ids=2&uuids=" + uuid.NewString() + "&uuids=" + uuid.NewString()
+	u := server.URL + testsupport.APIBase + "/filter?ids=1&ids=2&uuids=" + uuid.NewString() + "&uuids=" + uuid.NewString()
 	resp, err = http.Get(u)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
