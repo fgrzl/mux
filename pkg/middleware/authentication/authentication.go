@@ -213,21 +213,8 @@ func (m *authenticationMiddleware) extendSessionExpiration(c routing.RouteContex
 		slog.DebugContext(c, "session extension skipped: TTL not set")
 		return
 	}
-
 	// Renew token if possible
-	if p.CanCreateTokens() {
-		user := c.User()
-		if token, err := p.CreateToken(c, user); err == nil {
-			cookie.Value = token
-			if user != nil {
-				slog.DebugContext(c, "session token renewed", "user", user.Subject())
-			} else {
-				slog.DebugContext(c, "session token renewed")
-			}
-		} else {
-			slog.WarnContext(c, "failed to renew token", "error", err)
-		}
-	}
+	m.renewTokenIfPossible(c, cookie)
 
 	// Update cookie properties
 	isSecure := c.Request().TLS != nil
@@ -235,6 +222,30 @@ func (m *authenticationMiddleware) extendSessionExpiration(c routing.RouteContex
 
 	http.SetCookie(c.Response(), cookie)
 	slog.DebugContext(c, "session cookie extended", "expires", cookie.Expires)
+}
+
+// renewTokenIfPossible attempts to create a new token for the current user and
+// updates the provided cookie.Value when successful. It logs success and
+// failures appropriately. No error is returned since renewal is best-effort.
+func (m *authenticationMiddleware) renewTokenIfPossible(c routing.RouteContext, cookie *http.Cookie) {
+	p := m.provider
+	if !p.CanCreateTokens() {
+		return
+	}
+
+	user := c.User()
+	token, err := p.CreateToken(c, user)
+	if err != nil {
+		slog.WarnContext(c, "failed to renew token", "error", err)
+		return
+	}
+
+	cookie.Value = token
+	if user != nil {
+		slog.DebugContext(c, "session token renewed", "user", user.Subject())
+	} else {
+		slog.DebugContext(c, "session token renewed")
+	}
 }
 
 // updateCookieProperties updates cookie security properties.

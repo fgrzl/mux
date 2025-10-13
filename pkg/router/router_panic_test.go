@@ -27,7 +27,7 @@ func TestShouldRecoverFromPanicInHandler(t *testing.T) {
 
 	// Assert
 	assert.Equal(t, http.StatusInternalServerError, recorder.Code)
-	assert.Equal(t, "application/problem+json", recorder.Header().Get("Content-Type"))
+	assert.Equal(t, common.MimeProblemJSON, recorder.Header().Get(common.HeaderContentType))
 
 	var problemDetails common.ProblemDetails
 	err := json.Unmarshal(recorder.Body.Bytes(), &problemDetails)

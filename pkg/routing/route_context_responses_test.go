@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/fgrzl/mux/pkg/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,7 +20,7 @@ func TestShouldReturnServerErrorWithProblemDetails(t *testing.T) {
 
 	// Assert
 	assert.Equal(t, http.StatusInternalServerError, recorder.Code)
-	assert.Equal(t, "application/problem+json", recorder.Header().Get("Content-Type"))
+	assert.Equal(t, common.MimeProblemJSON, recorder.Header().Get(common.HeaderContentType))
 	assert.Contains(t, recorder.Body.String(), "Test Error")
 	assert.Contains(t, recorder.Body.String(), "Something went wrong")
 	assert.Contains(t, recorder.Body.String(), "\"status\":500")
@@ -50,7 +51,7 @@ func TestShouldReturnBadRequestWithProblemDetails(t *testing.T) {
 
 	// Assert
 	assert.Equal(t, http.StatusBadRequest, recorder.Code)
-	assert.Equal(t, "application/problem+json", recorder.Header().Get("Content-Type"))
+	assert.Equal(t, common.MimeProblemJSON, recorder.Header().Get(common.HeaderContentType))
 	assert.Contains(t, recorder.Body.String(), "Invalid Input")
 	assert.Contains(t, recorder.Body.String(), "The provided data is invalid")
 	assert.Contains(t, recorder.Body.String(), "\"status\":400")
@@ -81,7 +82,7 @@ func TestShouldReturnConflictWithProblemDetails(t *testing.T) {
 
 	// Assert
 	assert.Equal(t, http.StatusConflict, recorder.Code)
-	assert.Equal(t, "application/problem+json", recorder.Header().Get("Content-Type"))
+	assert.Equal(t, common.MimeProblemJSON, recorder.Header().Get(common.HeaderContentType))
 	assert.Contains(t, recorder.Body.String(), "Resource Exists")
 	assert.Contains(t, recorder.Body.String(), "The resource already exists")
 	assert.Contains(t, recorder.Body.String(), "\"status\":409")
@@ -98,7 +99,7 @@ func TestShouldReturnUnauthorized(t *testing.T) {
 
 	// Assert
 	assert.Equal(t, http.StatusUnauthorized, recorder.Code)
-	assert.Equal(t, "text/plain; charset=utf-8", recorder.Header().Get("Content-Type"))
+	assert.Contains(t, recorder.Header().Get(common.HeaderContentType), common.MimeTextPlain)
 	assert.Contains(t, recorder.Body.String(), "Unauthorized")
 }
 
@@ -113,7 +114,7 @@ func TestShouldReturnForbidden(t *testing.T) {
 
 	// Assert
 	assert.Equal(t, http.StatusForbidden, recorder.Code)
-	assert.Equal(t, "text/plain; charset=utf-8", recorder.Header().Get("Content-Type"))
+	assert.Contains(t, recorder.Header().Get(common.HeaderContentType), common.MimeTextPlain)
 	assert.Contains(t, recorder.Body.String(), "Access denied")
 }
 
@@ -128,7 +129,7 @@ func TestShouldReturnNotFound(t *testing.T) {
 
 	// Assert: NotFound now returns a Problem Details JSON body
 	assert.Equal(t, http.StatusNotFound, recorder.Code)
-	assert.Equal(t, "application/problem+json", recorder.Header().Get("Content-Type"))
+	assert.Equal(t, common.MimeProblemJSON, recorder.Header().Get(common.HeaderContentType))
 	assert.Contains(t, recorder.Body.String(), "Not Found")
 	assert.Contains(t, recorder.Body.String(), "\"status\":404")
 }
@@ -146,7 +147,7 @@ func TestShouldReturnOKWithData(t *testing.T) {
 
 	// Assert
 	assert.Equal(t, http.StatusOK, recorder.Code)
-	assert.Equal(t, "application/json", recorder.Header().Get("Content-Type"))
+	assert.Equal(t, common.MimeJSON, recorder.Header().Get(common.HeaderContentType))
 	assert.Contains(t, recorder.Body.String(), "\"message\":\"success\"")
 }
 
@@ -163,7 +164,7 @@ func TestShouldReturnCreatedWithData(t *testing.T) {
 
 	// Assert
 	assert.Equal(t, http.StatusCreated, recorder.Code)
-	assert.Equal(t, "application/json", recorder.Header().Get("Content-Type"))
+	assert.Equal(t, common.MimeJSON, recorder.Header().Get(common.HeaderContentType))
 	assert.Contains(t, recorder.Body.String(), "\"id\":\"123\"")
 	assert.Contains(t, recorder.Body.String(), "\"name\":\"test\"")
 }
@@ -195,6 +196,6 @@ func TestShouldReturnAcceptWithData(t *testing.T) {
 
 	// Assert
 	assert.Equal(t, http.StatusAccepted, recorder.Code)
-	assert.Equal(t, "application/json", recorder.Header().Get("Content-Type"))
+	assert.Equal(t, common.MimeJSON, recorder.Header().Get(common.HeaderContentType))
 	assert.Contains(t, recorder.Body.String(), "\"status\":\"processing\"")
 }

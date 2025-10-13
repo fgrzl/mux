@@ -64,4 +64,13 @@ const (
 	HeaderXForwardedPort                = "X-Forwarded-Port"
 	HeaderXForwardedProto               = "X-Forwarded-Proto"
 	HeaderXRealIP                       = "X-Real-IP"
+	// Project-specific common headers
+	HeaderXCorrelationID = "X-Correlation-Id"
+	HeaderXEcho          = "X-Echo"
+)
+
+// Common encoding names used by middleware
+const (
+	EncodingGzip    = "gzip"
+	EncodingDeflate = "deflate"
 )

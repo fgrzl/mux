@@ -60,11 +60,27 @@ func (cw *compressionWriter) WriteHeader(statusCode int) {
 	cw.w.WriteHeader(statusCode)
 }
 
+// package-level constants to avoid duplicate string literals
+const (
+	upgradeHeader   = "Upgrade"
+	websocketProto  = "websocket"
+	gzipEncoding    = "gzip"
+	deflateEncoding = "deflate"
+)
+
+// applyEncodingHeaders centralizes the header updates applied when compressing
+// responses so the logic is in one place and easier to maintain / test.
+func applyEncodingHeaders(h http.Header, encoding string) {
+	h.Set(common.HeaderContentEncoding, encoding)
+	h.Add(common.HeaderVary, common.HeaderAcceptEncoding)
+	h.Del(common.HeaderContentLength)
+}
+
 // Invoke implements the Middleware interface, applying compression based on Accept-Encoding headers.
 func (m *compressionMiddleware) Invoke(c routing.RouteContext, next router.HandlerFunc) {
 	// Never attempt to compress upgraded WebSocket connections; compression wrappers
 	// can break hijacking and raw upgrade semantics.
-	if strings.EqualFold(c.Request().Header.Get("Upgrade"), "websocket") {
+	if strings.EqualFold(c.Request().Header.Get(upgradeHeader), websocketProto) {
 		next(c)
 		return
 	}
@@ -78,17 +94,13 @@ func (m *compressionMiddleware) Invoke(c routing.RouteContext, next router.Handl
 	var compressor io.WriteCloser
 	res := c.Response()
 	hdr := res.Header()
-	if strings.Contains(acceptEncoding, "gzip") {
-		hdr.Set(common.HeaderContentEncoding, "gzip")
-		hdr.Add(common.HeaderVary, common.HeaderAcceptEncoding)
-		hdr.Del(common.HeaderContentLength)
+	if strings.Contains(acceptEncoding, gzipEncoding) {
+		applyEncodingHeaders(hdr, gzipEncoding)
 		gw := gzipPool.Get().(*gzip.Writer)
 		gw.Reset(res)
 		compressor = gw
-	} else if strings.Contains(acceptEncoding, "deflate") {
-		hdr.Set(common.HeaderContentEncoding, "deflate")
-		hdr.Add(common.HeaderVary, common.HeaderAcceptEncoding)
-		hdr.Del(common.HeaderContentLength)
+	} else if strings.Contains(acceptEncoding, deflateEncoding) {
+		applyEncodingHeaders(hdr, deflateEncoding)
 		dw := deflatePool.Get().(*flate.Writer)
 		dw.Reset(res)
 		compressor = dw

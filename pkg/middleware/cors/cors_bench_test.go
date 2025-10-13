@@ -16,6 +16,11 @@ func init() {
 	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})))
 }
 
+const (
+	testOrigin = "https://example.com"
+	testURL    = "http://example.com/test"
+)
+
 // BenchmarkCORS_Invoke measures Invoke overhead for simple and preflight requests.
 func BenchmarkCORSInvoke(b *testing.B) {
 	cases := []struct {
@@ -52,11 +57,12 @@ func BenchmarkCORSInvoke(b *testing.B) {
 	for _, tc := range cases {
 		b.Run(tc.name, func(b *testing.B) {
 			m := newCORS(tc.opts)
+			// next is intentionally empty for these microbenchmarks; we're measuring middleware overhead only.
 			next := func(c routing.RouteContext) {}
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
+				req := httptest.NewRequest(http.MethodGet, testURL, nil)
 				rec := httptest.NewRecorder()
 				if tc.setup != nil {
 					tc.setup(req)
@@ -78,8 +84,8 @@ func BenchmarkCORSRouterPipeline(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
-			req.Header.Set("Origin", "https://example.com")
+			req := httptest.NewRequest(http.MethodGet, testURL, nil)
+			req.Header.Set("Origin", testOrigin)
 			rec := httptest.NewRecorder()
 			r.ServeHTTP(rec, req)
 		}

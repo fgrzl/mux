@@ -12,7 +12,12 @@ import (
 )
 
 const (
-	testURL = "http://example.com/test"
+	testURL             = "http://example.com/test"
+	fhProtoHttps        = "https"
+	fhAddr1             = "192.168.1.100"
+	fhAddr2             = "10.0.0.1"
+	fhAddr3             = "1.2.3.4"
+	assertNextCalledMsg = "next handler should be called"
 )
 
 func TestShouldProcessXForwardedProtoHeader(t *testing.T) {
@@ -20,7 +25,7 @@ func TestShouldProcessXForwardedProtoHeader(t *testing.T) {
 	middleware := &forwardedHeadersMiddleware{}
 
 	req := httptest.NewRequest(http.MethodGet, testURL, nil)
-	req.Header.Set(common.HeaderXForwardedProto, "https")
+	req.Header.Set(common.HeaderXForwardedProto, fhProtoHttps)
 	recorder := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(recorder, req)
 
@@ -33,7 +38,7 @@ func TestShouldProcessXForwardedProtoHeader(t *testing.T) {
 	middleware.Invoke(ctx, next)
 
 	// Assert
-	assert.True(t, nextCalled, "next handler should be called")
+	assert.True(t, nextCalled, assertNextCalledMsg)
 	assert.Equal(t, "https", ctx.Request().URL.Scheme)
 }
 
@@ -41,7 +46,7 @@ func TestShouldProcessXForwardedForHeader(t *testing.T) {
 	// Arrange
 	middleware := &forwardedHeadersMiddleware{}
 	req := httptest.NewRequest(http.MethodGet, testURL, nil)
-	req.Header.Set(common.HeaderXForwardedFor, "192.168.1.100")
+	req.Header.Set(common.HeaderXForwardedFor, fhAddr1)
 	recorder := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(recorder, req)
 
@@ -54,7 +59,7 @@ func TestShouldProcessXForwardedForHeader(t *testing.T) {
 	middleware.Invoke(ctx, next)
 
 	// Assert
-	assert.True(t, nextCalled, "next handler should be called")
+	assert.True(t, nextCalled, assertNextCalledMsg)
 	assert.Equal(t, "192.168.1.100", ctx.Request().RemoteAddr)
 }
 
@@ -62,8 +67,8 @@ func TestShouldProcessBothForwardedHeaders(t *testing.T) {
 	// Arrange
 	middleware := &forwardedHeadersMiddleware{}
 	req := httptest.NewRequest(http.MethodGet, testURL, nil)
-	req.Header.Set(common.HeaderXForwardedProto, "https")
-	req.Header.Set(common.HeaderXForwardedFor, "10.0.0.1")
+	req.Header.Set(common.HeaderXForwardedProto, fhProtoHttps)
+	req.Header.Set(common.HeaderXForwardedFor, fhAddr2)
 	recorder := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(recorder, req)
 
@@ -76,7 +81,7 @@ func TestShouldProcessBothForwardedHeaders(t *testing.T) {
 	middleware.Invoke(ctx, next)
 
 	// Assert
-	assert.True(t, nextCalled, "next handler should be called")
+	assert.True(t, nextCalled, assertNextCalledMsg)
 	assert.Equal(t, "https", ctx.Request().URL.Scheme)
 	assert.Equal(t, "10.0.0.1", ctx.Request().RemoteAddr)
 }
@@ -99,7 +104,7 @@ func TestShouldIgnoreEmptyForwardedHeaders(t *testing.T) {
 	middleware.Invoke(ctx, next)
 
 	// Assert
-	assert.True(t, nextCalled, "next handler should be called")
+	assert.True(t, nextCalled, assertNextCalledMsg)
 	assert.Equal(t, originalScheme, ctx.Request().URL.Scheme)
 	assert.Equal(t, originalRemoteAddr, ctx.Request().RemoteAddr)
 }
@@ -117,8 +122,8 @@ func TestShouldAddForwardedHeadersMiddlewareToRouter(t *testing.T) {
 
 	// Make a request with forwarded headers so middleware will modify the request
 	req := httptest.NewRequest(http.MethodGet, testURL, nil)
-	req.Header.Set(common.HeaderXForwardedProto, "https")
-	req.Header.Set(common.HeaderXForwardedFor, "1.2.3.4")
+	req.Header.Set(common.HeaderXForwardedProto, fhProtoHttps)
+	req.Header.Set(common.HeaderXForwardedFor, fhAddr3)
 	rec := httptest.NewRecorder()
 	rtr.ServeHTTP(rec, req)
 

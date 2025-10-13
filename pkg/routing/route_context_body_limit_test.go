@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/fgrzl/mux/pkg/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -17,7 +18,7 @@ func TestShouldBindJSONWithinDefaultLimit(t *testing.T) {
 	// Arrange: Default limit is 1MB; this body should succeed without setting MaxBodyBytes
 	body := []byte(`{"name":"ok"}`)
 	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rr := httptest.NewRecorder()
 
 	c := NewRouteContext(rr, req)
@@ -33,7 +34,7 @@ func TestShouldFailBindJSONOverCustomLimit(t *testing.T) {
 	// Arrange: Set a very small limit to trigger MaxBytesReader error; body is larger than 8 bytes
 	body := []byte(`{"name":"toolong"}`)
 	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rr := httptest.NewRecorder()
 
 	c := NewRouteContext(rr, req)

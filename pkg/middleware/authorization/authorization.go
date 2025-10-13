@@ -116,26 +116,12 @@ func (m *authorizationMiddleware) checkRoles(c routing.RouteContext) bool {
 	if opts != nil {
 		valid = opts.Roles
 	}
-	// If middleware options are nil, there are no global role requirements or custom checker.
-	if m.options == nil {
-		if len(valid) == 0 {
-			return true
+	return m.checkStringList(valid, c.User(), m.options, func(p claims.Principal, vals []string) bool {
+		if m.options != nil && m.options.CheckRoles != nil {
+			return m.options.CheckRoles(p, vals)
 		}
-		if c.User() == nil {
-			return false
-		}
-		return matchAny(valid, c.User().Roles())
-	}
-	if m.options.CheckRoles != nil {
-		return m.options.CheckRoles(c.User(), valid)
-	}
-	if len(valid) == 0 {
-		return true
-	}
-	if c.User() == nil {
-		return false
-	}
-	return matchAny(valid, c.User().Roles())
+		return matchAny(vals, p.Roles())
+	})
 }
 
 func (m *authorizationMiddleware) checkScopes(c routing.RouteContext) bool {
@@ -144,25 +130,31 @@ func (m *authorizationMiddleware) checkScopes(c routing.RouteContext) bool {
 	if opts != nil {
 		valid = opts.Scopes
 	}
-	if m.options == nil {
-		if len(valid) == 0 {
-			return true
+	return m.checkStringList(valid, c.User(), m.options, func(p claims.Principal, vals []string) bool {
+		if m.options != nil && m.options.CheckScopes != nil {
+			return m.options.CheckScopes(p, vals)
 		}
-		if c.User() == nil {
-			return false
-		}
-		return matchAny(valid, c.User().Scopes())
-	}
-	if m.options.CheckScopes != nil {
-		return m.options.CheckScopes(c.User(), valid)
-	}
-	if len(valid) == 0 {
+		return matchAny(vals, p.Scopes())
+	})
+}
+
+// checkStringList centralizes the logic used by checkRoles and checkScopes.
+//   - required: values required by the route
+//   - user: the principal (may be nil)
+//   - opts: middleware options (may be nil)
+//   - checker: custom checker to evaluate when options are present; it should
+//     return true to allow access.
+func (m *authorizationMiddleware) checkStringList(required []string, user claims.Principal, opts *AuthorizationOptions, checker func(claims.Principal, []string) bool) bool {
+	if len(required) == 0 {
 		return true
 	}
-	if c.User() == nil {
+	if user == nil {
 		return false
 	}
-	return matchAny(valid, c.User().Scopes())
+	if checker == nil {
+		return false
+	}
+	return checker(user, required)
 }
 
 // matchAny returns true if any element in required exists in userVals. If required is empty

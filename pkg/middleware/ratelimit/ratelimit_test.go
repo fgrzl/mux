@@ -2,12 +2,12 @@ package ratelimit
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/fgrzl/mux/pkg/router"
 	"github.com/fgrzl/mux/pkg/routing"
+	"github.com/fgrzl/mux/test/testhelpers"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -45,9 +45,7 @@ func TestShouldCreateSelectiveRateLimiterWithCustomOptions(t *testing.T) {
 func TestShouldAllowRequestWhenNoRateLimitSet(t *testing.T) {
 	// Arrange
 	limiter := NewSelectiveRateLimiter()
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	rec := httptest.NewRecorder()
-	ctx := routing.NewRouteContext(rec, req)
+	ctx, _ := testhelpers.NewRouteContext(http.MethodGet, "/test", nil)
 	ctx.SetOptions(&routing.RouteOptions{}) // No rate limit set
 
 	nextCalled := false
@@ -65,9 +63,7 @@ func TestShouldAllowRequestWhenNoRateLimitSet(t *testing.T) {
 func TestShouldAllowRequestWhenZeroRateLimit(t *testing.T) {
 	// Arrange
 	limiter := NewSelectiveRateLimiter()
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	rec := httptest.NewRecorder()
-	ctx := routing.NewRouteContext(rec, req)
+	ctx, _ := testhelpers.NewRouteContext(http.MethodGet, "/test", nil)
 	ctx.SetOptions(&routing.RouteOptions{RateLimit: 0})
 
 	nextCalled := false
@@ -85,9 +81,7 @@ func TestShouldAllowRequestWhenZeroRateLimit(t *testing.T) {
 func TestShouldAllowRequestWhenNilOptions(t *testing.T) {
 	// Arrange
 	limiter := NewSelectiveRateLimiter()
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	rec := httptest.NewRecorder()
-	ctx := routing.NewRouteContext(rec, req)
+	ctx, _ := testhelpers.NewRouteContext(http.MethodGet, "/test", nil)
 	ctx.SetOptions(nil)
 
 	nextCalled := false
@@ -105,10 +99,8 @@ func TestShouldAllowRequestWhenNilOptions(t *testing.T) {
 func TestShouldAllowFirstRequestWithinLimit(t *testing.T) {
 	// Arrange
 	limiter := NewSelectiveRateLimiter()
-	req := httptest.NewRequest(http.MethodGet, testPath, nil)
-	req.RemoteAddr = testIP1WithPort
-	rec := httptest.NewRecorder()
-	ctx := routing.NewRouteContext(rec, req)
+	ctx, _ := testhelpers.NewRouteContext(http.MethodGet, testPath, nil)
+	ctx.Request().RemoteAddr = testIP1WithPort
 	ctx.SetOptions(&routing.RouteOptions{
 		RateLimit:    5,
 		RateInterval: time.Minute,
@@ -129,8 +121,8 @@ func TestShouldAllowFirstRequestWithinLimit(t *testing.T) {
 func TestShouldTrackTokensPerVisitor(t *testing.T) {
 	// Arrange
 	limiter := NewSelectiveRateLimiter()
-	req := httptest.NewRequest(http.MethodGet, testPath, nil)
-	req.RemoteAddr = testIP1WithPort
+	ctx, _ := testhelpers.NewRouteContext(http.MethodGet, testPath, nil)
+	ctx.Request().RemoteAddr = testIP1WithPort
 
 	// Act - First request should consume a token
 	visitor1 := limiter.getVisitor(testIP1, testPath, 5, time.Minute)
@@ -189,10 +181,8 @@ func TestShouldRejectRequestWhenRateLimitExceeded(t *testing.T) {
 
 	// Make requests with limit of 2 - first visitor gets 1 token, so we can make 1 request successfully
 	// First request should succeed
-	req1 := httptest.NewRequest(http.MethodGet, testPath, nil)
-	req1.RemoteAddr = testIP1WithPort
-	rec1 := httptest.NewRecorder()
-	ctx1 := routing.NewRouteContext(rec1, req1)
+	ctx1, _ := testhelpers.NewRouteContext(http.MethodGet, testPath, nil)
+	ctx1.Request().RemoteAddr = testIP1WithPort
 	ctx1.SetOptions(&routing.RouteOptions{
 		RateLimit:    2,
 		RateInterval: time.Hour, // Very long interval so no refill
@@ -205,10 +195,8 @@ func TestShouldRejectRequestWhenRateLimitExceeded(t *testing.T) {
 	limiter.Invoke(ctx1, next1)
 
 	// Second request should be rate limited (visitor has 0 tokens after first request)
-	req2 := httptest.NewRequest(http.MethodGet, testPath, nil)
-	req2.RemoteAddr = testIP1WithPort // Same IP
-	rec2 := httptest.NewRecorder()
-	ctx2 := routing.NewRouteContext(rec2, req2)
+	ctx2, rec2 := testhelpers.NewRouteContext(http.MethodGet, testPath, nil)
+	ctx2.Request().RemoteAddr = testIP1WithPort // Same IP
 	ctx2.SetOptions(&routing.RouteOptions{
 		RateLimit:    2,
 		RateInterval: time.Hour,
@@ -233,19 +221,15 @@ func TestShouldSeparateRateLimitsByIPAddress(t *testing.T) {
 	limiter := NewSelectiveRateLimiter()
 
 	// Create requests from different IP addresses
-	req1 := httptest.NewRequest(http.MethodGet, testPath, nil)
-	req1.RemoteAddr = testIP1WithPort
-	rec1 := httptest.NewRecorder()
-	ctx1 := routing.NewRouteContext(rec1, req1)
+	ctx1, _ := testhelpers.NewRouteContext(http.MethodGet, testPath, nil)
+	ctx1.Request().RemoteAddr = testIP1WithPort
 	ctx1.SetOptions(&routing.RouteOptions{
 		RateLimit:    2,
 		RateInterval: time.Hour, // Long interval to prevent refill
 	})
 
-	req2 := httptest.NewRequest(http.MethodGet, testPath, nil)
-	req2.RemoteAddr = testIP2WithPort
-	rec2 := httptest.NewRecorder()
-	ctx2 := routing.NewRouteContext(rec2, req2)
+	ctx2, _ := testhelpers.NewRouteContext(http.MethodGet, testPath, nil)
+	ctx2.Request().RemoteAddr = testIP2WithPort
 	ctx2.SetOptions(&routing.RouteOptions{
 		RateLimit:    2,
 		RateInterval: time.Hour,
@@ -293,10 +277,8 @@ func TestShouldSeparateRateLimitsByPattern(t *testing.T) {
 func TestShouldHandleInvalidRemoteAddr(t *testing.T) {
 	// Arrange
 	limiter := NewSelectiveRateLimiter()
-	req := httptest.NewRequest(http.MethodGet, testPath, nil)
-	req.RemoteAddr = "invalid-address" // No port
-	rec := httptest.NewRecorder()
-	ctx := routing.NewRouteContext(rec, req)
+	ctx, _ := testhelpers.NewRouteContext(http.MethodGet, testPath, nil)
+	ctx.Request().RemoteAddr = "invalid-address" // No port
 	ctx.SetOptions(&routing.RouteOptions{
 		RateLimit:    5,
 		RateInterval: time.Minute,
@@ -373,10 +355,8 @@ func TestShouldDecrementTokensOnEachRequest(t *testing.T) {
 	// First visitor gets limit-1 tokens (3), then each request consumes 1 token
 	// So we can make 3 successful requests total
 	for i := 0; i < 4; i++ { // Try 4 requests
-		req := httptest.NewRequest(http.MethodGet, testPath, nil)
-		req.RemoteAddr = testIP1WithPort
-		rec := httptest.NewRecorder()
-		ctx := routing.NewRouteContext(rec, req)
+		ctx, _ := testhelpers.NewRouteContext(http.MethodGet, testPath, nil)
+		ctx.Request().RemoteAddr = testIP1WithPort
 		ctx.SetOptions(&routing.RouteOptions{
 			RateLimit:    4,
 			RateInterval: time.Hour, // Long interval to prevent refill
@@ -397,8 +377,7 @@ func TestUseRateLimiterShouldAddMiddlewareToRouter(t *testing.T) {
 
 	// Register a route and ensure requests still succeed
 	rtr.GET(testPath, func(c routing.RouteContext) { c.Response().Write([]byte("ok")) })
-	req := httptest.NewRequest(http.MethodGet, testPath, nil)
-	rec := httptest.NewRecorder()
+	req, rec := testhelpers.NewRequestRecorder(http.MethodGet, testPath, nil)
 	rtr.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusOK, rec.Code)

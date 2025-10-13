@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fgrzl/mux/pkg/common"
 	"github.com/fgrzl/mux/pkg/openapi"
 	"github.com/stretchr/testify/assert"
 )
@@ -24,7 +25,7 @@ func TestShouldBindFormURLEncoded(t *testing.T) {
 	vals.Add("tags", "b")
 
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(vals.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set(common.HeaderContentType, common.MimeFormURLEncoded)
 	rr := httptest.NewRecorder()
 
 	c := NewRouteContext(rr, req)
@@ -40,13 +41,13 @@ func TestShouldBindFormURLEncoded(t *testing.T) {
 func TestShouldCollectDeclaredHeaderParam(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set("X-Correlation-Id", "abc123")
+	req.Header.Set(common.HeaderXCorrelationID, "abc123")
 	rr := httptest.NewRecorder()
 
 	c := NewRouteContext(rr, req)
 	// Provide RouteOptions with a declared header parameter and ParamIndex
 	po := &openapi.ParameterObject{
-		Name:   "X-Correlation-Id",
+		Name:   common.HeaderXCorrelationID,
 		In:     "header",
 		Schema: &openapi.Schema{Type: "string"},
 	}
@@ -62,7 +63,7 @@ func TestShouldCollectDeclaredHeaderParam(t *testing.T) {
 
 	// Assert
 	assert.NoError(t, err)
-	v, ok := staging["X-Correlation-Id"].(string)
+	v, ok := staging[common.HeaderXCorrelationID].(string)
 	assert.True(t, ok)
 	assert.Equal(t, "abc123", v)
 }

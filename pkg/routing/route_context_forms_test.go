@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fgrzl/mux/pkg/common"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,7 +24,7 @@ func TestShouldParseUrlEncodedFormValues(t *testing.T) {
 	formData.Add("tags", "tag2")
 
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(formData.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set(common.HeaderContentType, common.MimeFormURLEncoded)
 	w := httptest.NewRecorder()
 	c := NewRouteContext(w, req)
 
@@ -53,7 +54,7 @@ func TestShouldParseMultipartFormValues(t *testing.T) {
 	writer.Close()
 
 	req := httptest.NewRequest(http.MethodPost, "/", &buf)
-	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set(common.HeaderContentType, writer.FormDataContentType())
 	w := httptest.NewRecorder()
 	c := NewRouteContext(w, req)
 
@@ -77,7 +78,7 @@ func TestShouldReturnFalseWhenFormValueNotFound(t *testing.T) {
 	formData.Set("name", "test")
 
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(formData.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set(common.HeaderContentType, common.MimeFormURLEncoded)
 	w := httptest.NewRecorder()
 	c := NewRouteContext(w, req)
 
@@ -97,7 +98,7 @@ func TestShouldParseFormUUID(t *testing.T) {
 	formData.Set("invalid", "not-a-uuid")
 
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(formData.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set(common.HeaderContentType, common.MimeFormURLEncoded)
 	w := httptest.NewRecorder()
 	c := NewRouteContext(w, req)
 
@@ -120,7 +121,7 @@ func TestShouldParseFormUUIDs(t *testing.T) {
 	formData.Add("ids", uuid2.String())
 
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(formData.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set(common.HeaderContentType, common.MimeFormURLEncoded)
 	w := httptest.NewRecorder()
 	c := NewRouteContext(w, req)
 
@@ -139,7 +140,7 @@ func TestShouldParseFormInt(t *testing.T) {
 	formData.Set("invalid", "not-a-number")
 
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(formData.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set(common.HeaderContentType, common.MimeFormURLEncoded)
 	w := httptest.NewRecorder()
 	c := NewRouteContext(w, req)
 
@@ -161,7 +162,7 @@ func TestShouldParseFormInts(t *testing.T) {
 	formData.Add("numbers", "3")
 
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(formData.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set(common.HeaderContentType, common.MimeFormURLEncoded)
 	w := httptest.NewRecorder()
 	c := NewRouteContext(w, req)
 
@@ -179,7 +180,7 @@ func TestShouldParseFormInt16(t *testing.T) {
 	formData.Set("value", "1000")
 
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(formData.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set(common.HeaderContentType, common.MimeFormURLEncoded)
 	w := httptest.NewRecorder()
 	c := NewRouteContext(w, req)
 
@@ -197,7 +198,7 @@ func TestShouldParseFormInt32(t *testing.T) {
 	formData.Set("value", "100000")
 
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(formData.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set(common.HeaderContentType, common.MimeFormURLEncoded)
 	w := httptest.NewRecorder()
 	c := NewRouteContext(w, req)
 
@@ -215,7 +216,7 @@ func TestShouldParseFormInt64(t *testing.T) {
 	formData.Set("value", "10000000000")
 
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(formData.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set(common.HeaderContentType, common.MimeFormURLEncoded)
 	w := httptest.NewRecorder()
 	c := NewRouteContext(w, req)
 
@@ -235,7 +236,7 @@ func TestShouldParseFormBool(t *testing.T) {
 	formData.Set("invalid", "not-a-bool")
 
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(formData.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set(common.HeaderContentType, common.MimeFormURLEncoded)
 	w := httptest.NewRecorder()
 	c := NewRouteContext(w, req)
 
@@ -260,7 +261,7 @@ func TestShouldParseFormFloat32(t *testing.T) {
 	formData.Set("invalid", "not-a-float")
 
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(formData.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set(common.HeaderContentType, common.MimeFormURLEncoded)
 	w := httptest.NewRecorder()
 	c := NewRouteContext(w, req)
 
@@ -280,7 +281,7 @@ func TestShouldParseFormFloat64(t *testing.T) {
 	formData.Set("value", "123.456789")
 
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(formData.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set(common.HeaderContentType, common.MimeFormURLEncoded)
 	w := httptest.NewRecorder()
 	c := NewRouteContext(w, req)
 
@@ -298,7 +299,7 @@ func TestShouldHandleLazyFormParsing(t *testing.T) {
 	formData.Set("name", "test")
 
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(formData.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set(common.HeaderContentType, common.MimeFormURLEncoded)
 	w := httptest.NewRecorder()
 	c := NewRouteContext(w, req)
 
@@ -319,7 +320,7 @@ func TestShouldHandleLazyFormParsing(t *testing.T) {
 func TestShouldReturnFalseForInvalidContentType(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("{}"))
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	w := httptest.NewRecorder()
 	c := NewRouteContext(w, req)
 
@@ -347,7 +348,7 @@ func TestShouldHandleMultipartFileField(t *testing.T) {
 	writer.Close()
 
 	req := httptest.NewRequest(http.MethodPost, "/", &buf)
-	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set(common.HeaderContentType, writer.FormDataContentType())
 	w := httptest.NewRecorder()
 	c := NewRouteContext(w, req)
 

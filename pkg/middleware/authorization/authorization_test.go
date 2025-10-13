@@ -11,6 +11,44 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	// Common permissions used across tests
+	PermUser123Read = "user:123:read"
+
+	// Test identity values for mock principal
+	testSubject  = "test-user"
+	testIssuer   = "test"
+	testAudience = "test"
+	testJWT      = "test-jwt"
+	testEmail    = "test@example.com"
+	testUsername = "testuser"
+
+	// Common request paths / URLs used in tests
+	testURL      = "http://example.com/test"
+	pathTest     = "/test"
+	pathNotFound = "/not-found"
+
+	// Roles and scopes
+	roleAdmin  = "admin"
+	roleUser   = "user"
+	scopeRead  = "read"
+	scopeWrite = "write"
+
+	// Permission templates and examples
+	permUserRead           = "user:read"
+	permUserWrite          = "user:write"
+	permUserIDReadTemplate = "user:{id}:read"
+	user123Write           = "user:123:write"
+	adminIDDeleteTemplate  = "admin:{id}:delete"
+	admin123Delete         = "admin:123:delete"
+	permAllowedPermission  = "allowed:permission"
+
+	// Placeholder-heavy permission used in interpolation tests
+	permUserTenantTemplate = "user:{userId}:read:tenant:{tenantId}"
+	permUseridTemplate     = "user:{userid}:read"
+	permNonexistent        = "user:{nonexistent}:read"
+)
+
 // mockPrincipalForAuth implements claims.Principal for authorization testing
 type mockPrincipalForAuth struct {
 	roles       []string
@@ -36,7 +74,7 @@ func (m *mockPrincipalForAuth) Claims() *claims.ClaimSet             { return ni
 func TestShouldCreateAuthZOptionsWithRoles(t *testing.T) {
 	// Arrange
 	options := &AuthorizationOptions{}
-	roles := []string{"admin", "user"}
+	roles := []string{roleAdmin, roleUser}
 
 	// Act
 	opt := WithRoles(roles...)
@@ -49,7 +87,7 @@ func TestShouldCreateAuthZOptionsWithRoles(t *testing.T) {
 func TestShouldCreateAuthZOptionsWithScopes(t *testing.T) {
 	// Arrange
 	options := &AuthorizationOptions{}
-	scopes := []string{"read", "write"}
+	scopes := []string{scopeRead, scopeWrite}
 
 	// Act
 	opt := WithScopes(scopes...)
@@ -62,7 +100,7 @@ func TestShouldCreateAuthZOptionsWithScopes(t *testing.T) {
 func TestShouldCreateAuthZOptionsWithPermissions(t *testing.T) {
 	// Arrange
 	options := &AuthorizationOptions{}
-	permissions := []string{"user:read", "user:write"}
+	permissions := []string{permUserRead, permUserWrite}
 
 	// Act
 	opt := WithPermissions(permissions...)
@@ -132,8 +170,8 @@ func TestShouldAllowAccessWhenUserHasRequiredRole(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(rec, req)
-	ctx.SetUser(&mockPrincipalForAuth{roles: []string{"admin", "user"}})
-	ctx.SetOptions(&routing.RouteOptions{Roles: []string{"admin"}})
+	ctx.SetUser(&mockPrincipalForAuth{roles: []string{roleAdmin, roleUser}})
+	ctx.SetOptions(&routing.RouteOptions{Roles: []string{roleAdmin}})
 
 	nextCalled := false
 	next := func(c routing.RouteContext) {
@@ -156,8 +194,8 @@ func TestShouldDenyAccessWhenUserLacksRequiredRole(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(rec, req)
-	ctx.SetUser(&mockPrincipalForAuth{roles: []string{"user"}})
-	ctx.SetOptions(&routing.RouteOptions{Roles: []string{"admin"}})
+	ctx.SetUser(&mockPrincipalForAuth{roles: []string{roleUser}})
+	ctx.SetOptions(&routing.RouteOptions{Roles: []string{roleAdmin}})
 
 	nextCalled := false
 	next := func(c routing.RouteContext) {
@@ -178,7 +216,7 @@ func TestShouldAllowAccessWhenUserHasRequiredScope(t *testing.T) {
 		options: &AuthorizationOptions{},
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, pathTest, nil)
 	rec := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(rec, req)
 	ctx.SetUser(&mockPrincipalForAuth{scopes: []string{ScopeAPIRead, ScopeAPIWrite}})
@@ -202,7 +240,7 @@ func TestShouldDenyAccessWhenUserLacksRequiredScope(t *testing.T) {
 		options: &AuthorizationOptions{},
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, pathTest, nil)
 	rec := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(rec, req)
 	ctx.SetUser(&mockPrincipalForAuth{scopes: []string{ScopeAPIWrite}})
@@ -238,8 +276,8 @@ func TestShouldUseCustomRoleChecker(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(rec, req)
-	ctx.SetUser(&mockPrincipalForAuth{roles: []string{"user"}})
-	ctx.SetOptions(&routing.RouteOptions{Roles: []string{"admin"}})
+	ctx.SetUser(&mockPrincipalForAuth{roles: []string{roleUser}})
+	ctx.SetOptions(&routing.RouteOptions{Roles: []string{roleAdmin}})
 
 	nextCalled := false
 	next := func(c routing.RouteContext) {
@@ -293,7 +331,7 @@ func TestShouldAllowAccessWhenNoRolesOrScopesRequired(t *testing.T) {
 		options: &AuthorizationOptions{},
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, pathTest, nil)
 	rec := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(rec, req)
 	ctx.SetUser(&mockPrincipalForAuth{})
@@ -317,7 +355,7 @@ func TestInterpolatePermissionShouldReplaceParameters(t *testing.T) {
 		"userId":   "123",
 		"tenantId": "tenant-456",
 	}
-	permission := "user:{userId}:read:tenant:{tenantId}"
+	permission := permUserTenantTemplate
 
 	// Act
 	result := interpolatePermission(replacements, permission)
@@ -331,7 +369,7 @@ func TestInterpolatePermissionShouldBeCaseInsensitive(t *testing.T) {
 	replacements := map[string]string{
 		"UserId": "123",
 	}
-	permission := "user:{userid}:read"
+	permission := permUseridTemplate
 
 	// Act
 	result := interpolatePermission(replacements, permission)
@@ -345,7 +383,7 @@ func TestInterpolatePermissionShouldHandleNonexistentPlaceholders(t *testing.T) 
 	replacements := map[string]string{
 		"userId": "123",
 	}
-	permission := "user:{nonexistent}:read"
+	permission := permNonexistent
 
 	// Act
 	result := interpolatePermission(replacements, permission)
@@ -359,14 +397,14 @@ func TestInterpolatePermissionsShouldRemoveDuplicates(t *testing.T) {
 	replacements := map[string]string{
 		"id": "123",
 	}
-	permissions1 := []string{"user:{id}:read", "user:123:write"}
-	permissions2 := []string{"user:123:read", "admin:{id}:delete"}
+	permissions1 := []string{permUserIDReadTemplate, user123Write}
+	permissions2 := []string{PermUser123Read, adminIDDeleteTemplate}
 
 	// Act
 	result := interpolatePermissions(replacements, permissions1, permissions2)
 
 	// Assert
-	expected := []string{"user:123:read", "user:123:write", "admin:123:delete"}
+	expected := []string{PermUser123Read, user123Write, admin123Delete}
 	assert.ElementsMatch(t, expected, result)
 }
 
@@ -379,7 +417,7 @@ func TestShouldHandlePermissionCheckingWithCustomChecker(t *testing.T) {
 	middleware := &authorizationMiddleware{
 		options: &AuthorizationOptions{
 			CheckPermissions: customPermissionChecker,
-			Permissions:      []string{"allowed:permission"},
+			Permissions:      []string{permAllowedPermission},
 		},
 	}
 
@@ -409,7 +447,7 @@ func TestShouldDenyWhenNoUserAndRolesRequired(t *testing.T) {
 	rec := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(rec, req)
 	// Intentionally do NOT set a user
-	ctx.SetOptions(&routing.RouteOptions{Roles: []string{"admin"}})
+	ctx.SetOptions(&routing.RouteOptions{Roles: []string{roleAdmin}})
 
 	nextCalled := false
 	next := func(c routing.RouteContext) { nextCalled = true }
@@ -430,7 +468,7 @@ func TestShouldDenyWhenNoUserAndRolesRequiredNilOptions(t *testing.T) {
 	rec := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(rec, req)
 	// Route requires a role; with no user set this should deny, not panic
-	ctx.SetOptions(&routing.RouteOptions{Roles: []string{"admin"}})
+	ctx.SetOptions(&routing.RouteOptions{Roles: []string{roleAdmin}})
 
 	nextCalled := false
 	next := func(c routing.RouteContext) { nextCalled = true }
@@ -446,7 +484,7 @@ func TestShouldDenyWhenNoUserAndRolesRequiredNilOptions(t *testing.T) {
 // newAuthzCtx creates a DefaultRouteContext and attaches the provided user and options.
 // It centralizes request + recorder creation used throughout tests and benchmarks.
 func newAuthzCtx(user *mockPrincipalForAuth, opts *routing.RouteOptions) *routing.DefaultRouteContext {
-	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
+	req := httptest.NewRequest(http.MethodGet, testURL, nil)
 	rec := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(rec, req)
 	if user != nil {
@@ -460,5 +498,5 @@ func newAuthzCtx(user *mockPrincipalForAuth, opts *routing.RouteOptions) *routin
 
 // newDefaultAuthzUser returns a mock principal commonly used in benchmarks/tests.
 func newDefaultAuthzUser() *mockPrincipalForAuth {
-	return &mockPrincipalForAuth{roles: []string{"admin", "user"}, scopes: []string{"read", "write"}}
+	return &mockPrincipalForAuth{roles: []string{roleAdmin, roleUser}, scopes: []string{scopeRead, scopeWrite}}
 }

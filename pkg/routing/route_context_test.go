@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/fgrzl/claims"
+	"github.com/fgrzl/mux/pkg/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -137,7 +138,7 @@ func TestShouldBindFromJSONBody(t *testing.T) {
 	// Arrange
 	body := `{"name":"John","age":30}`
 	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 
@@ -161,7 +162,7 @@ func TestShouldBindFromFormData(t *testing.T) {
 	formData.Set("name", "John")
 	formData.Set("age", "30")
 	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(formData.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set(common.HeaderContentType, common.MimeFormURLEncoded)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 
@@ -225,7 +226,7 @@ func TestShouldBindFromRouteParams(t *testing.T) {
 func TestShouldReturnErrorForUnsupportedContentType(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader("some data"))
-	req.Header.Set("Content-Type", "text/plain")
+	req.Header.Set(common.HeaderContentType, common.MimeTextPlain)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 
@@ -242,7 +243,7 @@ func TestShouldReturnErrorForUnsupportedContentType(t *testing.T) {
 func TestShouldReturnErrorForInvalidJSON(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(`{"invalid json`))
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 
@@ -401,7 +402,7 @@ func TestShouldBindWithMaxBytesLimit(t *testing.T) {
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodPost, "/test", bytes.NewReader(jsonData))
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 

@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/fgrzl/mux/pkg/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -13,7 +14,7 @@ func TestShouldBindJSONArrayRootIntoSlice(t *testing.T) {
 	// Arrange
 	body := []byte(`[{"name":"a"},{"name":"b"}]`)
 	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rr := httptest.NewRecorder()
 
 	c := NewRouteContext(rr, req)

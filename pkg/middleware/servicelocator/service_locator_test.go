@@ -2,11 +2,11 @@ package servicelocator
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/fgrzl/mux/pkg/router"
 	"github.com/fgrzl/mux/pkg/routing"
+	"github.com/fgrzl/mux/test/testhelpers"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,9 +27,7 @@ func TestShouldSetSingleServiceOnRouteContext(t *testing.T) {
 		},
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	recorder := httptest.NewRecorder()
-	ctx := routing.NewRouteContext(recorder, req)
+	ctx, _ := testhelpers.NewRouteContext(http.MethodGet, "/test", nil)
 
 	nextCalled := false
 	next := func(c routing.RouteContext) {
@@ -63,9 +61,7 @@ func TestShouldSetMultipleServicesOnRouteContext(t *testing.T) {
 		},
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	recorder := httptest.NewRecorder()
-	ctx := routing.NewRouteContext(recorder, req)
+	ctx, _ := testhelpers.NewRouteContext(http.MethodGet, "/test", nil)
 
 	nextCalled := false
 	next := func(c routing.RouteContext) {
@@ -91,9 +87,7 @@ func TestShouldHandleNilOptionsGracefully(t *testing.T) {
 	// Arrange
 	middleware := &serviceSetterMiddleware{options: nil}
 
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	recorder := httptest.NewRecorder()
-	ctx := routing.NewRouteContext(recorder, req)
+	ctx, _ := testhelpers.NewRouteContext(http.MethodGet, "/test", nil)
 
 	nextCalled := false
 	next := func(c routing.RouteContext) {
@@ -113,9 +107,7 @@ func TestShouldHandleEmptyServicesMapGracefully(t *testing.T) {
 		options: &ServiceSetterOptions{Services: nil},
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	recorder := httptest.NewRecorder()
-	ctx := routing.NewRouteContext(recorder, req)
+	ctx, _ := testhelpers.NewRouteContext(http.MethodGet, "/test", nil)
 
 	nextCalled := false
 	next := func(c routing.RouteContext) {
@@ -179,8 +171,7 @@ func TestShouldAddServiceMiddlewareToRouter(t *testing.T) {
 		c.Response().Write([]byte("no-service"))
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	rec := httptest.NewRecorder()
+	req, rec := testhelpers.NewRequestRecorder(http.MethodGet, "/test", nil)
 	rtr.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusOK, rec.Code)

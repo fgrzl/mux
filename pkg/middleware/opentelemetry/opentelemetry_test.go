@@ -2,14 +2,16 @@ package opentelemetry
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/fgrzl/mux/pkg/common"
 	"github.com/fgrzl/mux/pkg/router"
 	"github.com/fgrzl/mux/pkg/routing"
+	"github.com/fgrzl/mux/test/testhelpers"
 	"github.com/stretchr/testify/assert"
 )
+
+const bearerToken = "Bearer token123"
 
 func TestShouldCreateOpenTelemetryOptionsWithOperation(t *testing.T) {
 	// Arrange
@@ -32,8 +34,7 @@ func TestShouldAddOpenTelemetryMiddlewareToRouter(t *testing.T) {
 
 	// Register a route and ensure requests still succeed
 	rtr.GET("/test", func(c routing.RouteContext) { c.Response().Write([]byte("ok")) })
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	rec := httptest.NewRecorder()
+	req, rec := testhelpers.NewRequestRecorder(http.MethodGet, "/test", nil)
 	rtr.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusOK, rec.Code)
@@ -48,8 +49,7 @@ func TestShouldAddOpenTelemetryMiddlewareWithCustomOperation(t *testing.T) {
 	UseOpenTelemetry(rtr, WithOperation(customOperation))
 
 	rtr.GET("/test", func(c routing.RouteContext) { c.Response().Write([]byte("ok")) })
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	rec := httptest.NewRecorder()
+	req, rec := testhelpers.NewRequestRecorder(http.MethodGet, "/test", nil)
 	rtr.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusOK, rec.Code)
@@ -67,9 +67,7 @@ func TestShouldInvokeNextWithOpenTelemetryTracing(t *testing.T) {
 	// Arrange
 	middleware := &otelMiddleware{operation: "test-operation"}
 
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	rec := httptest.NewRecorder()
-	ctx := routing.NewRouteContext(rec, req)
+	ctx, _ := testhelpers.NewRouteContext(http.MethodGet, "/test", nil)
 
 	nextCalled := false
 	requestUpdated := false
@@ -107,8 +105,7 @@ func TestShouldHandleMultipleOpenTelemetryOptions(t *testing.T) {
 	)
 
 	rtr.GET("/test", func(c routing.RouteContext) { c.Response().Write([]byte("ok")) })
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	rec := httptest.NewRecorder()
+	req, rec := testhelpers.NewRequestRecorder(http.MethodGet, "/test", nil)
 	rtr.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusOK, rec.Code)
@@ -122,11 +119,11 @@ func TestShouldSetDefaultOperationWhenNoneProvided(t *testing.T) {
 	UseOpenTelemetry(rtr)
 
 	rtr.GET("/test", func(c routing.RouteContext) { c.Response().Write([]byte("ok")) })
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	rec := httptest.NewRecorder()
+	req, rec := testhelpers.NewRequestRecorder(http.MethodGet, "/test", nil)
 	rtr.ServeHTTP(rec, req)
 
-	assert.Equal(t, http.StatusOK, rec.Code)
+	// Differentiate this test from TestShouldAddOpenTelemetryMiddlewareToRouter by asserting body
+	assert.Equal(t, "ok", rec.Body.String())
 }
 
 func TestWithOperationShouldCreateValidOption(t *testing.T) {
@@ -157,16 +154,14 @@ func TestShouldCreateOtelMiddlewareWithCustomOperation(t *testing.T) {
 
 func TestShouldInvokeWithDifferentHTTPMethods(t *testing.T) {
 	// Test that the middleware works with different HTTP methods
-	methods := []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, "PATCH"}
+	methods := []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch}
 
 	for _, method := range methods {
 		t.Run(method, func(t *testing.T) {
 			// Arrange
 			middleware := &otelMiddleware{operation: "test"}
 
-			req := httptest.NewRequest(method, "/test", nil)
-			rec := httptest.NewRecorder()
-			ctx := routing.NewRouteContext(rec, req)
+			ctx, _ := testhelpers.NewRouteContext(method, "/test", nil)
 
 			called := false
 			next := func(c routing.RouteContext) {
@@ -187,12 +182,9 @@ func TestShouldWorkWithComplexRouteContext(t *testing.T) {
 	// Arrange
 	middleware := &otelMiddleware{operation: "complex-test"}
 
-	req := httptest.NewRequest(http.MethodPost, "/api/users/123", nil)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set(common.HeaderAuthorization, "Bearer token123")
-
-	rec := httptest.NewRecorder()
-	ctx := routing.NewRouteContext(rec, req)
+	ctx, _ := testhelpers.NewRouteContext(http.MethodPost, "/api/users/123", nil)
+	ctx.Request().Header.Set(common.HeaderContentType, common.MimeJSON)
+	ctx.Request().Header.Set(common.HeaderAuthorization, bearerToken)
 	ctx.SetParams(routing.RouteParams{"id": "123"})
 
 	nextCalled := false
@@ -200,7 +192,7 @@ func TestShouldWorkWithComplexRouteContext(t *testing.T) {
 		nextCalled = true
 		// Verify context is still intact
 		assert.Equal(t, "123", c.Params()["id"])
-		assert.Equal(t, "Bearer token123", c.Request().Header.Get(common.HeaderAuthorization))
+		assert.Equal(t, bearerToken, c.Request().Header.Get(common.HeaderAuthorization))
 		c.OK("user updated")
 	}
 
