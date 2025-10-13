@@ -344,7 +344,7 @@ func updateResourceMetadataHandler(c mux.RouteContext) {
 	}
 	resourceId, ok := c.ParamInt32(ParamResourceID)
 	if !ok {
-		c.BadRequest(ErrInvalidResourceID, ErrTenantMissing)
+		c.BadRequest(ErrInvalidResourceID, ErrParseResourceID)
 		return
 	}
 	rsrc, found := Service.GetResource(resourceId)
