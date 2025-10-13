@@ -229,6 +229,7 @@ func makeIntConverter(typ reflect.Type) func([]string) (any, error) {
 				return v, nil
 			}
 		}
+		// Multi-valued: parse into int64 slice (safer and consistent across callers).
 		return parseInt64s(vals)
 	}
 }
@@ -259,6 +260,7 @@ func makeUintConverter(typ reflect.Type) func([]string) (any, error) {
 				return v, nil
 			}
 		}
+		// Multi-valued: parse into uint64 slice (safer and consistent across callers).
 		return parseUint64s(vals)
 	}
 }
