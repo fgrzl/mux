@@ -70,8 +70,8 @@ func setupMuxRouter() *Router {
 	rg.GET(benchPathUsersPostsNested, noopHandler)
 	rg.GET(benchPathOrgProjects, noopHandler)
 
-	// Wildcard/catch-all
-	rg.GET(benchPathFiles, noopHandler)
+	// Wildcard/catch-all - using ** to match multi-segment paths like /files/images/logo.png
+	rg.GET("/files/**", noopHandler)
 	rg.GET("/static/**", noopHandler)
 
 	// Multiple methods
