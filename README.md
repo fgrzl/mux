@@ -262,8 +262,8 @@ Mux delivers competitive performance while providing production features:
 
 **Core Router Benchmarks** (i9-12900HK, Windows):
 
-- Static routes: **54 ns/op**, 0 allocs
-- Wildcard routes: **82 ns/op**, 0 allocs
+- Static routes: **70 ns/op**, 0 allocs
+- Wildcard routes: **73 ns/op**, 0 allocs
 - Single param: **205 ns/op**, 2 allocs
 - Multi param: **279 ns/op**, 2 allocs
 - Deep path (5+ segments): **352 ns/op**, 2 allocs
