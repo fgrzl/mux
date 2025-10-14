@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/fgrzl/mux/pkg/common"
 	"github.com/fgrzl/mux/pkg/router"
 	"github.com/fgrzl/mux/pkg/routing"
 )
@@ -32,24 +33,24 @@ func BenchmarkCORSInvoke(b *testing.B) {
 			name: "Simple_Wildcard",
 			opts: Options{AllowedOrigins: []string{"*"}},
 			setup: func(r *http.Request) {
-				r.Header.Set("Origin", "https://example.com")
+				r.Header.Set(common.HeaderOrigin, testOrigin)
 			},
 		},
 		{
 			name: "Simple_Specific",
-			opts: Options{AllowedOrigins: []string{"https://example.com"}},
+			opts: Options{AllowedOrigins: []string{testOrigin}},
 			setup: func(r *http.Request) {
 				r.Header.Set("Origin", "https://example.com")
 			},
 		},
 		{
 			name: "Preflight_Specific",
-			opts: Options{AllowedOrigins: []string{"https://example.com"}},
+			opts: Options{AllowedOrigins: []string{testOrigin}},
 			setup: func(r *http.Request) {
 				r.Method = http.MethodOptions
-				r.Header.Set("Origin", "https://example.com")
-				r.Header.Set("Access-Control-Request-Method", "POST")
-				r.Header.Set("Access-Control-Request-Headers", "X-Custom")
+				r.Header.Set(common.HeaderOrigin, testOrigin)
+				r.Header.Set(common.HeaderAccessControlRequestMethod, "POST")
+				r.Header.Set(common.HeaderAccessControlRequestHeaders, "X-Custom")
 			},
 		},
 	}
@@ -58,7 +59,9 @@ func BenchmarkCORSInvoke(b *testing.B) {
 		b.Run(tc.name, func(b *testing.B) {
 			m := newCORS(tc.opts)
 			// next is intentionally empty for these microbenchmarks; we're measuring middleware overhead only.
-			next := func(c routing.RouteContext) {}
+			next := func(c routing.RouteContext) {
+				// no-op: intentionally left blank to isolate middleware cost
+			}
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {

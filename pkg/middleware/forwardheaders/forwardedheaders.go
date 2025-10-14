@@ -102,100 +102,66 @@ func parseForwardedRFC(v string) (forAddr, proto, host string) {
 	if v == "" {
 		return "", "", ""
 	}
+
 	// take first list-element up to comma
-	end := len(v)
+	part := v
 	if i := strings.IndexByte(v, ','); i >= 0 {
-		end = i
+		part = v[:i]
 	}
-	i := 0
-	// iterate semicolon-separated kv pairs
-	for i < end {
-		// skip leading spaces/semicolons
-		for i < end && (v[i] == ' ' || v[i] == ';') {
-			i++
-		}
-		if i >= end {
-			break
-		}
-		// key up to '='
-		ks := i
-		for i < end && v[i] != '=' && v[i] != ';' {
-			i++
-		}
-		if i >= end || v[i] != '=' { // malformed or empty
-			// skip to next ';'
-			for i < end && v[i] != ';' {
-				i++
-			}
+
+	// split into semicolon-separated key=value pairs
+	pairs := strings.Split(part, ";")
+	for _, p := range pairs {
+		p = strings.TrimSpace(p)
+		if p == "" {
 			continue
 		}
-		ke := i
-		i++ // skip '='
-		// value up to ';' or end, trim spaces
-		vs := i
-		// handle quoted value
-		var val string
-		if vs < end && v[vs] == '"' {
-			// quoted string: find next '"'
-			vs++
-			j := vs
-			for j < end && v[j] != '"' {
-				j++
-			}
-			val = v[vs:j]
-			i = j + 1
-		} else {
-			// unquoted until ';' or end
-			j := vs
-			for j < end && v[j] != ';' {
-				j++
-			}
-			// trim spaces on both ends
-			// left trim
-			for vs < j && v[vs] == ' ' {
-				vs++
-			}
-			je := j
-			for je > vs && v[je-1] == ' ' {
-				je--
-			}
-			val = v[vs:je]
-			i = j
+		// split on first '='
+		kv := strings.SplitN(p, "=", 2)
+		if len(kv) != 2 {
+			continue
 		}
-		// normalize key trim spaces
-		// left trim
-		for ks < ke && v[ks] == ' ' {
-			ks++
-		}
-		for ke > ks && v[ke-1] == ' ' {
-			ke--
-		}
-		key := v[ks:ke]
-		if strings.EqualFold(key, "for") {
-			vv := val
-			if strings.HasPrefix(vv, "[") {
-				if idx := strings.Index(vv, "]"); idx >= 0 {
-					vv = vv[1:idx]
-				}
-			}
-			if c := strings.LastIndexByte(vv, ':'); c >= 0 {
-				// treat single-colon as host:port; avoid stripping IPv6
-				if fc := strings.IndexByte(vv, ':'); fc == c {
-					vv = vv[:c]
-				}
-			}
-			forAddr = vv
-		} else if strings.EqualFold(key, "proto") {
+		key := strings.TrimSpace(kv[0])
+		val := unquoteAndTrim(kv[1])
+
+		switch {
+		case strings.EqualFold(key, "for"):
+			forAddr = normalizeForToken(val)
+		case strings.EqualFold(key, "proto"):
 			proto = val
-		} else if strings.EqualFold(key, "host") {
+		case strings.EqualFold(key, "host"):
 			host = val
 		}
-		// move to next after optional ';'
-		if i < end && v[i] == ';' {
-			i++
+	}
+
+	return
+}
+
+// unquoteAndTrim trims whitespace and removes surrounding quotes from a header token.
+func unquoteAndTrim(v string) string {
+	v = strings.TrimSpace(v)
+	if len(v) >= 2 && v[0] == '"' && v[len(v)-1] == '"' {
+		return v[1 : len(v)-1]
+	}
+	return v
+}
+
+// normalizeForToken converts a forwarded 'for' token to a plain IP/host without brackets or port.
+// It mirrors the previous inlined logic but isolates it for clarity.
+func normalizeForToken(v string) string {
+	vv := v
+	if strings.HasPrefix(vv, "[") {
+		if idx := strings.Index(vv, "]"); idx >= 0 {
+			vv = vv[1:idx]
 		}
 	}
-	return
+	if c := strings.LastIndexByte(vv, ':'); c >= 0 {
+		// treat single-colon as host:port; avoid stripping IPv6
+		if fc := strings.IndexByte(vv, ':'); fc == c {
+			vv = vv[:c]
+		}
+	}
+	return vv
 }
 
 // chooseClientIP determines the effective client IP given X-Forwarded-For values and trust list.
@@ -326,8 +292,14 @@ func (m *forwardedHeadersMiddleware) extractForwarded(r *http.Request, fwd, xpro
 		fip, p, h := parseForwardedRFC(fwd)
 		clientIP, proto, host = fip, p, h
 	}
+	// Apply X-Forwarded-* fallbacks and determine client IP from headers
+	proto, host = updateProtoHostFromX(proto, host, xproto, xhost, xport)
+	clientIP = determineClientIPFromHeaders(m, r, clientIP, xffRaw, xreal)
+	return
+}
 
-	// Fallback/augment from X-Forwarded-* headers
+// updateProtoHostFromX fills empty proto/host from X-Forwarded-* headers and applies port if needed.
+func updateProtoHostFromX(proto, host, xproto, xhost, xport string) (string, string) {
 	if proto == "" && xproto != "" {
 		proto = firstCSV(xproto)
 	}
@@ -340,20 +312,23 @@ func (m *forwardedHeadersMiddleware) extractForwarded(r *http.Request, fwd, xpro
 			host = host + ":" + port
 		}
 	}
+	return proto, host
+}
 
-	// Determine client IP from X-Forwarded-For or X-Real-IP if not from RFC header
-	if clientIP == "" {
-		if xffRaw != "" {
-			if chosen := m.chooseClientIPFromRaw(xffRaw, r.RemoteAddr); chosen != "" {
-				clientIP = chosen
-			}
-		}
-		if clientIP == "" && xreal != "" {
-			clientIP = firstCSV(xreal)
+// determineClientIPFromHeaders chooses client IP from RFC value (if any), X-Forwarded-For, or X-Real-IP.
+func determineClientIPFromHeaders(m *forwardedHeadersMiddleware, r *http.Request, current, xffRaw, xreal string) string {
+	if current != "" {
+		return current
+	}
+	if xffRaw != "" {
+		if chosen := m.chooseClientIPFromRaw(xffRaw, r.RemoteAddr); chosen != "" {
+			return chosen
 		}
 	}
-
-	return
+	if xreal != "" {
+		return firstCSV(xreal)
+	}
+	return ""
 }
 
 // UseForwardedHeaders adds middleware that processes forwarded headers with permissive defaults.

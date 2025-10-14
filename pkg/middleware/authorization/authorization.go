@@ -116,12 +116,13 @@ func (m *authorizationMiddleware) checkRoles(c routing.RouteContext) bool {
 	if opts != nil {
 		valid = opts.Roles
 	}
-	return m.checkStringList(valid, c.User(), m.options, func(p claims.Principal, vals []string) bool {
+	var checker func(claims.Principal, []string) bool = func(p claims.Principal, vals []string) bool {
 		if m.options != nil && m.options.CheckRoles != nil {
 			return m.options.CheckRoles(p, vals)
 		}
 		return matchAny(vals, p.Roles())
-	})
+	}
+	return m.checkStringList(valid, c.User(), checker)
 }
 
 func (m *authorizationMiddleware) checkScopes(c routing.RouteContext) bool {
@@ -130,12 +131,13 @@ func (m *authorizationMiddleware) checkScopes(c routing.RouteContext) bool {
 	if opts != nil {
 		valid = opts.Scopes
 	}
-	return m.checkStringList(valid, c.User(), m.options, func(p claims.Principal, vals []string) bool {
+	var checker func(claims.Principal, []string) bool = func(p claims.Principal, vals []string) bool {
 		if m.options != nil && m.options.CheckScopes != nil {
 			return m.options.CheckScopes(p, vals)
 		}
 		return matchAny(vals, p.Scopes())
-	})
+	}
+	return m.checkStringList(valid, c.User(), checker)
 }
 
 // checkStringList centralizes the logic used by checkRoles and checkScopes.
@@ -144,7 +146,7 @@ func (m *authorizationMiddleware) checkScopes(c routing.RouteContext) bool {
 //   - opts: middleware options (may be nil)
 //   - checker: custom checker to evaluate when options are present; it should
 //     return true to allow access.
-func (m *authorizationMiddleware) checkStringList(required []string, user claims.Principal, opts *AuthorizationOptions, checker func(claims.Principal, []string) bool) bool {
+func (m *authorizationMiddleware) checkStringList(required []string, user claims.Principal, checker func(claims.Principal, []string) bool) bool {
 	if len(required) == 0 {
 		return true
 	}
