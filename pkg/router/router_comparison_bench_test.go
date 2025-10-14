@@ -26,6 +26,29 @@ import (
 
 // Test scenarios matching common real-world use cases
 
+// Benchmark route paths
+const (
+	benchPathAPIV1Health      = "/api/v1/health"
+	benchPathUsersID          = "/users/{id}"
+	benchPathUsersIDPosts     = "/users/{id}/posts"
+	benchPathUsersPostsNested = "/users/{userId}/posts/{postId}"
+	benchPathOrgProjects      = "/api/v1/organizations/{orgId}/projects/{projectId}"
+	benchPathFiles            = "/files/*"
+	benchPathAPIV1Users       = "/api/v1/users"
+	benchPathAPIV1UsersID     = "/api/v1/users/{id}"
+)
+
+// Benchmark request paths
+const (
+	benchReqUsers12345         = "/users/12345"
+	benchReqUsersPosts         = "/users/12345/posts/67890"
+	benchReqOrgProjects        = "/api/v1/organizations/org-123/projects/proj-456"
+	benchReqFilesLogoPath      = "/files/images/logo.png"
+	benchReqUsersColonID       = "/users/:id"
+	benchReqOrgProjectsColonID = "/api/v1/organizations/:orgId/projects/:projectId"
+	benchReqUsersIDColon       = "/api/v1/users/:id"
+)
+
 // --- MUX Implementation ---
 
 func setupMuxRouter() *Router {
@@ -39,22 +62,22 @@ func setupMuxRouter() *Router {
 	// Static routes
 	rg.GET("/", noopHandler)
 	rg.GET("/ping", noopHandler)
-	rg.GET("/api/v1/health", noopHandler)
+	rg.GET(benchPathAPIV1Health, noopHandler)
 
 	// Parameter routes
-	rg.GET("/users/{id}", noopHandler)
-	rg.GET("/users/{id}/posts", noopHandler)
-	rg.GET("/users/{userId}/posts/{postId}", noopHandler)
-	rg.GET("/api/v1/organizations/{orgId}/projects/{projectId}", noopHandler)
+	rg.GET(benchPathUsersID, noopHandler)
+	rg.GET(benchPathUsersIDPosts, noopHandler)
+	rg.GET(benchPathUsersPostsNested, noopHandler)
+	rg.GET(benchPathOrgProjects, noopHandler)
 
 	// Wildcard/catch-all
-	rg.GET("/files/*", noopHandler)
+	rg.GET(benchPathFiles, noopHandler)
 	rg.GET("/static/**", noopHandler)
 
 	// Multiple methods
-	rg.POST("/api/v1/users", noopHandler)
-	rg.PUT("/api/v1/users/{id}", noopHandler)
-	rg.DELETE("/api/v1/users/{id}", noopHandler)
+	rg.POST(benchPathAPIV1Users, noopHandler)
+	rg.PUT(benchPathAPIV1UsersID, noopHandler)
+	rg.DELETE(benchPathAPIV1UsersID, noopHandler)
 
 	return r
 }
@@ -77,7 +100,7 @@ func BenchmarkComparisonMuxStaticRoute(b *testing.B) {
 // Scenario 2: Single parameter route
 func BenchmarkComparisonMuxSingleParam(b *testing.B) {
 	r := setupMuxRouter()
-	req := httptest.NewRequest(http.MethodGet, "/users/12345", nil)
+	req := httptest.NewRequest(http.MethodGet, benchReqUsers12345, nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -90,7 +113,7 @@ func BenchmarkComparisonMuxSingleParam(b *testing.B) {
 // Scenario 3: Multi-parameter route
 func BenchmarkComparisonMuxMultiParam(b *testing.B) {
 	r := setupMuxRouter()
-	req := httptest.NewRequest(http.MethodGet, "/users/12345/posts/67890", nil)
+	req := httptest.NewRequest(http.MethodGet, benchReqUsersPosts, nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -103,7 +126,7 @@ func BenchmarkComparisonMuxMultiParam(b *testing.B) {
 // Scenario 4: Deep path with parameters
 func BenchmarkComparisonMuxDeepPath(b *testing.B) {
 	r := setupMuxRouter()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/organizations/org-123/projects/proj-456", nil)
+	req := httptest.NewRequest(http.MethodGet, benchReqOrgProjects, nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -116,7 +139,7 @@ func BenchmarkComparisonMuxDeepPath(b *testing.B) {
 // Scenario 5: Wildcard/catch-all route
 func BenchmarkComparisonMuxWildcard(b *testing.B) {
 	r := setupMuxRouter()
-	req := httptest.NewRequest(http.MethodGet, "/files/images/logo.png", nil)
+	req := httptest.NewRequest(http.MethodGet, benchReqFilesLogoPath, nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -164,16 +187,16 @@ func setupGinRouter() *gin.Engine {
 
 	r.GET("/", emptyHandler)
 	r.GET("/ping", emptyHandler)
-	r.GET("/api/v1/health", emptyHandler)
-	r.GET("/users/:id", emptyHandler)
+	r.GET(benchPathAPIV1Health, emptyHandler)
+	r.GET(benchReqUsersColonID, emptyHandler)
 	r.GET("/items/:id/posts", emptyHandler)         // Adjusted to avoid Gin param name conflicts
 	r.GET("/content/:userId/:postId", emptyHandler) // Adjusted for Gin's constraints
-	r.GET("/api/v1/organizations/:orgId/projects/:projectId", emptyHandler)
+	r.GET(benchReqOrgProjectsColonID, emptyHandler)
 	r.GET("/files/*filepath", emptyHandler)
 	r.GET("/static/*filepath", emptyHandler)
-	r.POST("/api/v1/users", emptyHandler)
-	r.PUT("/api/v1/users/:id", emptyHandler)
-	r.DELETE("/api/v1/users/:id", emptyHandler)
+	r.POST(benchPathAPIV1Users, emptyHandler)
+	r.PUT(benchReqUsersIDColon, emptyHandler)
+	r.DELETE(benchReqUsersIDColon, emptyHandler)
 
 	return r
 }
@@ -192,7 +215,7 @@ func BenchmarkComparisonGinStaticRoute(b *testing.B) {
 
 func BenchmarkComparisonGinSingleParam(b *testing.B) {
 	r := setupGinRouter()
-	req := httptest.NewRequest(http.MethodGet, "/users/12345", nil)
+	req := httptest.NewRequest(http.MethodGet, benchReqUsers12345, nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -216,7 +239,7 @@ func BenchmarkComparisonGinMultiParam(b *testing.B) {
 
 func BenchmarkComparisonGinDeepPath(b *testing.B) {
 	r := setupGinRouter()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/organizations/org-123/projects/proj-456", nil)
+	req := httptest.NewRequest(http.MethodGet, benchReqOrgProjects, nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -228,7 +251,7 @@ func BenchmarkComparisonGinDeepPath(b *testing.B) {
 
 func BenchmarkComparisonGinWildcard(b *testing.B) {
 	r := setupGinRouter()
-	req := httptest.NewRequest(http.MethodGet, "/files/images/logo.png", nil)
+	req := httptest.NewRequest(http.MethodGet, benchReqFilesLogoPath, nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -248,16 +271,16 @@ func setupChiRouter() *chi.Mux {
 
 	r.Get("/", emptyHandler)
 	r.Get("/ping", emptyHandler)
-	r.Get("/api/v1/health", emptyHandler)
-	r.Get("/users/{id}", emptyHandler)
-	r.Get("/users/{id}/posts", emptyHandler)
-	r.Get("/users/{userId}/posts/{postId}", emptyHandler)
-	r.Get("/api/v1/organizations/{orgId}/projects/{projectId}", emptyHandler)
-	r.Get("/files/*", emptyHandler)
+	r.Get(benchPathAPIV1Health, emptyHandler)
+	r.Get(benchPathUsersID, emptyHandler)
+	r.Get(benchPathUsersIDPosts, emptyHandler)
+	r.Get(benchPathUsersPostsNested, emptyHandler)
+	r.Get(benchPathOrgProjects, emptyHandler)
+	r.Get(benchPathFiles, emptyHandler)
 	r.Get("/static/*", emptyHandler)
-	r.Post("/api/v1/users", emptyHandler)
-	r.Put("/api/v1/users/{id}", emptyHandler)
-	r.Delete("/api/v1/users/{id}", emptyHandler)
+	r.Post(benchPathAPIV1Users, emptyHandler)
+	r.Put(benchPathAPIV1UsersID, emptyHandler)
+	r.Delete(benchPathAPIV1UsersID, emptyHandler)
 
 	return r
 }
@@ -276,7 +299,7 @@ func BenchmarkComparisonChiStaticRoute(b *testing.B) {
 
 func BenchmarkComparisonChiSingleParam(b *testing.B) {
 	r := setupChiRouter()
-	req := httptest.NewRequest(http.MethodGet, "/users/12345", nil)
+	req := httptest.NewRequest(http.MethodGet, benchReqUsers12345, nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -288,7 +311,7 @@ func BenchmarkComparisonChiSingleParam(b *testing.B) {
 
 func BenchmarkComparisonChiMultiParam(b *testing.B) {
 	r := setupChiRouter()
-	req := httptest.NewRequest(http.MethodGet, "/users/12345/posts/67890", nil)
+	req := httptest.NewRequest(http.MethodGet, benchReqUsersPosts, nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -300,7 +323,7 @@ func BenchmarkComparisonChiMultiParam(b *testing.B) {
 
 func BenchmarkComparisonChiDeepPath(b *testing.B) {
 	r := setupChiRouter()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/organizations/org-123/projects/proj-456", nil)
+	req := httptest.NewRequest(http.MethodGet, benchReqOrgProjects, nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -312,7 +335,7 @@ func BenchmarkComparisonChiDeepPath(b *testing.B) {
 
 func BenchmarkComparisonChiWildcard(b *testing.B) {
 	r := setupChiRouter()
-	req := httptest.NewRequest(http.MethodGet, "/files/images/logo.png", nil)
+	req := httptest.NewRequest(http.MethodGet, benchReqFilesLogoPath, nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -333,16 +356,16 @@ func setupEchoRouter() *echo.Echo {
 
 	e.GET("/", emptyHandler)
 	e.GET("/ping", emptyHandler)
-	e.GET("/api/v1/health", emptyHandler)
-	e.GET("/users/:id", emptyHandler)
+	e.GET(benchPathAPIV1Health, emptyHandler)
+	e.GET(benchReqUsersColonID, emptyHandler)
 	e.GET("/users/:id/posts", emptyHandler)
 	e.GET("/users/:userId/posts/:postId", emptyHandler)
-	e.GET("/api/v1/organizations/:orgId/projects/:projectId", emptyHandler)
-	e.GET("/files/*", emptyHandler)
+	e.GET(benchReqOrgProjectsColonID, emptyHandler)
+	e.GET(benchPathFiles, emptyHandler)
 	e.GET("/static/*", emptyHandler)
-	e.POST("/api/v1/users", emptyHandler)
-	e.PUT("/api/v1/users/:id", emptyHandler)
-	e.DELETE("/api/v1/users/:id", emptyHandler)
+	e.POST(benchPathAPIV1Users, emptyHandler)
+	e.PUT(benchReqUsersIDColon, emptyHandler)
+	e.DELETE(benchReqUsersIDColon, emptyHandler)
 
 	return e
 }
@@ -361,7 +384,7 @@ func BenchmarkComparisonEchoStaticRoute(b *testing.B) {
 
 func BenchmarkComparisonEchoSingleParam(b *testing.B) {
 	e := setupEchoRouter()
-	req := httptest.NewRequest(http.MethodGet, "/users/12345", nil)
+	req := httptest.NewRequest(http.MethodGet, benchReqUsers12345, nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -373,7 +396,7 @@ func BenchmarkComparisonEchoSingleParam(b *testing.B) {
 
 func BenchmarkComparisonEchoMultiParam(b *testing.B) {
 	e := setupEchoRouter()
-	req := httptest.NewRequest(http.MethodGet, "/users/12345/posts/67890", nil)
+	req := httptest.NewRequest(http.MethodGet, benchReqUsersPosts, nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -385,7 +408,7 @@ func BenchmarkComparisonEchoMultiParam(b *testing.B) {
 
 func BenchmarkComparisonEchoDeepPath(b *testing.B) {
 	e := setupEchoRouter()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/organizations/org-123/projects/proj-456", nil)
+	req := httptest.NewRequest(http.MethodGet, benchReqOrgProjects, nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -397,7 +420,7 @@ func BenchmarkComparisonEchoDeepPath(b *testing.B) {
 
 func BenchmarkComparisonEchoWildcard(b *testing.B) {
 	e := setupEchoRouter()
-	req := httptest.NewRequest(http.MethodGet, "/files/images/logo.png", nil)
+	req := httptest.NewRequest(http.MethodGet, benchReqFilesLogoPath, nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -417,16 +440,16 @@ func setupGorillaMuxRouter() *gorillamux.Router {
 
 	r.HandleFunc("/", emptyHandler).Methods(http.MethodGet)
 	r.HandleFunc("/ping", emptyHandler).Methods(http.MethodGet)
-	r.HandleFunc("/api/v1/health", emptyHandler).Methods(http.MethodGet)
-	r.HandleFunc("/users/{id}", emptyHandler).Methods(http.MethodGet)
-	r.HandleFunc("/users/{id}/posts", emptyHandler).Methods(http.MethodGet)
-	r.HandleFunc("/users/{userId}/posts/{postId}", emptyHandler).Methods(http.MethodGet)
-	r.HandleFunc("/api/v1/organizations/{orgId}/projects/{projectId}", emptyHandler).Methods(http.MethodGet)
+	r.HandleFunc(benchPathAPIV1Health, emptyHandler).Methods(http.MethodGet)
+	r.HandleFunc(benchPathUsersID, emptyHandler).Methods(http.MethodGet)
+	r.HandleFunc(benchPathUsersIDPosts, emptyHandler).Methods(http.MethodGet)
+	r.HandleFunc(benchPathUsersPostsNested, emptyHandler).Methods(http.MethodGet)
+	r.HandleFunc(benchPathOrgProjects, emptyHandler).Methods(http.MethodGet)
 	r.PathPrefix("/files/").HandlerFunc(emptyHandler).Methods(http.MethodGet)
 	r.PathPrefix("/static/").HandlerFunc(emptyHandler).Methods(http.MethodGet)
-	r.HandleFunc("/api/v1/users", emptyHandler).Methods(http.MethodPost)
-	r.HandleFunc("/api/v1/users/{id}", emptyHandler).Methods(http.MethodPut)
-	r.HandleFunc("/api/v1/users/{id}", emptyHandler).Methods(http.MethodDelete)
+	r.HandleFunc(benchPathAPIV1Users, emptyHandler).Methods(http.MethodPost)
+	r.HandleFunc(benchPathAPIV1UsersID, emptyHandler).Methods(http.MethodPut)
+	r.HandleFunc(benchPathAPIV1UsersID, emptyHandler).Methods(http.MethodDelete)
 
 	return r
 }
@@ -445,7 +468,7 @@ func BenchmarkComparisonGorillaMuxStaticRoute(b *testing.B) {
 
 func BenchmarkComparisonGorillaMuxSingleParam(b *testing.B) {
 	r := setupGorillaMuxRouter()
-	req := httptest.NewRequest(http.MethodGet, "/users/12345", nil)
+	req := httptest.NewRequest(http.MethodGet, benchReqUsers12345, nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -457,7 +480,7 @@ func BenchmarkComparisonGorillaMuxSingleParam(b *testing.B) {
 
 func BenchmarkComparisonGorillaMuxMultiParam(b *testing.B) {
 	r := setupGorillaMuxRouter()
-	req := httptest.NewRequest(http.MethodGet, "/users/12345/posts/67890", nil)
+	req := httptest.NewRequest(http.MethodGet, benchReqUsersPosts, nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -469,7 +492,7 @@ func BenchmarkComparisonGorillaMuxMultiParam(b *testing.B) {
 
 func BenchmarkComparisonGorillaMuxDeepPath(b *testing.B) {
 	r := setupGorillaMuxRouter()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/organizations/org-123/projects/proj-456", nil)
+	req := httptest.NewRequest(http.MethodGet, benchReqOrgProjects, nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -481,7 +504,7 @@ func BenchmarkComparisonGorillaMuxDeepPath(b *testing.B) {
 
 func BenchmarkComparisonGorillaMuxWildcard(b *testing.B) {
 	r := setupGorillaMuxRouter()
-	req := httptest.NewRequest(http.MethodGet, "/files/images/logo.png", nil)
+	req := httptest.NewRequest(http.MethodGet, benchReqFilesLogoPath, nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -503,16 +526,16 @@ func setupHttpRouter() *httprouter.Router {
 
 	r.GET("/", emptyHandler)
 	r.GET("/ping", emptyHandler)
-	r.GET("/api/v1/health", emptyHandler)
-	r.GET("/users/:id", emptyHandler)
+	r.GET(benchPathAPIV1Health, emptyHandler)
+	r.GET(benchReqUsersColonID, emptyHandler)
 	r.GET("/items/:id/posts", emptyHandler)         // Adjusted to avoid HttpRouter param conflicts
 	r.GET("/content/:userId/:postId", emptyHandler) // Adjusted for HttpRouter's constraints
-	r.GET("/api/v1/organizations/:orgId/projects/:projectId", emptyHandler)
+	r.GET(benchReqOrgProjectsColonID, emptyHandler)
 	r.GET("/files/*filepath", emptyHandler)
 	r.GET("/static/*filepath", emptyHandler)
-	r.POST("/api/v1/users", emptyHandler)
-	r.PUT("/api/v1/users/:id", emptyHandler)
-	r.DELETE("/api/v1/users/:id", emptyHandler)
+	r.POST(benchPathAPIV1Users, emptyHandler)
+	r.PUT(benchReqUsersIDColon, emptyHandler)
+	r.DELETE(benchReqUsersIDColon, emptyHandler)
 
 	return r
 }
@@ -531,7 +554,7 @@ func BenchmarkComparisonHttpRouterStaticRoute(b *testing.B) {
 
 func BenchmarkComparisonHttpRouterSingleParam(b *testing.B) {
 	r := setupHttpRouter()
-	req := httptest.NewRequest(http.MethodGet, "/users/12345", nil)
+	req := httptest.NewRequest(http.MethodGet, benchReqUsers12345, nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -555,7 +578,7 @@ func BenchmarkComparisonHttpRouterMultiParam(b *testing.B) {
 
 func BenchmarkComparisonHttpRouterDeepPath(b *testing.B) {
 	r := setupHttpRouter()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/organizations/org-123/projects/proj-456", nil)
+	req := httptest.NewRequest(http.MethodGet, benchReqOrgProjects, nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -567,7 +590,7 @@ func BenchmarkComparisonHttpRouterDeepPath(b *testing.B) {
 
 func BenchmarkComparisonHttpRouterWildcard(b *testing.B) {
 	r := setupHttpRouter()
-	req := httptest.NewRequest(http.MethodGet, "/files/images/logo.png", nil)
+	req := httptest.NewRequest(http.MethodGet, benchReqFilesLogoPath, nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()

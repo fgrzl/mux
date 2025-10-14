@@ -11,11 +11,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestPreflightResponse(t *testing.T) {
-	m := newCORSMiddleware(CORSOptions{AllowedOrigins: []string{"https://example.com"}})
+const (
+	testOriginExample = "https://example.com"
+	testAPITestURL    = "https://api/test"
+)
 
-	req := httptest.NewRequest(http.MethodOptions, "https://api/test", nil)
-	req.Header.Set(common.HeaderOrigin, "https://example.com")
+func TestPreflightResponse(t *testing.T) {
+	m := newCORSMiddleware(CORSOptions{AllowedOrigins: []string{testOriginExample}})
+
+	req := httptest.NewRequest(http.MethodOptions, testAPITestURL, nil)
+	req.Header.Set(common.HeaderOrigin, testOriginExample)
 	req.Header.Set(common.HeaderAccessControlRequestMethod, "POST")
 	req.Header.Set(common.HeaderAccessControlRequestHeaders, "X-Custom, Content-Type")
 
@@ -29,7 +34,7 @@ func TestPreflightResponse(t *testing.T) {
 
 	assert.False(t, called, "preflight should not call next handler")
 	assert.Equal(t, http.StatusNoContent, rec.Code)
-	assert.Equal(t, "https://example.com", rec.Header().Get(common.HeaderAccessControlAllowOrigin))
+	assert.Equal(t, testOriginExample, rec.Header().Get(common.HeaderAccessControlAllowOrigin))
 	assert.Equal(t, "GET, POST, PUT, DELETE, OPTIONS", rec.Header().Get(common.HeaderAccessControlAllowMethods))
 	assert.Equal(t, "X-Custom, Content-Type", rec.Header().Get(common.HeaderAccessControlAllowHeaders))
 }
@@ -37,7 +42,7 @@ func TestPreflightResponse(t *testing.T) {
 func TestSimpleRequestSetsAllowOrigin(t *testing.T) {
 	m := newCORSMiddleware(CORSOptions{AllowedOrigins: []string{"*"}})
 
-	req := httptest.NewRequest(http.MethodGet, "https://api/test", nil)
+	req := httptest.NewRequest(http.MethodGet, testAPITestURL, nil)
 	req.Header.Set(common.HeaderOrigin, "https://evil.com")
 	rec := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(rec, req)
@@ -54,10 +59,10 @@ func TestSimpleRequestSetsAllowOrigin(t *testing.T) {
 }
 
 func TestAllowCredentialsReflection(t *testing.T) {
-	m := newCORSMiddleware(CORSOptions{AllowedOrigins: []string{"https://example.com"}, AllowCredentials: true})
+	m := newCORSMiddleware(CORSOptions{AllowedOrigins: []string{testOriginExample}, AllowCredentials: true})
 
-	req := httptest.NewRequest(http.MethodGet, "https://api/test", nil)
-	req.Header.Set(common.HeaderOrigin, "https://example.com")
+	req := httptest.NewRequest(http.MethodGet, testAPITestURL, nil)
+	req.Header.Set(common.HeaderOrigin, testOriginExample)
 	rec := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(rec, req)
 
@@ -67,7 +72,7 @@ func TestAllowCredentialsReflection(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 	// when credentials allowed, origin must be echoed back (not '*')
-	assert.Equal(t, "https://example.com", rec.Header().Get(common.HeaderAccessControlAllowOrigin))
+	assert.Equal(t, testOriginExample, rec.Header().Get(common.HeaderAccessControlAllowOrigin))
 	assert.Equal(t, "true", rec.Header().Get(common.HeaderAccessControlAllowCredentials))
 }
 
@@ -79,8 +84,8 @@ func TestUseCORSAddsMiddleware(t *testing.T) {
 		c.Response().WriteHeader(http.StatusOK)
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "https://api/test", nil)
-	req.Header.Set(common.HeaderOrigin, "https://example.com")
+	req := httptest.NewRequest(http.MethodGet, testAPITestURL, nil)
+	req.Header.Set(common.HeaderOrigin, testOriginExample)
 	rec := httptest.NewRecorder()
 	rtr.ServeHTTP(rec, req)
 
