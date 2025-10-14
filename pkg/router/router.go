@@ -141,7 +141,6 @@ func (rtr *Router) NewRouteGroup(prefix string) *RouteGroup {
 }
 
 // ServeHTTP implements http.Handler.
-// ServeHTTP implements http.Handler.
 func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Inline path normalization (avoid function call overhead)
 	if r.URL.Path == "" {
