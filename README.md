@@ -34,19 +34,14 @@ func main() {
 
 ## 🌟 Why Mux?
 
-| Feature | What You Get |
-||--|
-| 🚀 **Fast** | 54ns static routes, 205ns param routes, 0 allocations for static routes, 2 allocations for param routes |
-| ✨ **OpenAPI Built-in** | Auto-generate OpenAPI 3.1 specs — no codegen, no extra tools |
-| 🧩 **Composable** | First-class middleware, route groups, and request binding |
-| 💡 **Ergonomic** | Clean DSL with smart helpers — `c.QueryUUID()`, `c.Bind()`, `c.Created()` |
-| 🏥 **Production Ready** | Health probes, graceful shutdown, TLS, compression, auth out-of-the-box |
-| 🧪 **Type Safe** | Interface-based design for better testing and mocking |
+- 🚀 **Fast** | 54ns static routes, 205ns param routes, 0 allocations for static routes, 2 allocations for param routes |
+- ✨ **OpenAPI Built-in** | Auto-generate OpenAPI 3.1 specs — no codegen, no extra tools |
+- 🧩 **Composable** | First-class middleware, route groups, and request binding |
+- 💡 **Ergonomic** | Clean DSL with smart helpers — `c.QueryUUID()`, `c.Bind()`, `c.Created()` |
+- 🏥 **Production Ready** | Health probes, graceful shutdown, TLS, compression, auth out-of-the-box |
+- 🧪 **Type Safe** | Interface-based design for better testing and mocking |
 
 ## 📖 Complete Example
-
-<details>
-<summary><b>Click to see a full REST API with middleware, OpenAPI docs, and graceful shutdown (100 lines)</b></summary>
 
 ```go
 package main
