@@ -145,8 +145,6 @@ func getUser(c mux.RouteContext) {
 }
 ```
 
-</details>
-
 ## 🎓 Learning Resources
 
 | I Want To... | Resource | Time |
