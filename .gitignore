@@ -28,3 +28,4 @@ build/
 *.bak
 *.old
 .DS_Store
+*.prof
