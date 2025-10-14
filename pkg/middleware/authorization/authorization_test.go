@@ -15,13 +15,8 @@ const (
 	// Common permissions used across tests
 	PermUser123Read = "user:123:read"
 
-	// Test identity values for mock principal
-	testSubject  = "test-user"
-	testIssuer   = "test"
-	testAudience = "test"
-	testJWT      = "test-jwt"
-	testEmail    = "test@example.com"
-	testUsername = "testuser"
+	// Test identity values for mock principal were removed; not used in the
+	// current test suite.
 
 	// Common request paths / URLs used in tests
 	testURL      = "http://example.com/test"
@@ -51,9 +46,8 @@ const (
 
 // mockPrincipalForAuth implements claims.Principal for authorization testing
 type mockPrincipalForAuth struct {
-	roles       []string
-	scopes      []string
-	permissions []string
+	roles  []string
+	scopes []string
 }
 
 func (m *mockPrincipalForAuth) Subject() string                      { return "test-user" }

@@ -117,7 +117,7 @@ func TestShouldAddForwardedHeadersMiddlewareToRouter(t *testing.T) {
 
 	// Register a route whose handler will echo the request scheme and remote addr
 	rtr.GET("/test", func(c routing.RouteContext) {
-		c.Response().Write([]byte(c.Request().URL.Scheme + "|" + c.Request().RemoteAddr))
+		_, _ = c.Response().Write([]byte(c.Request().URL.Scheme + "|" + c.Request().RemoteAddr))
 	})
 
 	// Make a request with forwarded headers so middleware will modify the request

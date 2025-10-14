@@ -33,7 +33,7 @@ func TestShouldAddOpenTelemetryMiddlewareToRouter(t *testing.T) {
 	UseOpenTelemetry(rtr)
 
 	// Register a route and ensure requests still succeed
-	rtr.GET("/test", func(c routing.RouteContext) { c.Response().Write([]byte("ok")) })
+	rtr.GET("/test", func(c routing.RouteContext) { _, _ = c.Response().Write([]byte("ok")) })
 	req, rec := testhelpers.NewRequestRecorder(http.MethodGet, "/test", nil)
 	rtr.ServeHTTP(rec, req)
 
@@ -48,7 +48,7 @@ func TestShouldAddOpenTelemetryMiddlewareWithCustomOperation(t *testing.T) {
 	// Act
 	UseOpenTelemetry(rtr, WithOperation(customOperation))
 
-	rtr.GET("/test", func(c routing.RouteContext) { c.Response().Write([]byte("ok")) })
+	rtr.GET("/test", func(c routing.RouteContext) { _, _ = c.Response().Write([]byte("ok")) })
 	req, rec := testhelpers.NewRequestRecorder(http.MethodGet, "/test", nil)
 	rtr.ServeHTTP(rec, req)
 
@@ -104,7 +104,7 @@ func TestShouldHandleMultipleOpenTelemetryOptions(t *testing.T) {
 		WithOperation(operationName),
 	)
 
-	rtr.GET("/test", func(c routing.RouteContext) { c.Response().Write([]byte("ok")) })
+	rtr.GET("/test", func(c routing.RouteContext) { _, _ = c.Response().Write([]byte("ok")) })
 	req, rec := testhelpers.NewRequestRecorder(http.MethodGet, "/test", nil)
 	rtr.ServeHTTP(rec, req)
 
@@ -118,7 +118,7 @@ func TestShouldSetDefaultOperationWhenNoneProvided(t *testing.T) {
 	// Act
 	UseOpenTelemetry(rtr)
 
-	rtr.GET("/test", func(c routing.RouteContext) { c.Response().Write([]byte("ok")) })
+	rtr.GET("/test", func(c routing.RouteContext) { _, _ = c.Response().Write([]byte("ok")) })
 	req, rec := testhelpers.NewRequestRecorder(http.MethodGet, "/test", nil)
 	rtr.ServeHTTP(rec, req)
 

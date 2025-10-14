@@ -37,46 +37,9 @@ func NewRouteRegistry() *RouteRegistry {
 	}
 }
 
-// splitSegments splits a trimmed path into non-empty segments, ignoring
-// consecutive slashes. This centralizes the logic used when registering
-// patterns to keep Register shorter and easier to read.
-func splitSegments(trimmed string) []string {
-	rawSegs := strings.Split(trimmed, "/")
-	segments := make([]string, 0, len(rawSegs))
-	for _, s := range rawSegs {
-		if s == "" {
-			continue
-		}
-		segments = append(segments, s)
-	}
-	return segments
-}
-
-// trimPathBounds returns start and end indices that skip leading and trailing
-// slashes for the provided path. This is a small helper to keep traversal
-// code concise and consistent.
-func trimPathBounds(path string) (start, end int) {
-	start = 0
-	end = len(path)
-	for start < end && path[start] == '/' {
-		start++
-	}
-	for end > start && path[end-1] == '/' {
-		end--
-	}
-	return
-}
-
-// scanSegment returns the next path segment starting at s up to end and the
-// index after the segment (nextIndex). It does not allocate except for the
-// returned slice header.
-func scanSegment(path string, s, end int) (seg string, nextIndex int) {
-	j := s
-	for j < end && path[j] != '/' {
-		j++
-	}
-	return path[s:j], j + 1
-}
+// Note: helper functions for splitting/scanning path segments were removed
+// as they were unused and the registry performs in-place scanning for
+// performance and clarity.
 
 // Root returns the trie root node for this registry. Callers may use
 // the returned node for inspection or debugging; modifications to the

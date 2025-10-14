@@ -10,29 +10,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fgrzl/claims"
 	"github.com/fgrzl/mux/pkg/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // mockPrincipal for testing
-type mockRouteContextPrincipal struct{}
-
-func (m *mockRouteContextPrincipal) Subject() string                      { return "test-user" }
-func (m *mockRouteContextPrincipal) Issuer() string                       { return "test" }
-func (m *mockRouteContextPrincipal) Audience() []string                   { return []string{"test"} }
-func (m *mockRouteContextPrincipal) ExpirationTime() int64                { return 0 }
-func (m *mockRouteContextPrincipal) NotBefore() int64                     { return 0 }
-func (m *mockRouteContextPrincipal) IssuedAt() int64                      { return 0 }
-func (m *mockRouteContextPrincipal) JWTI() string                         { return "test-jwt" }
-func (m *mockRouteContextPrincipal) Scopes() []string                     { return []string{"read"} }
-func (m *mockRouteContextPrincipal) Roles() []string                      { return []string{"user"} }
-func (m *mockRouteContextPrincipal) Email() string                        { return "test@example.com" }
-func (m *mockRouteContextPrincipal) Username() string                     { return "testuser" }
-func (m *mockRouteContextPrincipal) CustomClaim(name string) claims.Claim { return nil }
-func (m *mockRouteContextPrincipal) CustomClaimValue(name string) string  { return "" }
-func (m *mockRouteContextPrincipal) Claims() *claims.ClaimSet             { return nil }
+// mockRouteContextPrincipal removed; not used by current tests
 
 func TestShouldCreateNewRouteContext(t *testing.T) {
 	// Arrange
@@ -355,7 +339,8 @@ func TestShouldHandleEmptyParams(t *testing.T) {
 
 func TestShouldHandleContextInheritance(t *testing.T) {
 	// Arrange
-	baseCtx := context.WithValue(context.Background(), "test-key", "test-value")
+	type ctxKey string
+	baseCtx := context.WithValue(context.Background(), ctxKey("test-key"), "test-value")
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req = req.WithContext(baseCtx)
 	rec := httptest.NewRecorder()
@@ -364,7 +349,7 @@ func TestShouldHandleContextInheritance(t *testing.T) {
 	ctx := NewRouteContext(rec, req)
 
 	// Assert
-	assert.Equal(t, "test-value", ctx.Value("test-key"))
+	assert.Equal(t, "test-value", ctx.Value(ctxKey("test-key")))
 }
 
 func TestShouldBindComplexData(t *testing.T) {

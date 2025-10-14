@@ -39,8 +39,4 @@ func TestShouldRecoverFromPanicInHandler(t *testing.T) {
 }
 
 // Helper middleware that panics for testing
-type testPanicMiddleware struct{}
-
-func (m *testPanicMiddleware) Invoke(c routing.RouteContext, next HandlerFunc) {
-	panic("middleware panic")
-}
+// No unused middleware types kept in this test file.

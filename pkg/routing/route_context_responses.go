@@ -76,7 +76,9 @@ func (c *DefaultRouteContext) Problem(problem *ProblemDetails) {
 	)
 	c.Response().Header().Set(common.HeaderContentType, common.MimeProblemJSON)
 	c.Response().WriteHeader(problem.Status)
-	json.NewEncoder(c.Response()).Encode(problem)
+	if err := json.NewEncoder(c.Response()).Encode(problem); err != nil {
+		slog.Error("failed to encode problem response", "err", err)
+	}
 }
 
 // OK writes a 200 OK response with a JSON payload.
@@ -88,7 +90,9 @@ func (c *DefaultRouteContext) OK(model any) {
 func (c *DefaultRouteContext) JSON(status int, model any) {
 	c.Response().Header().Set(common.HeaderContentType, common.MimeJSON)
 	c.Response().WriteHeader(status)
-	json.NewEncoder(c.Response()).Encode(model)
+	if err := json.NewEncoder(c.Response()).Encode(model); err != nil {
+		slog.Error("failed to encode json response", "err", err)
+	}
 }
 
 // Plain writes a plain text response.
@@ -96,7 +100,9 @@ func (c *DefaultRouteContext) Plain(status int, data []byte) {
 	c.Response().Header().Set(common.HeaderContentType, common.MimeTextPlain)
 	c.Response().WriteHeader(status)
 	if len(data) > 0 {
-		c.Response().Write(data)
+		if _, err := c.Response().Write(data); err != nil {
+			slog.Error("failed to write plain response", "err", err)
+		}
 	}
 }
 
@@ -104,7 +110,9 @@ func (c *DefaultRouteContext) Plain(status int, data []byte) {
 func (c *DefaultRouteContext) HTML(status int, html string) {
 	c.Response().Header().Set(common.HeaderContentType, common.MimeTextHTML)
 	c.Response().WriteHeader(status)
-	c.Response().Write([]byte(html))
+	if _, err := c.Response().Write([]byte(html)); err != nil {
+		slog.Error("failed to write html response", "err", err)
+	}
 }
 
 // Created writes a 201 Created response with an optional JSON payload.
@@ -163,7 +171,10 @@ func (c *DefaultRouteContext) Download(filePath, filename string) {
 	c.Response().Header().Set(common.HeaderContentDisposition, fmt.Sprintf("attachment; filename=\"%s\"", filename))
 	c.Response().Header().Set(common.HeaderContentType, common.MimeOctetStream)
 	c.Response().WriteHeader(http.StatusOK)
-	io.Copy(c.Response(), f)
+	if _, err := io.Copy(c.Response(), f); err != nil {
+		// Log copy errors; response headers/body were already sent so best-effort logging is appropriate
+		slog.Error("failed to copy file to response", "err", err, "file", filePath)
+	}
 }
 
 // Redirect issues a redirect with custom status code.

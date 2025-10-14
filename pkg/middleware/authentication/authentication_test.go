@@ -19,18 +19,18 @@ import (
 
 // mockPrincipal implements claims.Principal for testing
 type mockPrincipal struct {
-	subject      string
-	issuer       string
-	audience     []string
-	expTime      int64
-	notBefore    int64
-	issuedAt     int64
-	jwti         string
-	scopes       []string
-	roles        []string
-	email        string
-	username     string
-	customClaims map[string]interface{}
+	subject   string
+	issuer    string
+	audience  []string
+	expTime   int64
+	notBefore int64
+	issuedAt  int64
+	jwti      string
+	scopes    []string
+	roles     []string
+	email     string
+	username  string
+	// customClaims intentionally omitted; not required for current tests
 }
 
 func (m *mockPrincipal) Subject() string                      { return m.subject }

@@ -47,10 +47,10 @@ func TestShouldParseMultipartFormValues(t *testing.T) {
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 
-	writer.WriteField("name", "test")
-	writer.WriteField("age", "25")
-	writer.WriteField("tags", "tag1")
-	writer.WriteField("tags", "tag2")
+	require.NoError(t, writer.WriteField("name", "test"))
+	require.NoError(t, writer.WriteField("age", "25"))
+	require.NoError(t, writer.WriteField("tags", "tag1"))
+	require.NoError(t, writer.WriteField("tags", "tag2"))
 	writer.Close()
 
 	req := httptest.NewRequest(http.MethodPost, "/", &buf)
@@ -338,12 +338,14 @@ func TestShouldHandleMultipartFileField(t *testing.T) {
 	writer := multipart.NewWriter(&buf)
 
 	// Add a regular field
-	writer.WriteField("name", "test")
+	require.NoError(t, writer.WriteField("name", "test"))
 
 	// Add a file field
 	fileWriter, err := writer.CreateFormFile("file", "test.txt")
 	require.NoError(t, err)
-	fileWriter.Write([]byte("file content"))
+	if _, err = fileWriter.Write([]byte("file content")); err != nil {
+		require.NoError(t, err)
+	}
 
 	writer.Close()
 

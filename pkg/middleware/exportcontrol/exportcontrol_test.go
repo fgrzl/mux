@@ -50,7 +50,7 @@ func TestShouldAddExportControlMiddlewareToRouter(t *testing.T) {
 	UseExportControl(rtr)
 
 	// Register a simple route and make a request to ensure middleware runs
-	rtr.GET("/test", func(c routing.RouteContext) { c.Response().Write([]byte("ok")) })
+	rtr.GET("/test", func(c routing.RouteContext) { _, _ = c.Response().Write([]byte("ok")) })
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	rtr.ServeHTTP(rec, req)
@@ -225,7 +225,7 @@ func TestShouldHandleMultipleExportControlOptions(t *testing.T) {
 	)
 
 	// Register a route and make a request to ensure middleware doesn't panic and allows access
-	rtr.GET("/test", func(c routing.RouteContext) { c.Response().Write([]byte("ok")) })
+	rtr.GET("/test", func(c routing.RouteContext) { _, _ = c.Response().Write([]byte("ok")) })
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	rtr.ServeHTTP(rec, req)

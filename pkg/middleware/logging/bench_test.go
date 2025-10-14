@@ -31,7 +31,7 @@ func benchLogging(b *testing.B, pooled bool) {
 		r = router.NewRouter()
 	}
 	rg := r.NewRouteGroup("")
-	rg.GET("/ok", func(c routing.RouteContext) { c.Response().Write([]byte("ok")) })
+	rg.GET("/ok", func(c routing.RouteContext) { _, _ = c.Response().Write([]byte("ok")) })
 	UseLogging(r)
 
 	_, req := bench.NewRecorderRequest(http.MethodGet, "/ok")
@@ -68,15 +68,15 @@ func BenchmarkLoggingVariedPaths(b *testing.B) {
 			UseLogging(r)
 			rg := r.NewRouteGroup("")
 			// A few routes to ensure params/static/wildcard don’t change logging overhead
-			rg.GET("/ok", func(c routing.RouteContext) { c.Response().Write([]byte("ok")) })
+			rg.GET("/ok", func(c routing.RouteContext) { _, _ = c.Response().Write([]byte("ok")) })
 			rg.GET("/user/:id", func(c routing.RouteContext) {
 				if id, ok := c.Param("id"); ok {
-					c.Response().Write([]byte(id))
+					_, _ = c.Response().Write([]byte(id))
 				} else {
-					c.Response().Write([]byte(""))
+					_, _ = c.Response().Write([]byte(""))
 				}
 			})
-			rg.GET("/files/*path", func(c routing.RouteContext) { c.Response().Write([]byte("f")) })
+			rg.GET("/files/*path", func(c routing.RouteContext) { _, _ = c.Response().Write([]byte("f")) })
 
 			b.ReportAllocs()
 			b.ResetTimer()

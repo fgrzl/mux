@@ -164,11 +164,11 @@ func TestShouldAddServiceMiddlewareToRouter(t *testing.T) {
 		s, ok := c.GetService(routing.ServiceKey("test"))
 		if ok {
 			if ms, ok := s.(*MockService); ok {
-				c.Response().Write([]byte(ms.Name))
+				_, _ = c.Response().Write([]byte(ms.Name))
 				return
 			}
 		}
-		c.Response().Write([]byte("no-service"))
+		_, _ = c.Response().Write([]byte("no-service"))
 	})
 
 	req, rec := testhelpers.NewRequestRecorder(http.MethodGet, "/test", nil)

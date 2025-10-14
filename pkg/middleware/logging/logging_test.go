@@ -29,7 +29,7 @@ func TestLoggingMiddlewareShouldLogRequestDetails(t *testing.T) {
 	next := func(c routing.RouteContext) {
 		nextCalled = true
 		c.Response().WriteHeader(http.StatusOK)
-		c.Response().Write([]byte("test response"))
+		_, _ = c.Response().Write([]byte("test response"))
 	}
 
 	// Act
@@ -102,7 +102,7 @@ func TestLoggingMiddlewareShouldDefaultTo200Status(t *testing.T) {
 
 	next := func(c routing.RouteContext) {
 		// Don't explicitly set status - should default to 200
-		c.Response().Write([]byte("response"))
+		_, _ = c.Response().Write([]byte("response"))
 	}
 
 	// Act
@@ -159,7 +159,7 @@ func TestShouldAddLoggingMiddlewareToRouter(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(&logBuffer, nil))
 	slog.SetDefault(logger)
 
-	rtr.GET("/test", func(c routing.RouteContext) { c.Response().Write([]byte("ok")) })
+	rtr.GET("/test", func(c routing.RouteContext) { _, _ = c.Response().Write([]byte("ok")) })
 	req, rec := testhelpers.NewRequestRecorder(http.MethodGet, "/test?param=value", nil)
 	req.RemoteAddr = "192.168.1.1:8080"
 	req.Header.Set(common.HeaderUserAgent, "test-agent/1.0")

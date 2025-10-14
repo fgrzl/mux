@@ -26,7 +26,7 @@ func benchRateLimit(b *testing.B, pooled bool) {
 	rg := r.NewRouteGroup("")
 	// Use the builder API to configure rate limit for the route
 	rb := rg.GET("/ok", func(c routing.RouteContext) {
-		c.Response().Write([]byte("ok"))
+		_, _ = c.Response().Write([]byte("ok"))
 	})
 	// Use a very large limit so the benchmark focuses on middleware overhead
 	// instead of triggering the rate limiter itself.

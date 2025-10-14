@@ -162,14 +162,11 @@ func TestShouldNotExceedMaxTokens(t *testing.T) {
 	interval := 10 * time.Millisecond
 	limit := 3
 
-	// Act - Create visitor
-	visitor := limiter.getVisitor(testIP1, testPath, limit, interval)
-
 	// Wait for much longer than refill interval to simulate multiple refills
 	time.Sleep(100 * time.Millisecond)
 
-	// Get visitor again to trigger refill
-	visitor = limiter.getVisitor(testIP1, testPath, limit, interval)
+	// Get visitor to trigger refill
+	visitor := limiter.getVisitor(testIP1, testPath, limit, interval)
 
 	// Assert
 	assert.LessOrEqual(t, visitor.tokens, limit) // Should not exceed limit
@@ -376,7 +373,7 @@ func TestUseRateLimiterShouldAddMiddlewareToRouter(t *testing.T) {
 	UseRateLimiter(rtr, WithCleanupInterval(5*time.Minute))
 
 	// Register a route and ensure requests still succeed
-	rtr.GET(testPath, func(c routing.RouteContext) { c.Response().Write([]byte("ok")) })
+	rtr.GET(testPath, func(c routing.RouteContext) { _, _ = c.Response().Write([]byte("ok")) })
 	req, rec := testhelpers.NewRequestRecorder(http.MethodGet, testPath, nil)
 	rtr.ServeHTTP(rec, req)
 

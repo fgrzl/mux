@@ -61,7 +61,7 @@ func TestShouldAddEnforceHTTPSMiddlewareToRouter(t *testing.T) {
 	// Register a route and make an HTTP (non-HTTPS) request to ensure middleware redirects
 	rtr.GET("/test", func(c routing.RouteContext) {
 		c.Response().WriteHeader(http.StatusOK)
-		c.Response().Write([]byte("ok"))
+		_, _ = c.Response().Write([]byte("ok"))
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)

@@ -24,7 +24,7 @@ func TestShouldCompressResponseWithGzip(t *testing.T) {
 
 	response := "This is test response data that should be compressed"
 	next := func(c routing.RouteContext) {
-		c.Response().Write([]byte(response))
+		_, _ = c.Response().Write([]byte(response))
 	}
 
 	// Act
@@ -53,7 +53,7 @@ func TestShouldCompressResponseWithDeflate(t *testing.T) {
 
 	response := "This is test response data that should be compressed with deflate"
 	next := func(c routing.RouteContext) {
-		c.Response().Write([]byte(response))
+		_, _ = c.Response().Write([]byte(response))
 	}
 
 	// Act
@@ -73,7 +73,7 @@ func TestShouldPreferGzipOverDeflate(t *testing.T) {
 	ctx := routing.NewRouteContext(recorder, req)
 
 	next := func(c routing.RouteContext) {
-		c.Response().Write([]byte("test"))
+		_, _ = c.Response().Write([]byte("test"))
 	}
 
 	// Act
@@ -92,7 +92,7 @@ func TestShouldNotCompressWhenNoAcceptEncoding(t *testing.T) {
 
 	response := "This response should not be compressed"
 	next := func(c routing.RouteContext) {
-		c.Response().Write([]byte(response))
+		_, _ = c.Response().Write([]byte(response))
 	}
 
 	// Act
@@ -113,7 +113,7 @@ func TestShouldNotCompressWhenUnsupportedEncoding(t *testing.T) {
 
 	response := "This response should not be compressed"
 	next := func(c routing.RouteContext) {
-		c.Response().Write([]byte(response))
+		_, _ = c.Response().Write([]byte(response))
 	}
 
 	// Act
@@ -133,7 +133,7 @@ func TestShouldAddCompressionMiddlewareToRouter(t *testing.T) {
 
 	// To verify it was added, register a handler that writes a response and make a request
 	rtr.GET("/test", func(c routing.RouteContext) {
-		c.Response().Write([]byte("hello"))
+		_, _ = c.Response().Write([]byte("hello"))
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)

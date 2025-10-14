@@ -37,9 +37,7 @@ type forwardedHeadersMiddleware struct {
 // newForwardedHeadersMiddleware builds the middleware and pre-parses trusted proxies.
 func newForwardedHeadersMiddleware(opts Options) *forwardedHeadersMiddleware {
 	// defaults
-	if opts.TrustAll == false && len(opts.TrustedProxies) == 0 {
-		// remain explicit: TrustAll false means only exact trust list; leave empty
-	}
+	// If TrustAll is false and no TrustedProxies were provided, leave trusted list empty.
 	if !opts.RespectForwarded {
 		// default to true if unset (zero value is false) to be generous
 		opts.RespectForwarded = true
@@ -201,28 +199,9 @@ func parseForwardedRFC(v string) (forAddr, proto, host string) {
 }
 
 // chooseClientIP determines the effective client IP given X-Forwarded-For values and trust list.
-func (m *forwardedHeadersMiddleware) chooseClientIP(xff []string, immediateRemote string) string { // legacy path
-	if len(xff) == 0 {
-		return ""
-	}
-	if m.opts.TrustAll {
-		return xff[0]
-	}
-	host, _, err := net.SplitHostPort(immediateRemote)
-	if err != nil {
-		host = immediateRemote
-	}
-	if !m.isTrusted(net.ParseIP(host)) {
-		return ""
-	}
-	for i := len(xff) - 1; i >= 0; i-- {
-		v := normalizeIPToken(xff[i])
-		if !m.isTrusted(net.ParseIP(v)) {
-			return v
-		}
-	}
-	return xff[0]
-}
+// Note: legacy chooseClientIP (operating on pre-split slices) was removed
+// in favor of chooseClientIPFromRaw which operates on the raw header string
+// and avoids an allocation. The logic is preserved in the Raw variant.
 
 // chooseClientIPFromRaw performs right-to-left parsing of a CSV without building slices.
 func (m *forwardedHeadersMiddleware) chooseClientIPFromRaw(xffRaw, immediateRemote string) string {
