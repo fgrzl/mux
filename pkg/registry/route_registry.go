@@ -37,6 +37,28 @@ func NewRouteRegistry() *RouteRegistry {
 	}
 }
 
+func newRouteNode() *routing.RouteNode {
+	return &routing.RouteNode{Children: make(map[string]*routing.RouteNode)}
+}
+
+func splitSegments(trimmed string) []string {
+	if trimmed == "" {
+		return nil
+	}
+	raw := strings.Split(trimmed, "/")
+	segments := make([]string, 0, len(raw))
+	for _, s := range raw {
+		if s != "" {
+			segments = append(segments, s)
+		}
+	}
+	return segments
+}
+
+func isParamSegment(seg string) bool {
+	return strings.HasPrefix(seg, "{") && strings.HasSuffix(seg, "}") && len(seg) > 2
+}
+
 // Note: helper functions for splitting/scanning path segments were removed
 // as they were unused and the registry performs in-place scanning for
 // performance and clarity.
@@ -63,94 +85,91 @@ func (r *RouteRegistry) Root() *routing.RouteNode {
 // is updated to accelerate lookups.
 func (r *RouteRegistry) Register(pattern string, method string, options *routing.RouteOptions) {
 	trimmed := strings.Trim(pattern, "/")
-	// If the trimmed pattern is empty, it refers to the root node
 	if trimmed == "" {
-		node := r.root
-		if node.RouteOptions == nil {
-			node.RouteOptions = make(map[string]*routing.RouteOptions)
-		}
-		node.RouteOptions[method] = options
-		// Update metadata on the root node
-		node.MethodsMask = methodsMaskFromMap(node.RouteOptions)
-		node.AllowHeader = allowHeaderFromMap(node.RouteOptions)
-		if !strings.ContainsAny(pattern, "{*}") {
-			m := r.exactRoutes[pattern]
-			if m == nil {
-				m = make(map[string]*routing.RouteOptions)
-				r.exactRoutes[pattern] = m
-			}
-			m[method] = options
-		}
+		r.registerRootRoute(pattern, method, options)
 		return
 	}
-	// Split and ignore any empty segments created by consecutive slashes
-	rawSegs := strings.Split(trimmed, "/")
-	segments := make([]string, 0, len(rawSegs))
-	for _, s := range rawSegs {
-		if s == "" {
-			// Skip empty segments caused by consecutive slashes in pattern.
-			// These should be ignored to avoid creating unintended route nodes.
-			continue
-		}
-		segments = append(segments, s)
+
+	segments := splitSegments(trimmed)
+	node, hasParams := r.walkOrCreateNodes(segments)
+	r.assignRouteOptions(node, method, options, hasParams)
+
+	if !strings.ContainsAny(pattern, "{*}") {
+		r.storeExactRoute(pattern, method, options)
 	}
+}
+
+func (r *RouteRegistry) registerRootRoute(pattern, method string, options *routing.RouteOptions) {
+	r.assignRouteOptions(r.root, method, options, false)
+	if !strings.ContainsAny(pattern, "{*}") {
+		r.storeExactRoute(pattern, method, options)
+	}
+}
+
+func (r *RouteRegistry) walkOrCreateNodes(segments []string) (*routing.RouteNode, bool) {
 	node := r.root
 	hasParams := false
-
 	for _, seg := range segments {
-		if seg == "**" {
-			if node.CatchAll == nil {
-				node.CatchAll = &routing.RouteNode{Children: make(map[string]*routing.RouteNode)}
-			}
-			// update parent fast-path flags
-			r.refreshFastPathFlags(node)
-			node = node.CatchAll
+		next, updatedHasParams, done := r.advanceNode(node, seg, hasParams)
+		node = next
+		hasParams = updatedHasParams
+		if done {
 			break
-		} else if seg == "*" {
-			if node.Wildcard == nil {
-				node.Wildcard = &routing.RouteNode{Children: make(map[string]*routing.RouteNode)}
-			}
-			r.refreshFastPathFlags(node)
-			node = node.Wildcard
-		} else if strings.HasPrefix(seg, "{") && strings.HasSuffix(seg, "}") {
-			hasParams = true
-			if node.ParamChild == nil {
-				node.ParamChild = &routing.RouteNode{Children: make(map[string]*routing.RouteNode)}
-				node.ParamChild.ParamName = seg[1 : len(seg)-1]
-			}
-			r.refreshFastPathFlags(node)
-			node = node.ParamChild
-		} else {
-			if node.Children[seg] == nil {
-				node.Children[seg] = &routing.RouteNode{Children: make(map[string]*routing.RouteNode)}
-			}
-			r.refreshFastPathFlags(node)
-			node = node.Children[seg]
 		}
 	}
+	return node, hasParams
+}
 
+func (r *RouteRegistry) advanceNode(node *routing.RouteNode, seg string, hasParams bool) (*routing.RouteNode, bool, bool) {
+	switch {
+	case seg == "**":
+		if node.CatchAll == nil {
+			node.CatchAll = newRouteNode()
+		}
+		r.refreshFastPathFlags(node)
+		return node.CatchAll, hasParams, true
+	case seg == "*":
+		if node.Wildcard == nil {
+			node.Wildcard = newRouteNode()
+		}
+		r.refreshFastPathFlags(node)
+		return node.Wildcard, hasParams, false
+	case isParamSegment(seg):
+		hasParams = true
+		if node.ParamChild == nil {
+			node.ParamChild = newRouteNode()
+			node.ParamChild.ParamName = seg[1 : len(seg)-1]
+		}
+		r.refreshFastPathFlags(node)
+		return node.ParamChild, hasParams, false
+	default:
+		if node.Children[seg] == nil {
+			node.Children[seg] = newRouteNode()
+		}
+		r.refreshFastPathFlags(node)
+		return node.Children[seg], hasParams, false
+	}
+}
+
+func (r *RouteRegistry) assignRouteOptions(node *routing.RouteNode, method string, options *routing.RouteOptions, hasParams bool) {
 	if node.RouteOptions == nil {
 		node.RouteOptions = make(map[string]*routing.RouteOptions)
 	}
-
 	node.RouteOptions[method] = options
 	if hasParams {
 		node.HasParams = true
 	}
-	// Update cached method metadata (mask and Allow header)
 	node.MethodsMask = methodsMaskFromMap(node.RouteOptions)
 	node.AllowHeader = allowHeaderFromMap(node.RouteOptions)
+}
 
-	// If the pattern contains no parameter or wildcard tokens, keep a copy
-	// in the exactRoutes map as a fast path for Load.
-	if !strings.ContainsAny(pattern, "{*}") {
-		m := r.exactRoutes[pattern]
-		if m == nil {
-			m = make(map[string]*routing.RouteOptions)
-			r.exactRoutes[pattern] = m
-		}
-		m[method] = options
+func (r *RouteRegistry) storeExactRoute(pattern, method string, options *routing.RouteOptions) {
+	m := r.exactRoutes[pattern]
+	if m == nil {
+		m = make(map[string]*routing.RouteOptions)
+		r.exactRoutes[pattern] = m
 	}
+	m[method] = options
 }
 
 // refreshFastPathFlags recomputes fast-path flags for n based on its children pointers.
@@ -201,15 +220,6 @@ func scanSegment(path string, s, end int) (seg string, nextIndex int) {
 	return
 }
 
-// shared frame type used by traversal functions to avoid duplicating the
-// same local type definitions and reduce function complexity.
-type frame struct {
-	node     *routing.RouteNode
-	s        int
-	stage    int
-	paramKey string
-}
-
 // chooseNextEdge selects the next route node for the given segment according
 // to the registry precedence: static child, param child, wildcard, catch-all.
 // It returns the selected node and a string describing the edge type.
@@ -227,12 +237,6 @@ func chooseNextEdge(n *routing.RouteNode, seg string) (*routing.RouteNode, strin
 		return n.CatchAll, "catchall"
 	}
 	return nil, ""
-}
-
-func clearParamIfNeeded(dst map[string]string, key string) {
-	if key != "" && dst != nil {
-		delete(dst, key)
-	}
 }
 
 // Load performs a route lookup for the supplied path and method. It returns
@@ -375,74 +379,26 @@ func (r *RouteRegistry) walkInto(path string, method string, dst map[string]stri
 		delete(dst, k)
 	}
 
-	// Use a simplified traversal implementation (inlined) but using helpers for trimming and scanning.
-
-	var stackBuf [16]frame
-	stack := stackBuf[:0]
-	stack = append(stack, frame{node: r.root, s: start, stage: 0})
-	for len(stack) > 0 {
-		f := &stack[len(stack)-1]
-		node := f.node
-		s := f.s
-		if s >= end {
-			if opt, ok := atEnd(node, method); ok {
-				return opt, true
+	ctx := traversalContext{
+		path:   path,
+		method: method,
+		end:    end,
+		setParam: func(name, value string) {
+			if dst == nil || name == "" {
+				return
 			}
-			clearParamIfNeeded(dst, f.paramKey)
-			stack = stack[:len(stack)-1]
-			continue
-		}
-		if node.HasOnlyCatchAll {
-			if opt, ok := atEnd(node.CatchAll, method); ok {
-				return opt, true
+			dst[name] = value
+		},
+		clearParam: func(name string) {
+			if dst == nil || name == "" {
+				return
 			}
-			clearParamIfNeeded(dst, f.paramKey)
-			stack = stack[:len(stack)-1]
-			continue
-		}
-		if node.HasOnlyWildcardTerminal {
-			if opt, ok := atEnd(node.Wildcard, method); ok {
-				return opt, true
-			}
-			clearParamIfNeeded(dst, f.paramKey)
-			stack = stack[:len(stack)-1]
-			continue
-		}
-		seg, nextIndex := scanSegment(path, s, end)
-		switch f.stage {
-		case 0:
-			f.stage = 1
-			if child, ok := node.Children[seg]; ok {
-				stack = append(stack, frame{node: child, s: nextIndex, stage: 0})
-				continue
-			}
-			fallthrough
-		case 1:
-			f.stage = 2
-			if node.ParamChild != nil {
-				dst[node.ParamChild.ParamName] = seg
-				stack = append(stack, frame{node: node.ParamChild, s: nextIndex, stage: 0, paramKey: node.ParamChild.ParamName})
-				continue
-			}
-			fallthrough
-		case 2:
-			f.stage = 3
-			if node.Wildcard != nil {
-				stack = append(stack, frame{node: node.Wildcard, s: nextIndex, stage: 0})
-				continue
-			}
-			fallthrough
-		case 3:
-			if node.CatchAll != nil {
-				if opt, ok := atEnd(node.CatchAll, method); ok {
-					return opt, true
-				}
-			}
-			clearParamIfNeeded(dst, f.paramKey)
-			stack = stack[:len(stack)-1]
-		}
+			delete(dst, name)
+		},
+		atEnd: atEnd,
 	}
-	return nil, false
+
+	return r.traverseRoute(r.root, start, &ctx)
 }
 
 // TryMatchMethods returns the list of allowed HTTP methods for a given path
@@ -627,83 +583,116 @@ func (r *RouteRegistry) walk(path string, atEnd func(*routing.RouteNode, string)
 	start, end := trimPathIndices(path)
 
 	var params map[string]string
-
-	var stackBuf [16]frame
-	stack := stackBuf[:0]
-	stack = append(stack, frame{node: r.root, s: start, stage: 0})
-	for len(stack) > 0 {
-		f := &stack[len(stack)-1]
-		node := f.node
-		s := f.s
-		if s >= end {
-			if opt, ok := atEnd(node, method); ok {
-				return opt, params, true
+	ctx := traversalContext{
+		path:   path,
+		method: method,
+		end:    end,
+		setParam: func(name, value string) {
+			if name == "" {
+				return
 			}
-			if f.paramKey != "" && params != nil {
-				delete(params, f.paramKey)
+			if params == nil {
+				params = make(map[string]string, 1)
 			}
-			stack = stack[:len(stack)-1]
-			continue
-		}
-		// Early short-circuit using precomputed flags
-		if node.HasOnlyCatchAll {
-			if opt, ok := atEnd(node.CatchAll, method); ok {
-				return opt, params, true
+			params[name] = value
+		},
+		clearParam: func(name string) {
+			if params == nil || name == "" {
+				return
 			}
-			if f.paramKey != "" && params != nil {
-				delete(params, f.paramKey)
-			}
-			stack = stack[:len(stack)-1]
-			continue
-		}
-		if node.HasOnlyWildcardTerminal {
-			if opt, ok := atEnd(node.Wildcard, method); ok {
-				return opt, params, true
-			}
-			if f.paramKey != "" && params != nil {
-				delete(params, f.paramKey)
-			}
-			stack = stack[:len(stack)-1]
-			continue
-		}
-		seg, nextIndex := scanSegment(path, s, end)
-		switch f.stage {
-		case 0:
-			f.stage = 1
-			if child, ok := node.Children[seg]; ok {
-				stack = append(stack, frame{node: child, s: nextIndex, stage: 0})
-				continue
-			}
-			fallthrough
-		case 1:
-			f.stage = 2
-			if node.ParamChild != nil {
-				if params == nil {
-					params = make(map[string]string, 1)
-				}
-				params[node.ParamChild.ParamName] = seg
-				stack = append(stack, frame{node: node.ParamChild, s: nextIndex, stage: 0, paramKey: node.ParamChild.ParamName})
-				continue
-			}
-			fallthrough
-		case 2:
-			f.stage = 3
-			if node.Wildcard != nil {
-				stack = append(stack, frame{node: node.Wildcard, s: nextIndex, stage: 0})
-				continue
-			}
-			fallthrough
-		case 3:
-			if node.CatchAll != nil {
-				if opt, ok := atEnd(node.CatchAll, method); ok {
-					return opt, params, true
-				}
-			}
-			if f.paramKey != "" && params != nil {
-				delete(params, f.paramKey)
-			}
-			stack = stack[:len(stack)-1]
-		}
+			delete(params, name)
+		},
+		atEnd: atEnd,
 	}
-	return nil, params, false
+
+	opt, ok := r.traverseRoute(r.root, start, &ctx)
+	if !ok {
+		return nil, params, false
+	}
+	if len(params) == 0 {
+		params = nil
+	}
+	return opt, params, true
+}
+
+type traversalContext struct {
+	path       string
+	method     string
+	end        int
+	setParam   func(string, string)
+	clearParam func(string)
+	atEnd      func(*routing.RouteNode, string) (*routing.RouteOptions, bool)
+}
+
+func (r *RouteRegistry) traverseRoute(node *routing.RouteNode, s int, ctx *traversalContext) (*routing.RouteOptions, bool) {
+	if node == nil {
+		return nil, false
+	}
+	if s >= ctx.end {
+		return ctx.atEnd(node, ctx.method)
+	}
+	if node.HasOnlyCatchAll {
+		return r.tryCatchAll(node, ctx)
+	}
+	if node.HasOnlyWildcardTerminal {
+		return r.tryWildcardTerminal(node, ctx)
+	}
+	seg, nextIndex := scanSegment(ctx.path, s, ctx.end)
+	if opt, ok := r.tryStaticChild(node, seg, nextIndex, ctx); ok {
+		return opt, true
+	}
+	if opt, ok := r.tryParamChild(node, seg, nextIndex, ctx); ok {
+		return opt, true
+	}
+	if opt, ok := r.tryWildcard(node, nextIndex, ctx); ok {
+		return opt, true
+	}
+	if opt, ok := r.tryCatchAll(node, ctx); ok {
+		return opt, true
+	}
+	return nil, false
+}
+
+func (r *RouteRegistry) tryStaticChild(node *routing.RouteNode, seg string, nextIndex int, ctx *traversalContext) (*routing.RouteOptions, bool) {
+	child := node.Children[seg]
+	if child == nil {
+		return nil, false
+	}
+	return r.traverseRoute(child, nextIndex, ctx)
+}
+
+func (r *RouteRegistry) tryParamChild(node *routing.RouteNode, seg string, nextIndex int, ctx *traversalContext) (*routing.RouteOptions, bool) {
+	paramChild := node.ParamChild
+	if paramChild == nil {
+		return nil, false
+	}
+	name := paramChild.ParamName
+	ctx.setParam(name, seg)
+	opt, ok := r.traverseRoute(paramChild, nextIndex, ctx)
+	if ok {
+		return opt, true
+	}
+	ctx.clearParam(name)
+	return nil, false
+}
+
+func (r *RouteRegistry) tryWildcard(node *routing.RouteNode, nextIndex int, ctx *traversalContext) (*routing.RouteOptions, bool) {
+	if node.Wildcard == nil {
+		return nil, false
+	}
+	return r.traverseRoute(node.Wildcard, nextIndex, ctx)
+}
+
+func (r *RouteRegistry) tryWildcardTerminal(node *routing.RouteNode, ctx *traversalContext) (*routing.RouteOptions, bool) {
+	if node.Wildcard == nil {
+		return nil, false
+	}
+	return ctx.atEnd(node.Wildcard, ctx.method)
+}
+
+func (r *RouteRegistry) tryCatchAll(node *routing.RouteNode, ctx *traversalContext) (*routing.RouteOptions, bool) {
+	if node.CatchAll == nil {
+		return nil, false
+	}
+	return ctx.atEnd(node.CatchAll, ctx.method)
 }

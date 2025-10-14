@@ -95,6 +95,23 @@ type headWriter struct{ http.ResponseWriter }
 
 func (hw headWriter) Write(p []byte) (int, error) { return len(p), nil }
 
+// routeOutcome captures the result of resolving a request to a route.
+type routeOutcome int
+
+const (
+	routeOutcomeResolved routeOutcome = iota
+	routeOutcomeMethodNotAllowed
+	routeOutcomeNotFound
+)
+
+// routeResolution collects data produced while resolving a request.
+type routeResolution struct {
+	options      *routing.RouteOptions
+	params       routing.RouteParams
+	details      registry.LoadDetails
+	suppressBody bool
+}
+
 // Use registers a middleware with the router.
 func (rtr *Router) Use(m Middleware) {
 	rtr.middleware = append(rtr.middleware, m)
@@ -126,167 +143,218 @@ func (rtr *Router) NewRouteGroup(prefix string) *RouteGroup {
 // ServeHTTP implements http.Handler.
 // ServeHTTP implements http.Handler.
 func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Acquire route context (pooled if enabled)
-	var c *routing.DefaultRouteContext
-	if rtr.options != nil && rtr.options.ContextPooling {
-		c = routing.AcquireContext(w, r)
-	} else {
-		c = routing.NewRouteContext(w, r)
-	}
+	c := rtr.acquireRouteContext(w, r)
+	defer rtr.recoverAndRelease(w, r, c)
 
-	// Normalize empty path (requests like "http://host:port" can produce
-	// an empty URL.Path). Treat empty path as root "/" so registry lookups
-	// and logging behave consistently.
-	if r.URL != nil && r.URL.Path == "" {
-		r.URL.Path = "/"
-	}
+	normalizeEmptyPath(r)
 
-	// Panic recovery; then ensure context is released back to pool if enabled
-	defer func() {
-		if err := recover(); err != nil {
-			// Use request context where possible; avoid calling methods on c
-			// (which might be a nil pointer receiver) during panic handling.
-			var logCtx context.Context = context.Background()
-			if r != nil && r.Context() != nil {
-				logCtx = r.Context()
-			}
-			// Capture stack for diagnostics
-			stack := debug.Stack()
-			slog.ErrorContext(logCtx, "panic recovered in ServeHTTP", "error", err, "path", r.URL.Path, "method", r.Method, "stack", string(stack))
-			if c != nil {
-				// Prefer to use the RouteContext's ServerError if available.
-				// We check c != nil and avoid calling other methods here.
-				c.ServerError("Internal Server Error", "An unexpected error occurred")
-			} else {
-				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			}
-		}
-		if rtr.options != nil && rtr.options.ContextPooling {
-			routing.ReleaseContext(c)
-		}
-	}()
-
-	// lookup the route options using the pattern and method
-	// Reuse the context's params map if available to avoid allocs
-	var (
-		params  routing.RouteParams
-		options *routing.RouteOptions
-		det     registry.LoadDetails
-	)
-	if p := c.Params(); p != nil {
-		params = p
-	}
-	// First, find the node without forcing param allocation
-	node := rtr.routeRegistry.FindNode(r.URL.Path)
-	if node != nil {
-		if len(node.RouteOptions) == 0 {
-			// No terminal options on this node (e.g., root '/'). Perform a detailed lookup
-			// to retrieve both LoadDetails and the matched RouteOptions, and capture params
-			// if present. This ensures we set options even when the matched node doesn't store
-			// RouteOptions directly.
-			tmp := routing.AcquireRouteParams()
-			if opt2, det2 := rtr.routeRegistry.LoadDetailedInto(r.URL.Path, r.Method, tmp); det2.Found {
-				det = det2
-				if det2.MethodOK {
-					options = opt2
-				}
-				// Keep params only if some node matched the path; otherwise release.
-				params = tmp
-			} else {
-				routing.ReleaseRouteParams(tmp)
-				det = det2
-			}
-		} else if opt, ok := node.RouteOptions[r.Method]; ok {
-			// Method allowed at this node. Only allocate/populate params if the node has params.
-			if node.HasParams {
-				if params == nil {
-					if rtr.options != nil && rtr.options.ContextPooling {
-						params = routing.AcquireRouteParams()
-					} else {
-						params = make(routing.RouteParams, 2)
-					}
-				}
-				if opt2, ok2 := rtr.routeRegistry.LoadInto(r.URL.Path, r.Method, params); ok2 {
-					options = opt2
-					det = registry.LoadDetails{Found: true, MethodOK: true}
-				} else {
-					// Fallback: still set options even if LoadInto failed unexpectedly
-					options = opt
-					det = registry.LoadDetails{Found: true, MethodOK: true}
-				}
-			} else {
-				// No params for this pattern (static, wildcard, catch-all)
-				options = opt
-				det = registry.LoadDetails{Found: true, MethodOK: true}
-			}
-		} else {
-			det = registry.LoadDetails{Found: true, MethodOK: false, Allow: node.AllowHeader}
-		}
-	} else {
-		// No node matched; compute LoadDetails to drive 404/405 logic
-		tmp := routing.AcquireRouteParams()
-		_, det = rtr.routeRegistry.LoadDetailedInto(r.URL.Path, r.Method, tmp)
-		if det.Found {
-			params = tmp
-		} else {
-			routing.ReleaseRouteParams(tmp)
-		}
-	}
-	// Optional HEAD->GET fallback when no explicit HEAD route is registered
-	suppressBody := false
-	// HEAD fallback: if enabled, attempt to serve via GET regardless of initial match state
-	if r.Method == http.MethodHead && rtr.options.HeadFallbackToGet {
-		// If we haven't already found a node, attempt to find one for GET without
-		// allocating another full traversal when possible. Reuse params if available.
-		if params == nil {
-			params = routing.AcquireRouteParams()
-		}
-		// Find GET node; if it's the same node we already inspected this is cheap,
-		// otherwise it performs a single traversal.
-		getNode := rtr.routeRegistry.FindNodeInto(r.URL.Path, params)
-		if getNode != nil {
-			if opt, ok := getNode.RouteOptions[http.MethodGet]; ok {
-				options = opt
-				det = registry.LoadDetails{Found: true, MethodOK: true}
-				suppressBody = true
-			}
-		}
-	}
-	if !det.Found || !det.MethodOK {
-		// If path matches but method not allowed, return 405 with Allow header
-		if det.Found && !det.MethodOK {
-			if det.Allow != "" {
-				w.Header().Set("Allow", det.Allow)
-			}
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
+	res, outcome := rtr.resolveRoute(r, c)
+	switch outcome {
+	case routeOutcomeNotFound:
 		slog.DebugContext(c, "not found", "path", r.URL.Path, "method", r.Method)
 		c.NotFound()
 		return
+	case routeOutcomeMethodNotAllowed:
+		if res.details.Allow != "" {
+			w.Header().Set("Allow", res.details.Allow)
+		}
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 
-	c.SetOptions(options)
-	// only set params map on context if we had one populated
-	if len(params) > 0 {
+	rtr.configureContext(c, w, res)
+	rtr.executePipeline(c)
+}
+
+func (rtr *Router) acquireRouteContext(w http.ResponseWriter, r *http.Request) *routing.DefaultRouteContext {
+	if rtr.options != nil && rtr.options.ContextPooling {
+		return routing.AcquireContext(w, r)
+	}
+	return routing.NewRouteContext(w, r)
+}
+
+func normalizeEmptyPath(r *http.Request) {
+	if r == nil || r.URL == nil {
+		return
+	}
+	if r.URL.Path == "" {
+		r.URL.Path = "/"
+	}
+}
+
+func (rtr *Router) recoverAndRelease(w http.ResponseWriter, r *http.Request, c *routing.DefaultRouteContext) {
+	if rec := recover(); rec != nil {
+		logCtx := context.Background()
+		if r != nil && r.Context() != nil {
+			logCtx = r.Context()
+		}
+		stack := debug.Stack()
+		slog.ErrorContext(logCtx, "panic recovered in ServeHTTP", "error", rec, "path", safeURLPath(r), "method", safeMethod(r), "stack", string(stack))
+		if c != nil {
+			c.ServerError("Internal Server Error", "An unexpected error occurred")
+		} else {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
+	}
+	if rtr.options != nil && rtr.options.ContextPooling && c != nil {
+		routing.ReleaseContext(c)
+	}
+}
+
+func safeURLPath(r *http.Request) string {
+	if r == nil || r.URL == nil {
+		return ""
+	}
+	return r.URL.Path
+}
+
+func safeMethod(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	return r.Method
+}
+
+func (rtr *Router) resolveRoute(r *http.Request, c *routing.DefaultRouteContext) (routeResolution, routeOutcome) {
+	res, outcome := rtr.resolveInitialRoute(r, c)
+	if r.Method == http.MethodHead && rtr.shouldFallbackToGet() {
+		originalOutcome := outcome
+		rtr.applyHeadFallback(r, &res)
+		if res.details.Found && res.details.MethodOK {
+			outcome = routeOutcomeResolved
+		} else {
+			outcome = originalOutcome
+		}
+	}
+	return res, outcome
+}
+
+func (rtr *Router) resolveInitialRoute(r *http.Request, c *routing.DefaultRouteContext) (routeResolution, routeOutcome) {
+	if r == nil || r.URL == nil {
+		return routeResolution{}, routeOutcomeNotFound
+	}
+
+	res := routeResolution{}
+	if params := c.Params(); params != nil {
+		res.params = params
+	}
+
+	path := r.URL.Path
+	method := r.Method
+
+	node := rtr.routeRegistry.FindNode(path)
+	switch {
+	case node == nil || len(node.RouteOptions) == 0:
+		return rtr.resolveWithDetailedLookup(path, method, &res)
+	default:
+		return rtr.resolveNodeWithOptions(node, path, method, &res)
+	}
+}
+
+func (rtr *Router) resolveWithDetailedLookup(path, method string, res *routeResolution) (routeResolution, routeOutcome) {
+	tmp := routing.AcquireRouteParams()
+	opt, det := rtr.routeRegistry.LoadDetailedInto(path, method, tmp)
+	res.details = det
+	if !det.Found {
+		routing.ReleaseRouteParams(tmp)
+		res.params = nil
+		return *res, routeOutcomeNotFound
+	}
+	res.params = tmp
+	if !det.MethodOK {
+		return *res, routeOutcomeMethodNotAllowed
+	}
+	res.options = opt
+	return *res, routeOutcomeResolved
+}
+
+func (rtr *Router) resolveNodeWithOptions(node *routing.RouteNode, path, method string, res *routeResolution) (routeResolution, routeOutcome) {
+	opt, ok := node.RouteOptions[method]
+	if !ok {
+		res.details = registry.LoadDetails{Found: true, MethodOK: false, Allow: node.AllowHeader}
+		return *res, routeOutcomeMethodNotAllowed
+	}
+
+	res.details = registry.LoadDetails{Found: true, MethodOK: true}
+	res.options = opt
+	if node.HasParams {
+		params := res.params
+		if params == nil {
+			params = rtr.newRouteParams()
+		}
+		if opt2, ok2 := rtr.routeRegistry.LoadInto(path, method, params); ok2 {
+			res.options = opt2
+		}
+		res.params = params
+	}
+	return *res, routeOutcomeResolved
+}
+
+func (rtr *Router) applyHeadFallback(r *http.Request, res *routeResolution) {
+	if r == nil || r.URL == nil {
+		return
+	}
+
+	params := res.params
+	if params == nil {
+		params = routing.AcquireRouteParams()
+	}
+
+	getNode := rtr.routeRegistry.FindNodeInto(r.URL.Path, params)
+	if getNode == nil {
+		res.params = params
+		return
+	}
+
+	if opt, ok := getNode.RouteOptions[http.MethodGet]; ok {
+		res.options = opt
+		res.details = registry.LoadDetails{Found: true, MethodOK: true}
+		res.suppressBody = true
+		res.params = params
+		return
+	}
+
+	res.params = params
+}
+
+func (rtr *Router) shouldFallbackToGet() bool {
+	return rtr.options != nil && rtr.options.HeadFallbackToGet
+}
+
+func (rtr *Router) newRouteParams() routing.RouteParams {
+	if rtr.options != nil && rtr.options.ContextPooling {
+		return routing.AcquireRouteParams()
+	}
+	return make(routing.RouteParams, 2)
+}
+
+func (rtr *Router) configureContext(c *routing.DefaultRouteContext, w http.ResponseWriter, res routeResolution) {
+	c.SetOptions(res.options)
+	params := res.params
+	switch {
+	case len(params) > 0:
 		c.SetParams(params)
-	} else if params == nil && !(rtr.options != nil && rtr.options.ContextPooling) {
-		// for non-pooled contexts, ensure params is empty
+	case params == nil && !rtr.usingContextPooling():
 		c.SetParams(nil)
-	} else if params != nil && c.Params() == nil {
-		// attach the newly created map to the context
+	case params != nil && c.Params() == nil:
 		c.SetParams(params)
 	}
-	c.SetClientURL(rtr.options.clientURL)
-	// apply max body size option to the context
-	c.SetMaxBodyBytes(rtr.options.MaxBodyBytes)
 
-	// If suppressBody (HEAD fallback), wrap the ResponseWriter to discard body writes
-	if suppressBody {
+	if rtr.options != nil {
+		c.SetClientURL(rtr.options.clientURL)
+		c.SetMaxBodyBytes(rtr.options.MaxBodyBytes)
+	}
+
+	if res.suppressBody {
 		c.SetResponse(headWriter{ResponseWriter: w})
 	}
+}
 
-	// start the pipeline: try to use cached pipeline if middleware haven't changed
+func (rtr *Router) usingContextPooling() bool {
+	return rtr.options != nil && rtr.options.ContextPooling
+}
+
+func (rtr *Router) executePipeline(c routing.RouteContext) {
 	mw := rtr.middleware
 	if v := rtr.pipeline.Load(); v != nil {
 		if pc, ok := v.(pipelineCache); ok && pc.h != nil && pc.mwCount == len(mw) {
@@ -295,21 +363,23 @@ func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Build pipeline and cache it. Building composes the middleware from last
-	// to first so each middleware receives the next handler.
-	var final HandlerFunc = func(c routing.RouteContext) {
-		c.Options().Handler(c)
-	}
-	for i := len(mw) - 1; i >= 0; i-- {
-		m := mw[i]
-		next := final
-		final = func(c routing.RouteContext) {
-			m.Invoke(c, next)
-		}
-	}
-	// Cache the composed pipeline for future requests with the current mw count
+	final := rtr.buildPipeline(mw)
 	rtr.pipeline.Store(pipelineCache{h: final, mwCount: len(mw)})
 	final(c)
+}
+
+func (rtr *Router) buildPipeline(mw []Middleware) HandlerFunc {
+	final := HandlerFunc(func(c routing.RouteContext) {
+		c.Options().Handler(c)
+	})
+	for i := len(mw) - 1; i >= 0; i-- {
+		middleware := mw[i]
+		next := final
+		final = func(c routing.RouteContext) {
+			middleware.Invoke(c, next)
+		}
+	}
+	return final
 }
 
 func (rtr *Router) InfoObject() (*openapi.InfoObject, error) {
