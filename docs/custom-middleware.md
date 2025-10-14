@@ -307,3 +307,10 @@ func (m *Middleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
     next(c)
 }
 ```
+
+## See Also
+
+- [Middleware](middleware.md) - Built-in middleware guide
+- [Authentication Middleware](authentication-middleware.md) - JWT authentication
+- [Router](router.md) - Routing fundamentals
+- [Best Practices](best-practices.md) - Patterns and conventions

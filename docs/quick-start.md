@@ -1,33 +1,26 @@
-# Quick Start Tutorial
+# Quick Start
 
-This tutorial will walk you through building your first API with Mux in just a few minutes. You'll create a simple user management API with authentication, validation, and OpenAPI documentation.
+Get up and running with Mux in under 5 minutes. This guide shows you the absolute minimum needed to create your first API.
+
+> **New to Mux?** This quick start gets you coding immediately. For a comprehensive tutorial, see the [Interactive Tutorial](interactive-tutorial.md).
 
 ## Prerequisites
 
-- Go 1.24.4 or later installed
-- Basic familiarity with Go and HTTP APIs
-- Text editor or IDE
+- Go 1.24.4 or later installed ([Download](https://go.lang.org/dl/))
+- Basic familiarity with Go
 
-## Step 1: Project Setup
-
-Create a new project directory and initialize a Go module:
+## Step 1: Create a New Project
 
 ```bash
-mkdir my-first-api
-cd my-first-api
-go mod init my-first-api
-```
-
-Install Mux:
-
-```bash
+mkdir my-api
+cd my-api
+go mod init my-api
 go get github.com/fgrzl/mux
-go get github.com/google/uuid  # For UUID support
 ```
 
-## Step 2: Hello World
+## Step 2: Create Your First API
 
-Create `main.go` with a simple endpoint:
+Create `main.go`:
 
 ```go
 package main
@@ -36,611 +29,78 @@ import (
     "net/http"
     "github.com/fgrzl/mux"
 )
-
-func main() {
-    // Create a new router
-    router := mux.NewRouter(
-        // Optional: serve HEAD via GET when no HEAD route is defined
-        mux.WithHeadFallbackToGet(),
-        // Optional: increase body size limit used by Bind (default is 1MB)
-        mux.WithMaxBodyBytes(2<<20), // 2MB
-    )
-    
-    // Add a simple endpoint
-    router.GET("/hello", func(c mux.RouteContext) {
-        c.OK("Hello, World!")
-    })
-    
-    // Start the server
-    http.ListenAndServe(":8080", router)
-}
-```
-
-Run your application:
-
-```bash
-go run main.go
-```
-
-Test it:
-
-```bash
-curl http://localhost:8080/hello
-# Output: "Hello, World!"
-```
-
-🎉 Congratulations! Your first Mux API is running.
-
-## Step 3: Add Basic Middleware
-
-Let's add logging and compression middleware for better development experience:
-
-```go
-package main
-
-import (
-    "net/http"
-    "github.com/fgrzl/mux"
-)
-
-func main() {
-    router := mux.NewRouter(
-        mux.WithHeadFallbackToGet(),
-        mux.WithMaxBodyBytes(2<<20),
-    )
-    
-    // Add middleware
-    mux.UseLogging(router)      // Log all requests
-    mux.UseCompression(router)  // Compress responses
-    
-    router.GET("/hello", func(c mux.RouteContext) {
-        c.OK("Hello, World!")
-    })
-    
-    http.ListenAndServe(":8080", router)
-}
-```
-
-Now when you make requests, you'll see structured logs in your console.
-
-## Step 4: Create a User Model
-
-Let's build something more interesting. Create a user management API:
-
-```go
-package main
-
-import (
-    "net/http"
-    "time"
-    "github.com/fgrzl/mux"
-    "github.com/google/uuid"
-)
-
-// User represents a user in our system
-type User struct {
-    ID       uuid.UUID `json:"id"`
-    Name     string    `json:"name"`
-    Email    string    `json:"email"`
-    Created  time.Time `json:"created"`
-}
-
-// In-memory storage (don't use in production!)
-var users = []User{
-    {
-        ID:      uuid.New(),
-        Name:    "John Doe",
-        Email:   "john@example.com",
-        Created: time.Now().Add(-24 * time.Hour),
-    },
-    {
-        ID:      uuid.New(),
-        Name:    "Jane Smith", 
-        Email:   "jane@example.com",
-        Created: time.Now().Add(-12 * time.Hour),
-    },
-}
 
 func main() {
     router := mux.NewRouter()
-    mux.UseLogging(router)
-    mux.UseCompression(router)
     
-    // User endpoints
-    router.GET("/users", listUsers)
-    router.POST("/users", createUser)
-    router.GET("/users/{id}", getUser)
-    
-    http.ListenAndServe(":8080", router)
-}
-
-// Handler functions
-func listUsers(c mux.RouteContext) {
-    c.OK(users)
-}
-
-func createUser(c mux.RouteContext) {
-    var user User
-    if err := c.Bind(&user); err != nil {
-        c.BadRequest("Invalid request", err.Error())
-        return
-    }
-    
-    // Validate required fields
-    if user.Name == "" || user.Email == "" {
-        c.BadRequest("Missing required fields", "name and email are required")
-        return
-    }
-    
-    // Set server-side fields
-    user.ID = uuid.New()
-    user.Created = time.Now()
-    
-    // Add to storage
-    users = append(users, user)
-    
-    c.Created(user)
-}
-
-func getUser(c mux.RouteContext) {
-    // Extract UUID from path parameter
-    userID, ok := c.ParamUUID("id")
-    if !ok {
-        c.BadRequest("Invalid user ID", "user ID must be a valid UUID")
-        return
-    }
-    
-    // Find user
-    for _, user := range users {
-        if user.ID == userID {
-            c.OK(user)
-            return
-        }
-    }
-    
-    c.NotFound()
-}
-```
-
-## Step 5: Test Your API
-
-Now you can test all the endpoints:
-
-### List all users
-```bash
-curl http://localhost:8080/users
-```
-
-### Create a new user
-```bash
-curl -X POST http://localhost:8080/users \
-  -H "Content-Type: application/json" \
-  -d '{"name": "Alice Johnson", "email": "alice@example.com"}'
-```
-
-### Get a specific user
-```bash
-# Use an ID from the list users response
-curl http://localhost:8080/users/123e4567-e89b-12d3-a456-426614174000
-```
-
-## Step 6: Add Route Groups and OpenAPI Documentation
-
-Organize your routes and add API documentation:
-
-```go
-package main
-
-import (
-    "net/http"
-    "time"
-    "github.com/fgrzl/mux"
-    "github.com/google/uuid"
-)
-
-type User struct {
-    ID       uuid.UUID `json:"id"`
-    Name     string    `json:"name"`
-    Email    string    `json:"email"`
-    Created  time.Time `json:"created"`
-}
-
-var users = []User{
-    {ID: uuid.New(), Name: "John Doe", Email: "john@example.com", Created: time.Now()},
-}
-
-func main() {
-    // Create router with API information
-    router := mux.NewRouter(
-        mux.WithTitle("My First API"),
-        mux.WithVersion("1.0.0"),
-        mux.WithDescription("A simple user management API built with Mux"),
-    )
-    
-    mux.UseLogging(router)
-    mux.UseCompression(router)
-    
-    // Create API v1 route group
-    api := router.NewRouteGroup("/api/v1")
-    api.WithTags("API v1")
-    
-    // User routes with OpenAPI documentation
-    users := api.NewRouteGroup("/users")
-    users.WithTags("Users")
-    
-    users.GET("/", listUsers).
-        WithSummary("List all users").
-        WithOKResponse([]User{})
-        
-    users.POST("/", createUser).
-        WithSummary("Create a new user").
-        WithJsonBody(User{}).
-        WithCreatedResponse(User{}).
-        WithBadRequestResponse()
-        
-    users.GET("/{id}", getUser).
-        WithSummary("Get a user by ID").
-        WithParam("id", "path", uuid.Nil, true).
-        WithOKResponse(User{}).
-        WithNotFoundResponse()
-    
-    // Add health check endpoint
-    router.GET("/health", func(c mux.RouteContext) {
-        c.OK(map[string]string{
-            "status":    "healthy",
-            "timestamp": time.Now().Format(time.RFC3339),
-        })
-    }).WithSummary("Health check").WithTags("Health")
-    
-    http.ListenAndServe(":8080", router)
-}
-
-// ... (handler functions remain the same)
-func listUsers(c mux.RouteContext) {
-    c.OK(users)
-}
-
-func createUser(c mux.RouteContext) {
-    var user User
-    if err := c.Bind(&user); err != nil {
-        c.BadRequest("Invalid request", err.Error())
-        return
-    }
-    
-    if user.Name == "" || user.Email == "" {
-        c.BadRequest("Missing required fields", "name and email are required")
-        return
-    }
-    
-    user.ID = uuid.New()
-    user.Created = time.Now()
-    users = append(users, user)
-    
-    c.Created(user)
-}
-
-func getUser(c mux.RouteContext) {
-    userID, ok := c.ParamUUID("id")
-    if !ok {
-        c.BadRequest("Invalid user ID", "user ID must be a valid UUID")
-        return
-    }
-    
-    for _, user := range users {
-        if user.ID == userID {
-            c.OK(user)
-            return
-        }
-    }
-    
-    c.NotFound()
-}
-```
-
-## Step 7: Generate OpenAPI Specification
-
-Add OpenAPI spec generation to see your documented API:
-
-```go
-// Add this to your main function, before starting the server
-func main() {
-    // ... (router setup code)
-    
-    // Generate and save OpenAPI spec
-    generator := mux.NewGenerator()
-    spec := generator.GenerateSpec(router)
-    spec.MarshalToFile("openapi.yaml")
-    
-    // Add endpoint to serve the spec
-    router.GET("/openapi.yaml", func(c mux.RouteContext) {
-    c.Response().Header().Set("Content-Type", "application/yaml")
-    spec.MarshalToWriter(c.Response())
+    router.GET("/hello", func(c mux.RouteContext) {
+        c.OK("Hello, World!")
     })
     
     http.ListenAndServe(":8080", router)
 }
 ```
 
-Now you can view your API specification:
+## Step 3: Run and Test
 
 ```bash
-curl http://localhost:8080/openapi.yaml
+# Run the server
+go run main.go
+
+# In another terminal, test it
+curl http://localhost:8080/hello
 ```
 
-## Step 8: Add Error Handling and Validation
+**Output:** `"Hello, World!"`
 
-Improve your API with better error handling:
-
-```go
-func createUser(c mux.RouteContext) {
-    var user User
-    if err := c.Bind(&user); err != nil {
-        c.BadRequest("Invalid JSON", err.Error())
-        return
-    }
-    
-    // Validate input
-    if user.Name == "" {
-        c.BadRequest("Validation failed", "name is required")
-        return
-    }
-    
-    if user.Email == "" {
-        c.BadRequest("Validation failed", "email is required")
-        return
-    }
-    
-    // Simple email validation
-    if !strings.Contains(user.Email, "@") {
-        c.BadRequest("Validation failed", "email must be a valid email address")
-        return
-    }
-    
-    // Check for duplicate email
-    for _, existingUser := range users {
-        if existingUser.Email == user.Email {
-            c.Conflict("User already exists", "a user with this email already exists")
-            return
-        }
-    }
-    
-    user.ID = uuid.New()
-    user.Created = time.Now()
-    users = append(users, user)
-    
-    c.Created(user)
-}
-```
-
-## Step 9: Add Query Parameters
-
-Let's add pagination and filtering to the list endpoint:
-
-```go
-func listUsers(c mux.RouteContext) {
-    // Get query parameters
-    page, _ := c.QueryInt("page")      // Default: 0
-    limit, _ := c.QueryInt("limit")    // Default: 0
-    search, _ := c.QueryValue("search") // Default: ""
-    
-    // Set defaults
-    if page < 1 {
-        page = 1
-    }
-    if limit < 1 || limit > 100 {
-        limit = 10
-    }
-    
-    // Filter users
-    filteredUsers := users
-    if search != "" {
-        filteredUsers = []User{}
-        for _, user := range users {
-            if strings.Contains(strings.ToLower(user.Name), strings.ToLower(search)) ||
-               strings.Contains(strings.ToLower(user.Email), strings.ToLower(search)) {
-                filteredUsers = append(filteredUsers, user)
-            }
-        }
-    }
-    
-    // Paginate
-    start := (page - 1) * limit
-    end := start + limit
-    
-    if start >= len(filteredUsers) {
-        c.OK([]User{})
-        return
-    }
-    
-    if end > len(filteredUsers) {
-        end = len(filteredUsers)
-    }
-    
-    result := filteredUsers[start:end]
-    
-    // Return paginated results with metadata
-    response := map[string]interface{}{
-        "users": result,
-        "page":  page,
-        "limit": limit,
-        "total": len(filteredUsers),
-    }
-    
-    c.OK(response)
-}
-```
-
-Update the OpenAPI documentation:
-
-```go
-users.GET("/", listUsers).
-    WithSummary("List all users").
-    WithParam("page", "query", 1, false).
-    WithParam("limit", "query", 10, false).
-    WithParam("search", "query", "", false).
-    WithOKResponse(map[string]interface{}{
-        "users": []User{},
-        "page":  1,
-        "limit": 10,
-        "total": 0,
-    })
-```
-
-## Step 10: Test Your Complete API
-
-Now you can test your enhanced API:
-
-### List users with pagination
-```bash
-curl "http://localhost:8080/api/v1/users?page=1&limit=5"
-```
-
-### Search users
-```bash
-curl "http://localhost:8080/api/v1/users?search=john"
-```
-
-### Health check
-```bash
-curl http://localhost:8080/health
-```
-
-### View OpenAPI spec
-```bash
-curl http://localhost:8080/openapi.yaml
-```
+🎉 **Congratulations!** You have a working API!
 
 ## What's Next?
 
-You've built a complete API with Mux! Here are some next steps to explore:
+Choose your path:
 
-### 1. Add Authentication
-```go
-mux.UseAuthentication(router,
-    mux.WithValidator(validateToken),
-    mux.WithTokenCreator(createToken),
-)
-```
+### Learn by Doing
+**→ [Interactive Tutorial](interactive-tutorial.md)** - Build a complete Todo API in 30 minutes with validation, error handling, and OpenAPI documentation.
 
-### 2. Add Rate Limiting
-```go
-router.POST("/api/v1/users", createUser).
-    WithRateLimit(10, time.Minute)  // 10 requests per minute
-```
+### Comprehensive Guide
+**→ [Getting Started](getting-started.md)** - Step-by-step guide covering all major features with examples.
 
-### 3. Add Database Integration
-Replace the in-memory storage with a real database using your preferred Go database library.
+### Quick Reference
+**→ [Cheat Sheet](cheat-sheet.md)** - Copy-paste examples for common patterns.
 
-### 4. Add More Middleware
-```go
-    mux.UseEnforceHTTPS(router)     // Force HTTPS in production
-    mux.UseOpenTelemetry(router)    // Add distributed tracing
-```
+### Structured Learning
+**→ [Learning Path](learning-path.md)** - Progressive 8-level course from beginner to advanced.
 
-### 5. Add Tests
-Create tests for your handlers:
+## See Also
 
-```go
-func TestCreateUser(t *testing.T) {
-    router := mux.NewRouter()
-    router.POST("/users", createUser)
-    
-    // Test user creation
-    // ...
-}
-```
+- [Installation](installation.md) - Detailed setup and requirements
+- [Router](router.md) - Routing fundamentals and configuration
+- [Middleware](middleware.md) - Built-in middleware guide
 
-## Complete Example
+**Output:** `"Hello, World!"`
 
-Here's the complete `main.go` for reference:
+🎉 **Congratulations!** You have a working API!
 
-```go
-package main
+## What's Next?
 
-import (
-    "net/http"
-    "strings"
-    "time"
-    "github.com/fgrzl/mux"
-    "github.com/google/uuid"
-)
+Choose your path:
 
-type User struct {
-    ID       uuid.UUID `json:"id"`
-    Name     string    `json:"name"`
-    Email    string    `json:"email"`
-    Created  time.Time `json:"created"`
-}
+### Learn by Doing
+**→ [Interactive Tutorial](interactive-tutorial.md)** - Build a complete Todo API in 30 minutes with validation, error handling, and OpenAPI documentation.
 
-var users = []User{
-    {ID: uuid.New(), Name: "John Doe", Email: "john@example.com", Created: time.Now()},
-    {ID: uuid.New(), Name: "Jane Smith", Email: "jane@example.com", Created: time.Now()},
-}
+### Comprehensive Guide
+**→ [Getting Started](getting-started.md)** - Step-by-step guide covering all major features with examples.
 
-func main() {
-    router := mux.NewRouter(
-        mux.WithTitle("My First API"),
-        mux.WithVersion("1.0.0"),
-        mux.WithDescription("A simple user management API built with Mux"),
-    )
-    
-    mux.UseLogging(router)
-    mux.UseCompression(router)
-    
-    api := router.NewRouteGroup("/api/v1")
-    api.WithTags("API v1")
-    
-    users := api.NewRouteGroup("/users")
-    users.WithTags("Users")
-    
-    users.GET("/", listUsers).
-        WithSummary("List all users").
-        WithParam("page", "query", 1, false).
-        WithParam("limit", "query", 10, false).
-        WithParam("search", "query", "", false).
-        WithOKResponse(map[string]interface{}{})
-        
-    users.POST("/", createUser).
-        WithSummary("Create a new user").
-        WithJsonBody(User{}).
-        WithCreatedResponse(User{}).
-        WithBadRequestResponse()
-        
-    users.GET("/{id}", getUser).
-        WithSummary("Get a user by ID").
-        WithParam("id", "path", uuid.Nil, true).
-        WithOKResponse(User{}).
-        WithNotFoundResponse()
-    
-    router.GET("/health", func(c mux.RouteContext) {
-        c.OK(map[string]string{
-            "status":    "healthy", 
-            "timestamp": time.Now().Format(time.RFC3339),
-        })
-    }).WithSummary("Health check").WithTags("Health")
-    
-    generator := mux.NewGenerator()
-    spec := generator.GenerateSpec(router)
-    spec.MarshalToFile("openapi.yaml")
-    
-    router.GET("/openapi.yaml", func(c mux.RouteContext) {
-    c.Response().Header().Set("Content-Type", "application/yaml")
-    spec.MarshalToWriter(c.Response())
-    })
-    
-    http.ListenAndServe(":8080", router)
-}
+### Quick Reference
+**→ [Cheat Sheet](cheat-sheet.md)** - Copy-paste examples for common patterns.
 
-// Handler functions would go here...
-```
+### Structured Learning
+**→ [Learning Path](learning-path.md)** - Progressive 8-level course from beginner to advanced.
 
-🎉 Congratulations! You've built a complete, documented API with Mux in just 10 steps. You now have:
+## See Also
 
-- RESTful endpoints with proper HTTP methods
-- Request validation and error handling  
-- Query parameter support with pagination and search
-- OpenAPI 3.1 specification generation
-- Structured logging and response compression
-- Route grouping and organization
+- [Installation](installation.md) - Detailed setup and requirements
+- [Router](router.md) - Routing fundamentals and configuration
+- [Middleware](middleware.md) - Built-in middleware guide
 
 Check out the other documentation files to learn about advanced features like authentication, custom middleware, and production deployment patterns.

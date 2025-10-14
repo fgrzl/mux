@@ -4,7 +4,6 @@ The Router is the core component of Mux that handles HTTP request routing and mi
 
 ## Creating a Router
 
-mux.UseAuthentication(router,
 ```go
 // Basic router
 router := mux.NewRouter()
@@ -36,9 +35,7 @@ mux.WithHeadFallbackToGet()
 mux.WithMaxBodyBytes(2 << 20) // 2MB
 ```
 
-// Built-in middleware helpers (call these with your router instance):
-// mux.UseLogging(router), mux.UseCompression(router), etc.
-```
+> **Note**: Built-in middleware helpers (like `mux.UseLogging(router)`, `mux.UseCompression(router)`, etc.) are called with your router instance. See the [Middleware](middleware.md) guide for details.
 
 ## Adding Routes
 
@@ -50,6 +47,7 @@ router.POST("/users", createUser)
 router.PUT("/users/{id}", updateUser)
 router.DELETE("/users/{id}", deleteUser)
 router.Use(&LoggingMiddleware{})
+```
 
 ## Route Groups
 
@@ -251,3 +249,11 @@ spec.MarshalToFile("openapi.yaml")
 8. **Implement health checks** for monitoring
 9. **Add rate limiting** for public endpoints
 10. **Use HTTPS in production**
+
+## See Also
+
+- [Getting Started](getting-started.md) - Introduction to Mux
+- [Middleware](middleware.md) - Built-in middleware guide
+- [WebServer](webserver.md) - Production server with graceful shutdown
+- [Best Practices](best-practices.md) - Patterns and conventions
+- [Health Probes](health-probes.md) - Kubernetes-style health checks

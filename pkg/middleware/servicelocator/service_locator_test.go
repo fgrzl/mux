@@ -121,34 +121,36 @@ func TestShouldHandleEmptyServicesMapGracefully(t *testing.T) {
 	assert.True(t, nextCalled, "next handler should be called even with nil services map")
 }
 
-func TestWithServiceShouldCreateServiceOption(t *testing.T) {
-	// Arrange
-	service := &MockService{Name: "test"}
-	serviceKey := routing.ServiceKey("test")
-	options := &ServiceSetterOptions{}
+func TestWithServiceShouldCreateAndInitializeServicesMap(t *testing.T) {
+	t.Run("should create service option", func(t *testing.T) {
+		// Arrange
+		service := &MockService{Name: "test"}
+		serviceKey := routing.ServiceKey("test")
+		options := &ServiceSetterOptions{}
 
-	// Act
-	option := WithService(serviceKey, service)
-	option(options)
+		// Act
+		option := WithService(serviceKey, service)
+		option(options)
 
-	// Assert
-	assert.NotNil(t, options.Services)
-	assert.Equal(t, service, options.Services[serviceKey])
-}
+		// Assert
+		assert.NotNil(t, options.Services)
+		assert.Equal(t, service, options.Services[serviceKey])
+	})
 
-func TestWithServiceShouldInitializeServicesMap(t *testing.T) {
-	// Arrange
-	service := &MockService{Name: "test"}
-	serviceKey := routing.ServiceKey("test")
-	options := &ServiceSetterOptions{} // Services map is nil
+	t.Run("should initialize services map when nil", func(t *testing.T) {
+		// Arrange
+		service := &MockService{Name: "test"}
+		serviceKey := routing.ServiceKey("test")
+		options := &ServiceSetterOptions{} // Services map is nil
 
-	// Act
-	option := WithService(serviceKey, service)
-	option(options)
+		// Act
+		option := WithService(serviceKey, service)
+		option(options)
 
-	// Assert
-	assert.NotNil(t, options.Services)
-	assert.Equal(t, service, options.Services[serviceKey])
+		// Assert
+		assert.NotNil(t, options.Services)
+		assert.Equal(t, service, options.Services[serviceKey])
+	})
 }
 
 func TestShouldAddServiceMiddlewareToRouter(t *testing.T) {

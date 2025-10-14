@@ -48,7 +48,10 @@ func main() {
 package main
 
 import (
-    "net/http"
+    "context"
+    "os/signal"
+    "syscall"
+    
     "github.com/fgrzl/mux"
     "github.com/google/uuid"
 )
@@ -60,6 +63,10 @@ type User struct {
 }
 
 func main() {
+    // Create context with graceful shutdown
+    ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+    defer stop()
+    
     router := mux.NewRouter()
     
     // Add basic middleware
@@ -89,10 +96,14 @@ func main() {
     users.GET("/{id}", getUser).
         WithOperationID("getUser").
         WithSummary("Get a user by ID").
-        WithParam("id", "path", uuid.Nil, true).
+        WithPathParam("id", uuid.Nil).
         WithOKResponse(User{})
     
-    http.ListenAndServe(":8080", router)
+    // Use WebServer for production-ready startup
+    server := mux.NewServer(router, ":8080")
+    if err := server.Start(ctx); err != nil {
+        panic(err)
+    }
 }
 
 func listUsers(c mux.RouteContext) {
@@ -130,16 +141,45 @@ func getUser(c mux.RouteContext) {
 }
 ```
 
+## 📚 Learning Resources
+
+New to Mux? Start here to quickly get up to speed:
+
+### � Start Here
+- [**Getting Started Guide**](docs/getting-started.md) - Zero to first API in 5 minutes, then choose your learning path
+
+### �🎓 Tutorials
+- [**Interactive Tutorial**](docs/interactive-tutorial.md) - Build a complete Todo API in 30 minutes with step-by-step guidance
+- [**Learning Path**](docs/learning-path.md) - Progressive 8-level path from "Hello World" to production-ready apps  
+- [**Cheat Sheet**](docs/cheat-sheet.md) - Quick reference for common patterns and code snippets
+
+### 💡 Examples
+- [**Hello World**](examples/hello-world/) - Minimal example to verify your setup
+- [**Todo API**](examples/todo-api/) - Complete REST API demonstrating CRUD operations, validation, and OpenAPI docs
+
+### ⏱️ Time Investment
+
+| Goal | Resource | Time |
+|------|----------|------|
+| Get something running | [Getting Started](docs/getting-started.md) | 5 min |
+| Build a complete API | [Interactive Tutorial](docs/interactive-tutorial.md) | 30 min |
+| Full proficiency | [Learning Path](docs/learning-path.md) | 2 hours |
+| Quick syntax lookup | [Cheat Sheet](docs/cheat-sheet.md) | As needed |
+
+**Total time from zero to production-ready: ~2-3 hours** 🚀
+
 ## Key Features
 
 - **🛣️ Route Management**: Flexible patterns, parameter binding, route groups
 - **🔧 Middleware System**: Built-in and custom middleware support
 - **📝 Request Binding**: Automatic data collection from multiple sources
 - **📤 Response Helpers**: Structured responses for common HTTP status codes
-- **🔐 Authentication**: JWT-based auth with role-based access control
+- **� WebServer**: Production-ready server with graceful shutdown and TLS
+- **�🔐 Authentication**: JWT-based auth with role-based access control
 - **⚡ Rate Limiting**: Per-route token bucket rate limiting
 - **📖 OpenAPI 3.1**: Automatic spec generation with inline documentation
-- **🌍 Geographic Control**: Export control with GeoIP support
+- **🏥 Health Probes**: Built-in Kubernetes-style `/healthz`, `/livez`, `/readyz` endpoints
+- **� Geographic Control**: Export control with GeoIP support
 - **📊 Observability**: OpenTelemetry integration and structured logging
 
 ## Performance
@@ -174,6 +214,11 @@ router.DELETE("/users/{id}", deleteUser)
 // Route groups
 api := router.NewRouteGroup("/api/v1")
 api.GET("/health", healthCheck)
+
+// Built-in health probes (Kubernetes-style)
+router.Healthz()  // GET /healthz
+router.Livez()    // GET /livez
+router.Readyz()   // GET /readyz
 ```
 
 ### Request Handling
@@ -220,6 +265,7 @@ func createUser(c mux.RouteContext) {
 Comprehensive documentation to help you build production-ready APIs:
 
 ### 🚀 Getting Started
+- [**Getting Started Guide**](docs/getting-started.md) - Your first 5 minutes with Mux
 - [**Installation Guide**](docs/installation.md) - Setup requirements and installation
 - [**Quick Start Tutorial**](docs/quick-start.md) - Build your first API in 10 steps
 - [**Examples**](examples/) - Working example applications
@@ -227,9 +273,11 @@ Comprehensive documentation to help you build production-ready APIs:
 ### 📖 Core Documentation
 - [**Overview**](docs/overview.md) - Architecture and core concepts
 - [**Router**](docs/router.md) - Route definition and configuration
+- [**WebServer**](docs/webserver.md) - Production server with graceful shutdown
 - [**Built-in Middleware Guide**](docs/middleware.md) - Complete middleware reference
 - [**Authentication Middleware**](docs/authentication-middleware.md) - JWT auth setup
 - [**Custom Middleware**](docs/custom-middleware.md) - Building custom middleware
+- [**Health Probes**](docs/health-probes.md) - Kubernetes-style health checks
 
 ### 📚 Advanced Topics
 - [**Best Practices Guide**](docs/best-practices.md) - Production-ready patterns and conventions
@@ -242,7 +290,7 @@ Comprehensive documentation to help you build production-ready APIs:
 
 ## OpenAPI Generation
 
-Generate OpenAPI specifications from your routes:
+Generate OpenAPI specifications from your routes with automatic type inference:
 
 ```go
 // Define API with documentation
@@ -254,11 +302,19 @@ router.POST("/users", createUser).
     WithBadRequestResponse().
     WithTags("Users")
 
+// Types are automatically inferred from examples
+router.GET("/users/{id}", getUser).
+    WithPathParam("id", uuid.UUID{}).      // → type: string, format: uuid
+    WithQueryParam("include", []string{}). // → type: array, items: string
+    WithOKResponse(User{})                 // → $ref: #/components/schemas/User
+
 // Generate spec
 generator := mux.NewGenerator()
 spec := generator.GenerateSpec(router)
 spec.MarshalToFile("openapi.yaml")
 ```
+
+**Automatic Type Inference:** Mux inspects your example values and generates accurate OpenAPI schemas. Use `uuid.UUID{}` for UUIDs, `time.Time{}` for timestamps, `int` for integers, etc. No manual schema definition needed!
 
 ### 🏎️ Benchmarks
 

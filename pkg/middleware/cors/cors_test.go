@@ -12,7 +12,7 @@ import (
 )
 
 func TestPreflightResponse(t *testing.T) {
-	m := newCORS(Options{AllowedOrigins: []string{"https://example.com"}})
+	m := newCORSMiddleware(CORSOptions{AllowedOrigins: []string{"https://example.com"}})
 
 	req := httptest.NewRequest(http.MethodOptions, "https://api/test", nil)
 	req.Header.Set(common.HeaderOrigin, "https://example.com")
@@ -35,7 +35,7 @@ func TestPreflightResponse(t *testing.T) {
 }
 
 func TestSimpleRequestSetsAllowOrigin(t *testing.T) {
-	m := newCORS(Options{AllowedOrigins: []string{"*"}})
+	m := newCORSMiddleware(CORSOptions{AllowedOrigins: []string{"*"}})
 
 	req := httptest.NewRequest(http.MethodGet, "https://api/test", nil)
 	req.Header.Set(common.HeaderOrigin, "https://evil.com")
@@ -54,7 +54,7 @@ func TestSimpleRequestSetsAllowOrigin(t *testing.T) {
 }
 
 func TestAllowCredentialsReflection(t *testing.T) {
-	m := newCORS(Options{AllowedOrigins: []string{"https://example.com"}, AllowCredentials: true})
+	m := newCORSMiddleware(CORSOptions{AllowedOrigins: []string{"https://example.com"}, AllowCredentials: true})
 
 	req := httptest.NewRequest(http.MethodGet, "https://api/test", nil)
 	req.Header.Set(common.HeaderOrigin, "https://example.com")
@@ -73,7 +73,7 @@ func TestAllowCredentialsReflection(t *testing.T) {
 
 func TestUseCORSAddsMiddleware(t *testing.T) {
 	rtr := router.NewRouter()
-	UseCORS(rtr, Options{AllowedOrigins: []string{"*"}})
+	UseCORS(rtr, WithAllowedOrigins("*"))
 
 	rtr.GET("/test", func(c routing.RouteContext) {
 		c.Response().WriteHeader(http.StatusOK)

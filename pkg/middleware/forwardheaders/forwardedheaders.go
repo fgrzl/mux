@@ -12,13 +12,47 @@ import (
 	"github.com/fgrzl/mux/pkg/routing"
 )
 
-// Options controls how forwarded headers are interpreted.
+// ---- Functional Options ----
+
+// ForwardHeadersOption is a function type for configuring forwarded headers middleware.
+type ForwardHeadersOption func(*ForwardHeadersOptions)
+
+// WithTrustAll configures the middleware to trust forwarded headers from any source.
+// WARNING: This is insecure and should only be used in development or when behind a
+// trusted reverse proxy that strips untrusted headers.
+func WithTrustAll() ForwardHeadersOption {
+	return func(o *ForwardHeadersOptions) {
+		o.TrustAll = true
+	}
+}
+
+// WithTrustedProxies sets the list of CIDR ranges or IPs whose forwarded headers are trusted.
+// Example: WithTrustedProxies("10.0.0.0/8", "172.16.0.0/12", "192.168.1.100")
+func WithTrustedProxies(proxies ...string) ForwardHeadersOption {
+	return func(o *ForwardHeadersOptions) {
+		o.TrustAll = false
+		o.TrustedProxies = proxies
+	}
+}
+
+// WithRespectForwarded enables parsing RFC 7239 Forwarded header.
+// When false, only X-Forwarded-* headers are considered.
+func WithRespectForwarded(respect bool) ForwardHeadersOption {
+	return func(o *ForwardHeadersOptions) {
+		o.RespectForwarded = respect
+	}
+}
+
+// ---- Options ----
+
+// ForwardHeadersOptions controls how forwarded headers are interpreted.
 //
 // Security note: trusting forwarded headers from untrusted sources allows
 // clients to spoof their origin. Prefer specifying TrustedProxies.
-type Options struct {
+type ForwardHeadersOptions struct {
 	// TrustAll accepts forwarded headers from any remote address.
 	// Default true to preserve backward compatibility with previous behavior.
+	// WARNING: Insecure - only use in development or behind trusted proxy.
 	TrustAll bool
 	// TrustedProxies is a list of CIDR ranges or IPs whose forwarded headers are trusted.
 	// Only used when TrustAll == false.
@@ -28,14 +62,22 @@ type Options struct {
 	RespectForwarded bool
 }
 
+// Options is deprecated. Use ForwardHeadersOptions instead.
+// Kept for backward compatibility.
+type Options = ForwardHeadersOptions
+
+// ---- Middleware ----
+
+// ---- Middleware ----
+
 // forwardedHeadersMiddleware processes X-Forwarded-* and Forwarded headers to restore original client information.
 type forwardedHeadersMiddleware struct {
-	opts    Options
+	opts    ForwardHeadersOptions
 	trusted []*net.IPNet
 }
 
 // newForwardedHeadersMiddleware builds the middleware and pre-parses trusted proxies.
-func newForwardedHeadersMiddleware(opts Options) *forwardedHeadersMiddleware {
+func newForwardedHeadersMiddleware(opts ForwardHeadersOptions) *forwardedHeadersMiddleware {
 	// defaults
 	// If TrustAll is false and no TrustedProxies were provided, leave trusted list empty.
 	if !opts.RespectForwarded {
@@ -331,12 +373,22 @@ func determineClientIPFromHeaders(m *forwardedHeadersMiddleware, r *http.Request
 	return ""
 }
 
-// UseForwardedHeaders adds middleware that processes forwarded headers with permissive defaults.
-func UseForwardedHeaders(rtr *router.Router) {
-	rtr.Use(newForwardedHeadersMiddleware(Options{TrustAll: true, RespectForwarded: true}))
+// UseForwardedHeaders adds middleware that processes forwarded headers with the given options.
+// By default, TrustAll is enabled for backward compatibility. For security, use
+// WithTrustedProxies to specify which proxies to trust.
+func UseForwardedHeaders(rtr *router.Router, opts ...ForwardHeadersOption) {
+	options := &ForwardHeadersOptions{
+		TrustAll:         true, // default for backward compatibility
+		RespectForwarded: true,
+	}
+	for _, opt := range opts {
+		opt(options)
+	}
+	rtr.Use(newForwardedHeadersMiddleware(*options))
 }
 
 // UseForwardedHeadersWithOptions adds middleware with custom options.
-func UseForwardedHeadersWithOptions(rtr *router.Router, opts Options) {
+// Deprecated: Use UseForwardedHeaders with functional options instead.
+func UseForwardedHeadersWithOptions(rtr *router.Router, opts ForwardHeadersOptions) {
 	rtr.Use(newForwardedHeadersMiddleware(opts))
 }

@@ -76,6 +76,20 @@ router.GET("/hello/{name}", func(c mux.RouteContext) {
 
 ### Server Startup
 ```go
+server := mux.NewServer(":8080", router)
+
+ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+defer cancel()
+
+server.Listen(ctx)
+```
+Uses `WebServer` for production-ready server with:
+- Automatic graceful shutdown (press Ctrl+C)
+- Production timeouts (10s read/write, 120s idle)
+- Context-based lifecycle management
+
+**Alternative (simple but not production-ready)**:
+```go
 http.ListenAndServe(":8080", router)
 ```
 Starts the HTTP server on port 8080 using the Mux router.

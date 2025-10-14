@@ -22,30 +22,30 @@ const (
 	testURL    = "http://example.com/test"
 )
 
-// BenchmarkCORS_Invoke measures Invoke overhead for simple and preflight requests.
+// BenchmarkCORSInvoke measures Invoke overhead for simple and preflight requests.
 func BenchmarkCORSInvoke(b *testing.B) {
 	cases := []struct {
 		name  string
-		opts  Options
+		opts  CORSOptions
 		setup func(r *http.Request)
 	}{
 		{
 			name: "Simple_Wildcard",
-			opts: Options{AllowedOrigins: []string{"*"}},
+			opts: CORSOptions{AllowedOrigins: []string{"*"}},
 			setup: func(r *http.Request) {
 				r.Header.Set(common.HeaderOrigin, testOrigin)
 			},
 		},
 		{
 			name: "Simple_Specific",
-			opts: Options{AllowedOrigins: []string{testOrigin}},
+			opts: CORSOptions{AllowedOrigins: []string{testOrigin}},
 			setup: func(r *http.Request) {
 				r.Header.Set("Origin", "https://example.com")
 			},
 		},
 		{
 			name: "Preflight_Specific",
-			opts: Options{AllowedOrigins: []string{testOrigin}},
+			opts: CORSOptions{AllowedOrigins: []string{testOrigin}},
 			setup: func(r *http.Request) {
 				r.Method = http.MethodOptions
 				r.Header.Set(common.HeaderOrigin, testOrigin)
@@ -57,7 +57,7 @@ func BenchmarkCORSInvoke(b *testing.B) {
 
 	for _, tc := range cases {
 		b.Run(tc.name, func(b *testing.B) {
-			m := newCORS(tc.opts)
+			m := newCORSMiddleware(tc.opts)
 			// next is intentionally empty for these microbenchmarks; we're measuring middleware overhead only.
 			next := func(c routing.RouteContext) {
 				// no-op: intentionally left blank to isolate middleware cost
@@ -77,10 +77,10 @@ func BenchmarkCORSInvoke(b *testing.B) {
 	}
 }
 
-// BenchmarkCORS_RouterPipeline measures middleware in a router pipeline.
+// BenchmarkCORSRouterPipeline measures middleware in a router pipeline.
 func BenchmarkCORSRouterPipeline(b *testing.B) {
 	r := router.NewRouter()
-	UseCORS(r, Options{AllowedOrigins: []string{"*"}})
+	UseCORS(r, WithAllowedOrigins("*"))
 	r.GET("/test", func(c routing.RouteContext) { c.NoContent() })
 
 	b.Run("Pipeline_Wildcard", func(b *testing.B) {

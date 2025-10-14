@@ -357,8 +357,8 @@ func RegisterSchema(t reflect.Type, schema *openapi.Schema) {
 	knownSchemas[t] = schema
 }
 
-// removeSchema removes a schema from the knownSchemas registry (for test cleanup).
-func removeSchema(t reflect.Type) {
+// RemoveSchema removes a schema from the knownSchemas registry (for test cleanup).
+func RemoveSchema(t reflect.Type) {
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
