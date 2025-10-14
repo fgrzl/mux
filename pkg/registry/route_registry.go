@@ -91,8 +91,8 @@ func (r *RouteRegistry) Register(pattern string, method string, options *routing
 	}
 
 	segments := splitSegments(trimmed)
-	node, hasParams := r.walkOrCreateNodes(segments)
-	r.assignRouteOptions(node, method, options, hasParams)
+	node, hasParams, paramCount := r.walkOrCreateNodes(segments)
+	r.assignRouteOptions(node, method, options, hasParams, paramCount)
 
 	if !strings.ContainsAny(pattern, "{*}") {
 		r.storeExactRoute(pattern, method, options)
@@ -100,64 +100,70 @@ func (r *RouteRegistry) Register(pattern string, method string, options *routing
 }
 
 func (r *RouteRegistry) registerRootRoute(pattern, method string, options *routing.RouteOptions) {
-	r.assignRouteOptions(r.root, method, options, false)
+	r.assignRouteOptions(r.root, method, options, false, 0)
 	if !strings.ContainsAny(pattern, "{*}") {
 		r.storeExactRoute(pattern, method, options)
 	}
 }
 
-func (r *RouteRegistry) walkOrCreateNodes(segments []string) (*routing.RouteNode, bool) {
+func (r *RouteRegistry) walkOrCreateNodes(segments []string) (*routing.RouteNode, bool, int) {
 	node := r.root
 	hasParams := false
+	paramCount := 0
 	for _, seg := range segments {
-		next, updatedHasParams, done := r.advanceNode(node, seg, hasParams)
+		next, updatedHasParams, count, done := r.advanceNode(node, seg, hasParams, paramCount)
 		node = next
 		hasParams = updatedHasParams
+		paramCount = count
 		if done {
 			break
 		}
 	}
-	return node, hasParams
+	return node, hasParams, paramCount
 }
 
-func (r *RouteRegistry) advanceNode(node *routing.RouteNode, seg string, hasParams bool) (*routing.RouteNode, bool, bool) {
+func (r *RouteRegistry) advanceNode(node *routing.RouteNode, seg string, hasParams bool, paramCount int) (*routing.RouteNode, bool, int, bool) {
 	switch {
 	case seg == "**":
 		if node.CatchAll == nil {
 			node.CatchAll = newRouteNode()
 		}
 		r.refreshFastPathFlags(node)
-		return node.CatchAll, hasParams, true
+		return node.CatchAll, hasParams, paramCount, true
 	case seg == "*":
 		if node.Wildcard == nil {
 			node.Wildcard = newRouteNode()
 		}
 		r.refreshFastPathFlags(node)
-		return node.Wildcard, hasParams, false
+		return node.Wildcard, hasParams, paramCount, false
 	case isParamSegment(seg):
 		hasParams = true
+		paramCount++
 		if node.ParamChild == nil {
 			node.ParamChild = newRouteNode()
-			node.ParamChild.ParamName = seg[1 : len(seg)-1]
+			// Use interned string for common parameter names to reduce allocations
+			paramName := seg[1 : len(seg)-1]
+			node.ParamChild.ParamName = routing.InternString(paramName)
 		}
 		r.refreshFastPathFlags(node)
-		return node.ParamChild, hasParams, false
+		return node.ParamChild, hasParams, paramCount, false
 	default:
 		if node.Children[seg] == nil {
 			node.Children[seg] = newRouteNode()
 		}
 		r.refreshFastPathFlags(node)
-		return node.Children[seg], hasParams, false
+		return node.Children[seg], hasParams, paramCount, false
 	}
 }
 
-func (r *RouteRegistry) assignRouteOptions(node *routing.RouteNode, method string, options *routing.RouteOptions, hasParams bool) {
+func (r *RouteRegistry) assignRouteOptions(node *routing.RouteNode, method string, options *routing.RouteOptions, hasParams bool, paramCount int) {
 	if node.RouteOptions == nil {
 		node.RouteOptions = make(map[string]*routing.RouteOptions)
 	}
 	node.RouteOptions[method] = options
 	if hasParams {
 		node.HasParams = true
+		node.ParamCount = paramCount
 	}
 	node.MethodsMask = methodsMaskFromMap(node.RouteOptions)
 	node.AllowHeader = allowHeaderFromMap(node.RouteOptions)

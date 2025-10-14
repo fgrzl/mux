@@ -280,7 +280,12 @@ func (rtr *Router) resolveNodeWithOptions(node *routing.RouteNode, path, method 
 	if node.HasParams {
 		params := res.params
 		if params == nil {
-			params = rtr.newRouteParams()
+			// Use parameter count to pre-allocate map with correct capacity
+			if node.ParamCount > 0 {
+				params = routing.AcquireRouteParamsWithCapacity(node.ParamCount)
+			} else {
+				params = rtr.newRouteParams()
+			}
 		}
 		if opt2, ok2 := rtr.routeRegistry.LoadInto(path, method, params); ok2 {
 			res.options = opt2
