@@ -19,9 +19,8 @@ const (
 	// current test suite.
 
 	// Common request paths / URLs used in tests
-	testURL      = "http://example.com/test"
-	pathTest     = "/test"
-	pathNotFound = "/not-found"
+	testURL  = "http://example.com/test"
+	pathTest = "/test"
 
 	// Roles and scopes
 	roleAdmin  = "admin"
