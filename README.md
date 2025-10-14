@@ -34,12 +34,14 @@ func main() {
 
 ## 🌟 Why Mux?
 
-- 🚀 **Fast** | 54ns static routes, 205ns param routes, 0 allocations for static routes, 2 allocations for param routes |
-- ✨ **OpenAPI Built-in** | Auto-generate OpenAPI 3.1 specs — no codegen, no extra tools |
-- 🧩 **Composable** | First-class middleware, route groups, and request binding |
-- 💡 **Ergonomic** | Clean DSL with smart helpers — `c.QueryUUID()`, `c.Bind()`, `c.Created()` |
-- 🏥 **Production Ready** | Health probes, graceful shutdown, TLS, compression, auth out-of-the-box |
-- 🧪 **Type Safe** | Interface-based design for better testing and mocking |
+| Feature | What You Get |
+|---------|--------------|
+| 🚀 **Fast** | 54ns static routes, 205ns param routes, 0 allocations on hot paths |
+| ✨ **OpenAPI Built-in** | Auto-generate OpenAPI 3.1 specs — no codegen, no extra tools |
+| 🧩 **Composable** | First-class middleware, route groups, and request binding |
+| 💡 **Ergonomic** | Clean DSL with smart helpers — `c.QueryUUID()`, `c.Bind()`, `c.Created()` |
+| 🏥 **Production Ready** | Health probes, graceful shutdown, TLS, compression, auth out-of-the-box |
+| 🧪 **Type Safe** | Interface-based design for better testing and mocking |
 
 ## 📖 Complete Example
 
@@ -143,17 +145,17 @@ func getUser(c mux.RouteContext) {
 ## 🎓 Learning Resources
 
 | I Want To... | Resource | Time |
-|--|-||
+|--------------|----------|------|
 | **Get something running now** | ⬆️ Quick Start above | 2 min |
 | **Learn by building** | [Interactive Tutorial](docs/interactive-tutorial.md) | 30 min |
 | **Understand everything** | [Learning Path](docs/learning-path.md) | 2 hours |
 | **Look up syntax** | [Cheat Sheet](docs/cheat-sheet.md) | As needed |
 
-### � Start Here
+### 🎯 Start Here
 
 - [**Getting Started Guide**](docs/getting-started.md) - Zero to first API in 5 minutes, then choose your learning path
 
-### �🎓 Tutorials
+### 🎓 Tutorials
 
 - [**Interactive Tutorial**](docs/interactive-tutorial.md) - Build a complete Todo API in 30 minutes with step-by-step guidance
 - [**Learning Path**](docs/learning-path.md) - Progressive 8-level path from "Hello World" to production-ready apps
@@ -181,12 +183,12 @@ func getUser(c mux.RouteContext) {
 - **🔧 Middleware System**: Built-in and custom middleware support
 - **📝 Request Binding**: Automatic data collection from multiple sources
 - **📤 Response Helpers**: Structured responses for common HTTP status codes
-- **� WebServer**: Production-ready server with graceful shutdown and TLS
-- **�🔐 Authentication**: JWT-based auth with role-based access control
+- **🖥️ WebServer**: Production-ready server with graceful shutdown and TLS
+- **🔐 Authentication**: JWT-based auth with role-based access control
 - **⚡ Rate Limiting**: Per-route token bucket rate limiting
 - **📖 OpenAPI 3.1**: Automatic spec generation with inline documentation
 - **🏥 Health Probes**: Built-in Kubernetes-style `/healthz`, `/livez`, `/readyz` endpoints
-- **� Geographic Control**: Export control with GeoIP support
+- **🌍 Geographic Control**: Export control with GeoIP support
 - **📊 Observability**: OpenTelemetry integration and structured logging
 
 ## Performance
@@ -262,39 +264,9 @@ mux.UseAuthentication(router,
 router.Use(&CustomMiddleware{})
 ```
 
-## Documentation
+---
 
-Comprehensive documentation to help you build production-ready APIs:
-
-### 🚀 Getting Started
-
-- [**Getting Started Guide**](docs/getting-started.md) - Your first 5 minutes with Mux
-- [**Installation Guide**](docs/installation.md) - Setup requirements and installation
-- [**Quick Start Tutorial**](docs/quick-start.md) - Build your first API in 10 steps
-- [**Examples**](examples/) - Working example applications
-
-### 📖 Core Documentation
-
-- [**Overview**](docs/overview.md) - Architecture and core concepts
-- [**Router**](docs/router.md) - Route definition and configuration
-- [**WebServer**](docs/webserver.md) - Production server with graceful shutdown
-- [**Built-in Middleware Guide**](docs/middleware.md) - Complete middleware reference
-- [**Authentication Middleware**](docs/authentication-middleware.md) - JWT auth setup
-- [**Custom Middleware**](docs/custom-middleware.md) - Building custom middleware
-- [**Health Probes**](docs/health-probes.md) - Kubernetes-style health checks
-
-### 📚 Advanced Topics
-
-- [**Best Practices Guide**](docs/best-practices.md) - Production-ready patterns and conventions
-- [**FAQ**](docs/faq.md) - Common questions and troubleshooting
-
-### 🎯 Quick Links
-
-- [API Reference](https://pkg.go.dev/github.com/fgrzl/mux) - Complete API documentation on pkg.go.dev
-- [Examples Directory](examples/) - Working code examples
-- [GitHub Issues](https://github.com/fgrzl/mux/issues) - Bug reports and feature requests
-
-## OpenAPI Generation
+## � OpenAPI Generation
 
 Generate OpenAPI specifications from your routes with automatic type inference:
 
