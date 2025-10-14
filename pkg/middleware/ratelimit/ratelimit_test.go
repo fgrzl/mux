@@ -293,7 +293,7 @@ func TestShouldHandleInvalidRemoteAddr(t *testing.T) {
 	assert.True(t, nextCalled) // Should still allow request
 }
 
-func TestGetVisitorShouldCreateNewVisitorForFirstAccess(t *testing.T) {
+func TestShouldCreateNewVisitorGivenFirstAccess(t *testing.T) {
 	// Arrange
 	limiter := NewSelectiveRateLimiter()
 	ip := testIP1
@@ -308,7 +308,7 @@ func TestGetVisitorShouldCreateNewVisitorForFirstAccess(t *testing.T) {
 	assert.NotNil(t, visitor.lastAccess)
 }
 
-func TestWithCleanupIntervalShouldSetCleanupInterval(t *testing.T) {
+func TestShouldSetCleanupIntervalGivenWithCleanupIntervalOption(t *testing.T) {
 	// Arrange
 	options := &RateLimiterOptions{}
 	interval := 2 * time.Minute
@@ -365,7 +365,7 @@ func TestShouldDecrementTokensOnEachRequest(t *testing.T) {
 	assert.Equal(t, 3, callCount)
 }
 
-func TestUseRateLimiterShouldAddMiddlewareToRouter(t *testing.T) {
+func TestShouldAddMiddlewareToRouterGivenUseRateLimiter(t *testing.T) {
 	// Arrange
 	rtr := router.NewRouter()
 

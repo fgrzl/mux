@@ -15,6 +15,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	testKey   = "test-key"
+	testValue = "test-value"
+)
+
 // mockPrincipal for testing
 // mockRouteContextPrincipal removed; not used by current tests
 
@@ -44,7 +49,7 @@ func TestShouldSetAndGetService(t *testing.T) {
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	key := ServiceKey("test-service")
-	service := "test-value"
+	service := testValue
 
 	// Act
 	ctx.SetService(key, service)
@@ -75,7 +80,7 @@ func TestShouldNotSetServiceWithEmptyKey(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
-	service := "test-value"
+	service := testValue
 
 	// Act
 	ctx.SetService("", service)
@@ -246,10 +251,10 @@ func TestShouldHandleSingleValues(t *testing.T) {
 	values := []string{"single-value"}
 
 	// Act
-	addToStaging(staging, "test-key", values)
+	addToStaging(staging, testKey, values)
 
 	// Assert
-	assert.Equal(t, "single-value", staging["test-key"])
+	assert.Equal(t, "single-value", staging[testKey])
 }
 
 func TestShouldHandleMultipleValues(t *testing.T) {
@@ -258,13 +263,13 @@ func TestShouldHandleMultipleValues(t *testing.T) {
 	values := []string{"value1", "value2", "value3"}
 
 	// Act
-	addToStaging(staging, "test-key", values)
+	addToStaging(staging, testKey, values)
 
 	// Assert
-	assert.Equal(t, values, staging["test-key"])
+	assert.Equal(t, values, staging[testKey])
 }
 
-func TestParseSliceShouldParseValidValues(t *testing.T) {
+func TestShouldParseValidValuesGivenSliceInput(t *testing.T) {
 	// Arrange
 	values := []string{"1", "2", "3"}
 	parseFunc := func(s string) (int, error) {
@@ -288,7 +293,7 @@ func TestParseSliceShouldParseValidValues(t *testing.T) {
 	assert.Equal(t, []int{1, 2, 3}, result)
 }
 
-func TestParseSliceShouldReturnFalseOnError(t *testing.T) {
+func TestShouldReturnFalseGivenInvalidSliceInput(t *testing.T) {
 	// Arrange
 	values := []string{"1", "invalid", "3"}
 	parseFunc := func(s string) (int, error) {
@@ -306,7 +311,7 @@ func TestParseSliceShouldReturnFalseOnError(t *testing.T) {
 	assert.Nil(t, result)
 }
 
-func TestGetInstanceURIShouldReturnRequestURI(t *testing.T) {
+func TestShouldReturnRequestURIFromContext(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodGet, "/test?param=value", nil)
 
@@ -340,7 +345,7 @@ func TestShouldHandleEmptyParams(t *testing.T) {
 func TestShouldHandleContextInheritance(t *testing.T) {
 	// Arrange
 	type ctxKey string
-	baseCtx := context.WithValue(context.Background(), ctxKey("test-key"), "test-value")
+	baseCtx := context.WithValue(context.Background(), ctxKey(testKey), testValue)
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req = req.WithContext(baseCtx)
 	rec := httptest.NewRecorder()
@@ -349,7 +354,7 @@ func TestShouldHandleContextInheritance(t *testing.T) {
 	ctx := NewRouteContext(rec, req)
 
 	// Assert
-	assert.Equal(t, "test-value", ctx.Value(ctxKey("test-key")))
+	assert.Equal(t, testValue, ctx.Value(ctxKey(testKey)))
 }
 
 func TestShouldBindComplexData(t *testing.T) {

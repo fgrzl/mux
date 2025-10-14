@@ -13,9 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestSimpleWebSocketUpgrade exercises the mux router's `/ws` route from testsupport
+// TestShouldUpgradeToWebSocketGivenValidHandshake exercises the mux router's `/ws` route from testsupport
 // by spinning up a real mux.Router and performing a minimal handshake.
-func TestSimpleWebSocketUpgrade(t *testing.T) {
+func TestShouldUpgradeToWebSocketGivenValidHandshake(t *testing.T) {
+	// Arrange
 	r := router.NewRouter(router.WithHeadFallbackToGet())
 	testsupport.ConfigureRoutes(r)
 
@@ -36,12 +37,15 @@ func TestSimpleWebSocketUpgrade(t *testing.T) {
 	req += "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
 	req += "\r\n"
 
+	// Act
 	_, err = conn.Write([]byte(req))
 	require.NoError(t, err)
 
 	br := bufio.NewReader(conn)
 	line, err := br.ReadString('\n')
 	require.NoError(t, err)
+
+	// Assert
 	require.Contains(t, line, "101")
 
 	// Read headers until blank line

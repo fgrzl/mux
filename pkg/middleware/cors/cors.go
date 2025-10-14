@@ -264,9 +264,3 @@ func UseCORS(rtr *router.Router, opts ...CORSOption) {
 	}
 	rtr.Use(newCORSMiddleware(*options))
 }
-
-// newCORS is deprecated. Use newCORSMiddleware instead.
-// Kept for backward compatibility.
-func newCORS(opts CORSOptions) *corsMiddleware {
-	return newCORSMiddleware(opts)
-}

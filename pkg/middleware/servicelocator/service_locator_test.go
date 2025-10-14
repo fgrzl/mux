@@ -121,7 +121,7 @@ func TestShouldHandleEmptyServicesMapGracefully(t *testing.T) {
 	assert.True(t, nextCalled, "next handler should be called even with nil services map")
 }
 
-func TestWithServiceShouldCreateAndInitializeServicesMap(t *testing.T) {
+func TestShouldCreateAndInitializeServicesMapGivenWithServiceOption(t *testing.T) {
 	t.Run("should create service option", func(t *testing.T) {
 		// Arrange
 		service := &MockService{Name: "test"}

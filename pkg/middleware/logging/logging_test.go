@@ -149,12 +149,11 @@ func TestStatusRecorderShouldImplementResponseWriter(t *testing.T) {
 }
 
 func TestShouldAddLoggingMiddlewareToRouter(t *testing.T) {
+	// Arrange
 	rtr := router.NewRouter()
 
-	// Act - register middleware
 	UseLogging(rtr)
 
-	// Register a route and make a request to ensure middleware runs and logs
 	var logBuffer bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&logBuffer, nil))
 	slog.SetDefault(logger)
@@ -163,9 +162,11 @@ func TestShouldAddLoggingMiddlewareToRouter(t *testing.T) {
 	req, rec := testhelpers.NewRequestRecorder(http.MethodGet, "/test?param=value", nil)
 	req.RemoteAddr = "192.168.1.1:8080"
 	req.Header.Set(common.HeaderUserAgent, "test-agent/1.0")
+
+	// Act
 	rtr.ServeHTTP(rec, req)
 
+	// Assert
 	assert.Equal(t, http.StatusOK, rec.Code)
-	// Ensure something was logged
 	assert.Contains(t, logBuffer.String(), "http_request")
 }

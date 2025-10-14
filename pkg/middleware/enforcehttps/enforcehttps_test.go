@@ -59,20 +59,22 @@ func TestShouldAllowHTTPSRequests(t *testing.T) {
 }
 
 func TestShouldAddEnforceHTTPSMiddlewareToRouter(t *testing.T) {
+	// Arrange
 	rtr := router.NewRouter()
 
-	// Register the middleware and a simple route
 	UseEnforceHTTPS(rtr)
 	rtr.GET("/test", func(c routing.RouteContext) {
 		c.Response().WriteHeader(http.StatusOK)
 		_, _ = c.Response().Write([]byte("ok"))
 	})
 
-	// Make an HTTP request; middleware should redirect to HTTPS
 	req := httptest.NewRequest(http.MethodGet, testHTTPURL, nil)
 	rec := httptest.NewRecorder()
+
+	// Act
 	rtr.ServeHTTP(rec, req)
 
+	// Assert
 	assert.Equal(t, http.StatusMovedPermanently, rec.Code)
 	assert.Equal(t, testBaseURL, rec.Header().Get(common.HeaderLocation))
 }

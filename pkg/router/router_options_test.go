@@ -7,7 +7,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestWithTitleShouldSetTitle(t *testing.T) {
+const (
+	testTermsURL = "https://example.com/terms"
+)
+
+func TestShouldSetTitleGivenWithTitleOption(t *testing.T) {
 	// Arrange
 	title := "Test API"
 	options := &RouterOptions{}
@@ -21,7 +25,7 @@ func TestWithTitleShouldSetTitle(t *testing.T) {
 	assert.Equal(t, title, options.openapi.Title)
 }
 
-func TestWithSummaryShouldSetSummary(t *testing.T) {
+func TestShouldSetSummaryGivenWithSummaryOption(t *testing.T) {
 	// Arrange
 	summary := "API Summary"
 	options := &RouterOptions{}
@@ -35,7 +39,7 @@ func TestWithSummaryShouldSetSummary(t *testing.T) {
 	assert.Equal(t, summary, options.openapi.Summary)
 }
 
-func TestWithDescriptionShouldSetDescription(t *testing.T) {
+func TestShouldSetDescriptionGivenWithDescriptionOption(t *testing.T) {
 	// Arrange
 	description := "This is a test API description"
 	options := &RouterOptions{}
@@ -49,9 +53,9 @@ func TestWithDescriptionShouldSetDescription(t *testing.T) {
 	assert.Equal(t, description, options.openapi.Description)
 }
 
-func TestWithTermsOfServiceShouldSetTermsOfService(t *testing.T) {
+func TestShouldSetTermsOfServiceGivenWithTermsOfServiceOption(t *testing.T) {
 	// Arrange
-	termsURL := "https://example.com/terms"
+	termsURL := testTermsURL
 	options := &RouterOptions{}
 
 	// Act
@@ -63,7 +67,7 @@ func TestWithTermsOfServiceShouldSetTermsOfService(t *testing.T) {
 	assert.Equal(t, termsURL, options.openapi.TermsOfService)
 }
 
-func TestWithVersionShouldSetVersion(t *testing.T) {
+func TestShouldSetVersionGivenWithVersionOption(t *testing.T) {
 	// Arrange
 	version := "1.2.3"
 	options := &RouterOptions{}
@@ -77,7 +81,7 @@ func TestWithVersionShouldSetVersion(t *testing.T) {
 	assert.Equal(t, version, options.openapi.Version)
 }
 
-func TestWithContactShouldSetContact(t *testing.T) {
+func TestShouldSetContactGivenWithContactOption(t *testing.T) {
 	// Arrange
 	name := "API Support"
 	url := "https://example.com/support"
@@ -96,7 +100,7 @@ func TestWithContactShouldSetContact(t *testing.T) {
 	assert.Equal(t, email, options.openapi.Contact.Email)
 }
 
-func TestWithLicenseShouldSetLicense(t *testing.T) {
+func TestShouldSetLicenseGivenWithLicenseOption(t *testing.T) {
 	// Arrange
 	name := "MIT"
 	url := "https://opensource.org/licenses/MIT"
@@ -132,7 +136,7 @@ func TestShouldChainMultipleRouterOptions(t *testing.T) {
 	assert.Equal(t, description, options.openapi.Description)
 }
 
-func TestInitInfoShouldCreateInfoObjectWhenNil(t *testing.T) {
+func TestShouldCreateInfoObjectGivenNilInfo(t *testing.T) {
 	// Arrange
 	options := &RouterOptions{}
 
@@ -143,7 +147,7 @@ func TestInitInfoShouldCreateInfoObjectWhenNil(t *testing.T) {
 	assert.NotNil(t, options.openapi)
 }
 
-func TestInitInfoShouldNotOverrideExistingInfo(t *testing.T) {
+func TestShouldNotOverrideExistingInfoGivenInitInfo(t *testing.T) {
 	// Arrange
 	options := &RouterOptions{
 		openapi: &openapi.InfoObject{Title: "Existing"},
@@ -164,7 +168,7 @@ func TestShouldCreateRouterWithMultipleOptions(t *testing.T) {
 		WithTitle("Multi-Option API"),
 		WithVersion("1.0.0"),
 		WithDescription("API with multiple options"),
-		WithTermsOfService("https://example.com/terms"),
+		WithTermsOfService(testTermsURL),
 		WithContact("Support", "https://example.com/support", "support@example.com"),
 		WithLicense("MIT", "https://opensource.org/licenses/MIT"),
 	)
@@ -175,7 +179,7 @@ func TestShouldCreateRouterWithMultipleOptions(t *testing.T) {
 	assert.Equal(t, "Multi-Option API", router.options.openapi.Title)
 	assert.Equal(t, "1.0.0", router.options.openapi.Version)
 	assert.Equal(t, "API with multiple options", router.options.openapi.Description)
-	assert.Equal(t, "https://example.com/terms", router.options.openapi.TermsOfService)
+	assert.Equal(t, testTermsURL, router.options.openapi.TermsOfService)
 	assert.NotNil(t, router.options.openapi.Contact)
 	assert.NotNil(t, router.options.openapi.License)
 }

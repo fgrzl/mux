@@ -126,7 +126,7 @@ func TestShouldSetDefaultOperationWhenNoneProvided(t *testing.T) {
 	assert.Equal(t, "ok", rec.Body.String())
 }
 
-func TestWithOperationShouldCreateValidOption(t *testing.T) {
+func TestShouldCreateValidOptionGivenWithOperation(t *testing.T) {
 	// Arrange
 	operationName := "custom-test-operation"
 

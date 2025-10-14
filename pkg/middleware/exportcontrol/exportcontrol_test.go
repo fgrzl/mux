@@ -106,7 +106,7 @@ func TestShouldAllowAccessWhenIPCannotBeParsed(t *testing.T) {
 	assert.True(t, nextCalled)
 }
 
-func TestGetRealIPShouldReturnXForwardedFor(t *testing.T) {
+func TestShouldReturnXForwardedForGivenGetRealIP(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.Header.Set(forwardedForHeader, forwardedForList)
@@ -120,7 +120,7 @@ func TestGetRealIPShouldReturnXForwardedFor(t *testing.T) {
 	assert.Equal(t, forwardedForIP, ip) // Should return first IP from X-Forwarded-For
 }
 
-func TestGetRealIPShouldReturnXRealIP(t *testing.T) {
+func TestShouldReturnXRealIPGivenGetRealIP(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.Header.Set(realIPHeader, realIP)
@@ -134,7 +134,7 @@ func TestGetRealIPShouldReturnXRealIP(t *testing.T) {
 	assert.Equal(t, realIP, ip) // Should return X-Real-IP
 }
 
-func TestGetRealIPShouldPreferXForwardedForOverXRealIP(t *testing.T) {
+func TestShouldPreferXForwardedForGivenBothHeadersWhenGettingRealIP(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.Header.Set(forwardedForHeader, forwardedForIP)
@@ -149,7 +149,7 @@ func TestGetRealIPShouldPreferXForwardedForOverXRealIP(t *testing.T) {
 	assert.Equal(t, forwardedForIP, ip) // Should prefer X-Forwarded-For
 }
 
-func TestGetRealIPShouldReturnRemoteAddrWhenNoHeaders(t *testing.T) {
+func TestShouldReturnRemoteAddrGivenNoHeadersWhenGettingRealIP(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	// Safe: loopback address for testing
@@ -162,7 +162,7 @@ func TestGetRealIPShouldReturnRemoteAddrWhenNoHeaders(t *testing.T) {
 	assert.Equal(t, loopbackIP, ip) // Should extract IP from RemoteAddr
 }
 
-func TestGetRealIPShouldReturnRemoteAddrWhenCannotSplit(t *testing.T) {
+func TestShouldReturnRemoteAddrGivenCannotSplitWhenGettingRealIP(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	// Safe: loopback address for testing
@@ -175,7 +175,7 @@ func TestGetRealIPShouldReturnRemoteAddrWhenCannotSplit(t *testing.T) {
 	assert.Equal(t, loopbackIP, ip) // Should return as-is when can't split
 }
 
-func TestGetRealIPShouldHandleXForwardedForWithSpaces(t *testing.T) {
+func TestShouldHandleXForwardedForWithSpacesGivenGetRealIP(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.Header.Set(forwardedForHeader, forwardedForListW)

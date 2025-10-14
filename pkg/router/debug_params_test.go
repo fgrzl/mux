@@ -9,6 +9,7 @@ import (
 )
 
 func TestDebugParamsNonPooled(t *testing.T) {
+	// Arrange
 	rtr := NewRouter()
 	rtr.GET("/users/{id}", func(c routing.RouteContext) {
 		t.Logf("params at handler: %#v", c.Params())
@@ -16,7 +17,11 @@ func TestDebugParamsNonPooled(t *testing.T) {
 	})
 	req := httptest.NewRequest(http.MethodGet, "/users/123", nil)
 	rr := httptest.NewRecorder()
+
+	// Act
 	rtr.ServeHTTP(rr, req)
+
+	// Assert
 	if rr.Code != http.StatusOK {
 		t.Fatalf("unexpected status: %d body:%s", rr.Code, rr.Body.String())
 	}

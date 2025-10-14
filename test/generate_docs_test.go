@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGenerateAndSaveWritesSpecFile(t *testing.T) {
+func TestShouldWriteSpecFileGivenGenerateAndSave(t *testing.T) {
 	// Arrange: create a router and configure the canonical test routes
 	r := mux.NewRouter(mux.WithTitle("gen-test"), mux.WithVersion("0.0.1"))
 	r.GET("/", func(rc mux.RouteContext) { rc.NoContent() })

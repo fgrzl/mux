@@ -10,8 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Reproduce calling server root with no path (http://host:port)
-func TestRootRequest(t *testing.T) {
+// TestShouldHandleRootPathRequestGivenNoExplicitPath ensures the router can handle
+// requests to the server root (http://host:port) without an explicit path.
+func TestShouldHandleRootPathRequestGivenNoExplicitPath(t *testing.T) {
+	// Arrange
 	r := mux.NewRouter()
 	r.GET("/", func(rc mux.RouteContext) {
 		rc.OK("ok")
@@ -19,10 +21,12 @@ func TestRootRequest(t *testing.T) {
 	server := httptest.NewServer(r)
 	defer server.Close()
 
-	// Request without explicit path
+	// Act - Request without explicit path
 	resp, err := http.Get(server.URL)
 	assert.NoError(t, err)
 	defer resp.Body.Close()
+
+	// Assert
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	var s string
 	err = json.NewDecoder(resp.Body).Decode(&s)
