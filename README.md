@@ -51,7 +51,7 @@ import (
     "context"
     "os/signal"
     "syscall"
-    
+
     "github.com/fgrzl/mux"
     "github.com/google/uuid"
 )
@@ -66,39 +66,39 @@ func main() {
     // Create context with graceful shutdown
     ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
     defer stop()
-    
+
     router := mux.NewRouter()
-    
+
     // Add basic middleware
     mux.UseLogging(router)
     mux.UseCompression(router)
     mux.UseEnforceHTTPS(router)
-    
+
     // Create API routes
     api := router.NewRouteGroup("/api/v1")
     api.WithTags("API v1")
-    
+
     // User routes with OpenAPI documentation
     users := api.NewRouteGroup("/users")
     users.WithTags("Users")
-    
+
     users.GET("/", listUsers).
         WithOperationID("listUsers").
         WithSummary("List all users").
         WithOKResponse([]User{})
-        
+
     users.POST("/", createUser).
         WithOperationID("createUser").
         WithSummary("Create a new user").
         WithJsonBody(User{}).
         WithCreatedResponse(User{})
-        
+
     users.GET("/{id}", getUser).
         WithOperationID("getUser").
         WithSummary("Get a user by ID").
         WithPathParam("id", uuid.Nil).
         WithOKResponse(User{})
-    
+
     // Use WebServer for production-ready startup
     server := mux.NewServer(router, ":8080")
     if err := server.Start(ctx); err != nil {
@@ -120,7 +120,7 @@ func createUser(c mux.RouteContext) {
         c.BadRequest("Invalid request", err.Error())
         return
     }
-    
+
     user.ID = uuid.New()
     c.Created(user)
 }
@@ -131,7 +131,7 @@ func getUser(c mux.RouteContext) {
         c.BadRequest("Invalid user ID", "")
         return
     }
-    
+
     user := User{
         ID:    userID,
         Name:  "John Doe",
@@ -146,25 +146,28 @@ func getUser(c mux.RouteContext) {
 New to Mux? Start here to quickly get up to speed:
 
 ### � Start Here
+
 - [**Getting Started Guide**](docs/getting-started.md) - Zero to first API in 5 minutes, then choose your learning path
 
 ### �🎓 Tutorials
+
 - [**Interactive Tutorial**](docs/interactive-tutorial.md) - Build a complete Todo API in 30 minutes with step-by-step guidance
-- [**Learning Path**](docs/learning-path.md) - Progressive 8-level path from "Hello World" to production-ready apps  
+- [**Learning Path**](docs/learning-path.md) - Progressive 8-level path from "Hello World" to production-ready apps
 - [**Cheat Sheet**](docs/cheat-sheet.md) - Quick reference for common patterns and code snippets
 
 ### 💡 Examples
+
 - [**Hello World**](examples/hello-world/) - Minimal example to verify your setup
 - [**Todo API**](examples/todo-api/) - Complete REST API demonstrating CRUD operations, validation, and OpenAPI docs
 
 ### ⏱️ Time Investment
 
-| Goal | Resource | Time |
-|------|----------|------|
-| Get something running | [Getting Started](docs/getting-started.md) | 5 min |
-| Build a complete API | [Interactive Tutorial](docs/interactive-tutorial.md) | 30 min |
-| Full proficiency | [Learning Path](docs/learning-path.md) | 2 hours |
-| Quick syntax lookup | [Cheat Sheet](docs/cheat-sheet.md) | As needed |
+| Goal                  | Resource                                             | Time      |
+| --------------------- | ---------------------------------------------------- | --------- |
+| Get something running | [Getting Started](docs/getting-started.md)           | 5 min     |
+| Build a complete API  | [Interactive Tutorial](docs/interactive-tutorial.md) | 30 min    |
+| Full proficiency      | [Learning Path](docs/learning-path.md)               | 2 hours   |
+| Quick syntax lookup   | [Cheat Sheet](docs/cheat-sheet.md)                   | As needed |
 
 **Total time from zero to production-ready: ~2-3 hours** 🚀
 
@@ -187,13 +190,13 @@ New to Mux? Start here to quickly get up to speed:
 Mux is engineered for hot‑path efficiency. Representative benchmark results from this repo:
 
 - Core router (pooled context):
-    - Exact/catch‑all routes: ~26–65 ns/op, 0 allocs/op
-    - Param routes: ~128 ns/op, 0 allocs/op
-    - 10k routes in registry: ~267 ns/op
+  - Exact/catch‑all routes: ~26–65 ns/op, 0 allocs/op
+  - Param routes: ~128 ns/op, 0 allocs/op
+  - 10k routes in registry: ~267 ns/op
 - Middleware (per request):
-    - Logging: ~1.0 µs, ~12 allocs/op (pooled)
-    - OpenTelemetry: ~2.5 µs, ~37 allocs/op (pooled)
-    - Compression (gzip/deflate): ~10–74 µs depending on body size, ~12–14 allocs/op (pooled)
+  - Logging: ~1.0 µs, ~12 allocs/op (pooled)
+  - OpenTelemetry: ~2.5 µs, ~37 allocs/op (pooled)
+  - Compression (gzip/deflate): ~10–74 µs depending on body size, ~12–14 allocs/op (pooled)
 - End‑to‑end sample pipeline (router + common middleware): ~1.4 µs, 8 allocs/op (pooled)
 
 Environment: Windows, 12th Gen Intel Core i9‑12900HK. See “Testing” for how to reproduce on your machine — numbers will vary by hardware and OS.
@@ -231,11 +234,11 @@ func createUser(c mux.RouteContext) {
         c.BadRequest("Invalid data", err.Error())
         return
     }
-    
+
     // Access individual parameters
     orgID, _ := c.QueryUUID("org_id")
     includeDetails, _ := c.QueryBool("include_details")
-    
+
     // Create user and respond
     createdUser := service.CreateUser(user)
     c.Created(createdUser)
@@ -265,12 +268,14 @@ func createUser(c mux.RouteContext) {
 Comprehensive documentation to help you build production-ready APIs:
 
 ### 🚀 Getting Started
+
 - [**Getting Started Guide**](docs/getting-started.md) - Your first 5 minutes with Mux
 - [**Installation Guide**](docs/installation.md) - Setup requirements and installation
 - [**Quick Start Tutorial**](docs/quick-start.md) - Build your first API in 10 steps
 - [**Examples**](examples/) - Working example applications
 
 ### 📖 Core Documentation
+
 - [**Overview**](docs/overview.md) - Architecture and core concepts
 - [**Router**](docs/router.md) - Route definition and configuration
 - [**WebServer**](docs/webserver.md) - Production server with graceful shutdown
@@ -280,10 +285,12 @@ Comprehensive documentation to help you build production-ready APIs:
 - [**Health Probes**](docs/health-probes.md) - Kubernetes-style health checks
 
 ### 📚 Advanced Topics
+
 - [**Best Practices Guide**](docs/best-practices.md) - Production-ready patterns and conventions
 - [**FAQ**](docs/faq.md) - Common questions and troubleshooting
 
 ### 🎯 Quick Links
+
 - [API Reference](https://pkg.go.dev/github.com/fgrzl/mux) - Complete API documentation on pkg.go.dev
 - [Examples Directory](examples/) - Working code examples
 - [GitHub Issues](https://github.com/fgrzl/mux/issues) - Bug reports and feature requests
@@ -320,6 +327,7 @@ spec.MarshalToFile("openapi.yaml")
 
 Mux is designed to be fast and allocation-free on hot paths.
 Latest benchmarks (Go 1.22, i9-12900HK):
+
 - Exact match: ~66 ns/op, 0 allocs
 - Param match: ~135 ns/op, 0 allocs
 - Catch-all: ~64 ns/op, 0 allocs
@@ -327,7 +335,7 @@ Latest benchmarks (Go 1.22, i9-12900HK):
 - ServeHTTP (end-to-end): ~1.5 µs, 8 allocs
 
 ➡️ Mux is a zero-alloc, sub-150 ns router for common paths, competitive with chi and httprouter.
-Wildcard (*) routes remain slower (~1.4 µs, 8 allocs), but typical REST and SPA routing are elite-tier.
+Wildcard (\*) routes remain slower (~1.4 µs, 8 allocs), but typical REST and SPA routing are elite-tier.
 
 ## Testing
 
@@ -356,5 +364,3 @@ go test ./pkg/middleware/compression -bench . -benchmem
 5. Commit your changes (`git commit -m 'Add amazing feature'`)
 6. Push to the branch (`git push origin feature/amazing-feature`)
 7. Open a Pull Request
-
-
