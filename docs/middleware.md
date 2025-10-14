@@ -501,3 +501,11 @@ func (m *CustomMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
 - **GeoIP**: Database lookups add latency but provide security
 
 Monitor your application's performance and adjust middleware configuration as needed.
+
+## See Also
+
+- [Authentication Middleware](authentication-middleware.md) - Detailed JWT authentication guide
+- [Custom Middleware](custom-middleware.md) - Build your own middleware
+- [Router](router.md) - Routing fundamentals
+- [Best Practices](best-practices.md) - Patterns and conventions
+- [WebServer](webserver.md) - Production server setup

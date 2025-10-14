@@ -2,11 +2,11 @@ package servicelocator
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/fgrzl/mux/pkg/router"
 	"github.com/fgrzl/mux/pkg/routing"
+	"github.com/fgrzl/mux/test/testhelpers"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,9 +27,7 @@ func TestShouldSetSingleServiceOnRouteContext(t *testing.T) {
 		},
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	recorder := httptest.NewRecorder()
-	ctx := routing.NewRouteContext(recorder, req)
+	ctx, _ := testhelpers.NewRouteContext(http.MethodGet, "/test", nil)
 
 	nextCalled := false
 	next := func(c routing.RouteContext) {
@@ -63,9 +61,7 @@ func TestShouldSetMultipleServicesOnRouteContext(t *testing.T) {
 		},
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	recorder := httptest.NewRecorder()
-	ctx := routing.NewRouteContext(recorder, req)
+	ctx, _ := testhelpers.NewRouteContext(http.MethodGet, "/test", nil)
 
 	nextCalled := false
 	next := func(c routing.RouteContext) {
@@ -91,9 +87,7 @@ func TestShouldHandleNilOptionsGracefully(t *testing.T) {
 	// Arrange
 	middleware := &serviceSetterMiddleware{options: nil}
 
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	recorder := httptest.NewRecorder()
-	ctx := routing.NewRouteContext(recorder, req)
+	ctx, _ := testhelpers.NewRouteContext(http.MethodGet, "/test", nil)
 
 	nextCalled := false
 	next := func(c routing.RouteContext) {
@@ -113,9 +107,7 @@ func TestShouldHandleEmptyServicesMapGracefully(t *testing.T) {
 		options: &ServiceSetterOptions{Services: nil},
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	recorder := httptest.NewRecorder()
-	ctx := routing.NewRouteContext(recorder, req)
+	ctx, _ := testhelpers.NewRouteContext(http.MethodGet, "/test", nil)
 
 	nextCalled := false
 	next := func(c routing.RouteContext) {
@@ -129,34 +121,36 @@ func TestShouldHandleEmptyServicesMapGracefully(t *testing.T) {
 	assert.True(t, nextCalled, "next handler should be called even with nil services map")
 }
 
-func TestWithServiceShouldCreateServiceOption(t *testing.T) {
-	// Arrange
-	service := &MockService{Name: "test"}
-	serviceKey := routing.ServiceKey("test")
-	options := &ServiceSetterOptions{}
+func TestShouldCreateAndInitializeServicesMapGivenWithServiceOption(t *testing.T) {
+	t.Run("should create service option", func(t *testing.T) {
+		// Arrange
+		service := &MockService{Name: "test"}
+		serviceKey := routing.ServiceKey("test")
+		options := &ServiceSetterOptions{}
 
-	// Act
-	option := WithService(serviceKey, service)
-	option(options)
+		// Act
+		option := WithService(serviceKey, service)
+		option(options)
 
-	// Assert
-	assert.NotNil(t, options.Services)
-	assert.Equal(t, service, options.Services[serviceKey])
-}
+		// Assert
+		assert.NotNil(t, options.Services)
+		assert.Equal(t, service, options.Services[serviceKey])
+	})
 
-func TestWithServiceShouldInitializeServicesMap(t *testing.T) {
-	// Arrange
-	service := &MockService{Name: "test"}
-	serviceKey := routing.ServiceKey("test")
-	options := &ServiceSetterOptions{} // Services map is nil
+	t.Run("should initialize services map when nil", func(t *testing.T) {
+		// Arrange
+		service := &MockService{Name: "test"}
+		serviceKey := routing.ServiceKey("test")
+		options := &ServiceSetterOptions{} // Services map is nil
 
-	// Act
-	option := WithService(serviceKey, service)
-	option(options)
+		// Act
+		option := WithService(serviceKey, service)
+		option(options)
 
-	// Assert
-	assert.NotNil(t, options.Services)
-	assert.Equal(t, service, options.Services[serviceKey])
+		// Assert
+		assert.NotNil(t, options.Services)
+		assert.Equal(t, service, options.Services[serviceKey])
+	})
 }
 
 func TestShouldAddServiceMiddlewareToRouter(t *testing.T) {
@@ -172,15 +166,14 @@ func TestShouldAddServiceMiddlewareToRouter(t *testing.T) {
 		s, ok := c.GetService(routing.ServiceKey("test"))
 		if ok {
 			if ms, ok := s.(*MockService); ok {
-				c.Response().Write([]byte(ms.Name))
+				_, _ = c.Response().Write([]byte(ms.Name))
 				return
 			}
 		}
-		c.Response().Write([]byte("no-service"))
+		_, _ = c.Response().Write([]byte("no-service"))
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	rec := httptest.NewRecorder()
+	req, rec := testhelpers.NewRequestRecorder(http.MethodGet, "/test", nil)
 	rtr.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusOK, rec.Code)

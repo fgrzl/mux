@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/fgrzl/mux"
+	"github.com/fgrzl/mux/pkg/common"
 	"github.com/fgrzl/mux/test/testsupport"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -44,7 +45,7 @@ func TestShouldReturnResourcesWhenRequestIsValid(t *testing.T) {
 	defer server.Close()
 
 	// Act
-	resp, err := http.Get(server.URL + "/api/v1/resources/")
+	resp, err := http.Get(server.URL + testsupport.APIResources)
 
 	// Assert
 	assert.NoError(t, err)
@@ -58,7 +59,7 @@ func TestShouldReturnNoContentWhenResourceExists(t *testing.T) {
 	defer server.Close()
 
 	// Act
-	req, _ := http.NewRequest(http.MethodHead, server.URL+"/api/v1/resources/8", nil)
+	req, _ := http.NewRequest(http.MethodHead, server.URL+fmt.Sprintf(testsupport.APIResourceByID, 8), nil)
 	resp, err := http.DefaultClient.Do(req)
 
 	// Assert
@@ -73,7 +74,7 @@ func TestShouldReturnNotFoundWhenResourceDoesNotExist(t *testing.T) {
 	defer server.Close()
 
 	// Act
-	req, _ := http.NewRequest(http.MethodHead, server.URL+"/api/v1/resources/99999", nil)
+	req, _ := http.NewRequest(http.MethodHead, server.URL+fmt.Sprintf(testsupport.APIResourceByID, 99999), nil)
 	resp, err := http.DefaultClient.Do(req)
 
 	// Assert
@@ -88,7 +89,7 @@ func TestShouldReturnResourceWhenResourceIdIsValid(t *testing.T) {
 	defer server.Close()
 
 	// Act
-	resp, err := http.Get(server.URL + "/api/v1/resources/8")
+	resp, err := http.Get(server.URL + fmt.Sprintf(testsupport.APIResourceByID, 8))
 
 	// Assert
 	assert.NoError(t, err)
@@ -102,7 +103,7 @@ func TestShouldReturnNotFoundWhenResourceIdIsInvalid(t *testing.T) {
 	defer server.Close()
 
 	// Act
-	resp, err := http.Get(server.URL + "/api/v1/resources/99999")
+	resp, err := http.Get(server.URL + fmt.Sprintf(testsupport.APIResourceByID, 99999))
 
 	// Assert
 	assert.NoError(t, err)
@@ -119,7 +120,7 @@ func TestShouldReturnTenantsWhenRequestIsValid(t *testing.T) {
 	defer server.Close()
 
 	// Act
-	resp, err := http.Get(server.URL + "/api/v1/tenants/")
+	resp, err := http.Get(server.URL + testsupport.APITenants)
 
 	// Assert
 	assert.NoError(t, err)
@@ -139,7 +140,7 @@ func TestShouldCreateTenantWhenRequestIsValid(t *testing.T) {
 	defer server.Close()
 
 	// Act
-	resp, err := http.Post(server.URL+"/api/v1/tenants/", "application/json", nil)
+	resp, err := http.Post(server.URL+testsupport.APITenants, common.MimeJSON, nil)
 
 	// Assert
 	assert.NoError(t, err)
@@ -159,7 +160,7 @@ func TestShouldDeleteTenantWhenTenantExists(t *testing.T) {
 	defer server.Close()
 
 	// Act
-	req, _ := http.NewRequest(http.MethodDelete, server.URL+"/api/v1/tenants/8", nil)
+	req, _ := http.NewRequest(http.MethodDelete, server.URL+fmt.Sprintf(testsupport.APITenantByID, 8), nil)
 	resp, err := http.DefaultClient.Do(req)
 
 	// Assert
@@ -180,7 +181,7 @@ func TestShouldReturnNotFoundWhenTenantDoesNotExist(t *testing.T) {
 	defer server.Close()
 
 	// Act
-	req, _ := http.NewRequest(http.MethodDelete, server.URL+"/api/v1/tenants/99999", nil)
+	req, _ := http.NewRequest(http.MethodDelete, server.URL+fmt.Sprintf(testsupport.APITenantByID, 99999), nil)
 	resp, err := http.DefaultClient.Do(req)
 
 	// Assert
@@ -201,7 +202,7 @@ func TestShouldReturnResourcesWhenSearchedByNameAndType(t *testing.T) {
 	name := resources[0].Name
 
 	// Act: search by name and type
-	u := server.URL + "/api/v1/resources/search"
+	u := server.URL + testsupport.APIBase + "/resources/search"
 	q := url.Values{}
 	q.Set("name", name)
 	q.Add("type", "resource")
@@ -218,14 +219,14 @@ func TestShouldRejectEmptyBulkAndCreateResourcesWhenValid(t *testing.T) {
 
 	// invalid (empty array) -> 400
 	buf := bytes.NewBufferString("[]")
-	resp, err := http.Post(server.URL+"/api/v1/resources/bulk", "application/json", buf)
+	resp, err := http.Post(server.URL+testsupport.APIBase+"/resources/bulk", common.MimeJSON, buf)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 
 	// valid -> 201 and created resources returned
 	resources := []map[string]any{{"tenant_id": 0, "name": "new-res", "type": "resource"}}
 	b, _ := json.Marshal(resources)
-	resp, err = http.Post(server.URL+"/api/v1/resources/bulk", "application/json", bytes.NewReader(b))
+	resp, err = http.Post(server.URL+testsupport.APIBase+"/resources/bulk", common.MimeJSON, bytes.NewReader(b))
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusCreated, resp.StatusCode)
 	body, _ := io.ReadAll(resp.Body)
@@ -245,8 +246,8 @@ func TestShouldUpdateResourceMetadataWhenValid(t *testing.T) {
 	payload := map[string]map[string]string{"metadata": {"k": "v"}}
 	b, _ := json.Marshal(payload)
 
-	req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf(server.URL+"/api/v1/resources/%d/metadata", id), bytes.NewReader(b))
-	req.Header.Set("Content-Type", "application/json")
+	req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf(server.URL+testsupport.APIResourceMetadata, id), bytes.NewReader(b))
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -259,12 +260,12 @@ func TestShouldReturnOKWhenUUIDValidAndBadRequestWhenInvalid(t *testing.T) {
 	defer server.Close()
 
 	valid := uuid.New()
-	resp, err := http.Get(server.URL + "/api/v1/items/" + valid.String() + "/uuid")
+	resp, err := http.Get(server.URL + fmt.Sprintf(testsupport.APIItemsUUID, valid.String()))
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 	// invalid uuid
-	resp, err = http.Get(server.URL + "/api/v1/items/not-a-uuid/uuid")
+	resp, err = http.Get(server.URL + fmt.Sprintf(testsupport.APIItemsUUID, "not-a-uuid"))
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
@@ -274,8 +275,8 @@ func TestShouldEchoHeaderAndReturnFilterResultsWhenQueriesProvided(t *testing.T)
 	defer server.Close()
 
 	// header echo
-	req, _ := http.NewRequest(http.MethodGet, server.URL+"/api/v1/headers/echo", nil)
-	req.Header.Set("X-Echo", "hello")
+	req, _ := http.NewRequest(http.MethodGet, server.URL+testsupport.APIHeadersEcho, nil)
+	req.Header.Set(common.HeaderXEcho, "hello")
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -283,7 +284,7 @@ func TestShouldEchoHeaderAndReturnFilterResultsWhenQueriesProvided(t *testing.T)
 	assert.Contains(t, string(body), "hello")
 
 	// filter with ints and uuids
-	u := server.URL + "/api/v1/filter?ids=1&ids=2&uuids=" + uuid.NewString() + "&uuids=" + uuid.NewString()
+	u := server.URL + testsupport.APIBase + "/filter?ids=1&ids=2&uuids=" + uuid.NewString() + "&uuids=" + uuid.NewString()
 	resp, err = http.Get(u)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -299,7 +300,7 @@ func TestShouldSubmitFormWhenValidAndServeStaticFallbackForUnknownPaths(t *testi
 	// form submit
 	form := url.Values{}
 	form.Set("field", "value1")
-	resp, err := http.Post(server.URL+"/api/v1/form/submit", "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
+	resp, err := http.Post(server.URL+testsupport.APIFormSubmit, "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	body, _ := io.ReadAll(resp.Body)
@@ -319,13 +320,13 @@ func TestShouldReturnTenantsWhenRouterImplemented(t *testing.T) {
 	server := httptest.NewServer(mockServerHandler())
 	defer server.Close()
 
-	resp, err := http.Get(server.URL + "/api/v1/tenants/")
+	resp, err := http.Get(server.URL + testsupport.APITenants)
 	require.NoError(t, err)
 	// Expect a JSON array with tenants when route is implemented; tighten
 	// assertions so this fails if static fallback serves HTML.
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	ct := resp.Header.Get("Content-Type")
-	assert.Contains(t, ct, "application/json")
+	ct := resp.Header.Get(common.HeaderContentType)
+	assert.Contains(t, ct, common.MimeJSON)
 	body, _ := io.ReadAll(resp.Body)
 	var arr []map[string]any
 	err = json.Unmarshal(body, &arr)
@@ -337,12 +338,12 @@ func TestShouldCreateTenantWhenRouterImplemented(t *testing.T) {
 	server := httptest.NewServer(mockServerHandler())
 	defer server.Close()
 
-	resp, err := http.Post(server.URL+"/api/v1/tenants/", "application/json", bytes.NewReader([]byte(`{"tenant_id":8,"name":"New","plan":"gold"}`)))
+	resp, err := http.Post(server.URL+testsupport.APITenants, common.MimeJSON, bytes.NewReader([]byte(`{"tenant_id":8,"name":"New","plan":"gold"}`)))
 	require.NoError(t, err)
 	// Expect JSON created response when implemented
 	assert.Equal(t, http.StatusCreated, resp.StatusCode)
-	ct := resp.Header.Get("Content-Type")
-	assert.Contains(t, ct, "application/json")
+	ct := resp.Header.Get(common.HeaderContentType)
+	assert.Contains(t, ct, common.MimeJSON)
 	body, _ := io.ReadAll(resp.Body)
 	var obj map[string]any
 	err = json.Unmarshal(body, &obj)
@@ -354,7 +355,7 @@ func TestShouldDeleteTenantWhenRouterImplemented(t *testing.T) {
 	server := httptest.NewServer(mockServerHandler())
 	defer server.Close()
 
-	req, _ := http.NewRequest(http.MethodDelete, server.URL+"/api/v1/tenants/8", nil)
+	req, _ := http.NewRequest(http.MethodDelete, server.URL+fmt.Sprintf(testsupport.APITenantByID, 8), nil)
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	// Expect 204 No Content when implemented
@@ -367,12 +368,12 @@ func TestShouldListTenantResourcesWhenRouterImplemented(t *testing.T) {
 	server := httptest.NewServer(mockServerHandler())
 	defer server.Close()
 
-	resp, err := http.Get(server.URL + "/api/v1/tenants/0/resources")
+	resp, err := http.Get(server.URL + fmt.Sprintf(testsupport.APITenantResources, 0))
 	require.NoError(t, err)
 	// Expect JSON list of resources when implemented
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	ct := resp.Header.Get("Content-Type")
-	assert.Contains(t, ct, "application/json")
+	ct := resp.Header.Get(common.HeaderContentType)
+	assert.Contains(t, ct, common.MimeJSON)
 	body, _ := io.ReadAll(resp.Body)
 	var arr []map[string]any
 	err = json.Unmarshal(body, &arr)
@@ -384,11 +385,11 @@ func TestShouldCreateTenantResourceWhenRouterImplemented(t *testing.T) {
 	defer server.Close()
 
 	body := `{"tenant_id":0,"name":"created","type":"resource"}`
-	resp, err := http.Post(server.URL+"/api/v1/tenants/0/resources", "application/json", strings.NewReader(body))
+	resp, err := http.Post(server.URL+fmt.Sprintf(testsupport.APITenantResources, 0), common.MimeJSON, strings.NewReader(body))
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusCreated, resp.StatusCode)
-	ct := resp.Header.Get("Content-Type")
-	assert.Contains(t, ct, "application/json")
+	ct := resp.Header.Get(common.HeaderContentType)
+	assert.Contains(t, ct, common.MimeJSON)
 	b, _ := io.ReadAll(resp.Body)
 	var obj map[string]any
 	err = json.Unmarshal(b, &obj)
@@ -400,13 +401,13 @@ func TestShouldUpdateTenantWhenRouterImplemented(t *testing.T) {
 	defer server.Close()
 
 	body := `{"tenant_id":0,"name":"updated","plan":"silver"}`
-	req, _ := http.NewRequest(http.MethodPut, server.URL+"/api/v1/tenants/0", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
+	req, _ := http.NewRequest(http.MethodPut, server.URL+fmt.Sprintf(testsupport.APITenantByID, 0), strings.NewReader(body))
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	ct := resp.Header.Get("Content-Type")
-	assert.Contains(t, ct, "application/json")
+	ct := resp.Header.Get(common.HeaderContentType)
+	assert.Contains(t, ct, common.MimeJSON)
 	b, _ := io.ReadAll(resp.Body)
 	var obj map[string]any
 	err = json.Unmarshal(b, &obj)
@@ -417,13 +418,13 @@ func TestShouldReturnNotFoundForMissingTenantWhenRouterImplemented(t *testing.T)
 	server := httptest.NewServer(mockServerHandler())
 	defer server.Close()
 
-	resp, err := http.Get(server.URL + "/api/v1/tenants/99999")
+	resp, err := http.Get(server.URL + fmt.Sprintf(testsupport.APITenantByID, 99999))
 	require.NoError(t, err)
 	// Expect a 404 ProblemDetails JSON when implemented
 	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
-	ct := resp.Header.Get("Content-Type")
+	ct := resp.Header.Get(common.HeaderContentType)
 	// allow either application/json or application/problem+json
-	assert.True(t, strings.Contains(ct, "application/json") || strings.Contains(ct, "application/problem+json"))
+	assert.True(t, strings.Contains(ct, common.MimeJSON) || strings.Contains(ct, common.MimeProblemJSON))
 	b, _ := io.ReadAll(resp.Body)
 	var obj map[string]any
 	err = json.Unmarshal(b, &obj)

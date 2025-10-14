@@ -2,10 +2,10 @@ package router
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/fgrzl/mux/pkg/routing"
+	"github.com/fgrzl/mux/test/testhelpers"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -53,8 +53,7 @@ func TestShouldCreateNewRouteGroupWithPrefix(t *testing.T) {
 func TestShouldServeHTTPAndReturnNotFoundForUnknownRoute(t *testing.T) {
 	// Arrange
 	rtr := NewRouter()
-	req := httptest.NewRequest(http.MethodGet, "/unknown", nil)
-	rec := httptest.NewRecorder()
+	req, rec := testhelpers.NewRequestRecorder(http.MethodGet, "/unknown", nil)
 
 	// Act
 	rtr.ServeHTTP(rec, req)
@@ -72,8 +71,7 @@ func TestShouldServeHTTPAndCallRegisteredHandler(t *testing.T) {
 		c.OK("success")
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	rec := httptest.NewRecorder()
+	req, rec := testhelpers.NewRequestRecorder(http.MethodGet, "/test", nil)
 
 	// Act
 	rtr.ServeHTTP(rec, req)
@@ -102,8 +100,7 @@ func TestShouldServeHTTPWithMiddleware(t *testing.T) {
 		c.OK("success")
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	rec := httptest.NewRecorder()
+	req, rec := testhelpers.NewRequestRecorder(http.MethodGet, "/test", nil)
 
 	// Act
 	rtr.ServeHTTP(rec, req)
@@ -123,8 +120,7 @@ func TestShouldSetRouteParamsInContext(t *testing.T) {
 		c.OK("success")
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/users/123", nil)
-	rec := httptest.NewRecorder()
+	req, rec := testhelpers.NewRequestRecorder(http.MethodGet, "/users/123", nil)
 
 	// Act
 	rtr.ServeHTTP(rec, req)
@@ -159,8 +155,7 @@ func TestShouldExecuteMiddlewareInCorrectOrder(t *testing.T) {
 		c.OK("success")
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	rec := httptest.NewRecorder()
+	req, rec := testhelpers.NewRequestRecorder(http.MethodGet, "/test", nil)
 
 	// Act
 	rtr.ServeHTTP(rec, req)
@@ -190,8 +185,7 @@ func TestShouldStopMiddlewareChainWhenNotContinuing(t *testing.T) {
 		c.OK("success")
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	rec := httptest.NewRecorder()
+	req, rec := testhelpers.NewRequestRecorder(http.MethodGet, "/test", nil)
 
 	// Act
 	rtr.ServeHTTP(rec, req)

@@ -25,7 +25,7 @@ func benchServiceLocator(b *testing.B, pooled bool) {
 		// Access services to ensure the middleware work path is exercised.
 		_, _ = c.GetService("svc1")
 		_, _ = c.GetService("svc2")
-		c.Response().Write([]byte("ok"))
+		_, _ = c.Response().Write([]byte("ok"))
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/ok", nil)

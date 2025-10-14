@@ -156,20 +156,20 @@ func setupUserRoutes(group *mux.RouteGroup) {
         
     users.GET("/{id}", getUser).
         WithSummary("Get user by ID").
-        WithParam("id", "path", uuid.Nil, true).
+        WithPathParam("id", uuid.Nil).
         WithOKResponse(User{}).
         WithNotFoundResponse()
         
     users.PUT("/{id}", updateUser).
         WithSummary("Update user").
-        WithParam("id", "path", uuid.Nil, true).
+        WithPathParam("id", uuid.Nil).
         WithJsonBody(User{}).
         WithOKResponse(User{}).
         RequirePermissions("write") // Additional permission check
         
     users.DELETE("/{id}", deleteUser).
         WithSummary("Delete user").
-        WithParam("id", "path", uuid.Nil, true).
+        WithPathParam("id", uuid.Nil).
         WithNoContentResponse().
         RequirePermissions("delete")
 }
@@ -858,3 +858,12 @@ func (m *MetricsMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
 - [ ] Use proper deployment practices
 
 Following these best practices will help you build robust, maintainable, and production-ready APIs with Mux.
+
+## See Also
+
+- [Getting Started](getting-started.md) - Comprehensive introduction
+- [Router](router.md) - Routing fundamentals
+- [Middleware](middleware.md) - Built-in middleware guide
+- [WebServer](webserver.md) - Production server setup
+- [Health Probes](health-probes.md) - Kubernetes-style health checks
+- [Custom Middleware](custom-middleware.md) - Build your own middleware

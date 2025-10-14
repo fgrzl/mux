@@ -3,6 +3,7 @@ package forwardheaders
 import (
 	"crypto/tls"
 	"net"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -11,13 +12,47 @@ import (
 	"github.com/fgrzl/mux/pkg/routing"
 )
 
-// Options controls how forwarded headers are interpreted.
+// ---- Functional Options ----
+
+// ForwardHeadersOption is a function type for configuring forwarded headers middleware.
+type ForwardHeadersOption func(*ForwardHeadersOptions)
+
+// WithTrustAll configures the middleware to trust forwarded headers from any source.
+// WARNING: This is insecure and should only be used in development or when behind a
+// trusted reverse proxy that strips untrusted headers.
+func WithTrustAll() ForwardHeadersOption {
+	return func(o *ForwardHeadersOptions) {
+		o.TrustAll = true
+	}
+}
+
+// WithTrustedProxies sets the list of CIDR ranges or IPs whose forwarded headers are trusted.
+// Example: WithTrustedProxies("10.0.0.0/8", "172.16.0.0/12", "192.168.1.100")
+func WithTrustedProxies(proxies ...string) ForwardHeadersOption {
+	return func(o *ForwardHeadersOptions) {
+		o.TrustAll = false
+		o.TrustedProxies = proxies
+	}
+}
+
+// WithRespectForwarded enables parsing RFC 7239 Forwarded header.
+// When false, only X-Forwarded-* headers are considered.
+func WithRespectForwarded(respect bool) ForwardHeadersOption {
+	return func(o *ForwardHeadersOptions) {
+		o.RespectForwarded = respect
+	}
+}
+
+// ---- Options ----
+
+// ForwardHeadersOptions controls how forwarded headers are interpreted.
 //
 // Security note: trusting forwarded headers from untrusted sources allows
 // clients to spoof their origin. Prefer specifying TrustedProxies.
-type Options struct {
+type ForwardHeadersOptions struct {
 	// TrustAll accepts forwarded headers from any remote address.
 	// Default true to preserve backward compatibility with previous behavior.
+	// WARNING: Insecure - only use in development or behind trusted proxy.
 	TrustAll bool
 	// TrustedProxies is a list of CIDR ranges or IPs whose forwarded headers are trusted.
 	// Only used when TrustAll == false.
@@ -27,18 +62,24 @@ type Options struct {
 	RespectForwarded bool
 }
 
+// Options is deprecated. Use ForwardHeadersOptions instead.
+// Kept for backward compatibility.
+type Options = ForwardHeadersOptions
+
+// ---- Middleware ----
+
+// ---- Middleware ----
+
 // forwardedHeadersMiddleware processes X-Forwarded-* and Forwarded headers to restore original client information.
 type forwardedHeadersMiddleware struct {
-	opts    Options
+	opts    ForwardHeadersOptions
 	trusted []*net.IPNet
 }
 
 // newForwardedHeadersMiddleware builds the middleware and pre-parses trusted proxies.
-func newForwardedHeadersMiddleware(opts Options) *forwardedHeadersMiddleware {
+func newForwardedHeadersMiddleware(opts ForwardHeadersOptions) *forwardedHeadersMiddleware {
 	// defaults
-	if opts.TrustAll == false && len(opts.TrustedProxies) == 0 {
-		// remain explicit: TrustAll false means only exact trust list; leave empty
-	}
+	// If TrustAll is false and no TrustedProxies were provided, leave trusted list empty.
 	if !opts.RespectForwarded {
 		// default to true if unset (zero value is false) to be generous
 		opts.RespectForwarded = true
@@ -103,125 +144,72 @@ func parseForwardedRFC(v string) (forAddr, proto, host string) {
 	if v == "" {
 		return "", "", ""
 	}
+
 	// take first list-element up to comma
-	end := len(v)
+	part := v
 	if i := strings.IndexByte(v, ','); i >= 0 {
-		end = i
+		part = v[:i]
 	}
-	i := 0
-	// iterate semicolon-separated kv pairs
-	for i < end {
-		// skip leading spaces/semicolons
-		for i < end && (v[i] == ' ' || v[i] == ';') {
-			i++
-		}
-		if i >= end {
-			break
-		}
-		// key up to '='
-		ks := i
-		for i < end && v[i] != '=' && v[i] != ';' {
-			i++
-		}
-		if i >= end || v[i] != '=' { // malformed or empty
-			// skip to next ';'
-			for i < end && v[i] != ';' {
-				i++
-			}
+
+	// split into semicolon-separated key=value pairs
+	pairs := strings.Split(part, ";")
+	for _, p := range pairs {
+		p = strings.TrimSpace(p)
+		if p == "" {
 			continue
 		}
-		ke := i
-		i++ // skip '='
-		// value up to ';' or end, trim spaces
-		vs := i
-		// handle quoted value
-		var val string
-		if vs < end && v[vs] == '"' {
-			// quoted string: find next '"'
-			vs++
-			j := vs
-			for j < end && v[j] != '"' {
-				j++
-			}
-			val = v[vs:j]
-			i = j + 1
-		} else {
-			// unquoted until ';' or end
-			j := vs
-			for j < end && v[j] != ';' {
-				j++
-			}
-			// trim spaces on both ends
-			// left trim
-			for vs < j && v[vs] == ' ' {
-				vs++
-			}
-			je := j
-			for je > vs && v[je-1] == ' ' {
-				je--
-			}
-			val = v[vs:je]
-			i = j
+		// split on first '='
+		kv := strings.SplitN(p, "=", 2)
+		if len(kv) != 2 {
+			continue
 		}
-		// normalize key trim spaces
-		// left trim
-		for ks < ke && v[ks] == ' ' {
-			ks++
-		}
-		for ke > ks && v[ke-1] == ' ' {
-			ke--
-		}
-		key := v[ks:ke]
-		if strings.EqualFold(key, "for") {
-			vv := val
-			if strings.HasPrefix(vv, "[") {
-				if idx := strings.Index(vv, "]"); idx >= 0 {
-					vv = vv[1:idx]
-				}
-			}
-			if c := strings.LastIndexByte(vv, ':'); c >= 0 {
-				// treat single-colon as host:port; avoid stripping IPv6
-				if fc := strings.IndexByte(vv, ':'); fc == c {
-					vv = vv[:c]
-				}
-			}
-			forAddr = vv
-		} else if strings.EqualFold(key, "proto") {
+		key := strings.TrimSpace(kv[0])
+		val := unquoteAndTrim(kv[1])
+
+		switch {
+		case strings.EqualFold(key, "for"):
+			forAddr = normalizeForToken(val)
+		case strings.EqualFold(key, "proto"):
 			proto = val
-		} else if strings.EqualFold(key, "host") {
+		case strings.EqualFold(key, "host"):
 			host = val
 		}
-		// move to next after optional ';'
-		if i < end && v[i] == ';' {
-			i++
-		}
 	}
+
 	return
 }
 
-// chooseClientIP determines the effective client IP given X-Forwarded-For values and trust list.
-func (m *forwardedHeadersMiddleware) chooseClientIP(xff []string, immediateRemote string) string { // legacy path
-	if len(xff) == 0 {
-		return ""
+// unquoteAndTrim trims whitespace and removes surrounding quotes from a header token.
+func unquoteAndTrim(v string) string {
+	v = strings.TrimSpace(v)
+	if len(v) >= 2 && v[0] == '"' && v[len(v)-1] == '"' {
+		return v[1 : len(v)-1]
 	}
-	if m.opts.TrustAll {
-		return xff[0]
-	}
-	host, _, err := net.SplitHostPort(immediateRemote)
-	if err != nil {
-		host = immediateRemote
-	}
-	if !m.isTrusted(net.ParseIP(host)) {
-		return ""
-	}
-	for i := len(xff) - 1; i >= 0; i-- {
-		v := normalizeIPToken(xff[i])
-		if !m.isTrusted(net.ParseIP(v)) {
-			return v
+	return v
+}
+
+// normalizeForToken converts a forwarded 'for' token to a plain IP/host without brackets or port.
+// It mirrors the previous inlined logic but isolates it for clarity.
+func normalizeForToken(v string) string {
+	vv := v
+	if strings.HasPrefix(vv, "[") {
+		if idx := strings.Index(vv, "]"); idx >= 0 {
+			vv = vv[1:idx]
 		}
 	}
-	return xff[0]
+	if c := strings.LastIndexByte(vv, ':'); c >= 0 {
+		// treat single-colon as host:port; avoid stripping IPv6
+		if fc := strings.IndexByte(vv, ':'); fc == c {
+			vv = vv[:c]
+		}
+	}
+	return vv
 }
+
+// chooseClientIP determines the effective client IP given X-Forwarded-For values and trust list.
+// Note: legacy chooseClientIP (operating on pre-split slices) was removed
+// in favor of chooseClientIPFromRaw which operates on the raw header string
+// and avoids an allocation. The logic is preserved in the Raw variant.
 
 // chooseClientIPFromRaw performs right-to-left parsing of a CSV without building slices.
 func (m *forwardedHeadersMiddleware) chooseClientIPFromRaw(xffRaw, immediateRemote string) string {
@@ -276,11 +264,6 @@ func normalizeIPToken(v string) string {
 
 // Invoke implements the Middleware interface, processing forwarded headers.
 func (m *forwardedHeadersMiddleware) Invoke(c routing.RouteContext, next router.HandlerFunc) {
-	// Back-compat: if constructed without options (zero-value), behave permissively
-	if !m.opts.TrustAll && !m.opts.RespectForwarded && len(m.trusted) == 0 && len(m.opts.TrustedProxies) == 0 {
-		m.opts.TrustAll = true
-		m.opts.RespectForwarded = true
-	}
 	r := c.Request()
 	hdr := r.Header
 
@@ -296,79 +279,36 @@ func (m *forwardedHeadersMiddleware) Invoke(c routing.RouteContext, next router.
 		return
 	}
 
-	// Prefer RFC 7239 Forwarded when enabled
-	var proto, host, clientIP string
+	// Back-compat: if constructed without options (zero-value), behave permissively
+	if !m.opts.TrustAll && !m.opts.RespectForwarded && len(m.trusted) == 0 && len(m.opts.TrustedProxies) == 0 {
+		m.opts.TrustAll = true
+		m.opts.RespectForwarded = true
+	}
 
 	// Trust-gate: if we don't trust headers from this sender, skip parsing entirely
-	applyHeaders := m.opts.TrustAll
-	if !applyHeaders {
-		hostPart, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err != nil {
-			hostPart = r.RemoteAddr
-		}
-		// parse once
-		applyHeaders = m.isTrusted(net.ParseIP(hostPart))
-	}
-	if !applyHeaders {
+	if !m.shouldApplyHeaders(r) {
 		next(c)
 		return
 	}
-	if m.opts.RespectForwarded {
-		if fwd != "" {
-			fip, p, h := parseForwardedRFC(fwd)
-			clientIP, proto, host = fip, p, h
-		}
-	}
 
-	// Fallback/augment from X-Forwarded-* headers
-	if proto == "" {
-		if xproto != "" {
-			proto = firstCSV(xproto)
-		}
-	}
-	// Host: prefer X-Forwarded-Host
-	if host == "" {
-		if xhost != "" {
-			host = firstCSV(xhost)
-		}
-	}
-	// If port provided separately, combine
-	if xport != "" {
-		port := firstCSV(xport)
-		if host != "" && !strings.Contains(host, ":") {
-			host = host + ":" + port
-		}
-	}
-
-	// Determine client IP from X-Forwarded-For or X-Real-IP if not from RFC header
-	if clientIP == "" {
-		if xffRaw != "" {
-			if chosen := m.chooseClientIPFromRaw(xffRaw, r.RemoteAddr); chosen != "" {
-				clientIP = chosen
-			}
-		}
-		if clientIP == "" && xreal != "" {
-			clientIP = firstCSV(xreal)
-		}
-	}
+	// Extract effective proto, host and client IP (delegated to reduce complexity)
+	proto, host, clientIP := m.extractForwarded(r, fwd, xproto, xhost, xport, xffRaw, xreal)
 
 	// Apply changes (we've already trust-gated above)
-	if applyHeaders {
-		if proto != "" {
-			r.URL.Scheme = proto
-			if proto == "https" && r.TLS == nil {
-				// best-effort: mark as TLS by setting a non-nil struct to signal HTTPS
-				r.TLS = &tls.ConnectionState{}
-			}
-		}
-		if host != "" {
-			r.Host = host
-			r.URL.Host = host
-			// ensure Host header aligns for downstream usage
-			r.Header.Set("Host", host)
+	if proto != "" {
+		r.URL.Scheme = proto
+		if proto == "https" && r.TLS == nil {
+			// best-effort: mark as TLS by setting a non-nil struct to signal HTTPS
+			r.TLS = &tls.ConnectionState{}
 		}
 	}
-	if clientIP != "" && applyHeaders {
+	if host != "" {
+		r.Host = host
+		r.URL.Host = host
+		// ensure Host header aligns for downstream usage
+		r.Header.Set(common.HeaderHost, host)
+	}
+	if clientIP != "" {
 		// Keep RemoteAddr as IP only (tests assume), drop port
 		r.RemoteAddr = clientIP
 	}
@@ -376,12 +316,79 @@ func (m *forwardedHeadersMiddleware) Invoke(c routing.RouteContext, next router.
 	next(c)
 }
 
-// UseForwardedHeaders adds middleware that processes forwarded headers with permissive defaults.
-func UseForwardedHeaders(rtr *router.Router) {
-	rtr.Use(newForwardedHeadersMiddleware(Options{TrustAll: true, RespectForwarded: true}))
+// shouldApplyHeaders determines whether forwarded headers from the request should be trusted.
+func (m *forwardedHeadersMiddleware) shouldApplyHeaders(r *http.Request) bool {
+	if m.opts.TrustAll {
+		return true
+	}
+	hostPart, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		hostPart = r.RemoteAddr
+	}
+	return m.isTrusted(net.ParseIP(hostPart))
+}
+
+// extractForwarded centralizes header parsing and fallback logic, returning proto, host and clientIP.
+func (m *forwardedHeadersMiddleware) extractForwarded(r *http.Request, fwd, xproto, xhost, xport, xffRaw, xreal string) (proto, host, clientIP string) {
+	if m.opts.RespectForwarded && fwd != "" {
+		fip, p, h := parseForwardedRFC(fwd)
+		clientIP, proto, host = fip, p, h
+	}
+	// Apply X-Forwarded-* fallbacks and determine client IP from headers
+	proto, host = updateProtoHostFromX(proto, host, xproto, xhost, xport)
+	clientIP = determineClientIPFromHeaders(m, r, clientIP, xffRaw, xreal)
+	return
+}
+
+// updateProtoHostFromX fills empty proto/host from X-Forwarded-* headers and applies port if needed.
+func updateProtoHostFromX(proto, host, xproto, xhost, xport string) (string, string) {
+	if proto == "" && xproto != "" {
+		proto = firstCSV(xproto)
+	}
+	if host == "" && xhost != "" {
+		host = firstCSV(xhost)
+	}
+	if xport != "" {
+		port := firstCSV(xport)
+		if host != "" && !strings.Contains(host, ":") {
+			host = host + ":" + port
+		}
+	}
+	return proto, host
+}
+
+// determineClientIPFromHeaders chooses client IP from RFC value (if any), X-Forwarded-For, or X-Real-IP.
+func determineClientIPFromHeaders(m *forwardedHeadersMiddleware, r *http.Request, current, xffRaw, xreal string) string {
+	if current != "" {
+		return current
+	}
+	if xffRaw != "" {
+		if chosen := m.chooseClientIPFromRaw(xffRaw, r.RemoteAddr); chosen != "" {
+			return chosen
+		}
+	}
+	if xreal != "" {
+		return firstCSV(xreal)
+	}
+	return ""
+}
+
+// UseForwardedHeaders adds middleware that processes forwarded headers with the given options.
+// By default, TrustAll is enabled for backward compatibility. For security, use
+// WithTrustedProxies to specify which proxies to trust.
+func UseForwardedHeaders(rtr *router.Router, opts ...ForwardHeadersOption) {
+	options := &ForwardHeadersOptions{
+		TrustAll:         true, // default for backward compatibility
+		RespectForwarded: true,
+	}
+	for _, opt := range opts {
+		opt(options)
+	}
+	rtr.Use(newForwardedHeadersMiddleware(*options))
 }
 
 // UseForwardedHeadersWithOptions adds middleware with custom options.
-func UseForwardedHeadersWithOptions(rtr *router.Router, opts Options) {
+// Deprecated: Use UseForwardedHeaders with functional options instead.
+func UseForwardedHeadersWithOptions(rtr *router.Router, opts ForwardHeadersOptions) {
 	rtr.Use(newForwardedHeadersMiddleware(opts))
 }

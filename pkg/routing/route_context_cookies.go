@@ -18,6 +18,8 @@ var EnforceSecureForSameSiteNone = true
 
 // ...existing code...
 // SetCookie writes a cookie with the given attributes.
+// It sets Expires based on maxAge and enforces Secure when SameSite=None
+// unless EnforceSecureForSameSiteNone is disabled for development.
 func (c *DefaultRouteContext) SetCookie(
 	name, value string,
 	maxAge int,
@@ -72,7 +74,7 @@ func (c *DefaultRouteContext) GetCookie(name string) (string, error) {
 	return cookie.Value, nil
 }
 
-// ClearCookie deletes the specified cookie.
+// ClearCookie deletes the specified cookie by setting an expired cookie value.
 func (c *DefaultRouteContext) ClearCookie(name string) {
 	http.SetCookie(c.Response(), &http.Cookie{
 		Name:     name,

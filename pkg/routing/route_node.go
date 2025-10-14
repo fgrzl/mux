@@ -23,4 +23,8 @@ type RouteNode struct {
 	// path parameters (e.g., {id}). Callers can use this to decide whether to build
 	// a params map for the happy path without performing another traversal.
 	HasParams bool
+	// ParamCount stores the number of path parameters in the pattern leading to this node.
+	// This enables pre-allocation of parameter maps with the correct capacity to avoid
+	// map growth allocations during request handling.
+	ParamCount int
 }

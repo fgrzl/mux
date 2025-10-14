@@ -10,7 +10,7 @@ import (
 )
 
 // BenchmarkAuthorization_Invoke measures middleware.Invoke overhead for various checks.
-func BenchmarkAuthorization_Invoke(b *testing.B) {
+func BenchmarkAuthorizationInvoke(b *testing.B) {
 	// helper to create a context with a user having roles/scopes
 	makeCtx := func() *routing.DefaultRouteContext {
 		return newAuthzCtx(newDefaultAuthzUser(), nil)
@@ -22,31 +22,33 @@ func BenchmarkAuthorization_Invoke(b *testing.B) {
 		run   func(m *authorizationMiddleware, ctx *routing.DefaultRouteContext)
 	}{
 		{
-			name:  "NoReq_NoOp",
-			setup: func(m *authorizationMiddleware) {},
+			name: "NoReq_NoOp",
+			setup: func(m *authorizationMiddleware) {
+				// noop
+			},
 			run: func(m *authorizationMiddleware, ctx *routing.DefaultRouteContext) {
-				m.Invoke(ctx, func(c routing.RouteContext) {})
+				m.Invoke(ctx, noop)
 			},
 		},
 		{
 			name:  "Role_Match",
 			setup: func(m *authorizationMiddleware) { m.options = &AuthorizationOptions{Roles: []string{"admin"}} },
 			run: func(m *authorizationMiddleware, ctx *routing.DefaultRouteContext) {
-				m.Invoke(ctx, func(c routing.RouteContext) {})
+				m.Invoke(ctx, noop)
 			},
 		},
 		{
 			name:  "Role_NoMatch",
 			setup: func(m *authorizationMiddleware) { m.options = &AuthorizationOptions{Roles: []string{"missing"}} },
 			run: func(m *authorizationMiddleware, ctx *routing.DefaultRouteContext) {
-				m.Invoke(ctx, func(c routing.RouteContext) {})
+				m.Invoke(ctx, noop)
 			},
 		},
 		{
 			name:  "Scope_Match",
 			setup: func(m *authorizationMiddleware) { m.options = &AuthorizationOptions{Scopes: []string{"read"}} },
 			run: func(m *authorizationMiddleware, ctx *routing.DefaultRouteContext) {
-				m.Invoke(ctx, func(c routing.RouteContext) {})
+				m.Invoke(ctx, noop)
 			},
 		},
 		{
@@ -58,7 +60,7 @@ func BenchmarkAuthorization_Invoke(b *testing.B) {
 				// set a param used during interpolation
 				params := routing.RouteParams{"id": "42"}
 				ctx.SetParams(params)
-				m.Invoke(ctx, func(c routing.RouteContext) {})
+				m.Invoke(ctx, noop)
 			},
 		},
 	}
@@ -77,8 +79,12 @@ func BenchmarkAuthorization_Invoke(b *testing.B) {
 	}
 }
 
+func noop(c routing.RouteContext) {
+	c.NoContent()
+}
+
 // BenchmarkAuthorization_RouterPipeline measures middleware in a router pipeline.
-func BenchmarkAuthorization_RouterPipeline(b *testing.B) {
+func BenchmarkAuthorizationRouterPipeline(b *testing.B) {
 	r := router.NewRouter()
 	UseAuthorization(r, WithRoles("admin"))
 	r.GET("/test", func(c routing.RouteContext) { c.NoContent() })

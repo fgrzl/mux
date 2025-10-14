@@ -14,7 +14,7 @@ func TestShouldReturnHeaderValue(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.Header.Set(common.HeaderAuthorization, "Bearer token123")
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 

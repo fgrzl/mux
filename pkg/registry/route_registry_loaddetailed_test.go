@@ -8,19 +8,22 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type ldResult struct {
-	Found    bool
-	MethodOK bool
-	Allow    string
-	Params   map[string]string
-}
+const (
+	static = "/static"
+	users  = "/users/{id}"
+)
 
-func TestLoadDetailed_Static_FoundMethodOK(t *testing.T) {
+func TestShouldReturnRouteAndOKStatusGivenStaticRouteWithMatchingMethod(t *testing.T) {
+	// Arrange
 	reg := NewRouteRegistry()
-	reg.Register("/static", http.MethodGet, &routing.RouteOptions{Method: http.MethodGet})
+	reg.Register(static, http.MethodGet, &routing.RouteOptions{Method: http.MethodGet})
 
 	params := make(map[string]string)
-	opt, res := reg.LoadDetailedInto("/static", http.MethodGet, params)
+
+	// Act
+	opt, res := reg.LoadDetailedInto(static, http.MethodGet, params)
+
+	// Assert
 	assert.NotNil(t, opt)
 	assert.True(t, res.Found)
 	assert.True(t, res.MethodOK)
@@ -28,50 +31,70 @@ func TestLoadDetailed_Static_FoundMethodOK(t *testing.T) {
 	assert.Empty(t, params)
 }
 
-func TestLoadDetailed_Static_MethodNotAllowed_AllowReturned(t *testing.T) {
+func TestShouldReturnAllowHeaderGivenStaticRouteWithWrongMethod(t *testing.T) {
+	// Arrange
 	reg := NewRouteRegistry()
-	reg.Register("/static", http.MethodGet, &routing.RouteOptions{Method: http.MethodGet})
-	reg.Register("/static", http.MethodPost, &routing.RouteOptions{Method: http.MethodPost})
+	reg.Register(static, http.MethodGet, &routing.RouteOptions{Method: http.MethodGet})
+	reg.Register(static, http.MethodPost, &routing.RouteOptions{Method: http.MethodPost})
 
 	params := make(map[string]string)
-	opt, res := reg.LoadDetailedInto("/static", http.MethodPut, params)
+
+	// Act
+	opt, res := reg.LoadDetailedInto(static, http.MethodPut, params)
+
+	// Assert
 	assert.Nil(t, opt)
 	assert.True(t, res.Found)
 	assert.False(t, res.MethodOK)
 	assert.Equal(t, "GET, POST", res.Allow)
 }
 
-func TestLoadDetailed_Param_FoundMethodOK(t *testing.T) {
+func TestShouldReturnRouteAndExtractParamsGivenParameterizedRouteWithMatchingMethod(t *testing.T) {
+	// Arrange
 	reg := NewRouteRegistry()
-	reg.Register("/users/{id}", http.MethodGet, &routing.RouteOptions{Method: http.MethodGet})
+	reg.Register(users, http.MethodGet, &routing.RouteOptions{Method: http.MethodGet})
 
 	params := make(map[string]string)
+
+	// Act
 	opt, res := reg.LoadDetailedInto("/users/123", http.MethodGet, params)
+
+	// Assert
 	assert.NotNil(t, opt)
 	assert.True(t, res.Found)
 	assert.True(t, res.MethodOK)
 	assert.Equal(t, map[string]string{"id": "123"}, params)
 }
 
-func TestLoadDetailed_Param_MethodNotAllowed_AllowReturned(t *testing.T) {
+func TestShouldReturnAllowHeaderGivenParameterizedRouteWithWrongMethod(t *testing.T) {
+	// Arrange
 	reg := NewRouteRegistry()
-	reg.Register("/users/{id}", http.MethodGet, &routing.RouteOptions{Method: http.MethodGet})
-	reg.Register("/users/{id}", http.MethodDelete, &routing.RouteOptions{Method: http.MethodDelete})
+	reg.Register(users, http.MethodGet, &routing.RouteOptions{Method: http.MethodGet})
+	reg.Register(users, http.MethodDelete, &routing.RouteOptions{Method: http.MethodDelete})
 
 	params := make(map[string]string)
+
+	// Act
 	opt, res := reg.LoadDetailedInto("/users/123", http.MethodPost, params)
+
+	// Assert
 	assert.Nil(t, opt)
 	assert.True(t, res.Found)
 	assert.False(t, res.MethodOK)
 	assert.Equal(t, "GET, DELETE", res.Allow)
 }
 
-func TestLoadDetailed_NotFound(t *testing.T) {
+func TestShouldReturnNotFoundGivenNoMatchingRoute(t *testing.T) {
+	// Arrange
 	reg := NewRouteRegistry()
 	reg.Register("/a", http.MethodGet, &routing.RouteOptions{Method: http.MethodGet})
 
 	params := make(map[string]string)
+
+	// Act
 	opt, res := reg.LoadDetailedInto("/missing", http.MethodGet, params)
+
+	// Assert
 	assert.Nil(t, opt)
 	assert.False(t, res.Found)
 	assert.False(t, res.MethodOK)

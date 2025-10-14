@@ -31,7 +31,7 @@ func benchCompression(b *testing.B, encoding string, pooled bool, sizes []int) {
 			rg := r.NewRouteGroup("")
 			payload := strings.Repeat("x", size)
 			rg.GET("/data", func(c routing.RouteContext) {
-				c.Response().Write([]byte(payload))
+				_, _ = c.Response().Write([]byte(payload))
 			})
 			_, req := bench.NewRecorderRequest(http.MethodGet, "/data")
 			req.Header.Set("Accept-Encoding", encoding)

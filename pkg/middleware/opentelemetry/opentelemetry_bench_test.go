@@ -27,7 +27,7 @@ func benchOtel(b *testing.B, pooled bool) {
 	UseOpenTelemetry(r)
 	rg := r.NewRouteGroup("")
 	rg.GET("/ok", func(c routing.RouteContext) {
-		c.Response().Write([]byte("ok"))
+		_, _ = c.Response().Write([]byte("ok"))
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/ok", nil)

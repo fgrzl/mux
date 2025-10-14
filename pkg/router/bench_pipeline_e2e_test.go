@@ -18,7 +18,7 @@ func BenchmarkPipelineE2EPool(b *testing.B) {
 	logging.UseLogging(r)
 	compression.UseCompression(r)
 	rg := r.NewRouteGroup("")
-	rg.GET("/files/*", func(c routing.RouteContext) { c.Response().Write([]byte(strings.Repeat("x", 512))) })
+	rg.GET("/files/*", func(c routing.RouteContext) { _, _ = c.Response().Write([]byte(strings.Repeat("x", 512))) })
 
 	rr, req := bench.NewRecorderRequest(http.MethodGet, "/files/some/path/file.txt")
 	req.Header.Set("Accept-Encoding", "gzip")
@@ -36,7 +36,7 @@ func BenchmarkPipelineE2ENonPool(b *testing.B) {
 	logging.UseLogging(r)
 	compression.UseCompression(r)
 	rg := r.NewRouteGroup("")
-	rg.GET("/files/*", func(c routing.RouteContext) { c.Response().Write([]byte(strings.Repeat("x", 512))) })
+	rg.GET("/files/*", func(c routing.RouteContext) { _, _ = c.Response().Write([]byte(strings.Repeat("x", 512))) })
 
 	rr, req := bench.NewRecorderRequest(http.MethodGet, "/files/some/path/file.txt")
 	req.Header.Set("Accept-Encoding", "gzip")

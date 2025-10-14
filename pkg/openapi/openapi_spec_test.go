@@ -11,6 +11,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const (
+	testAPITitle   = "Test API"
+	testAPIVersion = "1.0.0"
+)
+
 func TestShouldCreateNewOpenAPISpecWithDefaults(t *testing.T) {
 	// Arrange & Act
 	spec := NewOpenAPISpec()
@@ -26,6 +31,7 @@ func TestShouldCreateNewOpenAPISpecWithDefaults(t *testing.T) {
 }
 
 func TestShouldValidateRequiredFields(t *testing.T) {
+	// Arrange
 	tests := []struct {
 		name        string
 		spec        *OpenAPISpec
@@ -36,7 +42,7 @@ func TestShouldValidateRequiredFields(t *testing.T) {
 			name: "valid spec",
 			spec: &OpenAPISpec{
 				OpenAPI: "3.1.0",
-				Info:    &InfoObject{Title: "Test API", Version: "1.0.0"},
+				Info:    &InfoObject{Title: testAPITitle, Version: testAPIVersion},
 				Paths:   map[string]*PathItem{"/test": {}},
 			},
 			expectError: false,
@@ -45,7 +51,7 @@ func TestShouldValidateRequiredFields(t *testing.T) {
 			name: "invalid OpenAPI version",
 			spec: &OpenAPISpec{
 				OpenAPI: "3.0.0",
-				Info:    &InfoObject{Title: "Test API", Version: "1.0.0"},
+				Info:    &InfoObject{Title: testAPITitle, Version: testAPIVersion},
 				Paths:   map[string]*PathItem{"/test": {}},
 			},
 			expectError: true,
@@ -65,7 +71,7 @@ func TestShouldValidateRequiredFields(t *testing.T) {
 			name: "missing version",
 			spec: &OpenAPISpec{
 				OpenAPI: "3.1.0",
-				Info:    &InfoObject{Title: "Test API"},
+				Info:    &InfoObject{Title: testAPITitle},
 				Paths:   map[string]*PathItem{"/test": {}},
 			},
 			expectError: true,
@@ -75,7 +81,7 @@ func TestShouldValidateRequiredFields(t *testing.T) {
 			name: "missing paths",
 			spec: &OpenAPISpec{
 				OpenAPI: "3.1.0",
-				Info:    &InfoObject{Title: "Test API", Version: "1.0.0"},
+				Info:    &InfoObject{Title: testAPITitle, Version: testAPIVersion},
 				Paths:   map[string]*PathItem{},
 			},
 			expectError: true,
@@ -155,7 +161,7 @@ func TestShouldMarshalToJSONFile(t *testing.T) {
 	// Arrange
 	spec := &OpenAPISpec{
 		OpenAPI: "3.1.0",
-		Info:    &InfoObject{Title: "Test API", Version: "1.0.0"},
+		Info:    &InfoObject{Title: testAPITitle, Version: testAPIVersion},
 		Paths: map[string]*PathItem{
 			"/test": {
 				Get: &Operation{
@@ -193,7 +199,7 @@ func TestShouldMarshalToYAMLFile(t *testing.T) {
 	// Arrange
 	spec := &OpenAPISpec{
 		OpenAPI: "3.1.0",
-		Info:    &InfoObject{Title: "Test API", Version: "1.0.0"},
+		Info:    &InfoObject{Title: testAPITitle, Version: testAPIVersion},
 		Paths: map[string]*PathItem{
 			"/test": {
 				Post: &Operation{

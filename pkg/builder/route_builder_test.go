@@ -17,24 +17,30 @@ import (
 )
 
 const (
-	paramAccept = "Accept"
+	paramAccept     = "Accept"
+	pathUsers       = "/users"
+	pathUsersWithID = "/users/{id}"
+	pathPublic      = "/public"
+	pathSecure      = "/secure"
+	scopeAPIRead    = "api:read"
+	scopeAPIWrite   = "api:write"
 )
 
 func TestShouldCreateRouteBuilder(t *testing.T) {
 	// Arrange & Act
-	builder := Route(http.MethodGet, "/users")
+	builder := Route(http.MethodGet, pathUsers)
 
 	// Assert
 	assert.NotNil(t, builder)
 	assert.NotNil(t, builder.Options)
 	assert.Equal(t, http.MethodGet, builder.Options.Method)
-	assert.Equal(t, "/users", builder.Options.Pattern)
+	assert.Equal(t, pathUsers, builder.Options.Pattern)
 	assert.NotNil(t, builder.Options.Responses)
 }
 
 func TestShouldSetAllowAnonymous(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, "/public")
+	builder := Route(http.MethodGet, pathPublic)
 
 	// Act
 	result := builder.AllowAnonymous()
@@ -46,7 +52,7 @@ func TestShouldSetAllowAnonymous(t *testing.T) {
 
 func TestShouldSetRequiredPermissions(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, "/secure")
+	builder := Route(http.MethodGet, pathSecure)
 	perms := []string{"read", "write"}
 
 	// Act
@@ -73,7 +79,7 @@ func TestShouldSetRequiredRoles(t *testing.T) {
 func TestShouldSetRequiredScopes(t *testing.T) {
 	// Arrange
 	builder := Route(http.MethodGet, "/api")
-	scopes := []string{"api:read", "api:write"}
+	scopes := []string{scopeAPIRead, scopeAPIWrite}
 
 	// Act
 	result := builder.RequireScopes(scopes...)
@@ -100,7 +106,7 @@ func TestShouldSetRateLimit(t *testing.T) {
 
 func TestShouldSetOperationID(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, "/users")
+	builder := Route(http.MethodGet, pathUsers)
 	opID := "getUsers"
 
 	// Act
@@ -113,7 +119,7 @@ func TestShouldSetOperationID(t *testing.T) {
 
 func TestShouldPanicOnInvalidOperationID(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, "/users")
+	builder := Route(http.MethodGet, pathUsers)
 
 	// Act & Assert
 	assert.Panics(t, func() {
@@ -123,7 +129,7 @@ func TestShouldPanicOnInvalidOperationID(t *testing.T) {
 
 func TestShouldAddPathParameter(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, "/users/{id}")
+	builder := Route(http.MethodGet, pathUsersWithID)
 	example := "123"
 
 	// Act
@@ -141,7 +147,7 @@ func TestShouldAddPathParameter(t *testing.T) {
 
 func TestShouldAddQueryParameter(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, "/users")
+	builder := Route(http.MethodGet, pathUsers)
 	example := "10"
 
 	// Act
@@ -158,7 +164,7 @@ func TestShouldAddQueryParameter(t *testing.T) {
 
 func TestShouldAddRequiredQueryParameter(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, "/users")
+	builder := Route(http.MethodGet, pathUsers)
 	example := "active"
 
 	// Act
@@ -175,7 +181,7 @@ func TestShouldAddRequiredQueryParameter(t *testing.T) {
 
 func TestShouldAddHeaderParameter(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, "/users")
+	builder := Route(http.MethodGet, pathUsers)
 	example := common.MimeJSON
 
 	// Act
@@ -192,7 +198,7 @@ func TestShouldAddHeaderParameter(t *testing.T) {
 
 func TestShouldAddCookieParameter(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, "/users")
+	builder := Route(http.MethodGet, pathUsers)
 	example := "session123"
 
 	// Act
@@ -209,7 +215,7 @@ func TestShouldAddCookieParameter(t *testing.T) {
 
 func TestShouldPanicOnInvalidParameterIn(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, "/users")
+	builder := Route(http.MethodGet, pathUsers)
 
 	// Act & Assert
 	assert.Panics(t, func() {
@@ -219,7 +225,7 @@ func TestShouldPanicOnInvalidParameterIn(t *testing.T) {
 
 func TestShouldPanicOnEmptyParameterName(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, "/users")
+	builder := Route(http.MethodGet, pathUsers)
 
 	// Act & Assert
 	assert.Panics(t, func() {
@@ -229,7 +235,7 @@ func TestShouldPanicOnEmptyParameterName(t *testing.T) {
 
 func TestShouldAddResponse(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, "/users")
+	builder := Route(http.MethodGet, pathUsers)
 	example := struct {
 		Name string `json:"name"`
 	}{Name: "John"}
@@ -250,7 +256,7 @@ func TestShouldAddResponse(t *testing.T) {
 
 func TestShouldAddStandardResponses(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, "/users")
+	builder := Route(http.MethodGet, pathUsers)
 	example := []string{"user1", "user2"}
 
 	// Act
@@ -275,7 +281,7 @@ func TestShouldAddStandardResponses(t *testing.T) {
 
 func TestShouldAddJsonBody(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodPost, "/users")
+	builder := Route(http.MethodPost, pathUsers)
 	example := struct {
 		Name  string `json:"name"`
 		Email string `json:"email"`
@@ -295,7 +301,7 @@ func TestShouldAddJsonBody(t *testing.T) {
 
 func TestShouldAddFormBody(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodPost, "/users")
+	builder := Route(http.MethodPost, pathUsers)
 	example := struct {
 		Name  string `json:"name"`
 		Email string `json:"email"`
@@ -332,7 +338,7 @@ func TestShouldAddMultipartBody(t *testing.T) {
 
 func TestShouldSetSummary(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, "/users")
+	builder := Route(http.MethodGet, pathUsers)
 	summary := "Get all users"
 
 	// Act
@@ -345,7 +351,7 @@ func TestShouldSetSummary(t *testing.T) {
 
 func TestShouldSetDescription(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, "/users")
+	builder := Route(http.MethodGet, pathUsers)
 	description := "Retrieves a list of all users in the system"
 
 	// Act
@@ -358,7 +364,7 @@ func TestShouldSetDescription(t *testing.T) {
 
 func TestShouldAddTags(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, "/users")
+	builder := Route(http.MethodGet, pathUsers)
 	tags := []string{"users", "admin"}
 
 	// Act
@@ -371,7 +377,7 @@ func TestShouldAddTags(t *testing.T) {
 
 func TestShouldSetExternalDocs(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, "/users")
+	builder := Route(http.MethodGet, pathUsers)
 	url := "https://api.example.com/docs"
 	desc := "User API Documentation"
 
@@ -387,7 +393,7 @@ func TestShouldSetExternalDocs(t *testing.T) {
 
 func TestShouldAddSecurity(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, "/users")
+	builder := Route(http.MethodGet, pathUsers)
 	security := &openapi.SecurityRequirement{}
 
 	// Act
@@ -526,7 +532,7 @@ func TestRegisterSchemaShouldAddCustomSchema(t *testing.T) {
 	RegisterSchema(typ, customSchema)
 	t.Cleanup(func() {
 		// Remove the custom schema from the registry to maintain test isolation
-		removeSchema(typ)
+		RemoveSchema(typ)
 	})
 
 	// Assert
@@ -537,11 +543,11 @@ func TestRegisterSchemaShouldAddCustomSchema(t *testing.T) {
 
 func TestShouldChainFluentMethods(t *testing.T) {
 	// Arrange & Act
-	builder := Route(http.MethodGet, "/users/{id}").
+	builder := Route(http.MethodGet, pathUsersWithID).
 		AllowAnonymous().
 		RequirePermission("read").
 		RequireRoles("user").
-		RequireScopes("api:read").
+		RequireScopes(scopeAPIRead).
 		WithRateLimit(100, time.Minute).
 		WithOperationID("getUser").
 		WithPathParam("id", "123").
@@ -556,7 +562,7 @@ func TestShouldChainFluentMethods(t *testing.T) {
 	assert.True(t, builder.Options.AllowAnonymous)
 	assert.Contains(t, builder.Options.Permissions, "read")
 	assert.Contains(t, builder.Options.Roles, "user")
-	assert.Contains(t, builder.Options.Scopes, "api:read")
+	assert.Contains(t, builder.Options.Scopes, scopeAPIRead)
 	assert.Equal(t, 100, builder.Options.RateLimit)
 	assert.Equal(t, time.Minute, builder.Options.RateInterval)
 	assert.Equal(t, "getUser", builder.Options.OperationID)

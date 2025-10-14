@@ -58,7 +58,7 @@ func BenchmarkServeHTTPSPADeepPathWithMiddlewarePool(b *testing.B) {
 	rg := r.NewRouteGroup("")
 	rg.GET("/app/**", func(c routing.RouteContext) {
 		// write some bytes to exercise compression
-		c.Response().Write([]byte(strings.Repeat("x", 512)))
+		_, _ = c.Response().Write([]byte(strings.Repeat("x", 512)))
 	})
 
 	_, req := bench.NewRecorderRequest(http.MethodGet, bench.BuildDeepPath(50))
@@ -79,7 +79,7 @@ func BenchmarkServeHTTPSPADeepPathWithMiddlewareNonPool(b *testing.B) {
 
 	rg := r.NewRouteGroup("")
 	rg.GET("/app/**", func(c routing.RouteContext) {
-		c.Response().Write([]byte(strings.Repeat("x", 512)))
+		_, _ = c.Response().Write([]byte(strings.Repeat("x", 512)))
 	})
 
 	_, req := bench.NewRecorderRequest(http.MethodGet, bench.BuildDeepPath(50))

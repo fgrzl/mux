@@ -10,38 +10,35 @@ import (
 )
 
 func TestDetachIndependence(t *testing.T) {
+	// Arrange
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/", nil)
 
-	// Acquire a pooled context
 	c := AcquireContext(rr, req)
 	require.NotNil(t, c)
 
-	// set some fields
 	c.SetService(common.ServiceKey("svc"), "value")
 	params := AcquireRouteParams()
 	params["id"] = "123"
 	c.SetParams(params)
 
-	// detach a non-pooled clone
+	// Act
 	d := Detach(c)
 	require.NotNil(t, d)
 
-	// release the original back to pool
 	ReleaseContext(c)
 
-	// detached clone should retain copies of params and service
+	// Assert
 	v, ok := d.GetService(common.ServiceKey("svc"))
 	require.True(t, ok)
 	require.Equal(t, "value", v)
 	pid, ok := d.Param("id")
 	require.True(t, ok)
 	require.Equal(t, "123", pid)
-
-	// cleanup: detached is not pooled; nothing to release
 }
 
 func TestDetachUsableInGoroutine(t *testing.T) {
+	// Arrange
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/", nil)
 	c := AcquireContext(rr, req)
@@ -55,12 +52,13 @@ func TestDetachUsableInGoroutine(t *testing.T) {
 	d := Detach(c)
 	require.NotNil(t, d)
 
-	// simulate goroutine that outlives the request
 	var wg sync.WaitGroup
 	wg.Add(1)
+
+	// Act
 	go func(ctx *DefaultRouteContext) {
 		defer wg.Done()
-		// access fields that would otherwise be cleared by ReleaseContext
+		// Assert (within goroutine)
 		v, ok := ctx.GetService(common.ServiceKey("svc"))
 		require.True(t, ok)
 		require.Equal(t, "v2", v)
@@ -69,7 +67,6 @@ func TestDetachUsableInGoroutine(t *testing.T) {
 		require.Equal(t, "v", val)
 	}(d)
 
-	// release original context while goroutine runs
 	ReleaseContext(c)
 	wg.Wait()
 }

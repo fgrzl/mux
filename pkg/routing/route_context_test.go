@@ -10,28 +10,18 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fgrzl/claims"
+	"github.com/fgrzl/mux/pkg/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// mockPrincipal for testing
-type mockRouteContextPrincipal struct{}
+const (
+	testKey   = "test-key"
+	testValue = "test-value"
+)
 
-func (m *mockRouteContextPrincipal) Subject() string                      { return "test-user" }
-func (m *mockRouteContextPrincipal) Issuer() string                       { return "test" }
-func (m *mockRouteContextPrincipal) Audience() []string                   { return []string{"test"} }
-func (m *mockRouteContextPrincipal) ExpirationTime() int64                { return 0 }
-func (m *mockRouteContextPrincipal) NotBefore() int64                     { return 0 }
-func (m *mockRouteContextPrincipal) IssuedAt() int64                      { return 0 }
-func (m *mockRouteContextPrincipal) JWTI() string                         { return "test-jwt" }
-func (m *mockRouteContextPrincipal) Scopes() []string                     { return []string{"read"} }
-func (m *mockRouteContextPrincipal) Roles() []string                      { return []string{"user"} }
-func (m *mockRouteContextPrincipal) Email() string                        { return "test@example.com" }
-func (m *mockRouteContextPrincipal) Username() string                     { return "testuser" }
-func (m *mockRouteContextPrincipal) CustomClaim(name string) claims.Claim { return nil }
-func (m *mockRouteContextPrincipal) CustomClaimValue(name string) string  { return "" }
-func (m *mockRouteContextPrincipal) Claims() *claims.ClaimSet             { return nil }
+// mockPrincipal for testing
+// mockRouteContextPrincipal removed; not used by current tests
 
 func TestShouldCreateNewRouteContext(t *testing.T) {
 	// Arrange
@@ -59,7 +49,7 @@ func TestShouldSetAndGetService(t *testing.T) {
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	key := ServiceKey("test-service")
-	service := "test-value"
+	service := testValue
 
 	// Act
 	ctx.SetService(key, service)
@@ -90,7 +80,7 @@ func TestShouldNotSetServiceWithEmptyKey(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
-	service := "test-value"
+	service := testValue
 
 	// Act
 	ctx.SetService("", service)
@@ -137,7 +127,7 @@ func TestShouldBindFromJSONBody(t *testing.T) {
 	// Arrange
 	body := `{"name":"John","age":30}`
 	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 
@@ -161,7 +151,7 @@ func TestShouldBindFromFormData(t *testing.T) {
 	formData.Set("name", "John")
 	formData.Set("age", "30")
 	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(formData.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set(common.HeaderContentType, common.MimeFormURLEncoded)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 
@@ -225,7 +215,7 @@ func TestShouldBindFromRouteParams(t *testing.T) {
 func TestShouldReturnErrorForUnsupportedContentType(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader("some data"))
-	req.Header.Set("Content-Type", "text/plain")
+	req.Header.Set(common.HeaderContentType, common.MimeTextPlain)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 
@@ -242,7 +232,7 @@ func TestShouldReturnErrorForUnsupportedContentType(t *testing.T) {
 func TestShouldReturnErrorForInvalidJSON(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(`{"invalid json`))
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 
@@ -261,10 +251,10 @@ func TestShouldHandleSingleValues(t *testing.T) {
 	values := []string{"single-value"}
 
 	// Act
-	addToStaging(staging, "test-key", values)
+	addToStaging(staging, testKey, values)
 
 	// Assert
-	assert.Equal(t, "single-value", staging["test-key"])
+	assert.Equal(t, "single-value", staging[testKey])
 }
 
 func TestShouldHandleMultipleValues(t *testing.T) {
@@ -273,13 +263,13 @@ func TestShouldHandleMultipleValues(t *testing.T) {
 	values := []string{"value1", "value2", "value3"}
 
 	// Act
-	addToStaging(staging, "test-key", values)
+	addToStaging(staging, testKey, values)
 
 	// Assert
-	assert.Equal(t, values, staging["test-key"])
+	assert.Equal(t, values, staging[testKey])
 }
 
-func TestParseSliceShouldParseValidValues(t *testing.T) {
+func TestShouldParseValidValuesGivenSliceInput(t *testing.T) {
 	// Arrange
 	values := []string{"1", "2", "3"}
 	parseFunc := func(s string) (int, error) {
@@ -303,7 +293,7 @@ func TestParseSliceShouldParseValidValues(t *testing.T) {
 	assert.Equal(t, []int{1, 2, 3}, result)
 }
 
-func TestParseSliceShouldReturnFalseOnError(t *testing.T) {
+func TestShouldReturnFalseGivenInvalidSliceInput(t *testing.T) {
 	// Arrange
 	values := []string{"1", "invalid", "3"}
 	parseFunc := func(s string) (int, error) {
@@ -321,7 +311,7 @@ func TestParseSliceShouldReturnFalseOnError(t *testing.T) {
 	assert.Nil(t, result)
 }
 
-func TestGetInstanceURIShouldReturnRequestURI(t *testing.T) {
+func TestShouldReturnRequestURIFromContext(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodGet, "/test?param=value", nil)
 
@@ -354,7 +344,8 @@ func TestShouldHandleEmptyParams(t *testing.T) {
 
 func TestShouldHandleContextInheritance(t *testing.T) {
 	// Arrange
-	baseCtx := context.WithValue(context.Background(), "test-key", "test-value")
+	type ctxKey string
+	baseCtx := context.WithValue(context.Background(), ctxKey(testKey), testValue)
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req = req.WithContext(baseCtx)
 	rec := httptest.NewRecorder()
@@ -363,7 +354,7 @@ func TestShouldHandleContextInheritance(t *testing.T) {
 	ctx := NewRouteContext(rec, req)
 
 	// Assert
-	assert.Equal(t, "test-value", ctx.Value("test-key"))
+	assert.Equal(t, testValue, ctx.Value(ctxKey(testKey)))
 }
 
 func TestShouldBindComplexData(t *testing.T) {
@@ -401,7 +392,7 @@ func TestShouldBindWithMaxBytesLimit(t *testing.T) {
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodPost, "/test", bytes.NewReader(jsonData))
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 

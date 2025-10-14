@@ -51,6 +51,7 @@ const (
 	HeaderCookie                        = "Cookie"
 	HeaderETag                          = "ETag"
 	HeaderForwarded                     = "Forwarded" // RFC 7239
+	HeaderHost                          = "Host"
 	HeaderLocation                      = "Location"
 	HeaderOrigin                        = "Origin"
 	HeaderRetryAfter                    = "Retry-After"
@@ -63,4 +64,13 @@ const (
 	HeaderXForwardedPort                = "X-Forwarded-Port"
 	HeaderXForwardedProto               = "X-Forwarded-Proto"
 	HeaderXRealIP                       = "X-Real-IP"
+	// Project-specific common headers
+	HeaderXCorrelationID = "X-Correlation-Id"
+	HeaderXEcho          = "X-Echo"
+)
+
+// Common encoding names used by middleware
+const (
+	EncodingGzip    = "gzip"
+	EncodingDeflate = "deflate"
 )

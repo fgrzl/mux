@@ -16,6 +16,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	testUserSubject = "test-user"
+	testCookieName  = "test-cookie"
+	testCookieValue = "test-value"
+)
+
 // mockProvider implements the TokenProvider interface for tests.
 type mockProvider struct{ ttl time.Duration }
 
@@ -24,14 +30,14 @@ func (m *mockProvider) CreateToken(ctx context.Context, principal claims.Princip
 }
 
 func (m *mockProvider) ValidateToken(ctx context.Context, token string) (claims.Principal, error) {
-	return newMockPrincipal("test-user"), nil
+	return newMockPrincipal(testUserSubject), nil
 }
 
 func (m *mockProvider) GetTTL() time.Duration { return m.ttl }
 
 func (m *mockProvider) CanCreateTokens() bool { return true }
 
-func TestAuthenticateShouldPanicWhenNoTokenProviderIsAvailable(t *testing.T) {
+func TestShouldPanicGivenNoTokenProviderWhenAuthenticating(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	res := httptest.NewRecorder()
@@ -41,7 +47,7 @@ func TestAuthenticateShouldPanicWhenNoTokenProviderIsAvailable(t *testing.T) {
 		services: make(map[ServiceKey]any),
 	}
 
-	mockUser := newMockPrincipal("test-user")
+	mockUser := newMockPrincipal(testUserSubject)
 
 	// Act & Assert
 	defer func() {
@@ -54,7 +60,7 @@ func TestAuthenticateShouldPanicWhenNoTokenProviderIsAvailable(t *testing.T) {
 		assert.Contains(t, panicMsg, "c.Authenticate()")
 	}()
 
-	ctx.Authenticate("test-cookie", mockUser)
+	ctx.Authenticate(testCookieName, mockUser)
 }
 
 // testPrincipal is a minimal claims.Principal implementation used by routing tests.
@@ -79,7 +85,7 @@ func newMockPrincipal(subject string) *testPrincipal {
 	return &testPrincipal{subject: subject}
 }
 
-func TestAuthenticateShouldCreateCookieWithTTLWhenProviderIsAvailable(t *testing.T) {
+func TestShouldCreateCookieWithTTLGivenTokenProviderWhenAuthenticating(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodPost, "/test", nil)
 	res := httptest.NewRecorder()
@@ -89,24 +95,24 @@ func TestAuthenticateShouldCreateCookieWithTTLWhenProviderIsAvailable(t *testing
 	provider := &mockProvider{ttl: 30 * time.Minute}
 	ctx.SetService(tokenizer.ServiceKeyTokenProvider, provider)
 
-	mockUser := newMockPrincipal("test-user")
+	mockUser := newMockPrincipal(testUserSubject)
 
 	// Act
-	ctx.Authenticate("test-cookie", mockUser)
+	ctx.Authenticate(testCookieName, mockUser)
 
 	// Assert
 	assert.Contains(t, res.Header().Get(common.HeaderSetCookie), "test-cookie=test-token-test-user")
 	assert.Contains(t, res.Header().Get(common.HeaderSetCookie), "Max-Age=1800") // 30 minutes = 1800 seconds
 }
 
-func TestSetCookieShouldSetCookieWithAllAttributes(t *testing.T) {
+func TestShouldSetCookieWithAllAttributesGivenSetCookie(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	res := httptest.NewRecorder()
 	ctx := NewRouteContext(res, req)
 
 	// Act
-	ctx.SetCookie("test-cookie", "test-value", 3600, "/path", "example.com", true, true)
+	ctx.SetCookie(testCookieName, testCookieValue, 3600, "/path", "example.com", true, true)
 
 	// Assert
 	setCookieHeader := res.Header().Get(common.HeaderSetCookie)
@@ -119,22 +125,22 @@ func TestSetCookieShouldSetCookieWithAllAttributes(t *testing.T) {
 	assert.Contains(t, setCookieHeader, "SameSite=Lax")
 }
 
-func TestGetCookieShouldReturnCookieValueWhenExists(t *testing.T) {
+func TestShouldReturnCookieValueGivenExistingCookie(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req.AddCookie(&http.Cookie{Name: "test-cookie", Value: "test-value"})
+	req.AddCookie(&http.Cookie{Name: testCookieName, Value: testCookieValue})
 	res := httptest.NewRecorder()
 	ctx := NewRouteContext(res, req)
 
 	// Act
-	value, err := ctx.GetCookie("test-cookie")
+	value, err := ctx.GetCookie(testCookieName)
 
 	// Assert
 	assert.NoError(t, err)
-	assert.Equal(t, "test-value", value)
+	assert.Equal(t, testCookieValue, value)
 }
 
-func TestGetCookieShouldReturnErrorWhenCookieDoesNotExist(t *testing.T) {
+func TestShouldReturnErrorGivenMissingCookie(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	res := httptest.NewRecorder()
@@ -149,14 +155,14 @@ func TestGetCookieShouldReturnErrorWhenCookieDoesNotExist(t *testing.T) {
 	assert.Equal(t, http.ErrNoCookie, err)
 }
 
-func TestClearCookieShouldSetExpiredCookie(t *testing.T) {
+func TestShouldSetExpiredCookieGivenClearCookie(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	res := httptest.NewRecorder()
 	ctx := NewRouteContext(res, req)
 
 	// Act
-	ctx.ClearCookie("test-cookie")
+	ctx.ClearCookie(testCookieName)
 
 	// Assert
 	setCookieHeader := res.Header().Get(common.HeaderSetCookie)
@@ -169,7 +175,7 @@ func TestClearCookieShouldSetExpiredCookie(t *testing.T) {
 	assert.Contains(t, setCookieHeader, "SameSite=Lax")
 }
 
-func TestSignOutShouldClearAllCookiesAndRedirect(t *testing.T) {
+func TestShouldClearAllCookiesAndRedirectGivenSignOut(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodPost, "/signout", nil)
 	res := httptest.NewRecorder()

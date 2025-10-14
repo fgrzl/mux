@@ -1,7 +1,9 @@
 package main
 
 import (
-	"net/http"
+	"context"
+	"os"
+	"os/signal"
 
 	"github.com/fgrzl/mux"
 )
@@ -29,6 +31,11 @@ func main() {
 		})
 	}).WithOperationID("helloName")
 
-	// Start the server
-	http.ListenAndServe(":8080", router)
+	// Start the server with graceful shutdown
+	server := mux.NewServer(":8080", router)
+
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+
+	server.Listen(ctx)
 }

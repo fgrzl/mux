@@ -14,9 +14,15 @@ func init() {
 	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})))
 }
 
-// helper to register a noop RouteOptions into registry
+// registerNoop is a helper to register a route with a no-op handler into the registry.
+// The handler is intentionally empty because benchmarks measure only routing performance,
+// not handler execution time.
 func registerNoop(r *RouteRegistry, pattern string, method string) {
-	opts := &routing.RouteOptions{Method: method, Pattern: pattern, Handler: func(c routing.RouteContext) {}}
+	opts := &routing.RouteOptions{
+		Method:  method,
+		Pattern: pattern,
+		Handler: func(c routing.RouteContext) { /* empty by design for benchmarking */ },
+	}
 	r.Register(pattern, method, opts)
 }
 

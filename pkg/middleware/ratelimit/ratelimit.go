@@ -10,6 +10,7 @@ import (
 	"github.com/fgrzl/mux/pkg/routing"
 )
 
+// SelectiveRateLimiter implements a simple token-bucket rate limiter keyed by client IP and route pattern.
 type SelectiveRateLimiter struct {
 	mu            sync.Mutex
 	visitors      map[string]*visitor
@@ -23,12 +24,15 @@ type visitor struct {
 
 // ---- Options Pattern ----
 
+// RateLimiterOptions configures the rate limiter behavior.
 type RateLimiterOptions struct {
 	CleanupInterval time.Duration
 }
 
+// RateLimiterOption applies a configuration to RateLimiterOptions.
 type RateLimiterOption func(*RateLimiterOptions)
 
+// WithCleanupInterval configures how often to purge inactive visitors.
 func WithCleanupInterval(d time.Duration) RateLimiterOption {
 	return func(o *RateLimiterOptions) {
 		o.CleanupInterval = d
@@ -41,6 +45,7 @@ func UseRateLimiter(r *router.Router, opts ...RateLimiterOption) {
 	r.Use(limiter)
 }
 
+// NewSelectiveRateLimiter constructs a SelectiveRateLimiter with optional configuration.
 func NewSelectiveRateLimiter(opts ...RateLimiterOption) *SelectiveRateLimiter {
 	config := &RateLimiterOptions{
 		CleanupInterval: 10 * time.Minute,
@@ -58,6 +63,9 @@ func NewSelectiveRateLimiter(opts ...RateLimiterOption) *SelectiveRateLimiter {
 }
 
 // ---- Middleware ----
+
+const rateLimitTitle = "Rate limit exceeded"
+const rateLimitDetail = "You have exceeded the allowed number of requests. Please try again later."
 
 func (m *SelectiveRateLimiter) Invoke(c routing.RouteContext, next router.HandlerFunc) {
 
@@ -80,8 +88,8 @@ func (m *SelectiveRateLimiter) Invoke(c routing.RouteContext, next router.Handle
 	if v.tokens <= 0 {
 		instance := c.Request().RequestURI
 		c.Problem(&routing.ProblemDetails{
-			Title:    "Rate limit exceeded",
-			Detail:   "You have exceeded the allowed number of requests. Please try again later.",
+			Title:    rateLimitTitle,
+			Detail:   rateLimitDetail,
 			Status:   http.StatusTooManyRequests,
 			Type:     "https://httpstatuses.com/429",
 			Instance: &instance,

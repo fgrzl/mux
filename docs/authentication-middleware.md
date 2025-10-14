@@ -2,6 +2,8 @@
 
 The authentication middleware provides JWT token validation and creation capabilities.
 
+> **Note**: This document provides detailed authentication examples. For a complete overview of all built-in middleware, see the [Middleware Guide](middleware.md).
+
 ## Setup
 
 ```go
@@ -249,3 +251,10 @@ func getProfile(c mux.RouteContext) {
 8. **Consider rate limiting** login attempts
 9. **Implement proper logout** functionality
 10. **Use secure cookie flags** in production
+
+## See Also
+
+- [Middleware](middleware.md) - Built-in middleware guide (includes authentication)
+- [Custom Middleware](custom-middleware.md) - Build your own middleware
+- [Best Practices](best-practices.md) - Security and authentication patterns
+- [Router](router.md) - Routing fundamentals

@@ -16,6 +16,16 @@ func AcquireRouteParams() RouteParams {
 	return paramsPool.Get().(RouteParams)
 }
 
+// AcquireRouteParamsWithCapacity returns a RouteParams map with the specified
+// capacity. For capacity <= 2, it uses the pool. For larger capacities, it
+// allocates a new map with the exact capacity to avoid growth allocations.
+func AcquireRouteParamsWithCapacity(capacity int) RouteParams {
+	if capacity <= 2 {
+		return paramsPool.Get().(RouteParams)
+	}
+	return make(RouteParams, capacity)
+}
+
 // ReleaseRouteParams clears the map and returns it to the pool. The map must
 // not be used after calling ReleaseRouteParams.
 func ReleaseRouteParams(m RouteParams) {
@@ -25,5 +35,9 @@ func ReleaseRouteParams(m RouteParams) {
 	for k := range m {
 		delete(m, k)
 	}
-	paramsPool.Put(m)
+	// Only pool maps with small size to avoid memory bloat
+	// Maps don't have a cap() function, so we check length
+	if len(m) <= 4 {
+		paramsPool.Put(m)
+	}
 }

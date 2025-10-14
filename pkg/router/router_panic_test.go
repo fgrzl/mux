@@ -27,7 +27,7 @@ func TestShouldRecoverFromPanicInHandler(t *testing.T) {
 
 	// Assert
 	assert.Equal(t, http.StatusInternalServerError, recorder.Code)
-	assert.Equal(t, "application/problem+json", recorder.Header().Get("Content-Type"))
+	assert.Equal(t, common.MimeProblemJSON, recorder.Header().Get(common.HeaderContentType))
 
 	var problemDetails common.ProblemDetails
 	err := json.Unmarshal(recorder.Body.Bytes(), &problemDetails)
@@ -39,8 +39,4 @@ func TestShouldRecoverFromPanicInHandler(t *testing.T) {
 }
 
 // Helper middleware that panics for testing
-type testPanicMiddleware struct{}
-
-func (m *testPanicMiddleware) Invoke(c routing.RouteContext, next HandlerFunc) {
-	panic("middleware panic")
-}
+// No unused middleware types kept in this test file.

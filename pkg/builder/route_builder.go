@@ -183,7 +183,7 @@ func (rb *RouteBuilder) WithStandardErrors() *RouteBuilder {
 
 // WithJsonBody describes a JSON request body (required=true).
 func (rb *RouteBuilder) WithJsonBody(example any) *RouteBuilder {
-	return rb.withBody(example, "application/json")
+	return rb.withBody(example, common.MimeJSON)
 }
 
 // WithFormBody describes an urlencoded form body.
@@ -357,8 +357,8 @@ func RegisterSchema(t reflect.Type, schema *openapi.Schema) {
 	knownSchemas[t] = schema
 }
 
-// removeSchema removes a schema from the knownSchemas registry (for test cleanup).
-func removeSchema(t reflect.Type) {
+// RemoveSchema removes a schema from the knownSchemas registry (for test cleanup).
+func RemoveSchema(t reflect.Type) {
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
