@@ -62,10 +62,6 @@ type ForwardHeadersOptions struct {
 	RespectForwarded bool
 }
 
-// Options is deprecated. Use ForwardHeadersOptions instead.
-// Kept for backward compatibility.
-type Options = ForwardHeadersOptions
-
 // ---- Middleware ----
 
 // ---- Middleware ----
@@ -385,10 +381,4 @@ func UseForwardedHeaders(rtr *router.Router, opts ...ForwardHeadersOption) {
 		opt(options)
 	}
 	rtr.Use(newForwardedHeadersMiddleware(*options))
-}
-
-// UseForwardedHeadersWithOptions adds middleware with custom options.
-// Deprecated: Use UseForwardedHeaders with functional options instead.
-func UseForwardedHeadersWithOptions(rtr *router.Router, opts ForwardHeadersOptions) {
-	rtr.Use(newForwardedHeadersMiddleware(opts))
 }
