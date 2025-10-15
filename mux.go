@@ -9,6 +9,7 @@ import (
 	"github.com/fgrzl/mux/pkg/middleware/authentication"
 	"github.com/fgrzl/mux/pkg/middleware/authorization"
 	"github.com/fgrzl/mux/pkg/middleware/compression"
+	"github.com/fgrzl/mux/pkg/middleware/cors"
 	"github.com/fgrzl/mux/pkg/middleware/enforcehttps"
 	"github.com/fgrzl/mux/pkg/middleware/exportcontrol"
 	"github.com/fgrzl/mux/pkg/middleware/forwardheaders"
@@ -302,6 +303,61 @@ type CompressionOption = compression.CompressionOption
 // compression.UseCompression.
 var UseCompression = compression.UseCompression
 
+// --- CORS middleware ---
+// CORSOptions configures the CORS middleware. Alias of cors.CORSOptions.
+type CORSOptions = cors.CORSOptions
+
+// CORSOption is a single functional option for CORS middleware.
+type CORSOption = cors.CORSOption
+
+// UseCORS installs the CORS (Cross-Origin Resource Sharing) middleware on a
+// router. Alias of cors.UseCORS.
+//
+// Example:
+//
+//	mux.UseCORS(router,
+//		mux.WithAllowedOrigins("https://example.com", "https://app.example.com"),
+//		mux.WithAllowedMethods("GET", "POST", "PUT", "DELETE"),
+//		mux.WithCredentials(true),
+//	)
+var UseCORS = cors.UseCORS
+
+// WithAllowedOrigins sets the origins that are allowed for CORS requests.
+// Alias of cors.WithAllowedOrigins.
+var WithAllowedOrigins = cors.WithAllowedOrigins
+
+// WithAllowedMethods sets the HTTP methods allowed for CORS requests.
+// Alias of cors.WithAllowedMethods.
+var WithAllowedMethods = cors.WithAllowedMethods
+
+// WithAllowedHeaders sets the headers allowed for cross-origin requests.
+// Alias of cors.WithAllowedHeaders.
+var WithAllowedHeaders = cors.WithAllowedHeaders
+
+// WithExposeHeaders sets the headers that are safe to expose to the browser.
+// Alias of cors.WithExposeHeaders.
+var WithExposeHeaders = cors.WithExposeHeaders
+
+// WithCredentials enables Access-Control-Allow-Credentials.
+// Alias of cors.WithCredentials.
+var WithCredentials = cors.WithCredentials
+
+// WithOriginWildcard adds a wildcard pattern for allowed origins.
+// Supports patterns like "*.example.com" to match any subdomain.
+// Alias of cors.WithOriginWildcard.
+//
+// Example:
+//
+//	mux.UseCORS(router,
+//		mux.WithOriginWildcard("*.example.com", "*.test.io"),
+//		mux.WithCredentials(true),
+//	)
+var WithOriginWildcard = cors.WithOriginWildcard
+
+// WithMaxAge sets the value (in seconds) for Access-Control-Max-Age on
+// preflight responses. Alias of cors.WithMaxAge.
+var WithMaxAge = cors.WithMaxAge
+
 // --- Enforce HTTPS middleware ---
 // UseEnforceHTTPS installs middleware that redirects HTTP to HTTPS. Alias of
 // enforcehttps.UseEnforceHTTPS.
@@ -324,10 +380,37 @@ var UseExportControl = exportcontrol.UseExportControl
 var WithGeoIPDatabase = exportcontrol.WithGeoIPDatabase
 
 // --- Forwarded headers middleware ---
+// ForwardHeadersOptions controls how forwarded headers are interpreted.
+// Alias of forwardheaders.ForwardHeadersOptions.
+type ForwardHeadersOptions = forwardheaders.ForwardHeadersOptions
+
+// ForwardHeadersOption is a single functional option for forwarded headers
+// middleware. Alias of forwardheaders.ForwardHeadersOption.
+type ForwardHeadersOption = forwardheaders.ForwardHeadersOption
+
 // UseForwardedHeaders installs the middleware which handles forwarded
 // headers (X-Forwarded-*) on a router. Alias of
 // forwardheaders.UseForwardedHeaders.
+//
+// Example:
+//
+//	mux.UseForwardedHeaders(router,
+//		mux.WithTrustedProxies("10.0.0.0/8", "172.16.0.0/12"),
+//	)
 var UseForwardedHeaders = forwardheaders.UseForwardedHeaders
+
+// WithTrustAll configures the middleware to trust forwarded headers from any
+// source. Alias of forwardheaders.WithTrustAll.
+// WARNING: This is insecure and should only be used in development.
+var WithTrustAll = forwardheaders.WithTrustAll
+
+// WithTrustedProxies sets the list of CIDR ranges or IPs whose forwarded
+// headers are trusted. Alias of forwardheaders.WithTrustedProxies.
+var WithTrustedProxies = forwardheaders.WithTrustedProxies
+
+// WithRespectForwarded enables parsing RFC 7239 Forwarded header.
+// Alias of forwardheaders.WithRespectForwarded.
+var WithRespectForwarded = forwardheaders.WithRespectForwarded
 
 // --- OpenTelemetry middleware ---
 // OpenTelemetryOptions configures the OpenTelemetry middleware. Alias of

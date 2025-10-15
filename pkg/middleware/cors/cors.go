@@ -60,6 +60,20 @@ func WithMaxAge(seconds int) CORSOption {
 	}
 }
 
+// WithOriginWildcard adds a wildcard pattern for allowed origins.
+// Supports patterns like "*.example.com" to match any subdomain.
+// Multiple patterns can be combined with exact origins.
+//
+// Examples:
+//
+//	WithOriginWildcard("*.example.com")              // matches sub.example.com, api.example.com, etc.
+//	WithOriginWildcard("*.example.com", "*.test.io") // matches multiple wildcard patterns
+func WithOriginWildcard(patterns ...string) CORSOption {
+	return func(o *CORSOptions) {
+		o.AllowedOrigins = append(o.AllowedOrigins, patterns...)
+	}
+}
+
 // ---- Options ----
 
 // CORSOptions configure the CORS middleware behavior.
@@ -78,10 +92,6 @@ type CORSOptions struct {
 	MaxAge int
 }
 
-// Options is deprecated. Use CORSOptions instead.
-// Kept for backward compatibility.
-type Options = CORSOptions
-
 // ---- Middleware ----
 
 // ---- Middleware ----
@@ -94,10 +104,11 @@ type corsMiddleware struct {
 	headers string
 	expose  string
 	// precomputed origin checks
-	allowedMap   map[string]struct{}
-	permissive   bool // true when AllowedOrigins is empty -> allow any origin
-	hasWildcard  bool // true when AllowedOrigins contains '*'
-	wildcardSole bool // true when AllowedOrigins is exactly ['*']
+	allowedMap       map[string]struct{}
+	wildcardPatterns []string // patterns like "*.example.com"
+	permissive       bool     // true when AllowedOrigins is empty -> allow any origin
+	hasWildcard      bool     // true when AllowedOrigins contains '*'
+	wildcardSole     bool     // true when AllowedOrigins is exactly ['*']
 }
 
 // defaultMethods returns a sensible default set if none provided.
@@ -134,6 +145,11 @@ func newCORSMiddleware(opts CORSOptions) *corsMiddleware {
 				cm.hasWildcard = true
 				continue
 			}
+			// Check if it's a wildcard pattern like *.example.com
+			if strings.HasPrefix(a, "*.") {
+				cm.wildcardPatterns = append(cm.wildcardPatterns, strings.ToLower(a))
+				continue
+			}
 			// normalize to lower-case for faster comparison
 			cm.allowedMap[strings.ToLower(a)] = struct{}{}
 		}
@@ -155,8 +171,49 @@ func (m *corsMiddleware) isOriginAllowed(origin string) bool {
 	if m.allowedMap == nil {
 		return false
 	}
-	_, ok := m.allowedMap[strings.ToLower(origin)]
-	return ok
+
+	// Check exact match first (fastest)
+	lowerOrigin := strings.ToLower(origin)
+	if _, ok := m.allowedMap[lowerOrigin]; ok {
+		return true
+	}
+
+	// Check wildcard patterns like *.example.com
+	return m.matchesWildcardPattern(lowerOrigin)
+}
+
+// matchesWildcardPattern checks if the origin matches any wildcard pattern.
+// Supports patterns like "*.example.com" matching "sub.example.com" or "a.b.example.com".
+func (m *corsMiddleware) matchesWildcardPattern(origin string) bool {
+	if len(m.wildcardPatterns) == 0 {
+		return false
+	}
+
+	// Extract the host from the origin (remove scheme and port)
+	// origin format: scheme://host[:port]
+	host := origin
+	if idx := strings.Index(origin, "://"); idx != -1 {
+		host = origin[idx+3:]
+	}
+	if idx := strings.Index(host, ":"); idx != -1 {
+		host = host[:idx]
+	}
+
+	// Check each wildcard pattern
+	for _, pattern := range m.wildcardPatterns {
+		// pattern is "*.example.com", we need to check if host ends with ".example.com"
+		suffix := pattern[1:] // remove the leading "*"
+		if strings.HasSuffix(host, suffix) {
+			// Ensure it's a proper subdomain match, not a partial match
+			// e.g., "*.example.com" should match "sub.example.com" but not "notexample.com"
+			if len(host) > len(suffix) {
+				// There's a subdomain, which is what we want
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 // Invoke implements the Middleware interface.
