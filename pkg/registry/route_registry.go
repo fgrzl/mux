@@ -73,6 +73,18 @@ func (r *RouteRegistry) Root() *routing.RouteNode {
 	return r.root
 }
 
+// LoadExact performs a fast exact-match lookup for static routes without any
+// trie traversal. Returns the RouteOptions and true if an exact match is found
+// for both the path and method. This is the fastest possible lookup path.
+func (r *RouteRegistry) LoadExact(path string, method string) (*routing.RouteOptions, bool) {
+	if m, ok := r.exactRoutes[path]; ok {
+		if opt, ok := m[method]; ok {
+			return opt, true
+		}
+	}
+	return nil, false
+}
+
 // Register adds a route for the given pattern and HTTP method to the
 // registry. The pattern may contain parameter tokens ({name}), a single
 // segment wildcard (*), or a catch-all (**) at the end. The provided
