@@ -26,12 +26,12 @@ func BenchmarkForwardedHeadersInvoke(b *testing.B) {
 	)
 	cases := []struct {
 		name  string
-		opts  Options
+		opts  ForwardHeadersOptions
 		setup func(r *http.Request)
 	}{
 		{
 			name: "TrustAll_XForwardedProtoAndFor",
-			opts: Options{TrustAll: true, RespectForwarded: true},
+			opts: ForwardHeadersOptions{TrustAll: true, RespectForwarded: true},
 			setup: func(r *http.Request) {
 				r.Header.Set(hdrXForwardedProto, protoHTTPS)
 				r.Header.Set(hdrXForwardedFor, "203.0.113.10")
@@ -39,14 +39,14 @@ func BenchmarkForwardedHeadersInvoke(b *testing.B) {
 		},
 		{
 			name: "TrustAll_RFCForwarded",
-			opts: Options{TrustAll: true, RespectForwarded: true},
+			opts: ForwardHeadersOptions{TrustAll: true, RespectForwarded: true},
 			setup: func(r *http.Request) {
 				r.Header.Set(hdrForwarded, "for=203.0.113.20;proto=https;host=example.com")
 			},
 		},
 		{
 			name: "TrustedProxy_Applied",
-			opts: Options{TrustAll: false, TrustedProxies: []string{trustedCIDR1}, RespectForwarded: true},
+			opts: ForwardHeadersOptions{TrustAll: false, TrustedProxies: []string{trustedCIDR1}, RespectForwarded: true},
 			setup: func(r *http.Request) {
 				// immediate remote is trusted
 				r.RemoteAddr = "10.1.2.3:1234"
@@ -58,7 +58,7 @@ func BenchmarkForwardedHeadersInvoke(b *testing.B) {
 		},
 		{
 			name: "UntrustedProxy_Ignored",
-			opts: Options{TrustAll: false, TrustedProxies: []string{trustedCIDR1}, RespectForwarded: true},
+			opts: ForwardHeadersOptions{TrustAll: false, TrustedProxies: []string{trustedCIDR1}, RespectForwarded: true},
 			setup: func(r *http.Request) {
 				// immediate remote is NOT trusted, so headers are ignored
 				r.RemoteAddr = "192.0.2.1:7777"
@@ -68,7 +68,7 @@ func BenchmarkForwardedHeadersInvoke(b *testing.B) {
 		},
 		{
 			name: "TrustedProxy_MultiHop",
-			opts: Options{TrustAll: false, TrustedProxies: []string{trustedCIDR1, "192.168.0.0/16"}, RespectForwarded: true},
+			opts: ForwardHeadersOptions{TrustAll: false, TrustedProxies: []string{trustedCIDR1, "192.168.0.0/16"}, RespectForwarded: true},
 			setup: func(r *http.Request) {
 				r.RemoteAddr = "10.9.8.7:8080" // trusted
 				// client, private hop (trusted), proxy (trusted)
@@ -105,7 +105,7 @@ func BenchmarkForwardedHeadersInvoke(b *testing.B) {
 // BenchmarkForwardedHeaders_RouterPipeline measures the middleware in a router pipeline.
 func BenchmarkForwardedHeadersRouterPipeline(b *testing.B) {
 	r := router.NewRouter()
-	UseForwardedHeadersWithOptions(r, Options{TrustAll: true, RespectForwarded: true})
+	UseForwardedHeaders(r, WithTrustAll(), WithRespectForwarded(true))
 	r.GET("/test", func(c routing.RouteContext) { c.NoContent() })
 
 	b.Run("TrustAll_XForwarded", func(b *testing.B) {
