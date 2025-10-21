@@ -181,6 +181,27 @@ func (rb *RouteBuilder) WithStandardErrors() *RouteBuilder {
 	return rb.WithBadRequestResponse().WithNotFoundResponse()
 }
 
+// Redirect response methods
+func (rb *RouteBuilder) With301Response() *RouteBuilder {
+	return rb.WithResponse(http.StatusMovedPermanently, nil)
+}
+
+func (rb *RouteBuilder) With302Response() *RouteBuilder {
+	return rb.WithResponse(http.StatusFound, nil)
+}
+
+func (rb *RouteBuilder) With303Response() *RouteBuilder {
+	return rb.WithResponse(http.StatusSeeOther, nil)
+}
+
+func (rb *RouteBuilder) With307Response() *RouteBuilder {
+	return rb.WithResponse(http.StatusTemporaryRedirect, nil)
+}
+
+func (rb *RouteBuilder) With308Response() *RouteBuilder {
+	return rb.WithResponse(http.StatusPermanentRedirect, nil)
+}
+
 // WithJsonBody describes a JSON request body (required=true).
 func (rb *RouteBuilder) WithJsonBody(example any) *RouteBuilder {
 	return rb.withBody(example, common.MimeJSON)

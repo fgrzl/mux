@@ -98,6 +98,12 @@ type RouteContext interface {
 	Download(filePath string, filename string)
 	// Redirect sends a redirect response with the given status code to the url.
 	Redirect(status int, url string)
+	// MovedPermanently sends a 301 Moved Permanently redirect to the given URL.
+	MovedPermanently(url string)
+	// Found sends a 302 Found redirect to the given URL.
+	Found(url string)
+	// SeeOther sends a 303 See Other redirect to the given URL (POST->GET pattern).
+	SeeOther(url string)
 	// TemporaryRedirect sends a 307 Temporary Redirect to the given URL.
 	TemporaryRedirect(url string)
 	// PermanentRedirect sends a 308 Permanent Redirect to the given URL.

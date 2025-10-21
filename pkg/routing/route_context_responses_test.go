@@ -199,3 +199,87 @@ func TestShouldReturnAcceptWithData(t *testing.T) {
 	assert.Equal(t, common.MimeJSON, recorder.Header().Get(common.HeaderContentType))
 	assert.Contains(t, recorder.Body.String(), "\"status\":\"processing\"")
 }
+
+func TestShouldReturn301MovedPermanently(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/old", nil)
+	recorder := httptest.NewRecorder()
+	ctx := NewRouteContext(recorder, req)
+
+	// Act
+	ctx.MovedPermanently("/new")
+
+	// Assert
+	assert.Equal(t, http.StatusMovedPermanently, recorder.Code)
+	assert.Equal(t, "http://example.com/new", recorder.Header().Get("Location"))
+}
+
+func TestShouldReturn302Found(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/page", nil)
+	recorder := httptest.NewRecorder()
+	ctx := NewRouteContext(recorder, req)
+
+	// Act
+	ctx.Found("/redirect")
+
+	// Assert
+	assert.Equal(t, http.StatusFound, recorder.Code)
+	assert.Equal(t, "http://example.com/redirect", recorder.Header().Get("Location"))
+}
+
+func TestShouldReturn303SeeOther(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodPost, "http://example.com/form", nil)
+	recorder := httptest.NewRecorder()
+	ctx := NewRouteContext(recorder, req)
+
+	// Act
+	ctx.SeeOther("/result")
+
+	// Assert
+	assert.Equal(t, http.StatusSeeOther, recorder.Code)
+	assert.Equal(t, "http://example.com/result", recorder.Header().Get("Location"))
+}
+
+func TestShouldReturn307TemporaryRedirect(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodPost, "http://example.com/api", nil)
+	recorder := httptest.NewRecorder()
+	ctx := NewRouteContext(recorder, req)
+
+	// Act
+	ctx.TemporaryRedirect("/new-api")
+
+	// Assert
+	assert.Equal(t, http.StatusTemporaryRedirect, recorder.Code)
+	assert.Equal(t, "http://example.com/new-api", recorder.Header().Get("Location"))
+}
+
+func TestShouldReturn308PermanentRedirect(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodPost, "http://example.com/api/v1", nil)
+	recorder := httptest.NewRecorder()
+	ctx := NewRouteContext(recorder, req)
+
+	// Act
+	ctx.PermanentRedirect("/api/v2")
+
+	// Assert
+	assert.Equal(t, http.StatusPermanentRedirect, recorder.Code)
+	assert.Equal(t, "http://example.com/api/v2", recorder.Header().Get("Location"))
+}
+
+func TestShouldHandleAbsoluteURLInRedirect(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/page", nil)
+	recorder := httptest.NewRecorder()
+	ctx := NewRouteContext(recorder, req)
+
+	// Act
+	ctx.Found("https://other.com/page")
+
+	// Assert
+	assert.Equal(t, http.StatusFound, recorder.Code)
+	assert.Equal(t, "https://other.com/page", recorder.Header().Get("Location"))
+}

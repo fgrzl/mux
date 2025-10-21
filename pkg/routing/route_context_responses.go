@@ -183,6 +183,21 @@ func (c *DefaultRouteContext) Redirect(status int, url string) {
 	http.Redirect(c.Response(), c.Request(), target, status)
 }
 
+// MovedPermanently issues a 301 Moved Permanently redirect.
+func (c *DefaultRouteContext) MovedPermanently(url string) {
+	c.Redirect(http.StatusMovedPermanently, url)
+}
+
+// Found issues a 302 Found redirect.
+func (c *DefaultRouteContext) Found(url string) {
+	c.Redirect(http.StatusFound, url)
+}
+
+// SeeOther issues a 303 See Other redirect (POST->GET pattern).
+func (c *DefaultRouteContext) SeeOther(url string) {
+	c.Redirect(http.StatusSeeOther, url)
+}
+
 // TemporaryRedirect issues a 307 Temporary Redirect.
 func (c *DefaultRouteContext) TemporaryRedirect(url string) {
 	c.Redirect(http.StatusTemporaryRedirect, url)

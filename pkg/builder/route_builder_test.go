@@ -279,6 +279,39 @@ func TestShouldAddStandardResponses(t *testing.T) {
 	assert.NotNil(t, builder.Options.Responses["400"])
 }
 
+func TestShouldAddRedirectResponses(t *testing.T) {
+	// Arrange
+	builder := Route(http.MethodGet, pathUsers)
+
+	// Act
+	builder.With301Response().
+		With302Response().
+		With303Response().
+		With307Response().
+		With308Response()
+
+	// Assert
+	assert.NotNil(t, builder.Options.Responses["301"], "301 response should be added")
+	assert.NotNil(t, builder.Options.Responses["302"], "302 response should be added")
+	assert.NotNil(t, builder.Options.Responses["303"], "303 response should be added")
+	assert.NotNil(t, builder.Options.Responses["307"], "307 response should be added")
+	assert.NotNil(t, builder.Options.Responses["308"], "308 response should be added")
+
+	// Redirect responses should have no content
+	assert.Nil(t, builder.Options.Responses["302"].Content)
+}
+
+func TestShouldAdd302ResponseForLoginRedirect(t *testing.T) {
+	// Arrange & Act
+	builder := Route(http.MethodGet, "/login").
+		WithSummary("Login page").
+		With302Response()
+
+	// Assert
+	assert.NotNil(t, builder.Options.Responses["302"])
+	assert.Equal(t, "Login page", builder.Options.Summary)
+}
+
 func TestShouldAddJsonBody(t *testing.T) {
 	// Arrange
 	builder := Route(http.MethodPost, pathUsers)
