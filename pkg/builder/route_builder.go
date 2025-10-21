@@ -186,7 +186,15 @@ func (rb *RouteBuilder) With301Response() *RouteBuilder {
 	return rb.WithResponse(http.StatusMovedPermanently, nil)
 }
 
+func (rb *RouteBuilder) WithMovedPermanentlyResponse() *RouteBuilder {
+	return rb.WithResponse(http.StatusMovedPermanently, nil)
+}
+
 func (rb *RouteBuilder) With302Response() *RouteBuilder {
+	return rb.WithResponse(http.StatusFound, nil)
+}
+
+func (rb *RouteBuilder) WithFoundResponse() *RouteBuilder {
 	return rb.WithResponse(http.StatusFound, nil)
 }
 
@@ -194,11 +202,23 @@ func (rb *RouteBuilder) With303Response() *RouteBuilder {
 	return rb.WithResponse(http.StatusSeeOther, nil)
 }
 
+func (rb *RouteBuilder) WithSeeOtherResponse() *RouteBuilder {
+	return rb.WithResponse(http.StatusSeeOther, nil)
+}
+
 func (rb *RouteBuilder) With307Response() *RouteBuilder {
 	return rb.WithResponse(http.StatusTemporaryRedirect, nil)
 }
 
+func (rb *RouteBuilder) WithTemporaryRedirectResponse() *RouteBuilder {
+	return rb.WithResponse(http.StatusTemporaryRedirect, nil)
+}
+
 func (rb *RouteBuilder) With308Response() *RouteBuilder {
+	return rb.WithResponse(http.StatusPermanentRedirect, nil)
+}
+
+func (rb *RouteBuilder) WithPermanentRedirectResponse() *RouteBuilder {
 	return rb.WithResponse(http.StatusPermanentRedirect, nil)
 }
 

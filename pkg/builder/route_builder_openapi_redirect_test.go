@@ -164,3 +164,132 @@ func TestRedirectResponseChaining(t *testing.T) {
 	// We should have 8 responses: 301, 302, 303, 200, 201, 307, 308, 400
 	assert.Equal(t, 8, len(builder.Options.Responses), "Should have 8 responses (301, 302, 303, 200, 201, 307, 308, 400)")
 }
+
+// TestNamedRedirectResponseBuilders tests the named versions of redirect builder methods
+func TestNamedRedirectResponseBuilders(t *testing.T) {
+	tests := []struct {
+		name       string
+		statusCode string
+		method     func(*RouteBuilder) *RouteBuilder
+	}{
+		{"MovedPermanently", "301", func(rb *RouteBuilder) *RouteBuilder { return rb.WithMovedPermanentlyResponse() }},
+		{"Found", "302", func(rb *RouteBuilder) *RouteBuilder { return rb.WithFoundResponse() }},
+		{"SeeOther", "303", func(rb *RouteBuilder) *RouteBuilder { return rb.WithSeeOtherResponse() }},
+		{"TemporaryRedirect", "307", func(rb *RouteBuilder) *RouteBuilder { return rb.WithTemporaryRedirectResponse() }},
+		{"PermanentRedirect", "308", func(rb *RouteBuilder) *RouteBuilder { return rb.WithPermanentRedirectResponse() }},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Arrange & Act
+			builder := Route(http.MethodGet, "/test")
+			builder = tt.method(builder)
+
+			// Assert
+			opts := builder.Options
+			response := opts.Responses[tt.statusCode]
+			assert.NotNil(t, response, "Response %s should be documented using %s", tt.statusCode, tt.name)
+			assert.Nil(t, response.Content, "Redirect response %s should have no content", tt.statusCode)
+		})
+	}
+}
+
+// TestNumericAndNamedRedirectMethodsEquivalent verifies both naming styles produce the same result
+func TestNumericAndNamedRedirectMethodsEquivalent(t *testing.T) {
+	tests := []struct {
+		statusCode    string
+		numericMethod func(*RouteBuilder) *RouteBuilder
+		namedMethod   func(*RouteBuilder) *RouteBuilder
+	}{
+		{
+			"301",
+			func(rb *RouteBuilder) *RouteBuilder { return rb.With301Response() },
+			func(rb *RouteBuilder) *RouteBuilder { return rb.WithMovedPermanentlyResponse() },
+		},
+		{
+			"302",
+			func(rb *RouteBuilder) *RouteBuilder { return rb.With302Response() },
+			func(rb *RouteBuilder) *RouteBuilder { return rb.WithFoundResponse() },
+		},
+		{
+			"303",
+			func(rb *RouteBuilder) *RouteBuilder { return rb.With303Response() },
+			func(rb *RouteBuilder) *RouteBuilder { return rb.WithSeeOtherResponse() },
+		},
+		{
+			"307",
+			func(rb *RouteBuilder) *RouteBuilder { return rb.With307Response() },
+			func(rb *RouteBuilder) *RouteBuilder { return rb.WithTemporaryRedirectResponse() },
+		},
+		{
+			"308",
+			func(rb *RouteBuilder) *RouteBuilder { return rb.With308Response() },
+			func(rb *RouteBuilder) *RouteBuilder { return rb.WithPermanentRedirectResponse() },
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run("Status_"+tt.statusCode, func(t *testing.T) {
+			// Build with numeric method
+			numericBuilder := Route(http.MethodGet, "/test1")
+			numericBuilder = tt.numericMethod(numericBuilder)
+
+			// Build with named method
+			namedBuilder := Route(http.MethodGet, "/test2")
+			namedBuilder = tt.namedMethod(namedBuilder)
+
+			// Both should have the same response
+			assert.NotNil(t, numericBuilder.Options.Responses[tt.statusCode])
+			assert.NotNil(t, namedBuilder.Options.Responses[tt.statusCode])
+			assert.Equal(t,
+				numericBuilder.Options.Responses[tt.statusCode],
+				namedBuilder.Options.Responses[tt.statusCode],
+				"Numeric and named methods should produce identical responses for status %s",
+				tt.statusCode,
+			)
+		})
+	}
+}
+
+// TestNamedRedirectMethodsInRealisticScenario tests using named methods in realistic scenarios
+func TestNamedRedirectMethodsInRealisticScenario(t *testing.T) {
+	// Use WithFoundResponse for a login redirect (most common case)
+	loginBuilder := Route(http.MethodGet, "/login").
+		WithSummary("Login redirect").
+		WithFoundResponse()
+
+	assert.NotNil(t, loginBuilder.Options.Responses["302"])
+
+	// Use WithSeeOtherResponse for POST-Redirect-GET pattern
+	submitBuilder := Route(http.MethodPost, "/form").
+		WithSummary("Form submission").
+		WithJsonBody(map[string]string{"data": "example"}).
+		WithSeeOtherResponse().
+		WithBadRequestResponse()
+
+	assert.NotNil(t, submitBuilder.Options.Responses["303"])
+	assert.NotNil(t, submitBuilder.Options.Responses["400"])
+
+	// Use WithMovedPermanentlyResponse for SEO-friendly permanent redirects
+	oldPageBuilder := Route(http.MethodGet, "/old-page").
+		WithSummary("Old page (moved)").
+		WithMovedPermanentlyResponse()
+
+	assert.NotNil(t, oldPageBuilder.Options.Responses["301"])
+
+	// Use WithTemporaryRedirectResponse for API versioning
+	apiV1Builder := Route(http.MethodPost, "/api/v1/resource").
+		WithSummary("API v1 (deprecated)").
+		WithJsonBody(map[string]string{"id": "123"}).
+		WithTemporaryRedirectResponse()
+
+	assert.NotNil(t, apiV1Builder.Options.Responses["307"])
+
+	// Use WithPermanentRedirectResponse for permanently moved API endpoints
+	apiV0Builder := Route(http.MethodPost, "/api/v0/resource").
+		WithSummary("API v0 (obsolete)").
+		WithJsonBody(map[string]string{"id": "123"}).
+		WithPermanentRedirectResponse()
+
+	assert.NotNil(t, apiV0Builder.Options.Responses["308"])
+}
