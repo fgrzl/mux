@@ -14,6 +14,7 @@ import (
 	"github.com/fgrzl/claims"
 	"github.com/fgrzl/mux/pkg/binder"
 	"github.com/fgrzl/mux/pkg/common"
+	"github.com/fgrzl/mux/pkg/cookiekit"
 	"github.com/fgrzl/mux/pkg/openapi"
 	"github.com/google/uuid"
 )
@@ -228,9 +229,9 @@ type RouteContext interface {
 	// ClearCookie removes the named cookie from the client.
 	ClearCookie(name string)
 	// Authenticate persists the user principal using the named cookie.
-	Authenticate(cookieName string, user claims.Principal)
+	Authenticate(cookieName string, user claims.Principal, opts ...cookiekit.CookieOption)
 	// SignIn signs in the user and optionally redirects to the given URL.
-	SignIn(user claims.Principal, redirectUrl string)
+	SignIn(user claims.Principal, redirectUrl string, opts ...cookiekit.CookieOption)
 	// SignOut clears authentication state for the current user.
 	SignOut(redirectUrl string)
 }

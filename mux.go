@@ -5,7 +5,7 @@ import (
 
 	"github.com/fgrzl/mux/pkg/builder"
 	"github.com/fgrzl/mux/pkg/common"
-	"github.com/fgrzl/mux/pkg/cookiejar"
+	"github.com/fgrzl/mux/pkg/cookiekit"
 	"github.com/fgrzl/mux/pkg/middleware/authentication"
 	"github.com/fgrzl/mux/pkg/middleware/authorization"
 	"github.com/fgrzl/mux/pkg/middleware/compression"
@@ -131,33 +131,33 @@ const (
 // --- Cookie defaults and accessors ---
 // DefaultUserCookieName is the default app session cookie name. Alias of
 // cookiejar.DefaultUserCookieName.
-const DefaultUserCookieName = cookiejar.DefaultUserCookieName
+const DefaultUserCookieName = cookiekit.DefaultUserCookieName
 
 // DefaultTwoFactorCookieName is the default two-factor cookie name. Alias of
 // cookiejar.DefaultTwoFactorCookieName.
-const DefaultTwoFactorCookieName = cookiejar.DefaultTwoFactorCookieName
+const DefaultTwoFactorCookieName = cookiekit.DefaultTwoFactorCookieName
 
 // DefaultIdpUserCookieName is the default identity-provider session cookie
 // name. Alias of cookiejar.DefaultIdpUserCookieName.
-const DefaultIdpUserCookieName = cookiejar.DefaultIdpUserCookieName
+const DefaultIdpUserCookieName = cookiekit.DefaultIdpUserCookieName
 
 // GetUserCookieName returns the current application session cookie name.
-var GetUserCookieName = cookiejar.GetUserCookieName
+var GetUserCookieName = cookiekit.GetUserCookieName
 
 // SetAppSessionCookieName sets the application session cookie name.
-var SetAppSessionCookieName = cookiejar.SetAppSessionCookieName
+var SetAppSessionCookieName = cookiekit.SetAppSessionCookieName
 
 // GetTwoFactorCookieName returns the current two-factor authentication cookie name.
-var GetTwoFactorCookieName = cookiejar.GetTwoFactorCookieName
+var GetTwoFactorCookieName = cookiekit.GetTwoFactorCookieName
 
 // SetTwoFactorCookieName sets the two-factor authentication cookie name.
-var SetTwoFactorCookieName = cookiejar.SetTwoFactorCookieName
+var SetTwoFactorCookieName = cookiekit.SetTwoFactorCookieName
 
 // GetIdpSessionCookieName returns the current identity-provider session cookie name.
-var GetIdpSessionCookieName = cookiejar.GetIdpSessionCookieName
+var GetIdpSessionCookieName = cookiekit.GetIdpSessionCookieName
 
 // SetIdpSessionCookieName sets the identity-provider session cookie name.
-var SetIdpSessionCookieName = cookiejar.SetIdpSessionCookieName
+var SetIdpSessionCookieName = cookiekit.SetIdpSessionCookieName
 
 // NewGenerator is a variable that references the openapi.NewGenerator function.
 // It can be used to create a new OpenAPI generator instance via this package.

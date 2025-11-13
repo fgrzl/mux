@@ -1,9 +1,9 @@
-package cookiejar
+package cookiekit
 
 import "sync"
 
-// CookieJarOptions configures cookie names for different types of authentication cookies.
-type CookieJarOptions struct {
+// CookieKitOptions configures cookie names for different types of authentication cookies.
+type CookieKitOptions struct {
 	AppSessionCookieName string
 	TwoFactorCookieName  string
 	IdpSessionCookieName string

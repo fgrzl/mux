@@ -10,7 +10,7 @@ import (
 
 	"github.com/fgrzl/claims"
 	"github.com/fgrzl/mux/pkg/common"
-	"github.com/fgrzl/mux/pkg/cookiejar"
+	"github.com/fgrzl/mux/pkg/cookiekit"
 	"github.com/fgrzl/mux/pkg/tokenizer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -182,7 +182,7 @@ func TestShouldClearAllCookiesAndRedirectGivenSignOut(t *testing.T) {
 	ctx := NewRouteContext(res, req)
 
 	// Act
-	ctx.SignOut()
+	ctx.SignOut("http://example.com/logout")
 
 	// Assert
 	setCookieHeaders := res.Header().Values(common.HeaderSetCookie)
@@ -193,13 +193,13 @@ func TestShouldClearAllCookiesAndRedirectGivenSignOut(t *testing.T) {
 	idpSessionCookieCleared := false
 
 	for _, header := range setCookieHeaders {
-		if strings.Contains(header, cookiejar.GetUserCookieName()) {
+		if strings.Contains(header, cookiekit.GetUserCookieName()) {
 			userCookieCleared = true
 		}
-		if strings.Contains(header, cookiejar.GetTwoFactorCookieName()) {
+		if strings.Contains(header, cookiekit.GetTwoFactorCookieName()) {
 			twoFactorCookieCleared = true
 		}
-		if strings.Contains(header, cookiejar.GetIdpSessionCookieName()) {
+		if strings.Contains(header, cookiekit.GetIdpSessionCookieName()) {
 			idpSessionCookieCleared = true
 		}
 	}
@@ -211,4 +211,137 @@ func TestShouldClearAllCookiesAndRedirectGivenSignOut(t *testing.T) {
 	// Should redirect to logout page
 	assert.Equal(t, http.StatusTemporaryRedirect, res.Code)
 	assert.Equal(t, "http://example.com/logout", res.Header().Get(common.HeaderLocation))
+}
+
+func TestShouldApplyCookieOptionsWhenSigningIn(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodPost, "/signin", nil)
+	res := httptest.NewRecorder()
+	ctx := NewRouteContext(res, req)
+
+	// Set up the service in context (simulating middleware)
+	provider := &mockProvider{ttl: 30 * time.Minute}
+	ctx.SetService(tokenizer.ServiceKeyTokenProvider, provider)
+
+	mockUser := newMockPrincipal(testUserSubject)
+
+	// Act - Sign in with custom cookie options
+	ctx.SignIn(mockUser, "/dashboard",
+		cookiekit.WithDomain(".example.com"),
+		cookiekit.WithPath("/app"),
+		cookiekit.WithSameSite(http.SameSiteStrictMode),
+		cookiekit.WithMaxAge(7200),
+	)
+
+	// Assert
+	setCookieHeader := res.Header().Get(common.HeaderSetCookie)
+	assert.Contains(t, setCookieHeader, cookiekit.GetUserCookieName())
+	assert.Contains(t, setCookieHeader, "test-token-test-user")
+	assert.Contains(t, setCookieHeader, "Domain=example.com", "Should use custom domain")
+	assert.Contains(t, setCookieHeader, "Path=/app", "Should use custom path")
+	assert.Contains(t, setCookieHeader, "SameSite=Strict", "Should use custom SameSite")
+	assert.Contains(t, setCookieHeader, "Max-Age=7200", "Should use custom MaxAge")
+	assert.Contains(t, setCookieHeader, "Secure", "Should still be secure by default")
+	assert.Contains(t, setCookieHeader, "HttpOnly", "Should still be HttpOnly by default")
+
+	// Should redirect to dashboard
+	assert.Equal(t, http.StatusTemporaryRedirect, res.Code)
+	assert.Contains(t, res.Header().Get(common.HeaderLocation), "/dashboard", "Should redirect to dashboard")
+}
+
+func TestShouldUseProviderTTLWhenMaxAgeNotSpecified(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodPost, "/signin", nil)
+	res := httptest.NewRecorder()
+	ctx := NewRouteContext(res, req)
+
+	// Set up the service with 1 hour TTL
+	provider := &mockProvider{ttl: 1 * time.Hour}
+	ctx.SetService(tokenizer.ServiceKeyTokenProvider, provider)
+
+	mockUser := newMockPrincipal(testUserSubject)
+
+	// Act - Sign in without specifying MaxAge
+	ctx.SignIn(mockUser, "/",
+		cookiekit.WithDomain(".example.com"),
+	)
+
+	// Assert - Should use provider TTL (3600 seconds)
+	setCookieHeader := res.Header().Get(common.HeaderSetCookie)
+	assert.Contains(t, setCookieHeader, "Max-Age=3600", "Should use provider TTL when MaxAge not specified")
+	assert.Contains(t, setCookieHeader, "Domain=example.com")
+}
+
+func TestShouldAllowOverridingSecureAndHttpOnly(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodPost, "/signin", nil)
+	res := httptest.NewRecorder()
+	ctx := NewRouteContext(res, req)
+
+	provider := &mockProvider{ttl: 30 * time.Minute}
+	ctx.SetService(tokenizer.ServiceKeyTokenProvider, provider)
+
+	mockUser := newMockPrincipal(testUserSubject)
+
+	// Act - Sign in with custom Secure and HttpOnly flags (for testing purposes)
+	ctx.SignIn(mockUser, "/",
+		cookiekit.WithSecure(false),
+		cookiekit.WithHttpOnly(false),
+	)
+
+	// Assert
+	setCookieHeader := res.Header().Get(common.HeaderSetCookie)
+	assert.NotContains(t, setCookieHeader, "; Secure", "Should allow disabling Secure flag")
+	assert.NotContains(t, setCookieHeader, "; HttpOnly", "Should allow disabling HttpOnly flag")
+}
+
+func TestShouldApplySameSiteNoneWithSecure(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodPost, "/signin", nil)
+	res := httptest.NewRecorder()
+	ctx := NewRouteContext(res, req)
+
+	provider := &mockProvider{ttl: 30 * time.Minute}
+	ctx.SetService(tokenizer.ServiceKeyTokenProvider, provider)
+
+	mockUser := newMockPrincipal(testUserSubject)
+
+	// Act - Sign in with SameSite=None (requires Secure=true)
+	ctx.SignIn(mockUser, "/",
+		cookiekit.WithSameSite(http.SameSiteNoneMode),
+		cookiekit.WithSecure(true),
+	)
+
+	// Assert
+	setCookieHeader := res.Header().Get(common.HeaderSetCookie)
+	assert.Contains(t, setCookieHeader, "SameSite=None")
+	assert.Contains(t, setCookieHeader, "Secure")
+}
+
+func TestShouldAuthenticateWithCustomCookieOptions(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodPost, "/test", nil)
+	res := httptest.NewRecorder()
+	ctx := NewRouteContext(res, req)
+
+	provider := &mockProvider{ttl: 15 * time.Minute}
+	ctx.SetService(tokenizer.ServiceKeyTokenProvider, provider)
+
+	mockUser := newMockPrincipal(testUserSubject)
+
+	// Act - Authenticate with custom options
+	ctx.Authenticate("custom-cookie", mockUser,
+		cookiekit.WithDomain(".api.example.com"),
+		cookiekit.WithPath("/api"),
+		cookiekit.WithSameSite(http.SameSiteLaxMode),
+		cookiekit.WithMaxAge(3600),
+	)
+
+	// Assert
+	setCookieHeader := res.Header().Get(common.HeaderSetCookie)
+	assert.Contains(t, setCookieHeader, "custom-cookie=test-token-test-user")
+	assert.Contains(t, setCookieHeader, "Domain=api.example.com")
+	assert.Contains(t, setCookieHeader, "Path=/api")
+	assert.Contains(t, setCookieHeader, "Max-Age=3600")
+	assert.Contains(t, setCookieHeader, "SameSite=Lax")
 }

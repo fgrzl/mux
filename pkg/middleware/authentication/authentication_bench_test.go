@@ -11,7 +11,7 @@ import (
 
 	"github.com/fgrzl/claims"
 	"github.com/fgrzl/mux/pkg/common"
-	"github.com/fgrzl/mux/pkg/cookiejar"
+	"github.com/fgrzl/mux/pkg/cookiekit"
 	"github.com/fgrzl/mux/pkg/router"
 	"github.com/fgrzl/mux/pkg/routing"
 )
@@ -39,7 +39,7 @@ func BenchmarkAuthenticationInvoke(b *testing.B) {
 		{
 			name: caseCookieValid,
 			setup: func(r *http.Request) {
-				r.AddCookie(&http.Cookie{Name: cookiejar.GetUserCookieName(), Value: validToken})
+				r.AddCookie(&http.Cookie{Name: cookiekit.GetUserCookieName(), Value: validToken})
 			},
 		},
 		{
