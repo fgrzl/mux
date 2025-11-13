@@ -9,7 +9,7 @@ import (
 
 	"github.com/fgrzl/claims"
 	"github.com/fgrzl/mux/pkg/common"
-	"github.com/fgrzl/mux/pkg/cookiejar"
+	"github.com/fgrzl/mux/pkg/cookiekit"
 	"github.com/fgrzl/mux/pkg/router"
 	"github.com/fgrzl/mux/pkg/routing"
 	"github.com/fgrzl/mux/pkg/tokenizer"
@@ -156,7 +156,7 @@ func (m *authenticationMiddleware) Invoke(c routing.RouteContext, next router.Ha
 // authenticateViaCookie attempts to authenticate using session cookie.
 func (m *authenticationMiddleware) authenticateViaCookie(c routing.RouteContext) bool {
 	req := c.Request()
-	cookie, err := req.Cookie(cookiejar.GetUserCookieName())
+	cookie, err := req.Cookie(cookiekit.GetUserCookieName())
 	if err != nil {
 		return false
 	}

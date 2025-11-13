@@ -1,4 +1,4 @@
-package cookiejar
+package cookiekit
 
 import (
 	"testing"

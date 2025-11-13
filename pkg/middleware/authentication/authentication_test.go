@@ -9,7 +9,7 @@ import (
 
 	"github.com/fgrzl/claims"
 	"github.com/fgrzl/mux/pkg/common"
-	"github.com/fgrzl/mux/pkg/cookiejar"
+	"github.com/fgrzl/mux/pkg/cookiekit"
 	"github.com/fgrzl/mux/pkg/router"
 	"github.com/fgrzl/mux/pkg/routing"
 	"github.com/fgrzl/mux/pkg/tokenizer"
@@ -249,7 +249,7 @@ func TestAuthenticationMiddlewareShouldAuthenticateViaCookie(t *testing.T) {
 
 	ctx, res := newRouteContext(func(r *http.Request) {
 		r.AddCookie(&http.Cookie{
-			Name:  cookiejar.GetUserCookieName(),
+			Name:  cookiekit.GetUserCookieName(),
 			Value: "valid-cookie-token",
 		})
 	})

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/fgrzl/claims"
-	"github.com/fgrzl/mux/pkg/cookiejar"
+	"github.com/fgrzl/mux/pkg/cookiekit"
 	"github.com/fgrzl/mux/pkg/tokenizer"
 )
 
@@ -90,7 +90,7 @@ func (c *DefaultRouteContext) ClearCookie(name string) {
 
 // Authenticate creates a JWT token for the user and stores it in a secure cookie.
 // This method requires that authentication middleware has been added to the router using UseAuthentication().
-func (c *DefaultRouteContext) Authenticate(cookieName string, user claims.Principal) {
+func (c *DefaultRouteContext) Authenticate(cookieName string, user claims.Principal, opts ...cookiekit.CookieOption) {
 	service, ok := c.GetService(tokenizer.ServiceKeyTokenProvider)
 	if !ok {
 		panic("DEVELOPMENT ERROR: No token provider available. Did you forget to call router.UseAuthentication() before using c.Authenticate()?")
@@ -115,17 +115,26 @@ func (c *DefaultRouteContext) Authenticate(cookieName string, user claims.Princi
 	}
 
 	// Use the provider's TTL for the cookie if available
-	var maxAge int
+	var providerMaxAge int
 	if ttl := provider.GetTTL(); ttl > 0 {
-		maxAge = int(ttl.Seconds())
+		providerMaxAge = int(ttl.Seconds())
 	}
 
-	c.SetCookie(cookieName, token, maxAge, "/", "", true, true)
+	// Resolve cookie options provided by caller (if any)
+	optMaxAge, path, domain, secure, httpOnly, sameSite := cookiekit.ResolveCookieOptions(opts...)
+
+	// If caller didn't specify MaxAge (0), fall back to provider TTL
+	finalMaxAge := optMaxAge
+	if finalMaxAge == 0 {
+		finalMaxAge = providerMaxAge
+	}
+
+	c.SetCookie(cookieName, token, finalMaxAge, path, domain, secure, httpOnly, sameSite)
 }
 
 // SignIn authenticates the user and redirects to the given URL (or "/" by default).
-func (c *DefaultRouteContext) SignIn(user claims.Principal, redirectUrl string) {
-	c.Authenticate(cookiejar.GetUserCookieName(), user)
+func (c *DefaultRouteContext) SignIn(user claims.Principal, redirectUrl string, opts ...cookiekit.CookieOption) {
+	c.Authenticate(cookiekit.GetUserCookieName(), user, opts...)
 	if redirectUrl == "" {
 		redirectUrl = "/"
 	}
@@ -134,8 +143,8 @@ func (c *DefaultRouteContext) SignIn(user claims.Principal, redirectUrl string) 
 
 // SignOut clears user-related cookies and redirects to the logout page.
 func (c *DefaultRouteContext) SignOut(redirectUrl string) {
-	c.ClearCookie(cookiejar.GetUserCookieName())
-	c.ClearCookie(cookiejar.GetTwoFactorCookieName())
-	c.ClearCookie(cookiejar.GetIdpSessionCookieName())
+	c.ClearCookie(cookiekit.GetUserCookieName())
+	c.ClearCookie(cookiekit.GetTwoFactorCookieName())
+	c.ClearCookie(cookiekit.GetIdpSessionCookieName())
 	c.TemporaryRedirect(redirectUrl)
 }
