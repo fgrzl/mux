@@ -291,8 +291,8 @@ func TestShouldAllowOverridingSecureAndHttpOnly(t *testing.T) {
 
 	// Assert
 	setCookieHeader := res.Header().Get(common.HeaderSetCookie)
-	assert.NotContains(t, setCookieHeader, "Secure", "Should allow disabling Secure flag")
-	assert.NotContains(t, setCookieHeader, "HttpOnly", "Should allow disabling HttpOnly flag")
+	assert.NotContains(t, setCookieHeader, "; Secure", "Should allow disabling Secure flag")
+	assert.NotContains(t, setCookieHeader, "; HttpOnly", "Should allow disabling HttpOnly flag")
 }
 
 func TestShouldApplySameSiteNoneWithSecure(t *testing.T) {
