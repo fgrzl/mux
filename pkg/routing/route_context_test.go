@@ -38,7 +38,7 @@ func TestShouldCreateNewRouteContext(t *testing.T) {
 	assert.Equal(t, req, ctx.Request())
 	assert.Nil(t, ctx.User())
 	assert.Nil(t, ctx.Options())
-	assert.Nil(t, ctx.Params())
+	assert.Nil(t, ctx.ParamsSlice())
 	assert.False(t, ctx.formsParsed)
 	assert.Nil(t, ctx.services)
 }
@@ -196,7 +196,10 @@ func TestShouldBindFromRouteParams(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
-	ctx.params = RouteParams{"id": "123", "name": "John"}
+	params := &Params{}
+	params.Set("id", "123")
+	params.Set("name", "John")
+	ctx.paramsSlice = params
 
 	var result struct {
 		ID   string `json:"id"`
@@ -328,7 +331,7 @@ func TestShouldHandleEmptyParams(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
-	ctx.params = nil
+	ctx.paramsSlice = nil
 
 	var result struct {
 		Name string `json:"name"`
@@ -362,7 +365,9 @@ func TestShouldBindComplexData(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test?tags=tag1&tags=tag2&user=john", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
-	ctx.params = RouteParams{"id": "123"}
+	params := &Params{}
+	params.Set("id", "123")
+	ctx.paramsSlice = params
 
 	var result struct {
 		ID   string   `json:"id"`

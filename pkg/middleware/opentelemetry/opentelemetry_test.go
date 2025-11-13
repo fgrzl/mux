@@ -185,13 +185,16 @@ func TestShouldWorkWithComplexRouteContext(t *testing.T) {
 	ctx, _ := testhelpers.NewRouteContext(http.MethodPost, "/api/users/123", nil)
 	ctx.Request().Header.Set(common.HeaderContentType, common.MimeJSON)
 	ctx.Request().Header.Set(common.HeaderAuthorization, bearerToken)
-	ctx.SetParams(routing.RouteParams{"id": "123"})
+	params := &routing.Params{}
+	params.Set("id", "123")
+	ctx.SetParamsSlice(params)
 
 	nextCalled := false
 	next := func(c routing.RouteContext) {
 		nextCalled = true
 		// Verify context is still intact
-		assert.Equal(t, "123", c.Params()["id"])
+		id, _ := c.Param("id")
+		assert.Equal(t, "123", id)
 		assert.Equal(t, bearerToken, c.Request().Header.Get(common.HeaderAuthorization))
 		c.OK("user updated")
 	}

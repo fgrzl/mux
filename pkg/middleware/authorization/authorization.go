@@ -213,7 +213,15 @@ func (m *authorizationMiddleware) checkPermission(c routing.RouteContext) bool {
 		return true
 	}
 
-	perms := interpolatePermissions(c.Params(), sources...)
+	// Convert params slice to map for interpolation
+	paramsMap := make(map[string]string)
+	if ps := c.ParamsSlice(); ps != nil {
+		for i := 0; i < ps.Len(); i++ {
+			p := (*ps)[i]
+			paramsMap[p.Key] = p.Value
+		}
+	}
+	perms := interpolatePermissions(paramsMap, sources...)
 
 	if m.options != nil && m.options.CheckPermissions != nil {
 		return m.options.CheckPermissions(c.User(), perms)

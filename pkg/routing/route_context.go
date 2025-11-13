@@ -111,12 +111,12 @@ type RouteContext interface {
 	PermanentRedirect(url string)
 
 	// Request binding
-	// Params returns the path parameters captured for this request.
-	Params() RouteParams
 	// Bind aggregates query, form/body, headers, and route params into the target struct.
 	Bind(target any) error
 
 	// Parameter methods
+	// ParamsSlice returns the optimized slice-based parameter storage.
+	ParamsSlice() *Params
 	// Param returns a single path parameter by name.
 	Param(name string) (string, bool)
 	// ParamUUID parses a path parameter as a UUID.
@@ -242,6 +242,7 @@ func NewRouteContext(w http.ResponseWriter, r *http.Request) *DefaultRouteContex
 		Context:  r.Context(),
 		response: w,
 		request:  r,
+		// paramsSlice is nil by default, lazily initialized when needed
 		// New contexts created directly are not pooled
 		wasPooled: false,
 	}
@@ -268,18 +269,12 @@ func AcquireContext(w http.ResponseWriter, r *http.Request) *DefaultRouteContext
 	c.clientURL = nil
 	c.user = nil
 	c.options = nil
-	if c.params == nil {
-		c.params = AcquireRouteParams()
-	} else {
-		// clear
-		for k := range c.params {
-			delete(c.params, k)
-		}
-	}
 	c.services = nil
 	c.formsParsed = false
 	c.paramIndex = nil
 	c.maxBodyBytes = 0
+	// Acquire paramsSlice from pool for optimized parameter storage
+	c.paramsSlice = AcquireParams()
 	// Mark as pooled so ReleaseContext knows to return it
 	c.wasPooled = true
 	return c
@@ -297,10 +292,10 @@ func ReleaseContext(c *DefaultRouteContext) {
 	c.clientURL = nil
 	c.user = nil
 	c.options = nil
-	if c.params != nil {
-		// return params map to pool
-		ReleaseRouteParams(c.params)
-		c.params = nil
+	if c.paramsSlice != nil {
+		// return params slice to pool
+		ReleaseParams(c.paramsSlice)
+		c.paramsSlice = nil
 	}
 	c.services = nil
 	c.formsParsed = false
@@ -336,11 +331,11 @@ func Detach(c RouteContext) *DefaultRouteContext {
 		wasPooled:    false,
 		maxBodyBytes: d.maxBodyBytes,
 	}
-	if d.params != nil {
-		clone.params = make(RouteParams, len(d.params))
-		for k, v := range d.params {
-			clone.params[k] = v
-		}
+	if d.paramsSlice != nil && d.paramsSlice.Len() > 0 {
+		// Clone paramsSlice to avoid sharing references
+		clonedSlice := make(Params, d.paramsSlice.Len())
+		copy(clonedSlice, *d.paramsSlice)
+		clone.paramsSlice = &clonedSlice
 	}
 	if d.services != nil {
 		clone.services = make(map[ServiceKey]any, len(d.services))
@@ -364,7 +359,7 @@ type DefaultRouteContext struct {
 	clientURL   *url.URL
 	user        claims.Principal
 	options     *RouteOptions
-	params      RouteParams
+	paramsSlice *Params // Optimized slice-based parameter storage
 	services    map[ServiceKey]any
 	formsParsed bool
 	// wasPooled indicates whether this instance was obtained from the pool.
@@ -406,9 +401,9 @@ func (c *DefaultRouteContext) SetOptions(o *RouteOptions) {
 	c.options = o
 }
 
-// SetParams sets the path parameters for the context.
-func (c *DefaultRouteContext) SetParams(p RouteParams) {
-	c.params = p
+// SetParamsSlice sets the path parameters using the optimized slice-based storage.
+func (c *DefaultRouteContext) SetParamsSlice(p *Params) {
+	c.paramsSlice = p
 }
 
 // ClientURL returns the configured client URL for building absolute links.
@@ -425,8 +420,9 @@ func (c *DefaultRouteContext) SetClientURL(u *url.URL) {
 // A value <= 0 causes a default of 1MB to be applied during binding.
 func (c *DefaultRouteContext) SetMaxBodyBytes(n int64) { c.maxBodyBytes = n }
 
-func (c *DefaultRouteContext) Params() RouteParams {
-	return c.params
+// ParamsSlice returns the optimized slice-based parameter storage.
+func (c *DefaultRouteContext) ParamsSlice() *Params {
+	return c.paramsSlice
 }
 
 // GetUser returns the authenticated user from the RouteContext.
@@ -675,13 +671,16 @@ func (c *DefaultRouteContext) collectHeaderData(staging map[string]any) error {
 }
 
 func (c *DefaultRouteContext) collectParamsData(staging map[string]any) error {
-	for key, paramValue := range c.params {
-		if handled, hadParam, err := c.processParamForStaging(staging, key, []string{paramValue}, "path"); err != nil {
-			return err
-		} else if hadParam && handled {
-			continue
+	if c.paramsSlice != nil {
+		for i := 0; i < c.paramsSlice.Len(); i++ {
+			p := (*c.paramsSlice)[i]
+			if handled, hadParam, err := c.processParamForStaging(staging, p.Key, []string{p.Value}, "path"); err != nil {
+				return err
+			} else if hadParam && handled {
+				continue
+			}
+			staging[p.Key] = p.Value
 		}
-		staging[key] = paramValue
 	}
 	return nil
 }

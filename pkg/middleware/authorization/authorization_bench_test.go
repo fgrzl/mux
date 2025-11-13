@@ -58,8 +58,9 @@ func BenchmarkAuthorizationInvoke(b *testing.B) {
 			},
 			run: func(m *authorizationMiddleware, ctx *routing.DefaultRouteContext) {
 				// set a param used during interpolation
-				params := routing.RouteParams{"id": "42"}
-				ctx.SetParams(params)
+				params := &routing.Params{}
+				params.Set("id", "42")
+				ctx.SetParamsSlice(params)
 				m.Invoke(ctx, noop)
 			},
 		},

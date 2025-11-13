@@ -107,7 +107,7 @@ const (
 // routeResolution collects data produced while resolving a request.
 type routeResolution struct {
 	options      *routing.RouteOptions
-	params       routing.RouteParams
+	paramsSlice  *routing.Params // Optimized slice-based parameter storage
 	details      registry.LoadDetails
 	suppressBody bool
 }
@@ -151,32 +151,49 @@ func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// This saves ~20ns on static routes by avoiding unnecessary allocations
 	if opt, ok := rtr.routeRegistry.LoadExact(r.URL.Path, r.Method); ok {
 		c := rtr.acquireRouteContext(w, r)
-		defer rtr.recoverAndRelease(w, r, c)
+		// Manual release instead of defer for ~5-10ns improvement
 		c.SetOptions(opt)
-		rtr.executePipeline(c)
+
+		// Skip middleware pipeline if no middleware configured (~20-30ns faster)
+		if len(rtr.middleware) == 0 {
+			rtr.executeHandlerWithRecover(opt.Handler, c, w, r)
+			rtr.releaseContext(c)
+		} else {
+			rtr.executePipelineWithRecover(c, w, r)
+			rtr.releaseContext(c)
+		}
 		return
 	}
 
 	// Standard path: full route resolution
 	c := rtr.acquireRouteContext(w, r)
-	defer rtr.recoverAndRelease(w, r, c)
 
 	res, outcome := rtr.resolveRoute(r, c)
 	switch outcome {
 	case routeOutcomeNotFound:
 		slog.DebugContext(c, "not found", "path", r.URL.Path, "method", r.Method)
 		c.NotFound()
+		rtr.releaseContext(c)
 		return
 	case routeOutcomeMethodNotAllowed:
 		if res.details.Allow != "" {
 			w.Header().Set("Allow", res.details.Allow)
 		}
 		w.WriteHeader(http.StatusMethodNotAllowed)
+		rtr.releaseContext(c)
 		return
 	}
 
 	rtr.configureContext(c, w, res)
-	rtr.executePipeline(c)
+
+	// Skip middleware pipeline if no middleware configured (~20-30ns faster)
+	if len(rtr.middleware) == 0 {
+		rtr.executeHandlerWithRecover(res.options.Handler, c, w, r)
+		rtr.releaseContext(c)
+	} else {
+		rtr.executePipelineWithRecover(c, w, r)
+		rtr.releaseContext(c)
+	}
 }
 
 func (rtr *Router) acquireRouteContext(w http.ResponseWriter, r *http.Request) *routing.DefaultRouteContext {
@@ -184,6 +201,54 @@ func (rtr *Router) acquireRouteContext(w http.ResponseWriter, r *http.Request) *
 		return routing.AcquireContext(w, r)
 	}
 	return routing.NewRouteContext(w, r)
+}
+
+// releaseContext returns the context to the pool if pooling is enabled
+func (rtr *Router) releaseContext(c *routing.DefaultRouteContext) {
+	if rtr.options != nil && rtr.options.ContextPooling && c != nil {
+		routing.ReleaseContext(c)
+	}
+}
+
+// executeHandlerWithRecover executes a handler directly with panic recovery (no middleware)
+func (rtr *Router) executeHandlerWithRecover(handler routing.HandlerFunc, c *routing.DefaultRouteContext, w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			logCtx := context.Background()
+			if r != nil && r.Context() != nil {
+				logCtx = r.Context()
+			}
+			stack := debug.Stack()
+			slog.ErrorContext(logCtx, "panic recovered in ServeHTTP", "error", rec, "path", safeURLPath(r), "method", safeMethod(r), "stack", string(stack))
+			if c != nil {
+				c.ServerError("Internal Server Error", "An unexpected error occurred")
+			} else {
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			}
+		}
+	}()
+	handler(c)
+}
+
+// executePipelineWithRecover executes the pipeline with panic recovery
+// This is separate from executePipeline to allow non-panic paths to skip defer overhead
+func (rtr *Router) executePipelineWithRecover(c *routing.DefaultRouteContext, w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			logCtx := context.Background()
+			if r != nil && r.Context() != nil {
+				logCtx = r.Context()
+			}
+			stack := debug.Stack()
+			slog.ErrorContext(logCtx, "panic recovered in ServeHTTP", "error", rec, "path", safeURLPath(r), "method", safeMethod(r), "stack", string(stack))
+			if c != nil {
+				c.ServerError("Internal Server Error", "An unexpected error occurred")
+			} else {
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			}
+		}
+	}()
+	rtr.executePipeline(c)
 }
 
 func (rtr *Router) recoverAndRelease(w http.ResponseWriter, r *http.Request, c *routing.DefaultRouteContext) {
@@ -239,8 +304,14 @@ func (rtr *Router) resolveInitialRoute(r *http.Request, c *routing.DefaultRouteC
 	}
 
 	res := routeResolution{}
-	if params := c.Params(); params != nil {
-		res.params = params
+	// Use optimized slice-based params from context, or create one if needed
+	if paramsSlice := c.ParamsSlice(); paramsSlice != nil {
+		res.paramsSlice = paramsSlice
+	} else {
+		// Allocate params for non-pooled contexts
+		params := &routing.Params{}
+		c.SetParamsSlice(params)
+		res.paramsSlice = params
 	}
 
 	path := r.URL.Path
@@ -256,15 +327,11 @@ func (rtr *Router) resolveInitialRoute(r *http.Request, c *routing.DefaultRouteC
 }
 
 func (rtr *Router) resolveWithDetailedLookup(path, method string, res *routeResolution) (routeResolution, routeOutcome) {
-	tmp := routing.AcquireRouteParams()
-	opt, det := rtr.routeRegistry.LoadDetailedInto(path, method, tmp)
+	opt, det := rtr.routeRegistry.LoadDetailedIntoSlice(path, method, res.paramsSlice)
 	res.details = det
 	if !det.Found {
-		routing.ReleaseRouteParams(tmp)
-		res.params = nil
 		return *res, routeOutcomeNotFound
 	}
-	res.params = tmp
 	if !det.MethodOK {
 		return *res, routeOutcomeMethodNotAllowed
 	}
@@ -282,19 +349,10 @@ func (rtr *Router) resolveNodeWithOptions(node *routing.RouteNode, path, method 
 	res.details = registry.LoadDetails{Found: true, MethodOK: true}
 	res.options = opt
 	if node.HasParams {
-		params := res.params
-		if params == nil {
-			// Use parameter count to pre-allocate map with correct capacity
-			if node.ParamCount > 0 {
-				params = routing.AcquireRouteParamsWithCapacity(node.ParamCount)
-			} else {
-				params = rtr.newRouteParams()
-			}
-		}
-		if opt2, ok2 := rtr.routeRegistry.LoadInto(path, method, params); ok2 {
+		// Extract parameters using optimized slice-based storage
+		if opt2, ok2 := rtr.routeRegistry.LoadIntoSlice(path, method, res.paramsSlice); ok2 {
 			res.options = opt2
 		}
-		res.params = params
 	}
 	return *res, routeOutcomeResolved
 }
@@ -304,14 +362,8 @@ func (rtr *Router) applyHeadFallback(r *http.Request, res *routeResolution) {
 		return
 	}
 
-	params := res.params
-	if params == nil {
-		params = routing.AcquireRouteParams()
-	}
-
-	getNode := rtr.routeRegistry.FindNodeInto(r.URL.Path, params)
+	getNode := rtr.routeRegistry.FindNodeIntoSlice(r.URL.Path, res.paramsSlice)
 	if getNode == nil {
-		res.params = params
 		return
 	}
 
@@ -319,35 +371,17 @@ func (rtr *Router) applyHeadFallback(r *http.Request, res *routeResolution) {
 		res.options = opt
 		res.details = registry.LoadDetails{Found: true, MethodOK: true}
 		res.suppressBody = true
-		res.params = params
-		return
 	}
-
-	res.params = params
 }
 
 func (rtr *Router) shouldFallbackToGet() bool {
 	return rtr.options != nil && rtr.options.HeadFallbackToGet
 }
 
-func (rtr *Router) newRouteParams() routing.RouteParams {
-	if rtr.options != nil && rtr.options.ContextPooling {
-		return routing.AcquireRouteParams()
-	}
-	return make(routing.RouteParams, 2)
-}
-
 func (rtr *Router) configureContext(c *routing.DefaultRouteContext, w http.ResponseWriter, res routeResolution) {
 	c.SetOptions(res.options)
-	params := res.params
-	switch {
-	case len(params) > 0:
-		c.SetParams(params)
-	case params == nil && !rtr.usingContextPooling():
-		c.SetParams(nil)
-	case params != nil && c.Params() == nil:
-		c.SetParams(params)
-	}
+
+	// paramsSlice is already set on the context from resolveRoute
 
 	if rtr.options != nil {
 		c.SetClientURL(rtr.options.clientURL)
