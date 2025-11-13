@@ -232,7 +232,7 @@ type RouteContext interface {
 	// SignIn signs in the user and optionally redirects to the given URL.
 	SignIn(user claims.Principal, redirectUrl string)
 	// SignOut clears authentication state for the current user.
-	SignOut()
+	SignOut(redirectUrl string)
 }
 
 // NewRouteContext creates a new RouteContext from an HTTP request and response writer.

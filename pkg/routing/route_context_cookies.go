@@ -133,9 +133,9 @@ func (c *DefaultRouteContext) SignIn(user claims.Principal, redirectUrl string) 
 }
 
 // SignOut clears user-related cookies and redirects to the logout page.
-func (c *DefaultRouteContext) SignOut() {
+func (c *DefaultRouteContext) SignOut(redirectUrl string) {
 	c.ClearCookie(cookiejar.GetUserCookieName())
 	c.ClearCookie(cookiejar.GetTwoFactorCookieName())
 	c.ClearCookie(cookiejar.GetIdpSessionCookieName())
-	c.TemporaryRedirect("/logout")
+	c.TemporaryRedirect(redirectUrl)
 }
