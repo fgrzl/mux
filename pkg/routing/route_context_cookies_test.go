@@ -182,7 +182,7 @@ func TestShouldClearAllCookiesAndRedirectGivenSignOut(t *testing.T) {
 	ctx := NewRouteContext(res, req)
 
 	// Act
-	ctx.SignOut()
+	ctx.SignOut("http://example.com/logout")
 
 	// Assert
 	setCookieHeaders := res.Header().Values(common.HeaderSetCookie)
