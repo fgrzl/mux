@@ -191,29 +191,6 @@ func getUser(c mux.RouteContext) {
 - **🌍 Geographic Control**: Export control with GeoIP support
 - **📊 Observability**: OpenTelemetry integration and structured logging
 
-## Performance
-
-Mux is engineered for hot‑path efficiency with **zero allocations on optimized paths**. Representative benchmark results from this repo:
-
-**Core Router (with context pooling enabled):**
-- Static routes: **45 ns/op**, 0 allocs/op
-- Single param routes: **124 ns/op**, 0 allocs/op
-- Multi param routes: **157 ns/op**, 0 allocs/op
-- Wildcard routes: **76 ns/op**, 0 allocs/op
-- Deep paths (5+ segments): **217 ns/op**, 0 allocs/op
-
-**End-to-End ServeHTTP (router + handler):**
-- Catch-all with pooling: **67 ns/op**, 0 allocs/op
-- Single param with pooling: **111 ns/op**, 0 allocs/op
-- Full middleware pipeline: **1.4 µs**, 8 allocs/op
-
-**Middleware Overhead (per request, pooled):**
-- Logging: ~1.0 µs, ~12 allocs/op
-- OpenTelemetry: ~2.5 µs, ~37 allocs/op
-- Compression (gzip/deflate): ~10-74 µs depending on body size
-
-Environment: Windows, 12th Gen Intel Core i9‑12900HK. See "Testing" for how to reproduce on your machine — numbers will vary by hardware and OS.
-
 ## Basic Usage
 
 ### Route Definition

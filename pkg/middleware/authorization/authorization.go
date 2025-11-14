@@ -213,15 +213,20 @@ func (m *authorizationMiddleware) checkPermission(c routing.RouteContext) bool {
 		return true
 	}
 
-	// Convert params slice to map for interpolation
-	paramsMap := make(map[string]string)
+	// Prefer a non-allocating interpolation path using the Params slice.
+	// Fall back to the map-based helper only if there is no params slice.
 	if ps := c.ParamsSlice(); ps != nil {
-		for i := 0; i < ps.Len(); i++ {
-			p := (*ps)[i]
-			paramsMap[p.Key] = p.Value
+		perms := interpolatePermissions(ps, sources...)
+		if m.options != nil && m.options.CheckPermissions != nil {
+			return m.options.CheckPermissions(c.User(), perms)
 		}
+		return false
 	}
-	perms := interpolatePermissions(paramsMap, sources...)
+
+	// Legacy: no params slice available, use map-based interpolation (allocates).
+	// There are no params to copy since ps is nil; call the map-based helper with
+	// an empty map to keep behavior consistent.
+	perms := interpolatePermissions(nil, sources...)
 
 	if m.options != nil && m.options.CheckPermissions != nil {
 		return m.options.CheckPermissions(c.User(), perms)
@@ -232,14 +237,25 @@ func (m *authorizationMiddleware) checkPermission(c routing.RouteContext) bool {
 
 // ---- Helpers ----
 
-func interpolatePermissions(replacements map[string]string, permissions ...[]string) []string {
-	uniqueMap := make(map[string]struct{})
+// Deprecated map-based interpolation removed in favor of slice-based helpers.
+// The slice-based versions are defined below and are used throughout the codebase.
+
+// interpolatePermissionsFromSlice behaves like interpolatePermissions but looks
+// up replacements from the provided Params slice without allocating a map.
+func interpolatePermissions(ps *routing.Params, permissions ...[]string) []string {
 	var result []string
 	for _, slice := range permissions {
 		for _, item := range slice {
-			val := interpolatePermission(replacements, item)
-			if _, exists := uniqueMap[val]; !exists {
-				uniqueMap[val] = struct{}{}
+			val := interpolatePermission(ps, item)
+			// small N dedupe via linear scan avoids allocating a map
+			found := false
+			for _, r := range result {
+				if r == val {
+					found = true
+					break
+				}
+			}
+			if !found {
 				result = append(result, val)
 			}
 		}
@@ -247,7 +263,9 @@ func interpolatePermissions(replacements map[string]string, permissions ...[]str
 	return result
 }
 
-func interpolatePermission(replacements map[string]string, permission string) string {
+// interpolatePermissionFromSlice performs placeholder interpolation using
+// a Params slice for lookups. It scans the slice for matching keys.
+func interpolatePermission(ps *routing.Params, permission string) string {
 	var result strings.Builder
 	var start int
 	inPlaceholder := false
@@ -260,10 +278,14 @@ func interpolatePermission(replacements map[string]string, permission string) st
 			inPlaceholder = false
 			placeholder := permission[start:i]
 			replaced := placeholder
-			for k, v := range replacements {
-				if strings.EqualFold(k, placeholder) {
-					replaced = v
-					break
+			// Linear scan over small slice is faster than creating a map
+			if ps != nil {
+				for j := 0; j < ps.Len(); j++ {
+					p := (*ps)[j]
+					if strings.EqualFold(p.Key, placeholder) {
+						replaced = p.Value
+						break
+					}
 				}
 			}
 			result.WriteString(replaced)
@@ -273,3 +295,5 @@ func interpolatePermission(replacements map[string]string, permission string) st
 	}
 	return result.String()
 }
+
+// note: map-based interpolation removed

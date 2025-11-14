@@ -7,9 +7,13 @@ import (
 
 // Param returns the raw string value of a route parameter.
 func (c *DefaultRouteContext) Param(name string) (string, bool) {
-	if c.paramsSlice != nil && c.paramsSlice.Len() > 0 {
-		val := c.paramsSlice.Get(name)
-		return val, val != ""
+	if c.paramsSlice != nil {
+		for i := 0; i < c.paramsSlice.Len(); i++ {
+			p := (*c.paramsSlice)[i]
+			if p.Key == name {
+				return p.Value, true
+			}
+		}
 	}
 	return "", false
 }

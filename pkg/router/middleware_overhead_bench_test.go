@@ -20,11 +20,11 @@ func BenchmarkMuxNoMiddleware(b *testing.B) {
 	rg.GET("/users/{id}", func(c routing.RouteContext) {})
 
 	req := httptest.NewRequest(http.MethodGet, "/users/123", nil)
-	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 	}
 }
@@ -47,11 +47,11 @@ func BenchmarkMuxWithMiddleware(b *testing.B) {
 	rg.GET("/users/{id}", func(c routing.RouteContext) {})
 
 	req := httptest.NewRequest(http.MethodGet, "/users/123", nil)
-	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 	}
 }
@@ -63,11 +63,11 @@ func BenchmarkGinNoMiddleware(b *testing.B) {
 	r.GET("/users/:id", func(c *gin.Context) {})
 
 	req := httptest.NewRequest(http.MethodGet, "/users/123", nil)
-	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 	}
 }
@@ -85,11 +85,11 @@ func BenchmarkGinWithMiddleware(b *testing.B) {
 	r.GET("/users/:id", func(c *gin.Context) {})
 
 	req := httptest.NewRequest(http.MethodGet, "/users/123", nil)
-	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 	}
 }
