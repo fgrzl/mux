@@ -1,7 +1,9 @@
 package authorization
 
 import (
+	"bytes"
 	"strings"
+	"sync"
 
 	"github.com/fgrzl/claims"
 	"github.com/fgrzl/mux/pkg/router"
@@ -196,7 +198,8 @@ func matchAny(required []string, userVals []string) bool {
 
 func (m *authorizationMiddleware) checkPermission(c routing.RouteContext) bool {
 	// Gather permission sources in a stable order: first middleware-level, then route-level.
-	var sources [][]string
+	// Preallocate for the common case (0-2 sources) to avoid small allocations.
+	sources := make([][]string, 0, 2)
 	if m.options != nil {
 		sources = append(sources, m.options.Permissions)
 	}
@@ -213,7 +216,20 @@ func (m *authorizationMiddleware) checkPermission(c routing.RouteContext) bool {
 		return true
 	}
 
-	perms := interpolatePermissions(c.Params(), sources...)
+	// Prefer a non-allocating interpolation path using the Params slice.
+	// Fall back to the map-based helper only if there is no params slice.
+	if ps := c.ParamsSlice(); ps != nil {
+		perms := interpolatePermissions(ps, sources...)
+		if m.options != nil && m.options.CheckPermissions != nil {
+			return m.options.CheckPermissions(c.User(), perms)
+		}
+		return false
+	}
+
+	// Legacy: no params slice available, use map-based interpolation (allocates).
+	// There are no params to copy since ps is nil; call the map-based helper with
+	// an empty map to keep behavior consistent.
+	perms := interpolatePermissions(nil, sources...)
 
 	if m.options != nil && m.options.CheckPermissions != nil {
 		return m.options.CheckPermissions(c.User(), perms)
@@ -224,14 +240,25 @@ func (m *authorizationMiddleware) checkPermission(c routing.RouteContext) bool {
 
 // ---- Helpers ----
 
-func interpolatePermissions(replacements map[string]string, permissions ...[]string) []string {
-	uniqueMap := make(map[string]struct{})
+// Deprecated map-based interpolation removed in favor of slice-based helpers.
+// The slice-based versions are defined below and are used throughout the codebase.
+
+// interpolatePermissionsFromSlice behaves like interpolatePermissions but looks
+// up replacements from the provided Params slice without allocating a map.
+func interpolatePermissions(ps *routing.Params, permissions ...[]string) []string {
 	var result []string
 	for _, slice := range permissions {
 		for _, item := range slice {
-			val := interpolatePermission(replacements, item)
-			if _, exists := uniqueMap[val]; !exists {
-				uniqueMap[val] = struct{}{}
+			val := interpolatePermission(ps, item)
+			// small N dedupe via linear scan avoids allocating a map
+			found := false
+			for _, r := range result {
+				if r == val {
+					found = true
+					break
+				}
+			}
+			if !found {
 				result = append(result, val)
 			}
 		}
@@ -239,29 +266,48 @@ func interpolatePermissions(replacements map[string]string, permissions ...[]str
 	return result
 }
 
-func interpolatePermission(replacements map[string]string, permission string) string {
-	var result strings.Builder
-	var start int
-	inPlaceholder := false
+// interpolatePermissionFromSlice performs placeholder interpolation using
+// a Params slice for lookups. It scans the slice for matching keys.
+func interpolatePermission(ps *routing.Params, permission string) string {
+	// Use a pooled buffer to avoid intermediate allocations from creating new
+	// buffers/builders for each interpolation. Final string allocation still occurs
+	// when calling `buf.String()` but intermediate buffer reuse reduces pressure.
+	buf := bufferPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	defer bufferPool.Put(buf)
 
-	for i, ch := range permission {
+	start := -1
+	for i := 0; i < len(permission); i++ {
+		ch := permission[i]
 		if ch == '{' {
-			inPlaceholder = true
 			start = i + 1
-		} else if ch == '}' && inPlaceholder {
-			inPlaceholder = false
+			continue
+		}
+		if ch == '}' && start != -1 {
 			placeholder := permission[start:i]
 			replaced := placeholder
-			for k, v := range replacements {
-				if strings.EqualFold(k, placeholder) {
-					replaced = v
-					break
+			if ps != nil {
+				for j := 0; j < ps.Len(); j++ {
+					p := (*ps)[j]
+					if strings.EqualFold(p.Key, placeholder) {
+						replaced = p.Value
+						break
+					}
 				}
 			}
-			result.WriteString(replaced)
-		} else if !inPlaceholder {
-			result.WriteRune(ch)
+			buf.WriteString(replaced)
+			start = -1
+			continue
+		}
+		if start == -1 {
+			buf.WriteByte(ch)
 		}
 	}
-	return result.String()
+	return buf.String()
 }
+
+var bufferPool = sync.Pool{
+	New: func() any { return new(bytes.Buffer) },
+}
+
+// note: map-based interpolation removed

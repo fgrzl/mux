@@ -36,7 +36,7 @@ func main() {
 
 | Feature | What You Get |
 |---------|--------------|
-| 🚀 **Fast** | 54ns static routes, 205ns param routes, 0 allocations on hot paths |
+| 🚀 **Fast** | 45ns static routes, 124ns param routes, 0 allocations with pooling |
 | ✨ **OpenAPI Built-in** | Auto-generate OpenAPI 3.1 specs — no codegen, no extra tools |
 | 🧩 **Composable** | First-class middleware, route groups, and request binding |
 | 💡 **Ergonomic** | Clean DSL with smart helpers — `c.QueryUUID()`, `c.Bind()`, `c.Created()` |
@@ -191,22 +191,6 @@ func getUser(c mux.RouteContext) {
 - **🌍 Geographic Control**: Export control with GeoIP support
 - **📊 Observability**: OpenTelemetry integration and structured logging
 
-## Performance
-
-Mux is engineered for hot‑path efficiency. Representative benchmark results from this repo:
-
-- Core router (pooled context):
-  - Exact/catch‑all routes: ~26–65 ns/op, 0 allocs/op
-  - Param routes: ~128 ns/op, 0 allocs/op
-  - 10k routes in registry: ~267 ns/op
-- Middleware (per request):
-  - Logging: ~1.0 µs, ~12 allocs/op (pooled)
-  - OpenTelemetry: ~2.5 µs, ~37 allocs/op (pooled)
-  - Compression (gzip/deflate): ~10–74 µs depending on body size, ~12–14 allocs/op (pooled)
-- End‑to‑end sample pipeline (router + common middleware): ~1.4 µs, 8 allocs/op (pooled)
-
-Environment: Windows, 12th Gen Intel Core i9‑12900HK. See “Testing” for how to reproduce on your machine — numbers will vary by hardware and OS.
-
 ## Basic Usage
 
 ### Route Definition
@@ -293,31 +277,23 @@ spec.MarshalToFile("openapi.yaml")
 
 **No manual schema definitions needed!** Mux inspects your Go types and generates accurate OpenAPI schemas automatically.
 
-### Production Features
-
-Mux is designed to be fast and allocation-free on hot paths.
-Latest benchmarks (Go 1.22, i9-12900HK):
-
-- Exact match: ~66 ns/op, 0 allocs
-- Param match: ~135 ns/op, 0 allocs
-- Catch-all: ~64 ns/op, 0 allocs
-- Many routes (10k): ~241 ns/op, 3 allocs
-- ServeHTTP (end-to-end): ~1.5 µs, 8 allocs
-
-➡️ Mux is a zero-alloc, sub-150 ns router for common paths, competitive with chi and httprouter.
-Wildcard (\*) routes remain slower (~1.4 µs, 8 allocs), but typical REST and SPA routing are elite-tier.
-
 ## 🏎️ Performance
 
-Mux delivers competitive performance while providing production features:
+Mux delivers **elite-tier performance** with zero allocations on optimized paths while providing production-ready features:
 
-**Core Router Benchmarks** (i9-12900HK, Windows):
+**Core Router Benchmarks** (i9-12900HK, Windows, pooled contexts):
 
-- Static routes: **70 ns/op**, 0 allocs
-- Wildcard routes: **73 ns/op**, 0 allocs
-- Single param: **205 ns/op**, 2 allocs
-- Multi param: **279 ns/op**, 2 allocs
-- Deep path (5+ segments): **352 ns/op**, 2 allocs
+- Static routes: **45 ns/op**, 0 allocs
+- Single param: **124 ns/op**, 0 allocs
+- Multi param: **157 ns/op**, 0 allocs
+- Wildcard routes: **76 ns/op**, 0 allocs
+- Deep path (5+ segments): **217 ns/op**, 0 allocs
+
+**End-to-End ServeHTTP** (router + handler):
+
+- Catch-all: **67 ns/op**, 0 allocs
+- Single param: **111 ns/op**, 0 allocs
+- Full middleware pipeline: **1.4 µs**, 8 allocs
 
 **Middleware Overhead** (per request, pooled):
 
@@ -327,32 +303,37 @@ Mux delivers competitive performance while providing production features:
 
 **What This Means:**
 
-- ✅ Zero allocations for static and wildcard routes
-- ✅ Minimal allocations for param routes (context pooling)
-- ✅ Sub-100ns for common routing patterns
-- ✅ Competitive with Gin/Echo while providing OpenAPI generation
+- ✅ **Zero allocations** for all routing patterns with pooling enabled
+- ✅ **Sub-150ns** routing for common REST/SPA patterns
+- ✅ **3-5x slower** than ultra-minimalist routers (Gin/Echo) but provides rich features
+- ✅ **2-3x faster** than Chi and **10x faster** than Gorilla Mux
+- ✅ Production-ready with OpenAPI generation, type-safe binding, and middleware ecosystem
 
 <details>
 <summary><b>Click to see detailed benchmark comparison</b></summary>
 
-| Router      | Static Route | Single Param | Wildcard |
-| ----------- | ------------ | ------------ | -------- |
-| **Mux**     | **54ns**     | **205ns**    | **82ns** |
-| HttpRouter  | 23ns ⚡      | 45ns ⚡      | 46ns ⚡  |
-| Echo        | 32ns ⚡      | 43ns ⚡      | 37ns ⚡  |
-| Gin         | 36ns ⚡      | 37ns ⚡      | 39ns ⚡  |
-| Chi         | 186ns        | 339ns        | 350ns    |
-| Gorilla Mux | 480ns        | 748ns        | 657ns    |
+| Router          | Static Route | Single Param | Multi Param | Deep Path | Wildcard |
+| --------------- | ------------ | ------------ | ----------- | --------- | -------- |
+| **Mux**         | **45ns** ✅   | **124ns** ✅  | **157ns** ✅ | **217ns** | **76ns** |
+| HttpRouter ⚡   | 22ns         | 42ns         | 57ns        | 62ns      | 44ns     |
+| Echo ⚡         | 33ns         | 43ns         | 64ns        | 70ns      | 41ns     |
+| Gin ⚡          | 34ns         | 37ns         | 49ns        | 54ns      | 38ns     |
+| Chi             | 171ns        | 302ns        | 355ns       | 360ns     | 313ns    |
+| Gorilla Mux     | 452ns        | 723ns        | 1196ns      | 1237ns    | 705ns    |
 
-**Mux is 1.5-3x slower than ultra-minimalist routers** (HttpRouter/Echo/Gin) **but provides:**
+**Performance Position:**
 
-- ✅ Automatic OpenAPI 3.1 generation
-- ✅ Rich middleware ecosystem
-- ✅ Interface-based handlers (testable, mockable)
-- ✅ Type-safe request binding
-- ✅ Better developer experience
+- 🥇 **Mux is 2-3x faster than Chi** and **10x faster than Gorilla Mux**
+- 🥈 **Mux is 3-5x slower than ultra-minimalist routers** (HttpRouter/Echo/Gin)
+- ✅ **Zero allocations** with context pooling enabled (vs 1-7 allocs for competitors)
+- 🎯 **The ~100ns "feature cost"** buys you:
+  - Automatic OpenAPI 3.1 generation
+  - Rich middleware ecosystem (auth, logging, compression, telemetry)
+  - Interface-based handlers (testable, mockable)
+  - Type-safe request binding (`c.QueryUUID()`, `c.ParamInt()`)
+  - Production-ready defaults
 
-**The ~150ns "feature cost" is negligible** in real applications where business logic takes microseconds to milliseconds.
+**The 100ns difference is negligible** in real applications where business logic (database queries, external APIs, processing) takes microseconds to milliseconds.
 
 </details>
 

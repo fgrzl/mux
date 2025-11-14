@@ -7,8 +7,15 @@ import (
 
 // Param returns the raw string value of a route parameter.
 func (c *DefaultRouteContext) Param(name string) (string, bool) {
-	val, ok := c.params[name]
-	return val, ok
+	if c.paramsSlice != nil {
+		for i := 0; i < c.paramsSlice.Len(); i++ {
+			p := (*c.paramsSlice)[i]
+			if p.Key == name {
+				return p.Value, true
+			}
+		}
+	}
+	return "", false
 }
 
 // ParamUUID parses a UUID from a route parameter.

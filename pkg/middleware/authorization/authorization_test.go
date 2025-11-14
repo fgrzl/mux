@@ -343,58 +343,58 @@ func TestShouldAllowAccessWhenNoRolesOrScopesRequired(t *testing.T) {
 }
 
 func TestInterpolatePermissionShouldReplaceParameters(t *testing.T) {
-	// Arrange
-	replacements := map[string]string{
-		"userId":   "123",
-		"tenantId": "tenant-456",
-	}
+	// Arrange - use Params slice
+	ps := routing.AcquireParams()
+	defer routing.ReleaseParams(ps)
+	ps.Set("userId", "123")
+	ps.Set("tenantId", "tenant-456")
 	permission := permUserTenantTemplate
 
 	// Act
-	result := interpolatePermission(replacements, permission)
+	result := interpolatePermission(ps, permission)
 
 	// Assert
 	assert.Equal(t, "user:123:read:tenant:tenant-456", result)
 }
 
 func TestInterpolatePermissionShouldBeCaseInsensitive(t *testing.T) {
-	// Arrange
-	replacements := map[string]string{
-		"UserId": "123",
-	}
+	// Arrange - use Params slice
+	ps := routing.AcquireParams()
+	defer routing.ReleaseParams(ps)
+	ps.Set("UserId", "123")
 	permission := permUseridTemplate
 
 	// Act
-	result := interpolatePermission(replacements, permission)
+	result := interpolatePermission(ps, permission)
 
 	// Assert
 	assert.Equal(t, "user:123:read", result)
 }
 
 func TestInterpolatePermissionShouldHandleNonexistentPlaceholders(t *testing.T) {
-	// Arrange
-	replacements := map[string]string{
-		"userId": "123",
-	}
+	// Arrange - use Params slice
+	ps := routing.AcquireParams()
+	defer routing.ReleaseParams(ps)
+	ps.Set("userId", "123")
 	permission := permNonexistent
 
 	// Act
-	result := interpolatePermission(replacements, permission)
+	result := interpolatePermission(ps, permission)
 
 	// Assert
 	assert.Equal(t, "user:nonexistent:read", result) // Should keep the placeholder name
 }
 
 func TestInterpolatePermissionsShouldRemoveDuplicates(t *testing.T) {
-	// Arrange
-	replacements := map[string]string{
-		"id": "123",
-	}
+	// Arrange - use the optimized Params slice for replacements
+	ps := routing.AcquireParams()
+	defer routing.ReleaseParams(ps)
+	ps.Set("id", "123")
 	permissions1 := []string{permUserIDReadTemplate, user123Write}
 	permissions2 := []string{PermUser123Read, adminIDDeleteTemplate}
 
 	// Act
-	result := interpolatePermissions(replacements, permissions1, permissions2)
+	result := interpolatePermissions(ps, permissions1, permissions2)
 
 	// Assert
 	expected := []string{PermUser123Read, user123Write, admin123Delete}

@@ -114,9 +114,9 @@ func TestShouldServeHTTPWithMiddleware(t *testing.T) {
 func TestShouldSetRouteParamsInContext(t *testing.T) {
 	// Arrange
 	rtr := NewRouter()
-	var receivedParams routing.RouteParams
+	var receivedID string
 	rtr.GET("/users/{id}", func(c routing.RouteContext) {
-		receivedParams = c.Params()
+		receivedID, _ = c.Param("id")
 		c.OK("success")
 	})
 
@@ -127,8 +127,7 @@ func TestShouldSetRouteParamsInContext(t *testing.T) {
 
 	// Assert
 	assert.Equal(t, http.StatusOK, rec.Code)
-	assert.NotNil(t, receivedParams)
-	assert.Equal(t, "123", receivedParams["id"])
+	assert.Equal(t, "123", receivedID)
 }
 
 func TestShouldExecuteMiddlewareInCorrectOrder(t *testing.T) {

@@ -34,9 +34,8 @@ func BenchmarkRouterE2EOldPool(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		c := routing.AcquireContext(rr, req)
-		// simulate old code path: detailed then load
-		tmp := c.Params()
-		_, _ = r.routeRegistry.LoadDetailedInto(req.URL.Path, req.Method, tmp)
+		// Old map-based params path removed - using slice-based params now
+		_ = c.ParamsSlice()
 		_, _, _ = r.routeRegistry.Load(req.URL.Path, req.Method)
 		routing.ReleaseContext(c)
 	}
@@ -52,8 +51,8 @@ func BenchmarkRouterE2ENewPool(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		c := routing.AcquireContext(rr, req)
-		tmp := c.Params()
-		_ = r.routeRegistry.FindNodeInto(req.URL.Path, tmp)
+		_ = c.ParamsSlice()
+		_ = r.routeRegistry.FindNode(req.URL.Path)
 		routing.ReleaseContext(c)
 	}
 }

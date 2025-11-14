@@ -93,8 +93,10 @@ func TestShouldBindParsePathParamAsUUID(t *testing.T) {
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 
-	// Set the params map (what the router would populate)
-	ctx.params = RouteParams{"id": "550e8400-e29b-41d4-a716-446655440000"}
+	// Set the params slice (what the router would populate)
+	params := &Params{}
+	params.Set("id", "550e8400-e29b-41d4-a716-446655440000")
+	ctx.paramsSlice = params
 
 	// Declare path parameter "id" as a UUID via example
 	rb := Route("GET", "/items/{id}").WithPathParam("id", uuid.Nil)
@@ -300,7 +302,9 @@ func TestShouldBindParsePathInt64(t *testing.T) {
 	req := httptest.NewRequest("GET", "/items/12345", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
-	ctx.params = RouteParams{"pid": "12345"}
+	params := &Params{}
+	params.Set("pid", "12345")
+	ctx.paramsSlice = params
 	rb := Route("GET", "/items/{pid}").WithPathParam("pid", int64(12345))
 	ctx.options = rb
 

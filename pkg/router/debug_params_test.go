@@ -12,7 +12,8 @@ func TestDebugParamsNonPooled(t *testing.T) {
 	// Arrange
 	rtr := NewRouter()
 	rtr.GET("/users/{id}", func(c routing.RouteContext) {
-		t.Logf("params at handler: %#v", c.Params())
+		id, _ := c.Param("id")
+		t.Logf("params at handler: id=%s", id)
 		c.OK("ok")
 	})
 	req := httptest.NewRequest(http.MethodGet, "/users/123", nil)

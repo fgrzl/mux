@@ -18,9 +18,9 @@ func TestDetachIndependence(t *testing.T) {
 	require.NotNil(t, c)
 
 	c.SetService(common.ServiceKey("svc"), "value")
-	params := AcquireRouteParams()
-	params["id"] = "123"
-	c.SetParams(params)
+	params := AcquireParams()
+	params.Set("id", "123")
+	c.SetParamsSlice(params)
 
 	// Act
 	d := Detach(c)
@@ -45,9 +45,9 @@ func TestDetachUsableInGoroutine(t *testing.T) {
 	require.NotNil(t, c)
 
 	c.SetService(common.ServiceKey("svc"), "v2")
-	params := AcquireRouteParams()
-	params["k"] = "v"
-	c.SetParams(params)
+	params := AcquireParams()
+	params.Set("k", "v")
+	c.SetParamsSlice(params)
 
 	d := Detach(c)
 	require.NotNil(t, d)

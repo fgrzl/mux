@@ -319,6 +319,34 @@ func (r *RouteRegistry) LoadDetailedInto(path string, method string, dst map[str
 	return nil, LoadDetails{Found: true, MethodOK: false, Allow: node.AllowHeader}
 }
 
+// LoadDetailedIntoSlice is the slice-based version of LoadDetailedInto.
+// It performs a route lookup, fills any path params into dst (resetting it first),
+// and returns the matched RouteOptions along with LoadDetails describing the match.
+func (r *RouteRegistry) LoadDetailedIntoSlice(path string, method string, dst *routing.Params) (*routing.RouteOptions, LoadDetails) {
+	// Exact static fast-path
+	if m, ok := r.exactRoutes[path]; ok {
+		if dst != nil {
+			dst.Reset()
+		}
+		details := LoadDetails{Found: true}
+		if opt, ok2 := m[method]; ok2 {
+			details.MethodOK = true
+			return opt, details
+		}
+		details.Allow = allowHeaderFromMap(m)
+		return nil, details
+	}
+	// Match a node and collect params
+	node, matched := r.matchNodeIntoSlice(path, dst)
+	if !matched || node == nil || len(node.RouteOptions) == 0 {
+		return nil, LoadDetails{Found: false}
+	}
+	if opt, ok := node.RouteOptions[method]; ok {
+		return opt, LoadDetails{Found: true, MethodOK: true}
+	}
+	return nil, LoadDetails{Found: true, MethodOK: false, Allow: node.AllowHeader}
+}
+
 // matchNodeInto traverses the routing tree by path and returns the terminal node if matched.
 // It fills any path params into dst (if non-nil), clearing dst is the caller's responsibility.
 // matchNodeInto traverses the routing tree by path and returns the terminal node if matched.
@@ -359,6 +387,76 @@ func (r *RouteRegistry) matchNodeInto(path string, dst map[string]string) (*rout
 	return n, true
 }
 
+// matchNodeIntoSlice is an optimized version of matchNodeInto that populates a Params slice
+// instead of a map, eliminating hash computation and allocation overhead.
+// The dst slice is reset (length set to 0) before populating.
+// This version inlines critical path operations to reduce function call overhead.
+func (r *RouteRegistry) matchNodeIntoSlice(path string, dst *routing.Params) (*routing.RouteNode, bool) {
+	if dst != nil {
+		dst.Reset()
+	}
+
+	// Inline trimPathIndices for hot path
+	start := 0
+	end := len(path)
+	for start < end && path[start] == '/' {
+		start++
+	}
+	for end > start && path[end-1] == '/' {
+		end--
+	}
+
+	n := r.root
+	s := start
+
+	for s < end {
+		// Early short-circuits using precomputed flags
+		if n.HasOnlyCatchAll {
+			return n.CatchAll, true
+		}
+		if n.HasOnlyWildcardTerminal {
+			return n.Wildcard, true
+		}
+
+		// Inline scanSegment - find next '/' or end
+		j := s
+		for j < end && path[j] != '/' {
+			j++
+		}
+		seg := path[s:j]
+
+		// Inline chooseNextEdge with precedence: static > param > wildcard > catch-all
+		var next *routing.RouteNode
+
+		if child, ok := n.Children[seg]; ok {
+			// Static child match (most common case)
+			n = child
+		} else if n.ParamChild != nil {
+			// Parameter match
+			next = n.ParamChild
+			if dst != nil {
+				// Append directly to slice - much faster than map insertion
+				*dst = append(*dst, routing.Param{Key: next.ParamName, Value: seg})
+			}
+			n = next
+		} else if n.Wildcard != nil {
+			// Wildcard match
+			n = n.Wildcard
+		} else if n.CatchAll != nil {
+			// Catch-all match - consumes remainder
+			return n.CatchAll, true
+		} else {
+			// No match found
+			return nil, false
+		}
+
+		// Advance to next segment (skip '/')
+		s = j + 1
+	}
+
+	return n, true
+}
+
 // LoadInto is like Load but writes any extracted route parameters into the provided
 // map to avoid per-call map allocations. The provided map will be cleared first.
 // It returns the matched RouteOptions and ok=true when a matching route exists.
@@ -384,6 +482,31 @@ func (r *RouteRegistry) LoadInto(path string, method string, dst map[string]stri
 		return o, ok
 	})
 	return opt, ok
+}
+
+// LoadIntoSlice is an optimized version of LoadInto that uses slice-based parameter storage
+// instead of map-based. This eliminates hash computation overhead and reduces allocations.
+// The dst slice is reset before populating. Returns the matched RouteOptions and ok=true when found.
+func (r *RouteRegistry) LoadIntoSlice(path string, method string, dst *routing.Params) (*routing.RouteOptions, bool) {
+	// Fast path: exact registered static route (no params to extract)
+	if m, ok := r.exactRoutes[path]; ok {
+		if opt, ok2 := m[method]; ok2 {
+			// Ensure dst is cleared
+			if dst != nil {
+				dst.Reset()
+			}
+			return opt, true
+		}
+	}
+	// Match with parameter extraction
+	node, matched := r.matchNodeIntoSlice(path, dst)
+	if !matched || node == nil || len(node.RouteOptions) == 0 {
+		return nil, false
+	}
+	if opt, ok := node.RouteOptions[method]; ok {
+		return opt, true
+	}
+	return nil, false
 }
 
 // walkInto traverses the tree and fills params into dst (which may be nil) without allocating
@@ -574,6 +697,17 @@ func (r *RouteRegistry) FindNode(path string) *routing.RouteNode {
 // examine the node's RouteOptions without repeating work.
 func (r *RouteRegistry) FindNodeInto(path string, dst map[string]string) *routing.RouteNode {
 	node, ok := r.matchNodeInto(path, dst)
+	if !ok || node == nil {
+		return nil
+	}
+	return node
+}
+
+// FindNodeIntoSlice is the slice-based version of FindNodeInto.
+// It traverses the routing tree for the given path and fills any path parameters
+// into dst (resetting it first). Returns the terminal RouteNode or nil if no match.
+func (r *RouteRegistry) FindNodeIntoSlice(path string, dst *routing.Params) *routing.RouteNode {
+	node, ok := r.matchNodeIntoSlice(path, dst)
 	if !ok || node == nil {
 		return nil
 	}
