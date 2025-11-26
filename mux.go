@@ -254,6 +254,38 @@ var WithValidator = authentication.WithValidator
 // authentication middleware. Alias of authentication.WithTokenCreator.
 var WithTokenCreator = authentication.WithTokenCreator
 
+// WithCSRFProtection enables CSRF protection for cookie-based authentication.
+// Alias of authentication.WithCSRFProtection.
+var WithCSRFProtection = authentication.WithCSRFProtection
+
+// WithAuthRateLimiter sets a rate limiter for authentication failures.
+// Alias of authentication.WithRateLimiter.
+var WithAuthRateLimiter = authentication.WithRateLimiter
+
+// WithTokenRevocationChecker sets a function to check if a token has been revoked.
+// Alias of authentication.WithTokenRevocationChecker.
+var WithTokenRevocationChecker = authentication.WithTokenRevocationChecker
+
+// WithIssuerValidator sets the expected token issuer for validation.
+// Alias of authentication.WithIssuerValidator.
+var WithIssuerValidator = authentication.WithIssuerValidator
+
+// WithAudienceValidator sets the expected token audience for validation.
+// Alias of authentication.WithAudienceValidator.
+var WithAudienceValidator = authentication.WithAudienceValidator
+
+// WithContextEnricher sets a function to enrich the request context after
+// successful authentication. Alias of authentication.WithContextEnricher.
+var WithContextEnricher = authentication.WithContextEnricher
+
+// NewInMemoryRateLimiter creates a simple in-memory rate limiter for authentication.
+// Alias of authentication.NewInMemoryRateLimiter.
+var NewInMemoryRateLimiter = authentication.NewInMemoryRateLimiter
+
+// GenerateCSRFToken generates a new CSRF token and sets it as a cookie.
+// Alias of authentication.GenerateCSRFToken.
+var GenerateCSRFToken = authentication.GenerateCSRFToken
+
 // --- Authorization middleware ---
 // AuthZOption is a functional option used to configure the authorization
 // middleware. Alias of authorization.AuthZOption.
