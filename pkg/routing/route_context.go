@@ -55,6 +55,10 @@ type RouteContext interface {
 	User() claims.Principal
 	// SetUser sets the authenticated user principal on the context.
 	SetUser(user claims.Principal)
+	// SetContextValue adds a key-value pair to the request context.
+	// This properly updates both the embedded context and the underlying request
+	// to ensure consistency when accessing values via either c or c.Request().Context().
+	SetContextValue(key, value any)
 	// SetService stores a service instance by key for later retrieval in handlers.
 	SetService(key ServiceKey, service any)
 	// GetService retrieves a previously stored service by key.
@@ -434,6 +438,17 @@ func (c *DefaultRouteContext) User() claims.Principal {
 func (c *DefaultRouteContext) SetUser(user claims.Principal) {
 	c.user = user
 	c.Context = claims.WithUser(c.Context, user)
+	// Update the request's context so c.Request().Context() returns the same values
+	if c.request != nil {
+		c.request = c.request.WithContext(c.Context)
+	}
+}
+
+// SetContextValue adds a key-value pair to the request context.
+// This properly updates both the embedded context and the underlying request
+// to ensure consistency when accessing values via either c or c.Request().Context().
+func (c *DefaultRouteContext) SetContextValue(key, value any) {
+	c.Context = context.WithValue(c.Context, key, value)
 	// Update the request's context so c.Request().Context() returns the same values
 	if c.request != nil {
 		c.request = c.request.WithContext(c.Context)

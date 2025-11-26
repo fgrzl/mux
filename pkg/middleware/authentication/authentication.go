@@ -123,21 +123,20 @@ func WithAudienceValidator(audience string) AuthOption {
 }
 
 // WithContextEnricher sets a function to enrich the request context after successful authentication.
-// The enricher receives the RouteContext (with the authenticated user already set) and returns
-// a new context.Context with additional values. This is useful for extracting claims from the
-// principal and setting domain-specific context values (tenant info, permissions, etc.).
+// The enricher receives the full RouteContext (with the authenticated user already set) and can
+// add values to the context using c.SetContextValue(key, value). This is useful for extracting
+// claims from the principal and setting domain-specific context values (tenant info, permissions, etc.).
 //
 // Example:
 //
-//	WithContextEnricher(func(c routing.RouteContext) context.Context {
+//	WithContextEnricher(func(c routing.RouteContext) {
 //	    principal := c.User()
-//	    tenantID := principal.CustomClaimValue("tenant_id")
-//	    return context.WithValue(c, tenantKey, tenantID)
+//	    c.SetContextValue(tenantKey, principal.CustomClaimValue("tenant_id"))
+//	    c.SetContextValue(userKey, principal.Subject())
 //	})
 //
-// The enriched context will be set on both the RouteContext and the underlying request,
-// ensuring downstream handlers can access the values via either c or c.Request().Context().
-func WithContextEnricher(fn func(c routing.RouteContext) context.Context) AuthOption {
+// Values set via SetContextValue are accessible via both c.Value(key) and c.Request().Context().Value(key).
+func WithContextEnricher(fn func(c routing.RouteContext)) AuthOption {
 	return func(o *AuthenticationOptions) {
 		o.ContextEnricher = fn
 	}
@@ -155,7 +154,7 @@ type AuthenticationOptions struct {
 	IsTokenRevoked   func(token string) bool
 	ExpectedIssuer   string
 	ExpectedAudience string
-	ContextEnricher  func(c routing.RouteContext) context.Context
+	ContextEnricher  func(c routing.RouteContext)
 }
 
 // defaultTokenProvider handles token creation and validation.
@@ -277,19 +276,16 @@ func (m *authenticationMiddleware) Invoke(c routing.RouteContext, next router.Ha
 	c.Unauthorized()
 }
 
-// enrichContext calls the context enricher if configured, updating both
-// the RouteContext and the underlying request with the enriched context.
+// enrichContext calls the context enricher if configured, updating
+// the underlying request with the enriched context.
 func (m *authenticationMiddleware) enrichContext(c routing.RouteContext) {
 	if m.options == nil || m.options.ContextEnricher == nil {
 		return
 	}
 
-	enrichedCtx := m.options.ContextEnricher(c)
-	if enrichedCtx != nil {
-		// Update the request with the enriched context
-		// This ensures c.Request().Context() returns the enriched values
-		c.SetRequest(c.Request().WithContext(enrichedCtx))
-	}
+	// The enricher calls c.SetContextValue() to add values.
+	// SetContextValue handles updating both the embedded context and the request properly.
+	m.options.ContextEnricher(c)
 }
 
 // authenticateViaCookie attempts to authenticate using session cookie.

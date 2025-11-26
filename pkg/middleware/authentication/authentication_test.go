@@ -1,7 +1,6 @@
 package authentication
 
 import (
-	"context"
 	"crypto/tls"
 	"errors"
 	"net/http"
@@ -749,14 +748,13 @@ func TestContextEnricherShouldEnrichContextAfterAuthentication(t *testing.T) {
 			}
 			return nil, ErrInvalidToken
 		}),
-		WithContextEnricher(func(c routing.RouteContext) context.Context {
+		WithContextEnricher(func(c routing.RouteContext) {
 			principal := c.User()
-			ctx := context.WithValue(c, tenantIDKey, "tenant-abc")
-			ctx = context.WithValue(ctx, userInfoKey, map[string]string{
+			c.SetContextValue(tenantIDKey, "tenant-abc")
+			c.SetContextValue(userInfoKey, map[string]string{
 				"id":   principal.Subject(),
 				"role": "admin",
 			})
-			return ctx
 		}),
 	)
 
@@ -798,8 +796,8 @@ func TestContextEnricherShouldWorkWithCookieAuth(t *testing.T) {
 			}
 			return nil, ErrInvalidToken
 		}),
-		WithContextEnricher(func(c routing.RouteContext) context.Context {
-			return context.WithValue(c, tenantIDKey, "tenant-from-cookie")
+		WithContextEnricher(func(c routing.RouteContext) {
+			c.SetContextValue(tenantIDKey, "tenant-from-cookie")
 		}),
 	)
 
@@ -829,9 +827,8 @@ func TestContextEnricherShouldNotBeCalledOnAuthFailure(t *testing.T) {
 		WithValidator(func(token string) (claims.Principal, error) {
 			return nil, ErrInvalidToken
 		}),
-		WithContextEnricher(func(c routing.RouteContext) context.Context {
+		WithContextEnricher(func(c routing.RouteContext) {
 			enricherCalled = true
-			return c
 		}),
 	)
 
@@ -849,7 +846,7 @@ func TestContextEnricherShouldNotBeCalledOnAuthFailure(t *testing.T) {
 	assert.False(t, enricherCalled, "enricher should not be called on auth failure")
 }
 
-func TestContextEnricherShouldHandleNilReturn(t *testing.T) {
+func TestContextEnricherShouldHandleNoOpEnricher(t *testing.T) {
 	rtr := router.NewRouter()
 	mockUser := newMockPrincipal("user789")
 
@@ -857,9 +854,8 @@ func TestContextEnricherShouldHandleNilReturn(t *testing.T) {
 		WithValidator(func(token string) (claims.Principal, error) {
 			return mockUser, nil
 		}),
-		WithContextEnricher(func(c routing.RouteContext) context.Context {
-			// Return nil to indicate no enrichment needed
-			return nil
+		WithContextEnricher(func(c routing.RouteContext) {
+			// No-op enricher - doesn't add any context values
 		}),
 	)
 
