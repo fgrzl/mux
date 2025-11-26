@@ -2,6 +2,7 @@ package authorization
 
 import (
 	"bytes"
+	"log/slog"
 	"strings"
 	"sync"
 
@@ -223,6 +224,8 @@ func (m *authorizationMiddleware) checkPermission(c routing.RouteContext) bool {
 		if m.options != nil && m.options.CheckPermissions != nil {
 			return m.options.CheckPermissions(c.User(), perms)
 		}
+		// Permissions required but no checker configured - log warning and deny
+		slog.WarnContext(c, "permissions required but no CheckPermissions function configured", "permissions", perms)
 		return false
 	}
 
@@ -234,7 +237,8 @@ func (m *authorizationMiddleware) checkPermission(c routing.RouteContext) bool {
 	if m.options != nil && m.options.CheckPermissions != nil {
 		return m.options.CheckPermissions(c.User(), perms)
 	}
-	// If permissions are required but there's no checker, deny by default.
+	// Permissions required but no checker configured - log warning and deny
+	slog.WarnContext(c, "permissions required but no CheckPermissions function configured", "permissions", perms)
 	return false
 }
 

@@ -434,6 +434,10 @@ func (c *DefaultRouteContext) User() claims.Principal {
 func (c *DefaultRouteContext) SetUser(user claims.Principal) {
 	c.user = user
 	c.Context = claims.WithUser(c.Context, user)
+	// Update the request's context so c.Request().Context() returns the same values
+	if c.request != nil {
+		c.request = c.request.WithContext(c.Context)
+	}
 }
 
 // SetService sets a service in the RouteContext.
