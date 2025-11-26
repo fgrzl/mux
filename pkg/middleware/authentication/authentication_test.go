@@ -1,6 +1,8 @@
 package authentication
 
 import (
+	"context"
+	"crypto/tls"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -333,4 +335,545 @@ func newRouteContext(setup func(r *http.Request)) (routing.RouteContext, *httpte
 		setup(req)
 	}
 	return routing.NewRouteContext(rec, req), rec
+}
+
+// ---- Tests for Bearer Token Case Insensitivity (RFC 7235) ----
+
+func TestExtractBearerTokenShouldBeCaseInsensitive(t *testing.T) {
+	tests := []struct {
+		name     string
+		header   string
+		expected string
+	}{
+		{"standard Bearer", "Bearer valid-token", "valid-token"},
+		{"lowercase bearer", "bearer valid-token", "valid-token"},
+		{"uppercase BEARER", "BEARER valid-token", "valid-token"},
+		{"mixed case BeArEr", "BeArEr valid-token", "valid-token"},
+		{"empty header", "", ""},
+		{"no token", "Bearer ", ""},
+		{"wrong scheme", "Basic dXNlcjpwYXNz", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractBearerToken(tt.header)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+// ---- Tests for X-Forwarded-Proto Support ----
+
+func TestIsSecureRequestShouldDetectTLS(t *testing.T) {
+	// Test direct TLS
+	req := httptest.NewRequest(http.MethodGet, "https://example.com/test", nil)
+	req.TLS = &tls.ConnectionState{} // Simulate TLS
+	assert.True(t, isSecureRequest(req))
+}
+
+func TestIsSecureRequestShouldDetectXForwardedProto(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
+	req.Header.Set("X-Forwarded-Proto", "https")
+	assert.True(t, isSecureRequest(req))
+}
+
+func TestIsSecureRequestShouldDetectXForwardedProtoCaseInsensitive(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
+	req.Header.Set("X-Forwarded-Proto", "HTTPS")
+	assert.True(t, isSecureRequest(req))
+}
+
+func TestIsSecureRequestShouldReturnFalseForHTTP(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
+	assert.False(t, isSecureRequest(req))
+}
+
+// ---- Tests for CSRF Protection ----
+
+func TestCSRFValidationShouldPassWithMatchingTokens(t *testing.T) {
+	rtr := router.NewRouter()
+	mockUser := newMockPrincipal("user123")
+
+	UseAuthentication(rtr,
+		WithCSRFProtection(),
+		WithValidator(func(token string) (claims.Principal, error) {
+			if token == "valid-token" {
+				return mockUser, nil
+			}
+			return nil, ErrInvalidToken
+		}),
+	)
+
+	csrfToken := "test-csrf-token-12345"
+	ctx, res := newRouteContext(func(r *http.Request) {
+		r.Method = http.MethodPost
+		r.AddCookie(&http.Cookie{Name: cookiekit.GetUserCookieName(), Value: "valid-token"})
+		r.AddCookie(&http.Cookie{Name: csrfTokenCookieName, Value: csrfToken})
+		r.Header.Set(csrfTokenHeaderName, csrfToken)
+	})
+
+	rtr.POST("/test", func(c routing.RouteContext) {
+		c.OK("success")
+	})
+
+	rtr.ServeHTTP(res, ctx.Request())
+	assert.Equal(t, http.StatusOK, res.Code)
+}
+
+func TestCSRFValidationShouldFailWithMismatchedTokens(t *testing.T) {
+	rtr := router.NewRouter()
+	mockUser := newMockPrincipal("user123")
+
+	UseAuthentication(rtr,
+		WithCSRFProtection(),
+		WithValidator(func(token string) (claims.Principal, error) {
+			if token == "valid-token" {
+				return mockUser, nil
+			}
+			return nil, ErrInvalidToken
+		}),
+	)
+
+	ctx, res := newRouteContext(func(r *http.Request) {
+		r.Method = http.MethodPost
+		r.AddCookie(&http.Cookie{Name: cookiekit.GetUserCookieName(), Value: "valid-token"})
+		r.AddCookie(&http.Cookie{Name: csrfTokenCookieName, Value: "csrf-token-1"})
+		r.Header.Set(csrfTokenHeaderName, "csrf-token-2") // Mismatched!
+	})
+
+	rtr.POST("/test", func(c routing.RouteContext) {
+		c.OK("success")
+	})
+
+	rtr.ServeHTTP(res, ctx.Request())
+	assert.Equal(t, http.StatusForbidden, res.Code)
+}
+
+func TestCSRFValidationShouldNotApplyToGETRequests(t *testing.T) {
+	rtr := router.NewRouter()
+	mockUser := newMockPrincipal("user123")
+
+	UseAuthentication(rtr,
+		WithCSRFProtection(),
+		WithValidator(func(token string) (claims.Principal, error) {
+			if token == "valid-token" {
+				return mockUser, nil
+			}
+			return nil, ErrInvalidToken
+		}),
+	)
+
+	// GET request without CSRF token should succeed
+	ctx, res := newRouteContext(func(r *http.Request) {
+		r.Method = http.MethodGet
+		r.AddCookie(&http.Cookie{Name: cookiekit.GetUserCookieName(), Value: "valid-token"})
+	})
+
+	rtr.GET("/test", func(c routing.RouteContext) {
+		c.OK("success")
+	})
+
+	rtr.ServeHTTP(res, ctx.Request())
+	assert.Equal(t, http.StatusOK, res.Code)
+}
+
+func TestCSRFValidationShouldNotApplyToBearerAuth(t *testing.T) {
+	rtr := router.NewRouter()
+	mockUser := newMockPrincipal("user123")
+
+	UseAuthentication(rtr,
+		WithCSRFProtection(),
+		WithValidator(func(token string) (claims.Principal, error) {
+			if token == "valid-token" {
+				return mockUser, nil
+			}
+			return nil, ErrInvalidToken
+		}),
+	)
+
+	// POST with Bearer token should succeed without CSRF
+	ctx, res := newRouteContext(func(r *http.Request) {
+		r.Method = http.MethodPost
+		r.Header.Set(common.HeaderAuthorization, "Bearer valid-token")
+	})
+
+	rtr.POST("/test", func(c routing.RouteContext) {
+		c.OK("success")
+	})
+
+	rtr.ServeHTTP(res, ctx.Request())
+	assert.Equal(t, http.StatusOK, res.Code)
+}
+
+// ---- Tests for Rate Limiting ----
+
+func TestRateLimiterShouldBlockExcessiveFailures(t *testing.T) {
+	limiter := NewInMemoryRateLimiter(3, time.Minute)
+
+	// First 3 attempts should be allowed
+	assert.True(t, limiter("client1"))
+	assert.True(t, limiter("client1"))
+	assert.True(t, limiter("client1"))
+
+	// 4th attempt should be blocked
+	assert.False(t, limiter("client1"))
+
+	// Different client should still be allowed
+	assert.True(t, limiter("client2"))
+}
+
+func TestAuthenticationWithRateLimitingShouldRejectRateLimitedRequests(t *testing.T) {
+	blockedClients := make(map[string]bool)
+
+	rtr := router.NewRouter()
+	UseAuthentication(rtr,
+		WithValidator(func(token string) (claims.Principal, error) {
+			return nil, ErrInvalidToken
+		}),
+		WithRateLimiter(func(clientID string) bool {
+			return !blockedClients[clientID]
+		}),
+	)
+
+	// Block the client (httptest uses 192.0.2.1 as default RemoteAddr)
+	blockedClients["192.0.2.1"] = true
+
+	ctx, res := newRouteContext(nil)
+	rtr.GET("/test", func(c routing.RouteContext) {
+		c.OK("success")
+	})
+
+	rtr.ServeHTTP(res, ctx.Request())
+	assert.Equal(t, http.StatusTooManyRequests, res.Code)
+}
+
+// ---- Tests for Token Revocation ----
+
+func TestTokenRevocationShouldBlockRevokedTokens(t *testing.T) {
+	rtr := router.NewRouter()
+	mockUser := newMockPrincipal("user123")
+	revokedTokens := map[string]bool{"revoked-token": true}
+
+	UseAuthentication(rtr,
+		WithValidator(func(token string) (claims.Principal, error) {
+			return mockUser, nil
+		}),
+		WithTokenRevocationChecker(func(token string) bool {
+			return revokedTokens[token]
+		}),
+	)
+
+	// Valid token should work
+	ctx, res := newRouteContext(func(r *http.Request) {
+		r.Header.Set(common.HeaderAuthorization, "Bearer valid-token")
+	})
+	rtr.GET("/test", func(c routing.RouteContext) {
+		c.OK("success")
+	})
+	rtr.ServeHTTP(res, ctx.Request())
+	assert.Equal(t, http.StatusOK, res.Code)
+
+	// Revoked token should fail
+	ctx2, res2 := newRouteContext(func(r *http.Request) {
+		r.Header.Set(common.HeaderAuthorization, "Bearer revoked-token")
+	})
+	rtr.ServeHTTP(res2, ctx2.Request())
+	assert.Equal(t, http.StatusUnauthorized, res2.Code)
+}
+
+// ---- Tests for Issuer/Audience Validation ----
+
+func TestIssuerValidationShouldRejectInvalidIssuer(t *testing.T) {
+	rtr := router.NewRouter()
+	mockUser := &mockPrincipal{
+		subject: "user123",
+		issuer:  "wrong-issuer",
+	}
+
+	UseAuthentication(rtr,
+		WithValidator(func(token string) (claims.Principal, error) {
+			return mockUser, nil
+		}),
+		WithIssuerValidator("expected-issuer"),
+	)
+
+	ctx, res := newRouteContext(func(r *http.Request) {
+		r.Header.Set(common.HeaderAuthorization, "Bearer valid-token")
+	})
+	rtr.GET("/test", func(c routing.RouteContext) {
+		c.OK("success")
+	})
+
+	rtr.ServeHTTP(res, ctx.Request())
+	assert.Equal(t, http.StatusUnauthorized, res.Code)
+}
+
+func TestIssuerValidationShouldAcceptValidIssuer(t *testing.T) {
+	rtr := router.NewRouter()
+	mockUser := &mockPrincipal{
+		subject: "user123",
+		issuer:  "expected-issuer",
+	}
+
+	UseAuthentication(rtr,
+		WithValidator(func(token string) (claims.Principal, error) {
+			return mockUser, nil
+		}),
+		WithIssuerValidator("expected-issuer"),
+	)
+
+	ctx, res := newRouteContext(func(r *http.Request) {
+		r.Header.Set(common.HeaderAuthorization, "Bearer valid-token")
+	})
+	rtr.GET("/test", func(c routing.RouteContext) {
+		c.OK("success")
+	})
+
+	rtr.ServeHTTP(res, ctx.Request())
+	assert.Equal(t, http.StatusOK, res.Code)
+}
+
+func TestAudienceValidationShouldRejectInvalidAudience(t *testing.T) {
+	rtr := router.NewRouter()
+	mockUser := &mockPrincipal{
+		subject:  "user123",
+		audience: []string{"other-audience"},
+	}
+
+	UseAuthentication(rtr,
+		WithValidator(func(token string) (claims.Principal, error) {
+			return mockUser, nil
+		}),
+		WithAudienceValidator("expected-audience"),
+	)
+
+	ctx, res := newRouteContext(func(r *http.Request) {
+		r.Header.Set(common.HeaderAuthorization, "Bearer valid-token")
+	})
+	rtr.GET("/test", func(c routing.RouteContext) {
+		c.OK("success")
+	})
+
+	rtr.ServeHTTP(res, ctx.Request())
+	assert.Equal(t, http.StatusUnauthorized, res.Code)
+}
+
+func TestAudienceValidationShouldAcceptValidAudience(t *testing.T) {
+	rtr := router.NewRouter()
+	mockUser := &mockPrincipal{
+		subject:  "user123",
+		audience: []string{"other", "expected-audience"},
+	}
+
+	UseAuthentication(rtr,
+		WithValidator(func(token string) (claims.Principal, error) {
+			return mockUser, nil
+		}),
+		WithAudienceValidator("expected-audience"),
+	)
+
+	ctx, res := newRouteContext(func(r *http.Request) {
+		r.Header.Set(common.HeaderAuthorization, "Bearer valid-token")
+	})
+	rtr.GET("/test", func(c routing.RouteContext) {
+		c.OK("success")
+	})
+
+	rtr.ServeHTTP(res, ctx.Request())
+	assert.Equal(t, http.StatusOK, res.Code)
+}
+
+// ---- Tests for Client ID Extraction ----
+
+func TestGetClientIDShouldExtractFromXForwardedFor(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("X-Forwarded-For", "203.0.113.195, 70.41.3.18, 150.172.238.178")
+	assert.Equal(t, "203.0.113.195", getClientID(req))
+}
+
+func TestGetClientIDShouldExtractFromXRealIP(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("X-Real-IP", "203.0.113.195")
+	assert.Equal(t, "203.0.113.195", getClientID(req))
+}
+
+func TestGetClientIDShouldFallbackToRemoteAddr(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.RemoteAddr = "192.168.1.1:12345"
+	assert.Equal(t, "192.168.1.1", getClientID(req))
+}
+
+// ---- Tests for CSRF Token Generation ----
+
+func TestGenerateCSRFTokenShouldSetCookie(t *testing.T) {
+	ctx, res := newRouteContext(nil)
+	token := GenerateCSRFToken(ctx)
+
+	assert.NotEmpty(t, token)
+	assert.Len(t, token, csrfTokenLength)
+
+	// Check that cookie was set
+	cookies := res.Result().Cookies()
+	var csrfCookie *http.Cookie
+	for _, c := range cookies {
+		if c.Name == csrfTokenCookieName {
+			csrfCookie = c
+			break
+		}
+	}
+	require.NotNil(t, csrfCookie)
+	assert.Equal(t, token, csrfCookie.Value)
+	assert.False(t, csrfCookie.HttpOnly) // Must be readable by JS
+	assert.Equal(t, http.SameSiteStrictMode, csrfCookie.SameSite)
+}
+
+// ---- Tests for Context Enricher ----
+
+type testContextKey string
+
+const (
+	tenantIDKey testContextKey = "tenant_id"
+	userInfoKey testContextKey = "user_info"
+)
+
+func TestContextEnricherShouldEnrichContextAfterAuthentication(t *testing.T) {
+	rtr := router.NewRouter()
+	mockUser := &mockPrincipal{
+		subject: "user123",
+	}
+
+	UseAuthentication(rtr,
+		WithValidator(func(token string) (claims.Principal, error) {
+			if token == "valid-token" {
+				return mockUser, nil
+			}
+			return nil, ErrInvalidToken
+		}),
+		WithContextEnricher(func(c routing.RouteContext) context.Context {
+			principal := c.User()
+			ctx := context.WithValue(c, tenantIDKey, "tenant-abc")
+			ctx = context.WithValue(ctx, userInfoKey, map[string]string{
+				"id":   principal.Subject(),
+				"role": "admin",
+			})
+			return ctx
+		}),
+	)
+
+	var capturedTenantID string
+	var capturedUserInfo map[string]string
+
+	ctx, res := newRouteContext(func(r *http.Request) {
+		r.Header.Set(common.HeaderAuthorization, "Bearer valid-token")
+	})
+
+	rtr.GET("/test", func(c routing.RouteContext) {
+		// Verify context values are accessible from request context
+		if tid, ok := c.Request().Context().Value(tenantIDKey).(string); ok {
+			capturedTenantID = tid
+		}
+		if ui, ok := c.Request().Context().Value(userInfoKey).(map[string]string); ok {
+			capturedUserInfo = ui
+		}
+		c.OK("success")
+	})
+
+	rtr.ServeHTTP(res, ctx.Request())
+
+	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, "tenant-abc", capturedTenantID)
+	assert.NotNil(t, capturedUserInfo)
+	assert.Equal(t, "user123", capturedUserInfo["id"])
+	assert.Equal(t, "admin", capturedUserInfo["role"])
+}
+
+func TestContextEnricherShouldWorkWithCookieAuth(t *testing.T) {
+	rtr := router.NewRouter()
+	mockUser := newMockPrincipal("user456")
+
+	UseAuthentication(rtr,
+		WithValidator(func(token string) (claims.Principal, error) {
+			if token == "cookie-token" {
+				return mockUser, nil
+			}
+			return nil, ErrInvalidToken
+		}),
+		WithContextEnricher(func(c routing.RouteContext) context.Context {
+			return context.WithValue(c, tenantIDKey, "tenant-from-cookie")
+		}),
+	)
+
+	var capturedTenantID string
+	ctx, res := newRouteContext(func(r *http.Request) {
+		r.AddCookie(&http.Cookie{Name: cookiekit.GetUserCookieName(), Value: "cookie-token"})
+	})
+
+	rtr.GET("/test", func(c routing.RouteContext) {
+		if tid, ok := c.Request().Context().Value(tenantIDKey).(string); ok {
+			capturedTenantID = tid
+		}
+		c.OK("success")
+	})
+
+	rtr.ServeHTTP(res, ctx.Request())
+
+	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, "tenant-from-cookie", capturedTenantID)
+}
+
+func TestContextEnricherShouldNotBeCalledOnAuthFailure(t *testing.T) {
+	rtr := router.NewRouter()
+	enricherCalled := false
+
+	UseAuthentication(rtr,
+		WithValidator(func(token string) (claims.Principal, error) {
+			return nil, ErrInvalidToken
+		}),
+		WithContextEnricher(func(c routing.RouteContext) context.Context {
+			enricherCalled = true
+			return c
+		}),
+	)
+
+	ctx, res := newRouteContext(func(r *http.Request) {
+		r.Header.Set(common.HeaderAuthorization, "Bearer invalid-token")
+	})
+
+	rtr.GET("/test", func(c routing.RouteContext) {
+		c.OK("success")
+	})
+
+	rtr.ServeHTTP(res, ctx.Request())
+
+	assert.Equal(t, http.StatusUnauthorized, res.Code)
+	assert.False(t, enricherCalled, "enricher should not be called on auth failure")
+}
+
+func TestContextEnricherShouldHandleNilReturn(t *testing.T) {
+	rtr := router.NewRouter()
+	mockUser := newMockPrincipal("user789")
+
+	UseAuthentication(rtr,
+		WithValidator(func(token string) (claims.Principal, error) {
+			return mockUser, nil
+		}),
+		WithContextEnricher(func(c routing.RouteContext) context.Context {
+			// Return nil to indicate no enrichment needed
+			return nil
+		}),
+	)
+
+	ctx, res := newRouteContext(func(r *http.Request) {
+		r.Header.Set(common.HeaderAuthorization, "Bearer valid-token")
+	})
+
+	rtr.GET("/test", func(c routing.RouteContext) {
+		// Should still work, user should be accessible
+		assert.NotNil(t, c.User())
+		assert.Equal(t, "user789", c.User().Subject())
+		c.OK("success")
+	})
+
+	rtr.ServeHTTP(res, ctx.Request())
+	assert.Equal(t, http.StatusOK, res.Code)
 }

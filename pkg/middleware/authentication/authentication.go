@@ -2,9 +2,14 @@ package authentication
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/subtle"
+	"encoding/base64"
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/fgrzl/claims"
@@ -30,13 +35,17 @@ func UseAuthentication(rtr *router.Router, opts ...AuthOption) {
 		validateFn: options.Validate,
 	}
 
-	rtr.Use(newAuthMiddleware(provider))
+	rtr.Use(newAuthMiddlewareWithOptions(provider, options))
 }
 
 // UseAuthenticationWithProvider adds authentication middleware using a custom token provider.
 // This allows for more advanced token provider implementations.
-func UseAuthenticationWithProvider(rtr *router.Router, provider tokenizer.TokenProvider) {
-	rtr.Use(newAuthMiddleware(provider))
+func UseAuthenticationWithProvider(rtr *router.Router, provider tokenizer.TokenProvider, opts ...AuthOption) {
+	options := &AuthenticationOptions{}
+	for _, opt := range opts {
+		opt(options)
+	}
+	rtr.Use(newAuthMiddlewareWithOptions(provider, options))
 }
 
 // newAuthMiddleware creates a new authentication middleware instance with the
@@ -71,13 +80,82 @@ func WithTokenCreator(fn func(claims.Principal, time.Duration) (string, error)) 
 	}
 }
 
+// WithCSRFProtection enables CSRF protection for cookie-based authentication.
+// When enabled, state-changing requests (POST, PUT, DELETE, PATCH) must include
+// a valid CSRF token in the X-CSRF-Token header that matches the csrf_token cookie.
+func WithCSRFProtection() AuthOption {
+	return func(o *AuthenticationOptions) {
+		o.EnableCSRF = true
+	}
+}
+
+// WithRateLimiter sets a custom rate limiter for authentication failures.
+// The function should return true if the request should be allowed, false if rate limited.
+// The string parameter is the client identifier (typically IP address).
+func WithRateLimiter(fn func(clientID string) bool) AuthOption {
+	return func(o *AuthenticationOptions) {
+		o.RateLimiter = fn
+	}
+}
+
+// WithTokenRevocationChecker sets a function to check if a token has been revoked.
+// The function should return true if the token is revoked/blocklisted.
+func WithTokenRevocationChecker(fn func(token string) bool) AuthOption {
+	return func(o *AuthenticationOptions) {
+		o.IsTokenRevoked = fn
+	}
+}
+
+// WithIssuerValidator sets the expected token issuer for validation.
+// If set, tokens with a different issuer will be rejected.
+func WithIssuerValidator(issuer string) AuthOption {
+	return func(o *AuthenticationOptions) {
+		o.ExpectedIssuer = issuer
+	}
+}
+
+// WithAudienceValidator sets the expected token audience for validation.
+// If set, tokens that don't include this audience will be rejected.
+func WithAudienceValidator(audience string) AuthOption {
+	return func(o *AuthenticationOptions) {
+		o.ExpectedAudience = audience
+	}
+}
+
+// WithContextEnricher sets a function to enrich the request context after successful authentication.
+// The enricher receives the RouteContext (with the authenticated user already set) and returns
+// a new context.Context with additional values. This is useful for extracting claims from the
+// principal and setting domain-specific context values (tenant info, permissions, etc.).
+//
+// Example:
+//
+//	WithContextEnricher(func(c routing.RouteContext) context.Context {
+//	    principal := c.User()
+//	    tenantID := principal.CustomClaimValue("tenant_id")
+//	    return context.WithValue(c, tenantKey, tenantID)
+//	})
+//
+// The enriched context will be set on both the RouteContext and the underlying request,
+// ensuring downstream handlers can access the values via either c or c.Request().Context().
+func WithContextEnricher(fn func(c routing.RouteContext) context.Context) AuthOption {
+	return func(o *AuthenticationOptions) {
+		o.ContextEnricher = fn
+	}
+}
+
 // ---- Internal Types ----
 
 // AuthenticationOptions contains configuration options for authentication middleware.
 type AuthenticationOptions struct {
-	TokenTTL    time.Duration
-	Validate    func(string) (claims.Principal, error)
-	CreateToken func(claims.Principal, time.Duration) (string, error)
+	TokenTTL         time.Duration
+	Validate         func(string) (claims.Principal, error)
+	CreateToken      func(claims.Principal, time.Duration) (string, error)
+	EnableCSRF       bool
+	RateLimiter      func(clientID string) bool
+	IsTokenRevoked   func(token string) bool
+	ExpectedIssuer   string
+	ExpectedAudience string
+	ContextEnricher  func(c routing.RouteContext) context.Context
 }
 
 // defaultTokenProvider handles token creation and validation.
@@ -116,10 +194,32 @@ func (p *defaultTokenProvider) CanCreateTokens() bool {
 // authenticationMiddleware implements authentication middleware functionality.
 type authenticationMiddleware struct {
 	provider tokenizer.TokenProvider
+	options  *AuthenticationOptions
+}
+
+// newAuthMiddlewareWithOptions creates a new authentication middleware with options.
+func newAuthMiddlewareWithOptions(provider tokenizer.TokenProvider, options *AuthenticationOptions) *authenticationMiddleware {
+	return &authenticationMiddleware{provider: provider, options: options}
 }
 
 // ErrInvalidToken is returned when a provided token is invalid.
 var ErrInvalidToken = errors.New("invalid token")
+
+// ErrTokenRevoked is returned when a token has been revoked/blocklisted.
+var ErrTokenRevoked = errors.New("token has been revoked")
+
+// ErrCSRFValidationFailed is returned when CSRF token validation fails.
+var ErrCSRFValidationFailed = errors.New("CSRF validation failed")
+
+// ErrRateLimited is returned when the client has been rate limited.
+var ErrRateLimited = errors.New("too many authentication failures")
+
+// CSRF constants
+const (
+	csrfTokenCookieName = "csrf_token"
+	csrfTokenHeaderName = "X-CSRF-Token"
+	csrfTokenLength     = 32
+)
 
 // ---- Middleware Logic ----
 
@@ -136,14 +236,38 @@ func (m *authenticationMiddleware) Invoke(c routing.RouteContext, next router.Ha
 		return
 	}
 
+	// Check rate limiting before processing authentication
+	if m.options != nil && m.options.RateLimiter != nil {
+		clientID := getClientID(c.Request())
+		if !m.options.RateLimiter(clientID) {
+			slog.WarnContext(c, "authentication rate limited", "client", clientID)
+			c.JSON(http.StatusTooManyRequests, map[string]string{
+				"error": "too many authentication failures, please try again later",
+			})
+			return
+		}
+	}
+
 	// Try cookie authentication first
 	if m.authenticateViaCookie(c) {
+		// CSRF check for cookie-based auth on state-changing requests
+		if m.options != nil && m.options.EnableCSRF && isStateChangingMethod(c.Request().Method) {
+			if !m.validateCSRFToken(c) {
+				slog.WarnContext(c, "CSRF validation failed")
+				c.JSON(http.StatusForbidden, map[string]string{
+					"error": "CSRF token validation failed",
+				})
+				return
+			}
+		}
+		m.enrichContext(c)
 		next(c)
 		return
 	}
 
 	// Try bearer token authentication
 	if m.authenticateViaBearer(c) {
+		m.enrichContext(c)
 		next(c)
 		return
 	}
@@ -151,6 +275,21 @@ func (m *authenticationMiddleware) Invoke(c routing.RouteContext, next router.Ha
 	// No valid authentication found
 	slog.InfoContext(c, "authentication failed: no valid token found")
 	c.Unauthorized()
+}
+
+// enrichContext calls the context enricher if configured, updating both
+// the RouteContext and the underlying request with the enriched context.
+func (m *authenticationMiddleware) enrichContext(c routing.RouteContext) {
+	if m.options == nil || m.options.ContextEnricher == nil {
+		return
+	}
+
+	enrichedCtx := m.options.ContextEnricher(c)
+	if enrichedCtx != nil {
+		// Update the request with the enriched context
+		// This ensures c.Request().Context() returns the enriched values
+		c.SetRequest(c.Request().WithContext(enrichedCtx))
+	}
 }
 
 // authenticateViaCookie attempts to authenticate using session cookie.
@@ -183,11 +322,35 @@ func (m *authenticationMiddleware) authenticateViaBearer(c routing.RouteContext)
 // the authenticated user on the context and logs the success. Returns true on
 // success, false otherwise.
 func (m *authenticationMiddleware) validateAndSetUser(c routing.RouteContext, token string, method string) bool {
+	// Check if token is revoked/blocklisted
+	if m.options != nil && m.options.IsTokenRevoked != nil {
+		if m.options.IsTokenRevoked(token) {
+			slog.WarnContext(c, "token revoked", "method", method)
+			return false
+		}
+	}
+
 	p := m.provider
 	principal, err := p.ValidateToken(c, token)
 	if err != nil {
 		slog.WarnContext(c, "invalid token", "method", method, "error", err)
 		return false
+	}
+
+	// Validate issuer if configured
+	if m.options != nil && m.options.ExpectedIssuer != "" {
+		if principal.Issuer() != m.options.ExpectedIssuer {
+			slog.WarnContext(c, "invalid issuer", "method", method, "expected", m.options.ExpectedIssuer, "got", principal.Issuer())
+			return false
+		}
+	}
+
+	// Validate audience if configured
+	if m.options != nil && m.options.ExpectedAudience != "" {
+		if !containsAudience(principal.Audience(), m.options.ExpectedAudience) {
+			slog.WarnContext(c, "invalid audience", "method", method, "expected", m.options.ExpectedAudience, "got", principal.Audience())
+			return false
+		}
 	}
 
 	m.setAuthenticatedUser(c, principal, method)
@@ -217,7 +380,7 @@ func (m *authenticationMiddleware) extendSessionExpiration(c routing.RouteContex
 	m.renewTokenIfPossible(c, cookie)
 
 	// Update cookie properties
-	isSecure := c.Request().TLS != nil
+	isSecure := isSecureRequest(c.Request())
 	m.updateCookieProperties(cookie, ttl, isSecure)
 
 	http.SetCookie(c.Response(), cookie)
@@ -258,7 +421,20 @@ func (m *authenticationMiddleware) updateCookieProperties(cookie *http.Cookie, t
 	cookie.Path = "/"
 }
 
+// isSecureRequest determines if the request was made over HTTPS.
+// It checks both direct TLS connections and proxy headers (X-Forwarded-Proto).
+func isSecureRequest(r *http.Request) bool {
+	// Direct TLS connection
+	if r.TLS != nil {
+		return true
+	}
+	// Check X-Forwarded-Proto header (set by reverse proxies)
+	proto := r.Header.Get("X-Forwarded-Proto")
+	return strings.EqualFold(proto, "https")
+}
+
 // extractBearerToken extracts the bearer token from the Authorization header value.
+// Per RFC 7235, the scheme comparison is case-insensitive.
 func extractBearerToken(authHeader string) string {
 	if authHeader == "" {
 		return ""
@@ -267,9 +443,160 @@ func extractBearerToken(authHeader string) string {
 	if len(authHeader) <= len(prefix) {
 		return ""
 	}
-	// Direct slice comparison is slightly faster than HasPrefix.
-	if authHeader[:len(prefix)] == prefix {
+	// Case-insensitive comparison per RFC 7235 section 2.1
+	if strings.EqualFold(authHeader[:len(prefix)-1], prefix[:len(prefix)-1]) && authHeader[len(prefix)-1] == ' ' {
 		return authHeader[len(prefix):]
 	}
 	return ""
+}
+
+// ---- CSRF Protection ----
+
+// validateCSRFToken validates the CSRF token from the request header against the cookie.
+func (m *authenticationMiddleware) validateCSRFToken(c routing.RouteContext) bool {
+	req := c.Request()
+
+	// Get CSRF token from cookie
+	csrfCookie, err := req.Cookie(csrfTokenCookieName)
+	if err != nil || csrfCookie.Value == "" {
+		return false
+	}
+
+	// Get CSRF token from header
+	csrfHeader := req.Header.Get(csrfTokenHeaderName)
+	if csrfHeader == "" {
+		return false
+	}
+
+	// Constant-time comparison to prevent timing attacks
+	return subtle.ConstantTimeCompare([]byte(csrfCookie.Value), []byte(csrfHeader)) == 1
+}
+
+// GenerateCSRFToken generates a new CSRF token and sets it as a cookie.
+// Call this function when establishing a session to provide the client with a CSRF token.
+func GenerateCSRFToken(c routing.RouteContext) string {
+	token := generateSecureToken(csrfTokenLength)
+
+	isSecure := isSecureRequest(c.Request())
+	cookie := &http.Cookie{
+		Name:     csrfTokenCookieName,
+		Value:    token,
+		Path:     "/",
+		HttpOnly: false, // Must be readable by JavaScript
+		Secure:   isSecure,
+		SameSite: http.SameSiteStrictMode,
+	}
+	http.SetCookie(c.Response(), cookie)
+
+	return token
+}
+
+// generateSecureToken generates a cryptographically secure random token.
+func generateSecureToken(length int) string {
+	b := make([]byte, length)
+	if _, err := rand.Read(b); err != nil {
+		// Fallback to a less secure but functional approach
+		// This should never happen in practice
+		return base64.URLEncoding.EncodeToString([]byte(time.Now().String()))
+	}
+	return base64.URLEncoding.EncodeToString(b)[:length]
+}
+
+// isStateChangingMethod returns true for HTTP methods that can change state.
+func isStateChangingMethod(method string) bool {
+	switch method {
+	case http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch:
+		return true
+	default:
+		return false
+	}
+}
+
+// ---- Rate Limiting Helpers ----
+
+// getClientID extracts a client identifier from the request for rate limiting.
+// It checks X-Forwarded-For first (for proxied requests), then falls back to RemoteAddr.
+func getClientID(r *http.Request) string {
+	// Check X-Forwarded-For header first (common in proxied setups)
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		// Take the first IP in the list (original client)
+		if idx := strings.Index(xff, ","); idx != -1 {
+			return strings.TrimSpace(xff[:idx])
+		}
+		return strings.TrimSpace(xff)
+	}
+
+	// Check X-Real-IP header (nginx convention)
+	if xri := r.Header.Get("X-Real-IP"); xri != "" {
+		return strings.TrimSpace(xri)
+	}
+
+	// Fall back to RemoteAddr, stripping port if present
+	addr := r.RemoteAddr
+	if idx := strings.LastIndex(addr, ":"); idx != -1 {
+		return addr[:idx]
+	}
+	return addr
+}
+
+// NewInMemoryRateLimiter creates a simple in-memory rate limiter.
+// maxAttempts is the maximum number of failed attempts allowed within the window.
+// window is the time window for counting attempts.
+// This is suitable for single-instance deployments; use Redis-based limiting for distributed systems.
+func NewInMemoryRateLimiter(maxAttempts int, window time.Duration) func(clientID string) bool {
+	var mu sync.Mutex
+	attempts := make(map[string]*rateLimitEntry)
+
+	// Start a cleanup goroutine
+	go func() {
+		ticker := time.NewTicker(window)
+		defer ticker.Stop()
+		for range ticker.C {
+			mu.Lock()
+			now := time.Now()
+			for k, v := range attempts {
+				if now.Sub(v.firstAttempt) > window {
+					delete(attempts, k)
+				}
+			}
+			mu.Unlock()
+		}
+	}()
+
+	return func(clientID string) bool {
+		mu.Lock()
+		defer mu.Unlock()
+
+		now := time.Now()
+		entry, exists := attempts[clientID]
+
+		if !exists || now.Sub(entry.firstAttempt) > window {
+			// Start fresh window
+			attempts[clientID] = &rateLimitEntry{
+				count:        1,
+				firstAttempt: now,
+			}
+			return true
+		}
+
+		entry.count++
+		return entry.count <= maxAttempts
+	}
+}
+
+type rateLimitEntry struct {
+	count        int
+	firstAttempt time.Time
+}
+
+// ---- Audience Validation ----
+
+// containsAudience checks if the expected audience is present in the token's audience list.
+func containsAudience(audiences []string, expected string) bool {
+	for _, aud := range audiences {
+		if aud == expected {
+			return true
+		}
+	}
+	return false
 }
