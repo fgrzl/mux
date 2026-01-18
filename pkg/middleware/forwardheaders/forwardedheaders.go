@@ -47,12 +47,22 @@ func WithRespectForwarded(respect bool) ForwardHeadersOption {
 
 // ForwardHeadersOptions controls how forwarded headers are interpreted.
 //
-// Security note: trusting forwarded headers from untrusted sources allows
-// clients to spoof their origin. Prefer specifying TrustedProxies.
+// SECURITY WARNING: Trusting forwarded headers from untrusted sources allows
+// clients to spoof their origin IP address and protocol. This can be exploited
+// to bypass IP-based access controls, rate limiting, and audit logging.
+//
+// RECOMMENDED CONFIGURATION:
+//   - Always specify TrustedProxies with the CIDR ranges of your reverse proxies
+//   - Only use TrustAll in development or when behind a trusted proxy that strips
+//     untrusted forwarded headers before they reach your application
+//
+// Example secure configuration:
+//
+//	UseForwardedHeaders(rtr, WithTrustedProxies("10.0.0.0/8", "172.16.0.0/12"))
 type ForwardHeadersOptions struct {
 	// TrustAll accepts forwarded headers from any remote address.
 	// Default true to preserve backward compatibility with previous behavior.
-	// WARNING: Insecure - only use in development or behind trusted proxy.
+	// SECURITY WARNING: This is insecure in production. Use WithTrustedProxies instead.
 	TrustAll bool
 	// TrustedProxies is a list of CIDR ranges or IPs whose forwarded headers are trusted.
 	// Only used when TrustAll == false.
@@ -370,11 +380,21 @@ func determineClientIPFromHeaders(m *forwardedHeadersMiddleware, r *http.Request
 }
 
 // UseForwardedHeaders adds middleware that processes forwarded headers with the given options.
-// By default, TrustAll is enabled for backward compatibility. For security, use
-// WithTrustedProxies to specify which proxies to trust.
+//
+// SECURITY WARNING: By default, TrustAll is enabled for backward compatibility, which means
+// forwarded headers are accepted from ANY source. This is insecure in production environments
+// as it allows clients to spoof their IP address and protocol.
+//
+// For production use, always specify trusted proxy ranges:
+//
+//	// Secure: only trust headers from specific proxy ranges
+//	UseForwardedHeaders(rtr, WithTrustedProxies("10.0.0.0/8", "172.16.0.0/12"))
+//
+//	// Insecure: trust headers from any source (only for development/testing)
+//	UseForwardedHeaders(rtr, WithTrustAll())
 func UseForwardedHeaders(rtr *router.Router, opts ...ForwardHeadersOption) {
 	options := &ForwardHeadersOptions{
-		TrustAll:         true, // default for backward compatibility
+		TrustAll:         true, // default for backward compatibility - SECURITY: consider using WithTrustedProxies
 		RespectForwarded: true,
 	}
 	for _, opt := range opts {

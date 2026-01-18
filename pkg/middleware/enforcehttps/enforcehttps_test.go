@@ -1,6 +1,7 @@
 package enforcehttps
 
 import (
+	"crypto/tls"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -25,6 +26,22 @@ func newCtx(method, urlStr string) (routing.RouteContext, *httptest.ResponseReco
 	return routing.NewRouteContext(rec, req), rec
 }
 
+// newCtxWithTLS creates a routing context simulating a TLS connection.
+func newCtxWithTLS(method, urlStr string) (routing.RouteContext, *httptest.ResponseRecorder) {
+	req := httptest.NewRequest(method, urlStr, nil)
+	req.TLS = &tls.ConnectionState{} // Simulate TLS connection
+	rec := httptest.NewRecorder()
+	return routing.NewRouteContext(rec, req), rec
+}
+
+// newCtxWithHeader creates a routing context with a specific header.
+func newCtxWithHeader(method, urlStr, headerKey, headerVal string) (routing.RouteContext, *httptest.ResponseRecorder) {
+	req := httptest.NewRequest(method, urlStr, nil)
+	req.Header.Set(headerKey, headerVal)
+	rec := httptest.NewRecorder()
+	return routing.NewRouteContext(rec, req), rec
+}
+
 func TestShouldRedirectHTTPToHTTPS(t *testing.T) {
 	// Arrange
 	middleware := &enforceHTTPSMiddleware{}
@@ -42,10 +59,10 @@ func TestShouldRedirectHTTPToHTTPS(t *testing.T) {
 	assert.Equal(t, testBaseURL, rec.Header().Get(common.HeaderLocation))
 }
 
-func TestShouldAllowHTTPSRequests(t *testing.T) {
+func TestShouldAllowHTTPSRequestsViaTLS(t *testing.T) {
 	// Arrange
 	middleware := &enforceHTTPSMiddleware{}
-	ctx, rec := newCtx(http.MethodGet, testHTTPSURL)
+	ctx, rec := newCtxWithTLS(http.MethodGet, testHTTPURL) // URL says http but TLS is set
 
 	nextCalled := false
 	next := func(c routing.RouteContext) { nextCalled = true }
@@ -54,8 +71,56 @@ func TestShouldAllowHTTPSRequests(t *testing.T) {
 	middleware.Invoke(ctx, next)
 
 	// Assert
-	assert.True(t, nextCalled, "next handler should be called for HTTPS requests")
+	assert.True(t, nextCalled, "next handler should be called for TLS connections")
 	assert.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestShouldAllowHTTPSViaXForwardedProto(t *testing.T) {
+	// Arrange
+	middleware := &enforceHTTPSMiddleware{}
+	ctx, rec := newCtxWithHeader(http.MethodGet, testHTTPURL, "X-Forwarded-Proto", "https")
+
+	nextCalled := false
+	next := func(c routing.RouteContext) { nextCalled = true }
+
+	// Act
+	middleware.Invoke(ctx, next)
+
+	// Assert
+	assert.True(t, nextCalled, "next handler should be called when X-Forwarded-Proto is https")
+	assert.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestShouldAllowHTTPSViaForwardedHeader(t *testing.T) {
+	// Arrange
+	middleware := &enforceHTTPSMiddleware{}
+	ctx, rec := newCtxWithHeader(http.MethodGet, testHTTPURL, "Forwarded", "for=192.0.2.60;proto=https;by=203.0.113.43")
+
+	nextCalled := false
+	next := func(c routing.RouteContext) { nextCalled = true }
+
+	// Act
+	middleware.Invoke(ctx, next)
+
+	// Assert
+	assert.True(t, nextCalled, "next handler should be called when Forwarded header has proto=https")
+	assert.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestShouldRedirectWhenXForwardedProtoIsHTTP(t *testing.T) {
+	// Arrange
+	middleware := &enforceHTTPSMiddleware{}
+	ctx, rec := newCtxWithHeader(http.MethodGet, testHTTPURL, "X-Forwarded-Proto", "http")
+
+	nextCalled := false
+	next := func(c routing.RouteContext) { nextCalled = true }
+
+	// Act
+	middleware.Invoke(ctx, next)
+
+	// Assert
+	assert.False(t, nextCalled, "next handler should not be called for HTTP")
+	assert.Equal(t, http.StatusMovedPermanently, rec.Code)
 }
 
 func TestShouldAddEnforceHTTPSMiddlewareToRouter(t *testing.T) {

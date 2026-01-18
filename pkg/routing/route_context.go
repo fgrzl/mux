@@ -30,7 +30,19 @@ type RouteParams map[string]string
 // request/response objects, user authentication, route parameters, and services.
 // RouteContext provides a comprehensive interface for HTTP request and response handling in mux.
 // It exposes methods for accessing route parameters, queries, headers, cookies, forms, and user authentication.
-// RouteContext is designed to be used per-request and is safe for concurrent use by multiple goroutines.
+//
+// THREAD SAFETY: RouteContext instances are NOT safe for concurrent use by multiple goroutines.
+// Each RouteContext is bound to a single request lifecycle and may be pooled for reuse.
+// If you need to use the context in a goroutine that may outlive the request handler,
+// use the Detach() function to create a safe copy:
+//
+//	go func(ctx *routing.DefaultRouteContext) {
+//	    // Safe to use ctx here
+//	}(routing.Detach(c))
+//
+// WARNING: After the request handler returns, the original RouteContext may be recycled.
+// Accessing it after this point leads to undefined behavior. Always use Detach() for
+// background work.
 //
 // Typical usage includes extracting parameters, binding request data, managing authentication, and sending responses.
 //
@@ -277,6 +289,7 @@ func AcquireContext(w http.ResponseWriter, r *http.Request) *DefaultRouteContext
 	c.formsParsed = false
 	c.paramIndex = nil
 	c.maxBodyBytes = 0
+	c.bodyLimitApplied = false
 	// Acquire paramsSlice from pool for optimized parameter storage
 	c.paramsSlice = AcquireParams()
 	// Mark as pooled so ReleaseContext knows to return it
@@ -305,6 +318,7 @@ func ReleaseContext(c *DefaultRouteContext) {
 	c.formsParsed = false
 	c.paramIndex = nil
 	c.maxBodyBytes = 0
+	c.bodyLimitApplied = false
 	// Only return to the pool if this instance was obtained from it.
 	if c.wasPooled {
 		// reset the flag to avoid double-put if ReleaseContext is called
@@ -374,6 +388,8 @@ type DefaultRouteContext struct {
 	paramIndex map[string]*openapi.ParameterObject
 	// maxBodyBytes limits body size for bind operations. 0 means default (1MB).
 	maxBodyBytes int64
+	// bodyLimitApplied tracks whether MaxBytesReader has been applied to prevent double-wrapping.
+	bodyLimitApplied bool
 }
 
 func (c *DefaultRouteContext) Response() http.ResponseWriter {
@@ -623,12 +639,16 @@ func (c *DefaultRouteContext) collectQueryParams(staging map[string]any) error {
 }
 
 func (c *DefaultRouteContext) collectBodyData(staging map[string]any) error {
-	// Determine max body size: router option or default 1MB
-	maxBytes := c.maxBodyBytes
-	if maxBytes <= 0 {
-		maxBytes = 1 << 20 // 1MB default
+	// Apply MaxBytesReader only once to prevent double-wrapping which can cause
+	// the effective limit to be applied multiple times incorrectly.
+	if !c.bodyLimitApplied {
+		maxBytes := c.maxBodyBytes
+		if maxBytes <= 0 {
+			maxBytes = 1 << 20 // 1MB default
+		}
+		c.request.Body = http.MaxBytesReader(c.Response(), c.request.Body, maxBytes)
+		c.bodyLimitApplied = true
 	}
-	c.request.Body = http.MaxBytesReader(c.Response(), c.request.Body, maxBytes)
 	ct := c.request.Header.Get(common.HeaderContentType)
 	switch {
 	case ct == common.MimeFormURLEncoded:

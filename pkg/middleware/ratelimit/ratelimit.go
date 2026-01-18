@@ -1,6 +1,7 @@
 package ratelimit
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"sync"
@@ -15,6 +16,8 @@ type SelectiveRateLimiter struct {
 	mu            sync.Mutex
 	visitors      map[string]*visitor
 	cleanupTicker time.Duration
+	stopCleanup   chan struct{}
+	cleanupDone   chan struct{}
 }
 
 type visitor struct {
@@ -57,9 +60,35 @@ func NewSelectiveRateLimiter(opts ...RateLimiterOption) *SelectiveRateLimiter {
 	rl := &SelectiveRateLimiter{
 		visitors:      make(map[string]*visitor),
 		cleanupTicker: config.CleanupInterval,
+		stopCleanup:   make(chan struct{}),
+		cleanupDone:   make(chan struct{}),
 	}
 	go rl.cleanupExpiredVisitors()
 	return rl
+}
+
+// NewSelectiveRateLimiterWithContext constructs a SelectiveRateLimiter that stops its cleanup
+// goroutine when the provided context is cancelled. Use this for proper resource cleanup.
+func NewSelectiveRateLimiterWithContext(ctx context.Context, opts ...RateLimiterOption) *SelectiveRateLimiter {
+	rl := NewSelectiveRateLimiter(opts...)
+	go func() {
+		<-ctx.Done()
+		rl.Stop()
+	}()
+	return rl
+}
+
+// Stop gracefully shuts down the cleanup goroutine. It is safe to call multiple times.
+// This should be called when the rate limiter is no longer needed to prevent goroutine leaks.
+func (m *SelectiveRateLimiter) Stop() {
+	select {
+	case <-m.stopCleanup:
+		// Already stopped
+		return
+	default:
+		close(m.stopCleanup)
+		<-m.cleanupDone
+	}
 }
 
 // ---- Middleware ----
@@ -136,15 +165,22 @@ func (m *SelectiveRateLimiter) getVisitor(ip, key string, limit int, interval ti
 }
 
 func (m *SelectiveRateLimiter) cleanupExpiredVisitors() {
+	defer close(m.cleanupDone)
 	ticker := time.NewTicker(5 * time.Minute)
-	for range ticker.C {
-		now := time.Now()
-		m.mu.Lock()
-		for key, v := range m.visitors {
-			if now.Sub(v.lastAccess) > m.cleanupTicker {
-				delete(m.visitors, key)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-m.stopCleanup:
+			return
+		case <-ticker.C:
+			now := time.Now()
+			m.mu.Lock()
+			for key, v := range m.visitors {
+				if now.Sub(v.lastAccess) > m.cleanupTicker {
+					delete(m.visitors, key)
+				}
 			}
+			m.mu.Unlock()
 		}
-		m.mu.Unlock()
 	}
 }

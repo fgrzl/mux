@@ -113,6 +113,24 @@ type routeResolution struct {
 }
 
 // Use registers a middleware with the router.
+//
+// IMPORTANT: Use() must be called during application startup, before calling
+// http.ListenAndServe() or starting any concurrent request handling. The middleware
+// list is not protected by a mutex for performance reasons, so calling Use() while
+// the router is handling requests will cause data races and undefined behavior.
+//
+// Safe usage pattern:
+//
+//	rtr := router.NewRouter()
+//	rtr.Use(&myMiddleware{})    // OK: during startup
+//	rtr.GET("/api/users", ...)  // OK: during startup
+//	http.ListenAndServe(":8080", rtr) // Now serving requests
+//
+// Unsafe - DO NOT DO THIS:
+//
+//	go func() {
+//	    rtr.Use(&myMiddleware{}) // UNSAFE: concurrent modification!
+//	}()
 func (rtr *Router) Use(m Middleware) {
 	rtr.middleware = append(rtr.middleware, m)
 	// Compose the pipeline immediately and cache it so the first request

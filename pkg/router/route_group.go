@@ -16,6 +16,20 @@ import (
 // ---- RouteGroup ----
 
 // RouteGroup represents a group of routes with shared configuration and defaults.
+//
+// IMPORTANT: Route registration (GET, POST, PUT, DELETE, etc.) must be done during
+// application startup, before calling http.ListenAndServe() or starting any concurrent
+// request handling. The route registry is not protected by a mutex for performance
+// reasons, so registering routes while the router is handling requests will cause
+// data races and undefined behavior.
+//
+// Safe usage pattern:
+//
+//	rtr := router.NewRouter()
+//	api := rtr.NewRouteGroup("/api/v1")
+//	api.GET("/users", listUsers)    // OK: during startup
+//	api.POST("/users", createUser)  // OK: during startup
+//	http.ListenAndServe(":8080", rtr) // Now serving requests
 type RouteGroup struct {
 	prefix        string
 	routeRegistry *registry.RouteRegistry

@@ -3,7 +3,40 @@
 [![CI](https://github.com/fgrzl/mux/actions/workflows/ci.yaml/badge.svg)](https://github.com/fgrzl/mux/actions/workflows/ci.yaml)
 [![Dependabot](https://github.com/fgrzl/mux/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/fgrzl/mux/actions/workflows/dependabot/dependabot-updates)
 
-HTTP router for Go with an OpenAPI 3.1 documentation DSL.
+## What Mux is ⚙️
+
+**Mux** is an OpenAPI‑native HTTP framework for Go that treats routes as first‑class, schema‑backed API operations. It unifies routing, middleware, request binding, response helpers, structured error handling, OpenAPI generation, and server lifecycle into a single, explicit model designed for correctness and maintainability.
+
+## Design philosophy 🔧
+
+- **Feature‑first, not performance‑first.** Design choices prioritize clear behavior and correctness over micro‑optimizations.
+- **Explicit behavior over magic.** Routing, validation, errors, and lifecycle hooks are declared and observable.
+- **Correctness by construction.** Schemas and bindings are part of route declarations to reduce invalid states.
+- **Production‑ready defaults.** Sensible defaults (validation, structured errors, graceful shutdown) work out of the box and are easy to override.
+- **One coherent mental model.** Routes are API operations; middleware, binding, and OpenAPI are aspects of the same operation.
+
+## Core capabilities ✅
+
+- **Routing** — Routes are declared as operations with explicit parameters, methods, and response contracts so behavior is traceable and testable.
+- **Middleware** — Clear ordering and propagation semantics: registration order determines execution; failures and short‑circuits are explicit and composable without hidden global state.
+- **Request binding** — Schema‑aware binding for path, query, header, and body inputs; validation failures produce deterministic, testable, structured errors.
+- **Response helpers** — Helpers produce consistent response shapes and content types tied to declared response schemas.
+- **Error handling** — Structured, intentional error responses with replaceable default handlers and explicit propagation.
+- **OpenAPI generation** — The OpenAPI document is produced as routes are defined; route declarations feed parameter, request, and response schemas directly into the generated spec.
+- **Server lifecycle** — Explicit hooks and sensible defaults for startup, graceful shutdown, TLS configuration, and health checks.
+
+## Why this matters together 🎯
+
+When routing, middleware, binding, error handling, and OpenAPI generation share one explicit model, practical benefits follow:
+
+- **Reduced drift.** Documentation, validation, and runtime behavior come from the same declarations so docs stay in sync with code.
+- **Predictability and debuggability.** Deterministic middleware order and structured errors make failure modes obvious and traceable.
+- **Testability.** Schema‑aware binding and consistent error responses make unit and integration tests straightforward.
+- **Safe composition.** Features compose without hidden state or side effects, enabling teams to add middleware and helpers safely.
+
+## Who Mux is for 💡
+
+Mux is aimed at engineering teams that build schema‑driven HTTP APIs and value explicitness, correctness, and maintainability. It is a fit for services where clear contracts, reproducible behavior, and reliable documentation are priorities.
 
 ## Install
 

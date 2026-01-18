@@ -491,8 +491,12 @@ func GenerateCSRFToken(c routing.RouteContext) string {
 func generateSecureToken(length int) string {
 	b := make([]byte, length)
 	if _, err := rand.Read(b); err != nil {
-		// Fallback to a less secure but functional approach
-		// This should never happen in practice
+		// SECURITY WARNING: Falling back to weak token generation.
+		// This should never happen in practice, but if it does, the generated
+		// token will be predictable and should not be relied upon for security.
+		slog.Error("crypto/rand failed, falling back to weak CSRF token generation",
+			"error", err,
+			"warning", "CSRF tokens may be predictable - investigate system entropy source")
 		return base64.URLEncoding.EncodeToString([]byte(time.Now().String()))
 	}
 	return base64.URLEncoding.EncodeToString(b)[:length]

@@ -168,13 +168,27 @@ func (c *DefaultRouteContext) Download(filePath, filename string) {
 	}
 	defer f.Close()
 
-	c.Response().Header().Set(common.HeaderContentDisposition, fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	c.Response().Header().Set(common.HeaderContentDisposition, buildContentDisposition(filename))
 	c.Response().Header().Set(common.HeaderContentType, common.MimeOctetStream)
 	c.Response().WriteHeader(http.StatusOK)
 	if _, err := io.Copy(c.Response(), f); err != nil {
 		// Log copy errors; response headers/body were already sent so best-effort logging is appropriate
 		slog.Error("failed to copy file to response", "err", err, "file", filePath)
 	}
+}
+
+// buildContentDisposition constructs a safe Content-Disposition header value per RFC 6266.
+// It escapes special characters and removes control characters to prevent header injection.
+func buildContentDisposition(filename string) string {
+	// Remove any CR/LF characters that could cause header injection
+	filename = strings.ReplaceAll(filename, "\r", "")
+	filename = strings.ReplaceAll(filename, "\n", "")
+
+	// Escape backslashes and quotes for the quoted-string syntax (RFC 2616 section 2.2)
+	filename = strings.ReplaceAll(filename, "\\", "\\\\")
+	filename = strings.ReplaceAll(filename, "\"", "\\\"")
+
+	return fmt.Sprintf("attachment; filename=\"%s\"", filename)
 }
 
 // Redirect issues a redirect with custom status code.
