@@ -84,8 +84,13 @@ func TestShouldConfigureServerWithTLSDiscovery(t *testing.T) {
 
 	// Assert
 	assert.NotNil(t, server)
-	assert.Equal(t, certFile, server.certFile)
-	assert.Equal(t, keyFile, server.keyFile)
+	resolvedCertFile, _ := filepath.EvalSymlinks(certFile)
+	resolvedServerCertFile, _ := filepath.EvalSymlinks(server.certFile)
+	assert.Equal(t, resolvedCertFile, resolvedServerCertFile)
+
+	resolvedKeyFile, _ := filepath.EvalSymlinks(keyFile)
+	resolvedServerKeyFile, _ := filepath.EvalSymlinks(server.keyFile)
+	assert.Equal(t, resolvedKeyFile, resolvedServerKeyFile)
 }
 
 func TestShouldHandleTLSDiscoveryWhenCertsDirNotFound(t *testing.T) {
