@@ -9,29 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fgrzl/mux"
 	"github.com/fgrzl/mux/pkg/common"
 	"github.com/fgrzl/mux/test/testsupport"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func mockServerHandler() *mux.Router {
-	r := mux.NewRouter()
-
-	// Add middleware
-	// r.UseLogging(&mux.LoggingOptions{})
-	// r.UseCompression(&mux.CompressionOptions{})
-	// r.UseAuthentication(&mux.AuthenticationOptions{})
-	// r.UseAuthorization(&mux.AuthorizationOptions{})
-
-	// break up your routes
-
-	testsupport.ConfigureRoutes(r)
-
-	return r
-}
 
 // Test GET /api/v1/resources/
 func TestShouldReturnResourcesWhenRequestIsValid(t *testing.T) {
