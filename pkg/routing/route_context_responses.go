@@ -69,11 +69,20 @@ func (c *DefaultRouteContext) Problem(problem *ProblemDetails) {
 	if problem.Status == 0 {
 		problem.Status = http.StatusInternalServerError
 	}
-	slog.Warn("problem response",
-		slog.Int("status", problem.Status),
-		slog.String("title", problem.Title),
-		slog.String("detail", problem.Detail),
-	)
+	// Log at Error level for server errors (5xx); use Debug for client errors (4xx)
+	if problem.Status >= 500 {
+		slog.Error("problem response",
+			slog.Int("status", problem.Status),
+			slog.String("title", problem.Title),
+			slog.String("detail", problem.Detail),
+		)
+	} else {
+		slog.Debug("problem response",
+			slog.Int("status", problem.Status),
+			slog.String("title", problem.Title),
+			slog.String("detail", problem.Detail),
+		)
+	}
 	c.Response().Header().Set(common.HeaderContentType, common.MimeProblemJSON)
 	c.Response().WriteHeader(problem.Status)
 	if err := json.NewEncoder(c.Response()).Encode(problem); err != nil {
