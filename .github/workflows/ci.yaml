@@ -9,6 +9,8 @@ on:
     branches:
       - main
       - develop
+  schedule:
+    - cron: "0 0 * * *"
 
 permissions:
   contents: read
@@ -17,9 +19,16 @@ permissions:
 
 jobs:
   BuildAndTest:
-    name: Build and Test
-    runs-on: ubuntu-latest
+    name: Build and Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
 
     steps:
       - name: Checkout Repository
@@ -40,7 +49,4 @@ jobs:
         run: go build ./...
 
       - name: Run Tests
-        run: go test ./... -v -coverprofile=coverage.out
-
-      - name: Workflow Cleanup
-        uses: fgrzl/actions/workflow-cleanup@v0.0.6
+        run: go test ./... -v
