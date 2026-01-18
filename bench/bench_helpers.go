@@ -28,12 +28,6 @@ func readAndClose(resp *http.Response) error {
 	return err
 }
 
-// drainBody reads and discards the response body, returning bytes read.
-func drainBody(resp *http.Response) (int64, error) {
-	defer resp.Body.Close()
-	return io.Copy(io.Discard, resp.Body)
-}
-
 // benchClient is an HTTP client optimized for benchmarking with connection pooling.
 var benchClient = &http.Client{
 	Timeout: 30 * time.Second,

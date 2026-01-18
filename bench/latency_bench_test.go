@@ -45,11 +45,11 @@ func BenchmarkLatencyDistribution(b *testing.B) {
 		p99 := latencies[int(float64(samples)*0.99)]
 		pMax := latencies[samples-1]
 
-		b.ReportMetric(float64(p50.Microseconds()), "p50_µs")
-		b.ReportMetric(float64(p90.Microseconds()), "p90_µs")
-		b.ReportMetric(float64(p95.Microseconds()), "p95_µs")
-		b.ReportMetric(float64(p99.Microseconds()), "p99_µs")
-		b.ReportMetric(float64(pMax.Microseconds()), "max_µs")
+		b.ReportMetric(float64(p50.Microseconds()), fmt.Sprintf("%s_p50_µs", name))
+		b.ReportMetric(float64(p90.Microseconds()), fmt.Sprintf("%s_p90_µs", name))
+		b.ReportMetric(float64(p95.Microseconds()), fmt.Sprintf("%s_p95_µs", name))
+		b.ReportMetric(float64(p99.Microseconds()), fmt.Sprintf("%s_p99_µs", name))
+		b.ReportMetric(float64(pMax.Microseconds()), fmt.Sprintf("%s_max_µs", name))
 	}
 
 	b.Run("GET/Resource", func(b *testing.B) {
