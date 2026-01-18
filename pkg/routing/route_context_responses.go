@@ -85,8 +85,13 @@ func (c *DefaultRouteContext) Problem(problem *ProblemDetails) {
 	}
 	c.Response().Header().Set(common.HeaderContentType, common.MimeProblemJSON)
 	c.Response().WriteHeader(problem.Status)
-	if err := json.NewEncoder(c.Response()).Encode(problem); err != nil {
-		slog.Error("failed to encode problem response", "err", err)
+	b, err := json.Marshal(problem)
+	if err != nil {
+		slog.Error("failed to marshal problem response", "err", err)
+		return
+	}
+	if _, err := c.Response().Write(b); err != nil {
+		slog.Error("failed to write problem response", "err", err)
 	}
 }
 
@@ -99,8 +104,13 @@ func (c *DefaultRouteContext) OK(model any) {
 func (c *DefaultRouteContext) JSON(status int, model any) {
 	c.Response().Header().Set(common.HeaderContentType, common.MimeJSON)
 	c.Response().WriteHeader(status)
-	if err := json.NewEncoder(c.Response()).Encode(model); err != nil {
-		slog.Error("failed to encode json response", "err", err)
+	b, err := json.Marshal(model)
+	if err != nil {
+		slog.Error("failed to marshal json response", "err", err)
+		return
+	}
+	if _, err := c.Response().Write(b); err != nil {
+		slog.Error("failed to write json response", "err", err)
 	}
 }
 

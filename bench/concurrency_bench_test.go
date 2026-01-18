@@ -84,6 +84,8 @@ func BenchmarkConcurrency(b *testing.B) {
 	})
 
 	b.Run("MixedReadWrite/Parallel", func(b *testing.B) {
+		// Reset service to prevent data accumulation from prior sub-benchmarks
+		testsupport.Service.Reset()
 		var seq uint64
 		b.ReportAllocs()
 		b.ResetTimer()

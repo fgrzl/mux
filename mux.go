@@ -512,6 +512,10 @@ type RouterOption = router.RouterOption
 // router.WithClientURL.
 var WithClientURL = router.WithClientURL
 
+// WithContextPooling enables object pooling for RouteContext instances to reduce allocations.
+// Alias of router.WithContextPooling.
+var WithContextPooling = router.WithContextPooling
+
 // WithSummary sets the API summary on the underlying router. Alias of
 // router.WithSummary.
 var WithSummary = router.WithSummary

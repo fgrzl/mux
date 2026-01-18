@@ -53,6 +53,8 @@ func BenchmarkRegressionBaseline(b *testing.B) {
 	})
 
 	b.Run("ParallelRead", func(b *testing.B) {
+		// Reset service to prevent data accumulation from prior sub-benchmarks
+		testsupport.Service.Reset()
 		b.ReportAllocs()
 		b.ResetTimer()
 		b.RunParallel(func(pb *testing.PB) {

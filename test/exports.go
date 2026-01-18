@@ -11,7 +11,7 @@ func MockServerHandler() *mux.Router {
 }
 
 func mockServerHandler() *mux.Router {
-	r := mux.NewRouter()
+	r := mux.NewRouter(mux.WithContextPooling())
 
 	// Add middleware
 	// r.UseLogging(&mux.LoggingOptions{})
