@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"reflect"
 	"strings"
 
 	"github.com/fgrzl/mux/pkg/common"
@@ -104,6 +105,16 @@ func (c *DefaultRouteContext) OK(model any) {
 func (c *DefaultRouteContext) JSON(status int, model any) {
 	c.Response().Header().Set(common.HeaderContentType, common.MimeJSON)
 	c.Response().WriteHeader(status)
+
+	// For slices/arrays, try to use streaming to reduce allocations for large payloads
+	if isLargeArray(model) {
+		if err := streamJSON(c.Response(), model); err != nil {
+			slog.Error("failed to stream json response", "err", err)
+		}
+		return
+	}
+
+	// For small/typical payloads, use Marshal (more efficient)
 	b, err := json.Marshal(model)
 	if err != nil {
 		slog.Error("failed to marshal json response", "err", err)
@@ -112,6 +123,23 @@ func (c *DefaultRouteContext) JSON(status int, model any) {
 	if _, err := c.Response().Write(b); err != nil {
 		slog.Error("failed to write json response", "err", err)
 	}
+}
+
+// isLargeArray checks if a value is a slice with many elements.
+// Used to decide between streaming vs buffering.
+func isLargeArray(v any) bool {
+	// Use reflection to check if it's a slice with many items
+	rv := reflect.ValueOf(v)
+	if rv.Kind() != reflect.Slice {
+		return false
+	}
+	// Stream if more than 50 items to justify the overhead
+	return rv.Len() > 50
+}
+
+// streamJSON encodes a value as streaming JSON to reduce allocations for large arrays.
+func streamJSON(w http.ResponseWriter, v any) error {
+	return json.NewEncoder(w).Encode(v)
 }
 
 // Plain writes a plain text response.
