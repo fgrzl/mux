@@ -5,17 +5,13 @@
 
 **Mux** is an OpenAPI‑native HTTP framework for Go.
 
-## 60-second fit check
+## Is Mux a fit for you?
 
 Use **Mux** if you want:
+
 - **Schema-driven APIs** where routes, validation, and OpenAPI stay in sync
 - **Explicit behavior** (middleware order, errors, lifecycle) you can reason about and test
 - **Production defaults** like structured errors and graceful shutdown without extra glue
-
-Skip **Mux** if you want:
-- A minimal router with the smallest possible dependency surface
-- To treat OpenAPI as a separate, manually-maintained artifact
-- Micro-optimizations over explicit correctness and observability
 
 ## Install
 
