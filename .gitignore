@@ -29,3 +29,4 @@ build/
 *.old
 .DS_Store
 *.prof
+bench_results.txt
