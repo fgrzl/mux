@@ -26,6 +26,27 @@ type WebServer struct {
 	keyFile  string
 }
 
+// WithReadTimeout sets the maximum duration for reading the entire request.
+func WithReadTimeout(timeout time.Duration) WebServerOption {
+	return func(ws *WebServer) {
+		ws.srv.ReadTimeout = timeout
+	}
+}
+
+// WithWriteTimeout sets the maximum duration before timing out writes of the response.
+func WithWriteTimeout(timeout time.Duration) WebServerOption {
+	return func(ws *WebServer) {
+		ws.srv.WriteTimeout = timeout
+	}
+}
+
+// WithIdleTimeout sets the maximum amount of time to wait for the next request when keep-alives are enabled.
+func WithIdleTimeout(timeout time.Duration) WebServerOption {
+	return func(ws *WebServer) {
+		ws.srv.IdleTimeout = timeout
+	}
+}
+
 // WithTLS enables HTTPS for the WebServer using the provided certificate and key file paths.
 func WithTLS(certFile, keyFile string) WebServerOption {
 	return func(ws *WebServer) {
