@@ -1,10 +1,10 @@
 module github.com/fgrzl/mux
 
-go 1.25.0
+go 1.25.4
 
 require (
 	github.com/fgrzl/claims v0.0.1-alpha.22
-	github.com/fgrzl/json v0.1.0-alpha.62
+	github.com/fgrzl/json v1.0.0-alpha.5
 	github.com/gin-gonic/gin v1.11.0
 	github.com/go-chi/chi/v5 v5.2.4
 	github.com/go-faker/faker/v4 v4.7.0
