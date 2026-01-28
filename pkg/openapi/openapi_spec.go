@@ -232,7 +232,17 @@ type Schema struct {
 	Maximum              *float64           `json:"maximum,omitempty" yaml:"maximum,omitempty"`
 	AdditionalProperties *Schema            `json:"additionalProperties,omitempty" yaml:"additionalProperties,omitempty"`
 	Pattern              string             `json:"pattern,omitempty" yaml:"pattern,omitempty"`
+	OneOf                []*Schema          `json:"oneOf,omitempty" yaml:"oneOf,omitempty"`
+	AnyOf                []*Schema          `json:"anyOf,omitempty" yaml:"anyOf,omitempty"`
+	AllOf                []*Schema          `json:"allOf,omitempty" yaml:"allOf,omitempty"`
+	Discriminator        *Discriminator     `json:"discriminator,omitempty" yaml:"discriminator,omitempty"`
 	Extensions           map[string]any     `json:"-" yaml:"-,inline"`
+}
+
+// Discriminator provides metadata for polymorphic types.
+type Discriminator struct {
+	PropertyName string            `json:"propertyName" yaml:"propertyName"`
+	Mapping      map[string]string `json:"mapping,omitempty" yaml:"mapping,omitempty"`
 }
 
 type ComponentsObject struct {
