@@ -227,6 +227,24 @@ func (rb *RouteBuilder) WithJsonBody(example any) *RouteBuilder {
 	return rb.withBody(example, common.MimeJSON)
 }
 
+// WithOneOfJsonBody describes a JSON request body using oneOf for polymorphic types.
+// Pass example instances of each possible type as separate arguments.
+func (rb *RouteBuilder) WithOneOfJsonBody(examples ...any) *RouteBuilder {
+	return rb.withCompositeBody(examples, common.MimeJSON, "oneOf")
+}
+
+// WithAnyOfJsonBody describes a JSON request body using anyOf for polymorphic types.
+// Pass example instances of each possible type as separate arguments.
+func (rb *RouteBuilder) WithAnyOfJsonBody(examples ...any) *RouteBuilder {
+	return rb.withCompositeBody(examples, common.MimeJSON, "anyOf")
+}
+
+// WithAllOfJsonBody describes a JSON request body using allOf for composition.
+// Pass example instances of each schema to compose as separate arguments.
+func (rb *RouteBuilder) WithAllOfJsonBody(examples ...any) *RouteBuilder {
+	return rb.withCompositeBody(examples, common.MimeJSON, "allOf")
+}
+
 // WithFormBody describes an urlencoded form body.
 func (rb *RouteBuilder) WithFormBody(example any) *RouteBuilder {
 	return rb.withBody(example, "application/x-www-form-urlencoded")
@@ -253,6 +271,60 @@ func (rb *RouteBuilder) withBody(example any, ctype string) *RouteBuilder {
 	}
 	rb.Options.RequestBody = &openapi.RequestBodyObject{
 		Content:  map[string]*openapi.MediaType{ctype: {Schema: schema, Example: example}},
+		Required: true,
+	}
+	return rb
+}
+
+func (rb *RouteBuilder) withCompositeBody(examples []any, ctype string, compositionType string) *RouteBuilder {
+	method := rb.Options.Method
+	if method == http.MethodHead || method == http.MethodGet || method == http.MethodDelete {
+		panic(fmt.Sprintf("HTTP method %s does not support a request body", method))
+	}
+
+	if len(examples) == 0 {
+		return rb
+	}
+
+	schemas := make([]*openapi.Schema, 0, len(examples))
+	for _, example := range examples {
+		if example == nil {
+			continue
+		}
+		schema, err := QuickSchema(reflect.TypeOf(example))
+		if err != nil {
+			panic(err)
+		}
+		schemas = append(schemas, schema)
+	}
+
+	if len(schemas) == 0 {
+		return rb
+	}
+
+	compositeSchema := &openapi.Schema{}
+	switch compositionType {
+	case "oneOf":
+		compositeSchema.OneOf = schemas
+	case "anyOf":
+		compositeSchema.AnyOf = schemas
+	case "allOf":
+		compositeSchema.AllOf = schemas
+	default:
+		panic(fmt.Sprintf("unsupported composition type: %s", compositionType))
+	}
+
+	// Use the first non-nil example as the example value
+	var exampleValue any
+	for _, ex := range examples {
+		if ex != nil {
+			exampleValue = ex
+			break
+		}
+	}
+
+	rb.Options.RequestBody = &openapi.RequestBodyObject{
+		Content:  map[string]*openapi.MediaType{ctype: {Schema: compositeSchema, Example: exampleValue}},
 		Required: true,
 	}
 	return rb
