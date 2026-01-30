@@ -222,6 +222,7 @@ type Schema struct {
 	Ref                  string             `json:"$ref,omitempty" yaml:"$ref,omitempty"`
 	Type                 string             `json:"type,omitempty" yaml:"type,omitempty"`
 	Format               string             `json:"format,omitempty" yaml:"format,omitempty"`
+	Description          string             `json:"description,omitempty" yaml:"description,omitempty"`
 	Properties           map[string]*Schema `json:"properties,omitempty" yaml:"properties,omitempty"`
 	Items                *Schema            `json:"items,omitempty" yaml:"items,omitempty"`
 	Required             []string           `json:"required,omitempty" yaml:"required,omitempty"`

@@ -416,3 +416,125 @@ func TestShouldHandleComplexOpenAPISpec(t *testing.T) {
 	err = spec.MarshalToFile(tempFileYAML)
 	assert.NoError(t, err)
 }
+
+func TestShouldSupportPropertyLevelDescriptions(t *testing.T) {
+	// Arrange - Create a schema with property-level descriptions
+	userSchema := &Schema{
+		Type:        "object",
+		Description: "A user object representing a system user",
+		Properties: map[string]*Schema{
+			"id": {
+				Type:        "integer",
+				Description: "The unique identifier for the user",
+			},
+			"name": {
+				Type:        "string",
+				Description: "The full name of the user",
+			},
+			"email": {
+				Type:        "string",
+				Format:      "email",
+				Description: "The email address of the user",
+			},
+			"age": {
+				Type:        "integer",
+				Description: "The age of the user in years",
+				Minimum:     ptrFloat64(0),
+				Maximum:     ptrFloat64(150),
+			},
+		},
+		Required: []string{"id", "name", "email"},
+	}
+
+	spec := &OpenAPISpec{
+		OpenAPI: "3.1.0",
+		Info:    &InfoObject{Title: "User API", Version: "1.0.0"},
+		Paths: map[string]*PathItem{
+			"/users": {
+				Post: &Operation{
+					OperationID: "createUser",
+					RequestBody: &RequestBodyObject{
+						Required: true,
+						Content: map[string]*MediaType{
+							"application/json": {
+								Schema: userSchema,
+							},
+						},
+					},
+					Responses: map[string]*ResponseObject{
+						"201": {Description: "Created"},
+					},
+				},
+			},
+		},
+	}
+
+	// Act - Marshal to JSON and YAML to verify descriptions are preserved
+	tempJSON := filepath.Join(t.TempDir(), "schema-with-descriptions.json")
+	err := spec.MarshalToFile(tempJSON)
+	require.NoError(t, err)
+
+	tempYAML := filepath.Join(t.TempDir(), "schema-with-descriptions.yaml")
+	err = spec.MarshalToFile(tempYAML)
+	require.NoError(t, err)
+
+	// Assert - Read back and verify descriptions are present
+	jsonData, err := os.ReadFile(tempJSON)
+	require.NoError(t, err)
+
+	var jsonSpec map[string]any
+	err = json.Unmarshal(jsonData, &jsonSpec)
+	require.NoError(t, err)
+
+	// Navigate to the schema properties and verify descriptions
+	paths := jsonSpec["paths"].(map[string]any)
+	usersPath := paths["/users"].(map[string]any)
+	post := usersPath["post"].(map[string]any)
+	requestBody := post["requestBody"].(map[string]any)
+	content := requestBody["content"].(map[string]any)
+	jsonContent := content["application/json"].(map[string]any)
+	schema := jsonContent["schema"].(map[string]any)
+	properties := schema["properties"].(map[string]any)
+
+	// Verify top-level schema description
+	assert.Equal(t, "A user object representing a system user", schema["description"])
+
+	// Verify property-level descriptions
+	idProp := properties["id"].(map[string]any)
+	assert.Equal(t, "The unique identifier for the user", idProp["description"])
+
+	nameProp := properties["name"].(map[string]any)
+	assert.Equal(t, "The full name of the user", nameProp["description"])
+
+	emailProp := properties["email"].(map[string]any)
+	assert.Equal(t, "The email address of the user", emailProp["description"])
+
+	ageProp := properties["age"].(map[string]any)
+	assert.Equal(t, "The age of the user in years", ageProp["description"])
+
+	// Verify YAML as well
+	yamlData, err := os.ReadFile(tempYAML)
+	require.NoError(t, err)
+
+	var yamlSpec map[string]any
+	err = yaml.Unmarshal(yamlData, &yamlSpec)
+	require.NoError(t, err)
+
+	// Navigate to the schema in YAML
+	yamlPaths := yamlSpec["paths"].(map[string]any)
+	yamlUsersPath := yamlPaths["/users"].(map[string]any)
+	yamlPost := yamlUsersPath["post"].(map[string]any)
+	yamlRequestBody := yamlPost["requestBody"].(map[string]any)
+	yamlContent := yamlRequestBody["content"].(map[string]any)
+	yamlJsonContent := yamlContent["application/json"].(map[string]any)
+	yamlSchema := yamlJsonContent["schema"].(map[string]any)
+	yamlProperties := yamlSchema["properties"].(map[string]any)
+
+	// Verify descriptions in YAML
+	yamlIdProp := yamlProperties["id"].(map[string]any)
+	assert.Equal(t, "The unique identifier for the user", yamlIdProp["description"])
+}
+
+func ptrFloat64(v float64) *float64 {
+	return &v
+}
