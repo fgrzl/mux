@@ -345,6 +345,9 @@ func (rb *RouteBuilder) withCompositeBody(examples []any, ctype string, composit
 	}
 
 	schemas := make([]*openapi.Schema, 0, len(examples))
+	// Store examples alongside their schemas so they can be matched during generation
+	schemaExamples := make([]any, 0, len(examples))
+
 	for _, example := range examples {
 		if example == nil {
 			continue
@@ -353,7 +356,10 @@ func (rb *RouteBuilder) withCompositeBody(examples []any, ctype string, composit
 		if err != nil {
 			panic(err)
 		}
+		// Attach the example directly to the schema so it's available during generation
+		schema.Example = example
 		schemas = append(schemas, schema)
+		schemaExamples = append(schemaExamples, example)
 	}
 
 	if len(schemas) == 0 {
@@ -372,7 +378,7 @@ func (rb *RouteBuilder) withCompositeBody(examples []any, ctype string, composit
 		panic(fmt.Sprintf("unsupported composition type: %s", compositionType))
 	}
 
-	// Use the first non-nil example as the example value
+	// Use the first non-nil example as the overall example value for the media type
 	var exampleValue any
 	for _, ex := range examples {
 		if ex != nil {

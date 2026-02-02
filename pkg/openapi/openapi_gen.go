@@ -263,9 +263,39 @@ func (g *Generator) appendRoute(rd RouteData) error {
 }
 
 func (g *Generator) ensureComponentSchema(example any, schema *Schema) error {
-	if schema == nil || schema.Ref == "" {
+	if schema == nil {
 		return nil
 	}
+
+	// Handle composite schemas (anyOf, oneOf, allOf) - process each sub-schema
+	// For composite schemas, we need to recursively ensure their sub-schemas are registered
+	if len(schema.AnyOf) > 0 {
+		for _, subSchema := range schema.AnyOf {
+			if err := g.ensureSchemaRef(subSchema); err != nil {
+				return err
+			}
+		}
+	}
+	if len(schema.OneOf) > 0 {
+		for _, subSchema := range schema.OneOf {
+			if err := g.ensureSchemaRef(subSchema); err != nil {
+				return err
+			}
+		}
+	}
+	if len(schema.AllOf) > 0 {
+		for _, subSchema := range schema.AllOf {
+			if err := g.ensureSchemaRef(subSchema); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Handle single schema ref
+	if schema.Ref == "" {
+		return nil
+	}
+
 	rawName, _ := strings.CutPrefix(schema.Ref, "#/components/schemas/")
 	typeName := sanitizeComponentName(rawName)
 	// Ensure the ref used in the operation points to the sanitized name
@@ -307,6 +337,62 @@ doneUnwrap:
 	}
 
 	g.spec.Components.Schemas[typeName] = s
+
+	return nil
+}
+
+// ensureSchemaRef ensures that a schema ref is registered as a component.
+// Unlike ensureComponentSchema, this works with schemas that may have examples attached.
+func (g *Generator) ensureSchemaRef(schema *Schema) error {
+	if schema == nil || schema.Ref == "" {
+		return nil
+	}
+
+	rawName, _ := strings.CutPrefix(schema.Ref, "#/components/schemas/")
+	typeName := sanitizeComponentName(rawName)
+	schema.Ref = "#/components/schemas/" + typeName
+
+	// If already registered, skip
+	if _, exists := g.spec.Components.Schemas[typeName]; exists {
+		// Clear the example from the ref schema since it will be in the component
+		if !g.withExamples {
+			schema.Example = nil
+		}
+		return nil
+	}
+
+	// Try to get type info from the attached example
+	example := schema.Example
+	if example == nil {
+		// No example attached - we can't generate the schema without type information
+		return fmt.Errorf("cannot resolve component schema %q without type information", typeName)
+	}
+
+	t := reflect.TypeOf(example)
+	if t == nil {
+		return fmt.Errorf("missing type info for schema ref %q", schema.Ref)
+	}
+
+	// Unwrap pointers
+	for t.Kind() == reflect.Ptr {
+		t = t.Elem()
+		if t == nil {
+			break
+		}
+	}
+
+	// Generate the component schema
+	s, err := g.GenerateSchemaForType(t)
+	if err != nil {
+		return err
+	}
+
+	g.spec.Components.Schemas[typeName] = s
+
+	// Clear the example from the ref schema after processing (examples go on the component or mediatype, not the ref)
+	if !g.withExamples {
+		schema.Example = nil
+	}
 
 	return nil
 }

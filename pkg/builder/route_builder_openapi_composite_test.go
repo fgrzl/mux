@@ -422,3 +422,82 @@ func findParam(params []*openapi.ParameterObject, name, in string) *openapi.Para
 	}
 	return nil
 }
+
+// TestAnyOfWithNestedTypesShouldRegisterAllComponents verifies that when using
+// anyOf/oneOf/allOf with types that contain nested structs, all types (including
+// the nested ones) are properly registered as components in the OpenAPI spec.
+func TestAnyOfWithNestedTypesShouldRegisterAllComponents(t *testing.T) {
+	// Arrange
+	type Address struct {
+		Street string `json:"street"`
+		City   string `json:"city"`
+	}
+
+	type PersonWithAddress struct {
+		Name    string  `json:"name"`
+		Address Address `json:"address"`
+	}
+
+	type CompanyWithAddress struct {
+		CompanyName string  `json:"company_name"`
+		Address     Address `json:"address"`
+	}
+
+	gen := openapi.NewGenerator()
+
+	op := Route(http.MethodPost, "/entities").
+		WithAnyOfJsonBody(PersonWithAddress{}, CompanyWithAddress{}).
+		WithOperationID("createEntity").
+		Options.Operation
+
+	routes := []openapi.RouteData{
+		{Path: "/entities", Method: "POST", Options: &op},
+	}
+
+	// Act
+	spec, err := gen.GenerateSpecFromRoutes(&openapi.InfoObject{
+		Title:   "Test API",
+		Version: "1.0.0",
+	}, routes)
+
+	// Assert
+	require.NoError(t, err)
+	require.NotNil(t, spec)
+
+	// Verify anyOf schemas exist and reference components
+	pathItem := spec.Paths["/entities"]
+	require.NotNil(t, pathItem)
+	require.NotNil(t, pathItem.Post)
+	require.NotNil(t, pathItem.Post.RequestBody)
+
+	mediaType := pathItem.Post.RequestBody.Content["application/json"]
+	require.NotNil(t, mediaType)
+	require.NotNil(t, mediaType.Schema)
+	require.NotNil(t, mediaType.Schema.AnyOf)
+	require.Len(t, mediaType.Schema.AnyOf, 2)
+
+	// Verify all types are registered as components (including nested Address)
+	assert.Contains(t, spec.Components.Schemas, "PersonWithAddress", "PersonWithAddress should be registered")
+	assert.Contains(t, spec.Components.Schemas, "CompanyWithAddress", "CompanyWithAddress should be registered")
+	assert.Contains(t, spec.Components.Schemas, "Address", "Nested Address type should be registered")
+
+	// Verify the Address component is properly referenced in both types
+	personSchema := spec.Components.Schemas["PersonWithAddress"]
+	require.NotNil(t, personSchema)
+	require.Contains(t, personSchema.Properties, "address")
+	assert.Equal(t, "#/components/schemas/Address", personSchema.Properties["address"].Ref,
+		"PersonWithAddress.address should reference Address component")
+
+	companySchema := spec.Components.Schemas["CompanyWithAddress"]
+	require.NotNil(t, companySchema)
+	require.Contains(t, companySchema.Properties, "address")
+	assert.Equal(t, "#/components/schemas/Address", companySchema.Properties["address"].Ref,
+		"CompanyWithAddress.address should reference Address component")
+
+	// Verify Address component has the expected structure
+	addressSchema := spec.Components.Schemas["Address"]
+	require.NotNil(t, addressSchema)
+	assert.Equal(t, "object", addressSchema.Type)
+	assert.Contains(t, addressSchema.Properties, "street")
+	assert.Contains(t, addressSchema.Properties, "city")
+}
