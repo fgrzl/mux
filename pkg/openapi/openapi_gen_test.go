@@ -280,3 +280,56 @@ func TestShouldRegisterNestedModelFromNestedArrayExample(t *testing.T) {
 	// Ensure User was registered
 	assert.Contains(t, gen.spec.Components.Schemas, "User")
 }
+
+func TestShouldRegisterComponentForArrayResponse(t *testing.T) {
+	// Arrange
+	gen := NewGenerator()
+	gen.ensureComponentInit()
+
+	info := &InfoObject{Title: "API", Version: "1.0"}
+
+	// Create an operation with an array response of User
+	op := &Operation{
+		OperationID: "getUsers",
+		Responses: map[string]*ResponseObject{
+			"200": {
+				Description: "Success",
+				Content: map[string]*MediaType{
+					"application/json": {
+						Schema:  &Schema{Type: "array", Items: &Schema{Ref: "#/components/schemas/User"}},
+						Example: []User{{ID: 1, Name: "Alice"}, {ID: 2, Name: "Bob"}},
+					},
+				},
+			},
+		},
+	}
+
+	routes := []RouteData{{Path: "/users", Method: "GET", Options: op}}
+
+	// Act
+	spec, err := gen.GenerateSpecFromRoutes(info, routes)
+
+	// Assert
+	require.NoError(t, err)
+	require.NotNil(t, spec)
+
+	// Verify the User component was registered
+	assert.Contains(t, gen.spec.Components.Schemas, "User", "User component should be registered from array items")
+	userSchema := gen.spec.Components.Schemas["User"]
+	assert.Equal(t, "object", userSchema.Type)
+	assert.Contains(t, userSchema.Properties, "id")
+	assert.Contains(t, userSchema.Properties, "name")
+
+	// Verify the response schema is an array with a ref to User
+	pathItem := spec.Paths["/users"]
+	require.NotNil(t, pathItem)
+	getOp := pathItem.Get
+	require.NotNil(t, getOp)
+	resp := getOp.Responses["200"]
+	require.NotNil(t, resp)
+	mediaType := resp.Content["application/json"]
+	require.NotNil(t, mediaType)
+	assert.Equal(t, "array", mediaType.Schema.Type)
+	assert.NotNil(t, mediaType.Schema.Items)
+	assert.Equal(t, "#/components/schemas/User", mediaType.Schema.Items.Ref)
+}

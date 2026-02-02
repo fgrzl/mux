@@ -293,6 +293,25 @@ func (g *Generator) ensureComponentSchema(example any, schema *Schema) error {
 		}
 	}
 
+	// Handle array items - ensure item schemas (and their refs) are registered
+	if schema.Type == "array" && schema.Items != nil {
+		// Get the element type from the example
+		var itemExample any
+		if example != nil {
+			t := reflect.TypeOf(example)
+			if t != nil && (t.Kind() == reflect.Slice || t.Kind() == reflect.Array) {
+				// Create zero value of the element type
+				elemType := t.Elem()
+				if elemType != nil {
+					itemExample = reflect.Zero(elemType).Interface()
+				}
+			}
+		}
+		if err := g.ensureComponentSchema(itemExample, schema.Items); err != nil {
+			return err
+		}
+	}
+
 	// Handle single schema ref
 	if schema.Ref == "" {
 		return nil
