@@ -45,7 +45,7 @@ func main() {
 	router.GET("/users/{id}", getUser).
 		WithOperationID("getUser").
 		WithSummary("Get user by ID").
-		WithPathParam("id", "The unique identifier of the user").
+		WithPathParam("id", "The unique identifier of the user", "user-123").
 		WithOKResponse(User{}).
 		WithNotFoundResponse().
 		WithTags("Users")

@@ -118,8 +118,8 @@ func TestShouldInheritParametersWhenCreatingNestedRouteGroup(t *testing.T) {
 	// Arrange: Create parent group with parameters
 	rtr := NewRouter()
 	api := rtr.NewRouteGroup("/api")
-	api.WithPathParam("version", "v1").
-		WithQueryParam("limit", 10).
+	api.WithPathParam("version", "", "v1").
+		WithQueryParam("limit", "", 10).
 		RequireRoles("admin")
 
 	// Act: Create nested group and add route

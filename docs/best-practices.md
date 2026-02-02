@@ -156,20 +156,20 @@ func setupUserRoutes(group *mux.RouteGroup) {
         
     users.GET("/{id}", getUser).
         WithSummary("Get user by ID").
-        WithPathParam("id", uuid.Nil).
+        WithPathParam("id", "The unique user identifier", uuid.Nil).
         WithOKResponse(User{}).
         WithNotFoundResponse()
         
     users.PUT("/{id}", updateUser).
         WithSummary("Update user").
-        WithPathParam("id", uuid.Nil).
+        WithPathParam("id", "The unique user identifier", uuid.Nil).
         WithJsonBody(User{}).
         WithOKResponse(User{}).
         RequirePermissions("write") // Additional permission check
         
     users.DELETE("/{id}", deleteUser).
         WithSummary("Delete user").
-        WithPathParam("id", uuid.Nil).
+        WithPathParam("id", "The unique user identifier", uuid.Nil).
         WithNoContentResponse().
         RequirePermissions("delete")
 }

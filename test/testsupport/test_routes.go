@@ -79,7 +79,7 @@ func ConfigureRoutes(r *mux.Router) {
 	// HEAD to check existence
 	rg.HEAD(ResourceIDPath, headResourceHandler).
 		WithOperationID("checkResourceExists").
-		WithParam(ParamResourceID, "path", int(0), true).
+		WithParam(ParamResourceID, "path", "", int(0), true).
 		WithResponse(204, nil).
 		WithResponse(404, mux.ProblemDetails{}).
 		WithTags(TagResources)
@@ -87,7 +87,7 @@ func ConfigureRoutes(r *mux.Router) {
 	// GET a single resource
 	rg.GET(ResourceIDPath, getResourceHandler).
 		WithOperationID("getResource").
-		WithParam(ParamResourceID, "path", int(0), true).
+		WithParam(ParamResourceID, "path", "", int(0), true).
 		WithResponse(200, Resource{}).
 		WithResponse(404, mux.ProblemDetails{}).
 		WithTags(TagResources)
@@ -95,8 +95,8 @@ func ConfigureRoutes(r *mux.Router) {
 	// Search by query params (single and repeated)
 	rg.GET(ResourcesSearch, searchResourcesHandler).
 		WithOperationID("searchResources").
-		WithParam("name", "query", "", false).
-		WithParam("type", "query", "", false).
+		WithParam("name", "query", "", "", false).
+		WithParam("type", "query", "", "", false).
 		WithResponse(200, []Resource{}).
 		WithTags(TagResources)
 
@@ -111,7 +111,7 @@ func ConfigureRoutes(r *mux.Router) {
 	// Update resource metadata — exercise map/object JSON bodies
 	rg.PUT(ResourceMeta, updateResourceMetadataHandler).
 		WithOperationID("updateResourceMetadata").
-		WithParam(ParamResourceID, "path", int(0), true).
+		WithParam(ParamResourceID, "path", "", int(0), true).
 		WithJsonBody(&struct {
 			Metadata map[string]string `json:"metadata"`
 		}{}).
@@ -124,7 +124,7 @@ func ConfigureRoutes(r *mux.Router) {
 	// UUID path parameter example
 	rg.GET(ItemsUUIDPath, getItemByUUIDHandler).
 		WithOperationID("getItemByUUID").
-		WithParam(ParamItemID, "path", uuid.Nil, true).
+		WithParam(ParamItemID, "path", "", uuid.Nil, true).
 		WithResponse(200, map[string]uuid.UUID{}).
 		WithTags(TagItems)
 
@@ -137,8 +137,8 @@ func ConfigureRoutes(r *mux.Router) {
 	// Query multiple ints and UUIDs to exercise QueryInts/QueryUUIDs
 	rg.GET(FilterPath, filterHandler).
 		WithOperationID("filter").
-		WithParam("ids", "query", "", false).
-		WithParam("uuids", "query", uuid.Nil, false).
+		WithParam("ids", "query", "", "", false).
+		WithParam("uuids", "query", "", uuid.Nil, false).
 		WithResponse(200, struct {
 			IDs   []int       `json:"ids"`
 			UUIDs []uuid.UUID `json:"uuids"`
@@ -168,21 +168,21 @@ func ConfigureRoutes(r *mux.Router) {
 
 	rg.GET(TenantIDPath, getTenantHandler).
 		WithOperationID("getTenant").
-		WithParam(ParamTenantID, "path", int(0), true).
+		WithParam(ParamTenantID, "path", "", int(0), true).
 		WithResponse(200, Tenant{}).
 		WithResponse(404, mux.ProblemDetails{}).
 		WithTags(TagTenants)
 
 	rg.PUT(TenantIDPath, updateTenantHandler).
 		WithOperationID("updateTenant").
-		WithParam(ParamTenantID, "path", int(0), true).
+		WithParam(ParamTenantID, "path", "", int(0), true).
 		WithJsonBody(Tenant{}).
 		WithResponse(200, Tenant{}).
 		WithTags(TagTenants)
 
 	rg.DELETE(TenantIDPath, deleteTenantHandler).
 		WithOperationID("deleteTenant").
-		WithParam(ParamTenantID, "path", int(0), true).
+		WithParam(ParamTenantID, "path", "", int(0), true).
 		WithResponse(204, nil).
 		WithResponse(404, mux.ProblemDetails{}).
 		WithTags(TagTenants)
@@ -190,14 +190,14 @@ func ConfigureRoutes(r *mux.Router) {
 	// Tenant resources
 	rg.GET(TenantResources, listTenantResourcesHandler).
 		WithOperationID("listTenantResources").
-		WithParam(ParamTenantID, "path", int(0), true).
+		WithParam(ParamTenantID, "path", "", int(0), true).
 		WithResponse(200, []Resource{}).
 		WithResponse(404, mux.ProblemDetails{}).
 		WithTags(TagTenants, TagResources)
 
 	rg.POST(TenantResources, createTenantResourceHandler).
 		WithOperationID("createTenantResource").
-		WithParam(ParamTenantID, "path", int(0), true).
+		WithParam(ParamTenantID, "path", "", int(0), true).
 		WithJsonBody(Resource{}).
 		WithResponse(201, Resource{}).
 		WithTags(TagTenants, TagResources)

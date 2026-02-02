@@ -14,7 +14,7 @@ func TestShouldPanicOnInvalidParamIn(t *testing.T) {
 	rb := Route(http.MethodGet, "/x")
 
 	// Act & Assert
-	require.Panics(t, func() { rb.WithParam("p", "invalid", 1, true) })
+	require.Panics(t, func() { rb.WithParam("p", "invalid", "", 1, true) })
 }
 
 func TestShouldPanicOnBodyForGet(t *testing.T) {

@@ -70,21 +70,21 @@ func main() {
 	api.GET("/{id}", getTodo).
 		WithOperationID("getTodo").
 		WithSummary("Get a todo by ID").
-		WithPathParam("id", todoIDParam).
+		WithPathParam("id", "The unique identifier of the todo item", todoIDParam).
 		WithOKResponse(Todo{}).
 		WithNotFoundResponse()
 
 	api.PUT("/{id}", updateTodo).
 		WithOperationID("updateTodo").
 		WithSummary("Update a todo").
-		WithPathParam("id", todoIDParam).
+		WithPathParam("id", "The unique identifier of the todo item", todoIDParam).
 		WithJsonBody(UpdateTodoRequest{}).
 		WithOKResponse(Todo{})
 
 	api.DELETE("/{id}", deleteTodo).
 		WithOperationID("deleteTodo").
 		WithSummary("Delete a todo").
-		WithPathParam("id", todoIDParam).
+		WithPathParam("id", "The unique identifier of the todo item", todoIDParam).
 		WithNoContentResponse()
 
 	// Serve OpenAPI spec

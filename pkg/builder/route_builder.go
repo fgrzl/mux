@@ -76,34 +76,91 @@ func (rb *RouteBuilder) WithOperationID(id string) *RouteBuilder {
 	return rb
 }
 
-// WithPathParam adds a required path parameter with a string example.
-func (rb *RouteBuilder) WithPathParam(name string, example any) *RouteBuilder {
-	return rb.WithParam(name, "path", example, true)
+// WithPathParam adds a required path parameter to this route.
+//
+// Parameters:
+//   - name: The parameter name as it appears in the route pattern (e.g., "id" for "/users/{id}").
+//   - description: Human-readable explanation of the parameter for OpenAPI documentation.
+//     Use an empty string ("") if no description is needed.
+//   - example: Example value used to infer the OpenAPI schema type and for request binding.
+//     For instance, pass uuid.Nil for UUID parameters, 0 for integers, or "" for strings.
+//
+// Path parameters are always marked as required in the OpenAPI spec.
+func (rb *RouteBuilder) WithPathParam(name, description string, example any) *RouteBuilder {
+	return rb.WithParam(name, "path", description, example, true)
 }
 
-// WithQueryParam adds an optional query parameter with example value.
-func (rb *RouteBuilder) WithQueryParam(name string, example any) *RouteBuilder {
-	return rb.WithParam(name, "query", example, false)
+// WithQueryParam adds an optional query parameter to this route.
+//
+// Parameters:
+//   - name: The query parameter name (e.g., "limit" for "?limit=10").
+//   - description: Human-readable explanation of the parameter for OpenAPI documentation.
+//     Use an empty string ("") if no description is needed.
+//   - example: Example value used to infer the OpenAPI schema type and for request binding.
+//     For instance, pass 10 for integer parameters, true for booleans, or "" for strings.
+//
+// Query parameters added via this method are marked as optional in the OpenAPI spec.
+func (rb *RouteBuilder) WithQueryParam(name, description string, example any) *RouteBuilder {
+	return rb.WithParam(name, "query", description, example, false)
 }
 
-// WithRequiredQueryParam adds a required query parameter with example value.
-func (rb *RouteBuilder) WithRequiredQueryParam(name string, example any) *RouteBuilder {
-	return rb.WithParam(name, "query", example, true)
+// WithRequiredQueryParam adds a required query parameter to this route.
+//
+// Parameters:
+//   - name: The query parameter name (e.g., "apiKey" for "?apiKey=xyz").
+//   - description: Human-readable explanation of the parameter for OpenAPI documentation.
+//     Use an empty string ("") if no description is needed.
+//   - example: Example value used to infer the OpenAPI schema type and for request binding.
+//     For instance, pass 10 for integer parameters, true for booleans, or "" for strings.
+//
+// Query parameters added via this method are marked as required in the OpenAPI spec.
+func (rb *RouteBuilder) WithRequiredQueryParam(name, description string, example any) *RouteBuilder {
+	return rb.WithParam(name, "query", description, example, true)
 }
 
-// WithHeaderParam adds a header parameter with example value.
-func (rb *RouteBuilder) WithHeaderParam(name string, example any, required bool) *RouteBuilder {
-	return rb.WithParam(name, "header", example, required)
+// WithHeaderParam adds a header parameter to this route.
+//
+// Parameters:
+//   - name: The HTTP header name (e.g., "X-API-Version" or "Authorization").
+//   - description: Human-readable explanation of the header for OpenAPI documentation.
+//     Use an empty string ("") if no description is needed.
+//   - example: Example value used to infer the OpenAPI schema type and for request binding.
+//     For instance, pass "v1" for string headers or 1 for integer headers.
+//   - required: If true, the header is marked as required in the OpenAPI spec;
+//     if false, it's marked as optional.
+func (rb *RouteBuilder) WithHeaderParam(name, description string, example any, required bool) *RouteBuilder {
+	return rb.WithParam(name, "header", description, example, required)
 }
 
-// WithCookieParam adds a cookie parameter with example value.
-func (rb *RouteBuilder) WithCookieParam(name string, example any, required bool) *RouteBuilder {
-	return rb.WithParam(name, "cookie", example, required)
+// WithCookieParam adds a cookie parameter to this route.
+//
+// Parameters:
+//   - name: The cookie name (e.g., "sessionId" or "csrf_token").
+//   - description: Human-readable explanation of the cookie for OpenAPI documentation.
+//     Use an empty string ("") if no description is needed.
+//   - example: Example value used to infer the OpenAPI schema type and for request binding.
+//     For instance, pass "" for string cookies or 0 for integer cookies.
+//   - required: If true, the cookie is marked as required in the OpenAPI spec;
+//     if false, it's marked as optional.
+func (rb *RouteBuilder) WithCookieParam(name, description string, example any, required bool) *RouteBuilder {
+	return rb.WithParam(name, "cookie", description, example, required)
 }
 
-// WithParam describes an input parameter and infers its schema from the example
-// value.  "in" must be one of query|header|path|cookie.
-func (rb *RouteBuilder) WithParam(name, in string, example any, required bool) *RouteBuilder {
+// WithParam adds a parameter of any type/location to this route.
+// This is a low-level method; prefer using WithPathParam, WithQueryParam, etc. for better clarity.
+//
+// Parameters:
+//   - name: The parameter name (e.g., "id", "limit", "X-API-Key").
+//   - in: The parameter location. Must be one of: "path", "query", "header", or "cookie".
+//   - description: Human-readable explanation of the parameter for OpenAPI documentation.
+//     Use an empty string ("") if no description is needed.
+//   - example: Example value used to infer the OpenAPI schema type and for request binding.
+//     The type of this value determines the schema (e.g., int → integer, uuid.UUID → string with format uuid).
+//   - required: If true, the parameter is marked as required in the OpenAPI spec;
+//     if false, it's marked as optional. Note: path parameters are always required regardless of this value.
+//
+// Panics if name or in is empty, or if in is not one of the valid parameter locations.
+func (rb *RouteBuilder) WithParam(name, in, description string, example any, required bool) *RouteBuilder {
 	if name == "" || in == "" {
 		panic("parameter name and 'in' cannot be empty")
 	}
@@ -116,12 +173,13 @@ func (rb *RouteBuilder) WithParam(name, in string, example any, required bool) *
 	}
 	conv := binder.MakeConverter(reflect.TypeOf(example), schema)
 	rb.Options.Parameters = append(rb.Options.Parameters, &openapi.ParameterObject{
-		Name:      name,
-		In:        in,
-		Required:  required || in == "path", // paths are always required
-		Schema:    schema,
-		Example:   example,
-		Converter: conv,
+		Name:        name,
+		In:          in,
+		Description: description,
+		Required:    required || in == "path", // paths are always required
+		Schema:      schema,
+		Example:     example,
+		Converter:   conv,
 	})
 	// Keep ParamIndex in sync for fast lookups at runtime
 	rb.Options.ParamIndex = routing.BuildParamIndex(rb.Options.Parameters)

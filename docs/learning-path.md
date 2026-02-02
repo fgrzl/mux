@@ -276,7 +276,7 @@ func main() {
     users.GET("/{id}", getUser).
         WithOperationID("getUser").
         WithSummary("Get user by ID").
-        WithPathParam("id", "user-123").
+        WithPathParam("id", "The unique identifier of the user", "user-123").
         WithOKResponse(User{})
     
     users.POST("/", createUser).

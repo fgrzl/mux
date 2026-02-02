@@ -230,26 +230,26 @@ router.GET("/users/{id}", getUser).
     WithOperationID("getUser").
     WithSummary("Get user by ID").
     WithDescription("Returns a single user").
-    WithPathParam("id", "user-123").
+    WithPathParam("id", "The unique user identifier", "user-123").
     WithOKResponse(User{}).
     WithNotFoundResponse()
 
 // With query parameters
 router.GET("/search", searchUsers).
     WithOperationID("searchUsers").
-    WithQueryParam("q", "john").           // Optional query param
-    WithRequiredQueryParam("limit", 10).   // Required query param
+    WithQueryParam("q", "Search query", "john").           // Optional query param
+    WithRequiredQueryParam("limit", "Maximum number of results", 10).   // Required query param
     WithOKResponse([]User{})
 
 // With header parameter
 router.GET("/data", getData).
-    WithHeaderParam("X-API-Version", "v1", false).  // Optional header
+    WithHeaderParam("X-API-Version", "The API version", "v1", false).  // Optional header
     WithOKResponse(map[string]any{})
 
 // Low-level (if needed)
 router.GET("/custom", handler).
-    WithParam("id", "path", "123", true).  // name, in, example, required
-    WithParam("filter", "query", "active", false)
+    WithParam("id", "path", "Unique identifier", "123", true).  // name, in, description, example, required
+    WithParam("filter", "query", "Filter criteria", "active", false)
 ```
 
 ### Automatic Type Inference
@@ -257,25 +257,25 @@ The framework automatically infers OpenAPI schemas from example values:
 
 ```go
 // String parameter → OpenAPI type: "string"
-.WithPathParam("name", "john")
+.WithPathParam("name", "Name of the entity", "john")
 
 // Integer parameter → OpenAPI type: "integer"
-.WithQueryParam("age", 25)
+.WithQueryParam("age", "Age in years", 25)
 
 // Boolean parameter → OpenAPI type: "boolean"
-.WithQueryParam("active", true)
+.WithQueryParam("active", "Filter by active status", true)
 
 // UUID → OpenAPI type: "string", format: "uuid"
-.WithPathParam("id", uuid.UUID{})
+.WithPathParam("id", "Unique identifier", uuid.UUID{})
 
 // Time → OpenAPI type: "string", format: "date-time"
-.WithQueryParam("createdAt", time.Time{})
+.WithQueryParam("createdAt", "Creation timestamp", time.Time{})
 
 // Arrays → OpenAPI type: "array"
-.WithQueryParam("tags", []string{})
+.WithQueryParam("tags", "List of tags", []string{})
 
 // Maps → OpenAPI type: "object" with additionalProperties
-.WithQueryParam("metadata", map[string]string{})
+.WithQueryParam("metadata", "Additional metadata", map[string]string{})
 ```
 
 **Supported Types:**

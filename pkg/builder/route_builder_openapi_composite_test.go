@@ -277,3 +277,148 @@ func TestCompositeJSONBodyShouldMarshalToValidJSON(t *testing.T) {
 
 	t.Logf("Generated YAML:\n%s", string(jsonBytes))
 }
+
+func TestParameterDescriptionsShouldAppearInOpenAPISpec(t *testing.T) {
+	// Arrange
+	gen := openapi.NewGenerator()
+
+	// Create a route with parameters that have descriptions
+	op := Route(http.MethodGet, "/users/{id}").
+		WithPathParam("id", "The unique user identifier (UUID format)", "550e8400-e29b-41d4-a716-446655440000").
+		WithQueryParam("include", "Comma-separated list of related resources to include", "profile,settings").
+		WithRequiredQueryParam("apiVersion", "The API version to use for this request", "v1").
+		WithHeaderParam("X-Request-ID", "Unique request identifier for tracing", "req-123", false).
+		WithCookieParam("session", "User session token", "abc123", true).
+		WithOperationID("getUser").
+		Options.Operation
+
+	routes := []openapi.RouteData{
+		{Path: "/users/{id}", Method: "GET", Options: &op},
+	}
+
+	// Act
+	spec, err := gen.GenerateSpecFromRoutes(&openapi.InfoObject{
+		Title:   "User API",
+		Version: "1.0.0",
+	}, routes)
+
+	// Assert
+	require.NoError(t, err)
+	require.NotNil(t, spec)
+
+	pathItem := spec.Paths["/users/{id}"]
+	require.NotNil(t, pathItem)
+	require.NotNil(t, pathItem.Get)
+	require.Len(t, pathItem.Get.Parameters, 5)
+
+	// Verify each parameter has the correct description
+	params := pathItem.Get.Parameters
+
+	// Find path parameter
+	idParam := findParam(params, "id", "path")
+	require.NotNil(t, idParam, "id path parameter should exist")
+	assert.Equal(t, "The unique user identifier (UUID format)", idParam.Description)
+	assert.True(t, idParam.Required)
+
+	// Find query parameter
+	includeParam := findParam(params, "include", "query")
+	require.NotNil(t, includeParam, "include query parameter should exist")
+	assert.Equal(t, "Comma-separated list of related resources to include", includeParam.Description)
+	assert.False(t, includeParam.Required)
+
+	// Find required query parameter
+	apiVersionParam := findParam(params, "apiVersion", "query")
+	require.NotNil(t, apiVersionParam, "apiVersion query parameter should exist")
+	assert.Equal(t, "The API version to use for this request", apiVersionParam.Description)
+	assert.True(t, apiVersionParam.Required)
+
+	// Find header parameter
+	requestIDParam := findParam(params, "X-Request-ID", "header")
+	require.NotNil(t, requestIDParam, "X-Request-ID header parameter should exist")
+	assert.Equal(t, "Unique request identifier for tracing", requestIDParam.Description)
+	assert.False(t, requestIDParam.Required)
+
+	// Find cookie parameter
+	sessionParam := findParam(params, "session", "cookie")
+	require.NotNil(t, sessionParam, "session cookie parameter should exist")
+	assert.Equal(t, "User session token", sessionParam.Description)
+	assert.True(t, sessionParam.Required)
+
+	// Verify YAML marshaling includes descriptions
+	yamlBytes, err := yaml.Marshal(spec)
+	require.NoError(t, err, "should marshal to YAML without errors")
+	require.NotEmpty(t, yamlBytes)
+
+	yamlString := string(yamlBytes)
+	assert.Contains(t, yamlString, "The unique user identifier (UUID format)")
+	assert.Contains(t, yamlString, "Comma-separated list of related resources to include")
+	assert.Contains(t, yamlString, "The API version to use for this request")
+	assert.Contains(t, yamlString, "Unique request identifier for tracing")
+	assert.Contains(t, yamlString, "User session token")
+}
+
+func TestParameterDescriptionsWithExamplesShouldAppearInOpenAPISpec(t *testing.T) {
+	// Arrange
+	gen := openapi.NewGenerator(openapi.WithExamples())
+
+	// Create a route with parameters that have descriptions and examples
+	op := Route(http.MethodGet, "/users/{id}").
+		WithPathParam("id", "The unique user identifier (UUID format)", "550e8400-e29b-41d4-a716-446655440000").
+		WithQueryParam("include", "Comma-separated list of related resources to include", "profile,settings").
+		WithOperationID("getUserWithExamples").
+		Options.Operation
+
+	routes := []openapi.RouteData{
+		{Path: "/users/{id}", Method: "GET", Options: &op},
+	}
+
+	// Act
+	spec, err := gen.GenerateSpecFromRoutes(&openapi.InfoObject{
+		Title:   "User API",
+		Version: "1.0.0",
+	}, routes)
+
+	// Assert
+	require.NoError(t, err)
+	require.NotNil(t, spec)
+
+	pathItem := spec.Paths["/users/{id}"]
+	require.NotNil(t, pathItem)
+	require.NotNil(t, pathItem.Get)
+	require.Len(t, pathItem.Get.Parameters, 2)
+
+	params := pathItem.Get.Parameters
+
+	// Verify path parameter has description AND example
+	idParam := findParam(params, "id", "path")
+	require.NotNil(t, idParam, "id path parameter should exist")
+	assert.Equal(t, "The unique user identifier (UUID format)", idParam.Description)
+	assert.Equal(t, "550e8400-e29b-41d4-a716-446655440000", idParam.Example)
+
+	// Verify query parameter has description AND example
+	includeParam := findParam(params, "include", "query")
+	require.NotNil(t, includeParam, "include query parameter should exist")
+	assert.Equal(t, "Comma-separated list of related resources to include", includeParam.Description)
+	assert.Equal(t, "profile,settings", includeParam.Example)
+
+	// Verify YAML marshaling includes both descriptions and examples
+	yamlBytes, err := yaml.Marshal(spec)
+	require.NoError(t, err, "should marshal to YAML without errors")
+	require.NotEmpty(t, yamlBytes)
+
+	yamlString := string(yamlBytes)
+	assert.Contains(t, yamlString, "The unique user identifier (UUID format)")
+	assert.Contains(t, yamlString, "550e8400-e29b-41d4-a716-446655440000")
+	assert.Contains(t, yamlString, "Comma-separated list of related resources to include")
+	assert.Contains(t, yamlString, "profile,settings")
+}
+
+// Helper function to find a parameter by name and location
+func findParam(params []*openapi.ParameterObject, name, in string) *openapi.ParameterObject {
+	for _, p := range params {
+		if p.Name == name && p.In == in {
+			return p
+		}
+	}
+	return nil
+}

@@ -415,21 +415,21 @@ func main() {
     api.GET("/{id}", getTodo).
         WithOperationID("getTodo").
         WithSummary("Get a todo by ID").
-        WithPathParam("id", "todo-123").
+        WithPathParam("id", "The unique identifier of the todo", "todo-123").
         WithOKResponse(Todo{}).
         WithNotFoundResponse()
     
     api.PUT("/{id}", updateTodo).
         WithOperationID("updateTodo").
         WithSummary("Update a todo").
-        WithPathParam("id", "todo-123").
+        WithPathParam("id", "The unique identifier of the todo", "todo-123").
         WithJsonBody(UpdateTodoRequest{}).
         WithOKResponse(Todo{})
     
     api.DELETE("/{id}", deleteTodo).
         WithOperationID("deleteTodo").
         WithSummary("Delete a todo").
-        WithPathParam("id", "todo-123").
+        WithPathParam("id", "The unique identifier of the todo", "todo-123").
         WithNoContentResponse()
     
     // Serve OpenAPI spec

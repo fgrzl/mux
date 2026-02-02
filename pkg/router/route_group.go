@@ -53,42 +53,99 @@ func (rg *RouteGroup) RouteRegistry() *registry.RouteRegistry {
 
 // ---- Chainable Group Setters ----
 
-// WithPathParam adds a required path parameter with an example value.
-func (rg *RouteGroup) WithPathParam(name string, example any) *RouteGroup {
-	return rg.WithParam(name, "path", example, true)
+// WithPathParam adds a required path parameter to all routes in this group.
+//
+// Parameters:
+//   - name: The parameter name as it appears in the route pattern (e.g., "id" for "/users/{id}").
+//   - description: Human-readable explanation of the parameter for OpenAPI documentation.
+//     Use an empty string ("") if no description is needed.
+//   - example: Example value used to infer the OpenAPI schema type. For instance,
+//     pass uuid.Nil for UUID parameters, 0 for integers, or "" for strings.
+//
+// Path parameters are always marked as required in the OpenAPI spec.
+func (rg *RouteGroup) WithPathParam(name, description string, example any) *RouteGroup {
+	return rg.WithParam(name, "path", description, example, true)
 }
 
-// WithQueryParam adds an optional query parameter with an example value.
-func (rg *RouteGroup) WithQueryParam(name string, example any) *RouteGroup {
-	return rg.WithParam(name, "query", example, false)
+// WithQueryParam adds an optional query parameter to all routes in this group.
+//
+// Parameters:
+//   - name: The query parameter name (e.g., "limit" for "?limit=10").
+//   - description: Human-readable explanation of the parameter for OpenAPI documentation.
+//     Use an empty string ("") if no description is needed.
+//   - example: Example value used to infer the OpenAPI schema type. For instance,
+//     pass 10 for integer parameters, true for booleans, or "" for strings.
+//
+// Query parameters added via this method are marked as optional in the OpenAPI spec.
+func (rg *RouteGroup) WithQueryParam(name, description string, example any) *RouteGroup {
+	return rg.WithParam(name, "query", description, example, false)
 }
 
-// WithRequiredQueryParam adds a required query parameter with an example value.
-func (rg *RouteGroup) WithRequiredQueryParam(name string, example any) *RouteGroup {
-	return rg.WithParam(name, "query", example, true)
+// WithRequiredQueryParam adds a required query parameter to all routes in this group.
+//
+// Parameters:
+//   - name: The query parameter name (e.g., "apiKey" for "?apiKey=xyz").
+//   - description: Human-readable explanation of the parameter for OpenAPI documentation.
+//     Use an empty string ("") if no description is needed.
+//   - example: Example value used to infer the OpenAPI schema type. For instance,
+//     pass 10 for integer parameters, true for booleans, or "" for strings.
+//
+// Query parameters added via this method are marked as required in the OpenAPI spec.
+func (rg *RouteGroup) WithRequiredQueryParam(name, description string, example any) *RouteGroup {
+	return rg.WithParam(name, "query", description, example, true)
 }
 
-// WithHeaderParam adds a header parameter with an example value.
-func (rg *RouteGroup) WithHeaderParam(name string, example any, required bool) *RouteGroup {
-	return rg.WithParam(name, "header", example, required)
+// WithHeaderParam adds a header parameter to all routes in this group.
+//
+// Parameters:
+//   - name: The HTTP header name (e.g., "X-API-Version" or "Authorization").
+//   - description: Human-readable explanation of the header for OpenAPI documentation.
+//     Use an empty string ("") if no description is needed.
+//   - example: Example value used to infer the OpenAPI schema type. For instance,
+//     pass "v1" for string headers or 1 for integer headers.
+//   - required: If true, the header is marked as required in the OpenAPI spec;
+//     if false, it's marked as optional.
+func (rg *RouteGroup) WithHeaderParam(name, description string, example any, required bool) *RouteGroup {
+	return rg.WithParam(name, "header", description, example, required)
 }
 
-// WithCookieParam adds a cookie parameter with an example value.
-func (rg *RouteGroup) WithCookieParam(name string, example any, required bool) *RouteGroup {
-	return rg.WithParam(name, "cookie", example, required)
+// WithCookieParam adds a cookie parameter to all routes in this group.
+//
+// Parameters:
+//   - name: The cookie name (e.g., "sessionId" or "csrf_token").
+//   - description: Human-readable explanation of the cookie for OpenAPI documentation.
+//     Use an empty string ("") if no description is needed.
+//   - example: Example value used to infer the OpenAPI schema type. For instance,
+//     pass "" for string cookies or 0 for integer cookies.
+//   - required: If true, the cookie is marked as required in the OpenAPI spec;
+//     if false, it's marked as optional.
+func (rg *RouteGroup) WithCookieParam(name, description string, example any, required bool) *RouteGroup {
+	return rg.WithParam(name, "cookie", description, example, required)
 }
 
-// WithParam adds a parameter of any type/location to the group defaults.
-func (rg *RouteGroup) WithParam(name, in string, example any, required bool) *RouteGroup {
+// WithParam adds a parameter of any type/location to all routes in this group.
+// This is a low-level method; prefer using WithPathParam, WithQueryParam, etc. for better type safety.
+//
+// Parameters:
+//   - name: The parameter name (e.g., "id", "limit", "X-API-Key").
+//   - in: The parameter location. Must be one of: "path", "query", "header", or "cookie".
+//   - description: Human-readable explanation of the parameter for OpenAPI documentation.
+//     Use an empty string ("") if no description is needed.
+//   - example: Example value used to infer the OpenAPI schema type. The type of this value
+//     determines the OpenAPI schema (e.g., int → integer, string → string, uuid.UUID → string with format uuid).
+//   - required: If true, the parameter is marked as required in the OpenAPI spec;
+//     if false, it's marked as optional. Note: path parameters are always required regardless of this value.
+func (rg *RouteGroup) WithParam(name, in, description string, example any, required bool) *RouteGroup {
 	schema, err := builder.QuickSchema(reflect.TypeOf(example))
 	if err != nil {
 		panic(err)
 	}
 	rg.defaultParams = append(rg.defaultParams, &openapi.ParameterObject{
-		Name:     name,
-		In:       in,
-		Required: required,
-		Schema:   schema,
+		Name:        name,
+		In:          in,
+		Description: description,
+		Required:    required,
+		Schema:      schema,
 	})
 	return rg
 }

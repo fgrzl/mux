@@ -133,7 +133,7 @@ func TestShouldAddPathParameter(t *testing.T) {
 	example := "123"
 
 	// Act
-	result := builder.WithPathParam("id", example)
+	result := builder.WithPathParam("id", "", example)
 
 	// Assert
 	assert.Equal(t, builder, result)
@@ -151,7 +151,7 @@ func TestShouldAddQueryParameter(t *testing.T) {
 	example := "10"
 
 	// Act
-	result := builder.WithQueryParam("limit", example)
+	result := builder.WithQueryParam("limit", "", example)
 
 	// Assert
 	assert.Equal(t, builder, result)
@@ -168,7 +168,7 @@ func TestShouldAddRequiredQueryParameter(t *testing.T) {
 	example := "active"
 
 	// Act
-	result := builder.WithRequiredQueryParam("status", example)
+	result := builder.WithRequiredQueryParam("status", "", example)
 
 	// Assert
 	assert.Equal(t, builder, result)
@@ -185,7 +185,7 @@ func TestShouldAddHeaderParameter(t *testing.T) {
 	example := common.MimeJSON
 
 	// Act
-	result := builder.WithHeaderParam(paramAccept, example, true)
+	result := builder.WithHeaderParam(paramAccept, "", example, true)
 
 	// Assert
 	assert.Equal(t, builder, result)
@@ -202,7 +202,7 @@ func TestShouldAddCookieParameter(t *testing.T) {
 	example := "session123"
 
 	// Act
-	result := builder.WithCookieParam("sessionId", example, false)
+	result := builder.WithCookieParam("sessionId", "", example, false)
 
 	// Assert
 	assert.Equal(t, builder, result)
@@ -213,13 +213,32 @@ func TestShouldAddCookieParameter(t *testing.T) {
 	assert.False(t, param.Required)
 }
 
+func TestShouldAddParameterWithDescription(t *testing.T) {
+	// Arrange
+	builder := Route(http.MethodGet, pathUsers)
+	description := "The maximum number of results to return"
+	example := 10
+
+	// Act
+	result := builder.WithQueryParam("limit", description, example)
+
+	// Assert
+	assert.Equal(t, builder, result)
+	require.Len(t, builder.Options.Parameters, 1)
+	param := builder.Options.Parameters[0]
+	assert.Equal(t, "limit", param.Name)
+	assert.Equal(t, "query", param.In)
+	assert.Equal(t, description, param.Description)
+	assert.False(t, param.Required)
+}
+
 func TestShouldPanicOnInvalidParameterIn(t *testing.T) {
 	// Arrange
 	builder := Route(http.MethodGet, pathUsers)
 
 	// Act & Assert
 	assert.Panics(t, func() {
-		builder.WithParam("test", "invalid", "example", false)
+		builder.WithParam("test", "invalid", "", "example", false)
 	})
 }
 
@@ -229,7 +248,7 @@ func TestShouldPanicOnEmptyParameterName(t *testing.T) {
 
 	// Act & Assert
 	assert.Panics(t, func() {
-		builder.WithParam("", "query", "example", false)
+		builder.WithParam("", "query", "", "example", false)
 	})
 }
 
@@ -583,8 +602,8 @@ func TestShouldChainFluentMethods(t *testing.T) {
 		RequireScopes(scopeAPIRead).
 		WithRateLimit(100, time.Minute).
 		WithOperationID("getUser").
-		WithPathParam("id", "123").
-		WithQueryParam("include", "profile").
+		WithPathParam("id", "", "123").
+		WithQueryParam("include", "", "profile").
 		WithOKResponse(struct{ Name string }{Name: "John"}).
 		WithSummary("Get user by ID").
 		WithDescription("Retrieves a single user by their unique identifier").

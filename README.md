@@ -102,7 +102,7 @@ func main() {
     users.GET("/{id}", getUser).
         WithOperationID("getUser").
         WithSummary("Get a user by ID").
-        WithPathParam("id", uuid.Nil).
+        WithPathParam("id", "The unique user identifier", uuid.Nil).
         WithOKResponse(User{})
 
     // Generate OpenAPI after routes are declared.
