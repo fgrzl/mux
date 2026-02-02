@@ -269,6 +269,8 @@ func (g *Generator) ensureComponentSchema(example any, schema *Schema) error {
 
 	// Handle composite schemas (anyOf, oneOf, allOf) - process each sub-schema
 	// For composite schemas, we need to recursively ensure their sub-schemas are registered
+	// Note: Infinite recursion is prevented by checking if schemas are already registered
+	// before generating them (see checks below and in GenerateSchemaForType's visited map).
 	if len(schema.AnyOf) > 0 {
 		for _, subSchema := range schema.AnyOf {
 			if err := g.ensureSchemaRef(subSchema); err != nil {
@@ -300,6 +302,7 @@ func (g *Generator) ensureComponentSchema(example any, schema *Schema) error {
 	typeName := sanitizeComponentName(rawName)
 	// Ensure the ref used in the operation points to the sanitized name
 	schema.Ref = "#/components/schemas/" + typeName
+	// Protection: Skip if already registered (prevents redundant work and circular issues)
 	if _, exists := g.spec.Components.Schemas[typeName]; exists {
 		return nil
 	}
@@ -352,7 +355,7 @@ func (g *Generator) ensureSchemaRef(schema *Schema) error {
 	typeName := sanitizeComponentName(rawName)
 	schema.Ref = "#/components/schemas/" + typeName
 
-	// If already registered, skip
+	// Protection: Skip if already registered (prevents redundant work and circular issues)
 	if _, exists := g.spec.Components.Schemas[typeName]; exists {
 		// Clear the example from the ref schema since it will be in the component
 		if !g.withExamples {
@@ -407,6 +410,8 @@ func (g *Generator) GenerateSchemaForType(t reflect.Type) (*Schema, error) {
 	if t.Name() == "" {
 		return nil, fmt.Errorf("unnamed types cannot be registered")
 	}
+	// Protection: Check if we're already processing this type (prevents infinite recursion)
+	// This is critical for types with circular references (e.g., Node.Parent -> *Node)
 	if g.visited[t] {
 		return &Schema{Ref: "#/components/schemas/" + sanitizeComponentName(t.Name())}, nil
 	}
