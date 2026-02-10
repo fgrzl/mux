@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -11,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/fgrzl/mux/pkg/common"
+	"github.com/fgrzl/mux/pkg/openapi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -415,4 +417,95 @@ func TestShouldBindWithMaxBytesLimit(t *testing.T) {
 		// If it succeeds, the data should be bound correctly
 		assert.NotEmpty(t, result)
 	}
+}
+
+func TestBind_ReturnsErrMissingBody_ForEmptyJSON_WhenRequestBodyRequired(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(""))
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
+	rec := httptest.NewRecorder()
+	ctx := NewRouteContext(rec, req)
+	opts := &RouteOptions{}
+	opts.RequestBody = &openapi.RequestBodyObject{Required: true}
+	ctx.SetOptions(opts)
+
+	var result struct{}
+
+	// Act
+	err := ctx.Bind(&result)
+
+	// Assert
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrMissingBody))
+}
+
+func TestBind_ReturnsErrMissingBody_ForEmptyForm_WhenRequestBodyRequired(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(""))
+	req.Header.Set(common.HeaderContentType, common.MimeFormURLEncoded)
+	rec := httptest.NewRecorder()
+	ctx := NewRouteContext(rec, req)
+	opts := &RouteOptions{}
+	opts.RequestBody = &openapi.RequestBodyObject{Required: true}
+	ctx.SetOptions(opts)
+
+	var result struct{}
+
+	// Act
+	err := ctx.Bind(&result)
+
+	// Assert
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrMissingBody))
+}
+
+func TestBind_DoesNotReturnErrMissingBody_WhenRequestBodyNotRequired_JSON(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(""))
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
+	rec := httptest.NewRecorder()
+	ctx := NewRouteContext(rec, req)
+	opts := &RouteOptions{}
+	opts.RequestBody = &openapi.RequestBodyObject{Required: false}
+	ctx.SetOptions(opts)
+
+	var result struct{}
+
+	// Act
+	err := ctx.Bind(&result)
+
+	// Assert - Empty JSON body should not produce an error when not required
+	require.NoError(t, err)
+}
+
+func TestBind_WritesToResponseWriter_WhenRequestBodyRequired_And_EmptyBody(t *testing.T) {
+	// Arrange - Verify that the framework automatically writes a Problem Details response
+	// when ErrMissingBody is returned and RequestBody.Required is true.
+	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(""))
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
+	rec := httptest.NewRecorder()
+	ctx := NewRouteContext(rec, req)
+	opts := &RouteOptions{}
+	opts.RequestBody = &openapi.RequestBodyObject{Required: true}
+	ctx.SetOptions(opts)
+
+	var result struct{}
+
+	// Act
+	err := ctx.Bind(&result)
+
+	// Assert
+	// Bind returns ErrMissingBody but also writes a Problem Details response
+	require.Error(t, err)
+	require.True(t, errors.Is(err, ErrMissingBody))
+
+	// Verify response was written with 400 status and Problem Details format
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	var problemDetail ProblemDetails
+	err = json.NewDecoder(rec.Body).Decode(&problemDetail)
+	require.NoError(t, err)
+	assert.Equal(t, "request-body-required", problemDetail.Type)
+	assert.Equal(t, "Bad Request", problemDetail.Title)
+	assert.Equal(t, http.StatusBadRequest, problemDetail.Status)
+	assert.Equal(t, "Request body is required", problemDetail.Detail)
 }
