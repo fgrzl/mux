@@ -1,10 +1,12 @@
 package routing
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -497,10 +499,26 @@ func (c *DefaultRouteContext) GetService(key ServiceKey) (any, bool) {
 
 // Bind collects input data from query parameters, request body, headers, and path parameters,
 // then binds them to the provided model struct. It supports JSON and form-encoded data.
+//
+// If a request declares RequestBody.Required=true but sends an empty body, Bind returns ErrMissingBody.
+// Callers can check for this using errors.Is(err, ErrMissingBody) and map it to a custom response,
+// or let it propagate to a central error handler that converts it to a 400 Problem Details response.
 func (c *DefaultRouteContext) Bind(model any) error {
 	staging := make(map[string]any)
 
 	if err := c.collectRequestData(staging); err != nil {
+		// Automatically map ErrMissingBody to a 400 Problem Details response
+		// so handlers don't need to check for it explicitly. This provides
+		// consistent error handling across the framework.
+		if IsMissingBodyError(err) {
+			c.Problem(&ProblemDetails{
+				Type:   "request-body-required",
+				Title:  "Bad Request",
+				Status: http.StatusBadRequest,
+				Detail: "Request body is required",
+			})
+			return err
+		}
 		return err
 	}
 	if err := c.collectHeaderData(staging); err != nil {
@@ -649,6 +667,30 @@ func (c *DefaultRouteContext) collectBodyData(staging map[string]any) error {
 		c.request.Body = http.MaxBytesReader(c.Response(), c.request.Body, maxBytes)
 		c.bodyLimitApplied = true
 	}
+
+	// If the route explicitly requires a request body according to its
+	// OpenAPI RequestBody.Required flag, perform a light-weight presence
+	// check before attempting to parse the body. This gives a stable,
+	// descriptive error for completely empty bodies instead of low-level
+	// decoder errors like io.EOF. The presence check applies across
+	// content types (JSON and form) and only runs when RequestBody.Required
+	// is true.
+	if c.options != nil && c.options.RequestBody != nil && c.options.RequestBody.Required {
+		// Wrap the current Body in a buffered reader and attempt to Peek(1).
+		// If Peek returns io.EOF, the body is empty.
+		br := bufio.NewReader(c.request.Body)
+		if _, err := br.Peek(1); err != nil {
+			if err == io.EOF {
+				return ErrMissingBody
+			}
+			// Propagate other read errors
+			return err
+		}
+		// Put a nondestructive wrapper back so downstream readers (json.Decoder,
+		// ParseForm) can consume the body normally.
+		c.request.Body = io.NopCloser(br)
+	}
+
 	ct := c.request.Header.Get(common.HeaderContentType)
 	switch {
 	case ct == common.MimeFormURLEncoded:
@@ -678,6 +720,12 @@ func (c *DefaultRouteContext) collectJSONBody(staging map[string]any) error {
 	// Use interface{} to accept either map or slice
 	var bodyAny any
 	if err := decoder.Decode(&bodyAny); err != nil {
+		// Treat empty body as acceptable when request body is not required.
+		// JSON decoder returns io.EOF for an empty body; normalize that to
+		// no-op so callers receive zero-values instead of a low-level error.
+		if err == io.EOF {
+			return nil
+		}
 		return err
 	}
 	switch v := bodyAny.(type) {
