@@ -9,6 +9,10 @@ import (
 	"github.com/fgrzl/mux/pkg/routing"
 	"github.com/fgrzl/mux/test/testhelpers"
 	"github.com/stretchr/testify/assert"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
 
 const bearerToken = "Bearer token123"
@@ -205,4 +209,83 @@ func TestShouldWorkWithComplexRouteContext(t *testing.T) {
 	// Assert
 	assert.True(t, nextCalled)
 	// OpenTelemetry should not interfere with the normal operation
+}
+
+func TestShouldUseMethodAndRoutePatternAsSpanName(t *testing.T) {
+	recorder := installTestTracerProvider(t)
+
+	rtr := router.NewRouter()
+	UseOpenTelemetry(rtr)
+	rtr.GET("/users/{id}", func(c routing.RouteContext) { c.OK("ok") })
+
+	req, rec := testhelpers.NewRequestRecorder(http.MethodGet, "/users/123", nil)
+	rtr.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	spans := recorder.Ended()
+	if assert.NotEmpty(t, spans) {
+		assert.Equal(t, "GET /users/{id}", spans[len(spans)-1].Name())
+	}
+}
+
+func TestShouldAttachRouteAttributesToSpan(t *testing.T) {
+	recorder := installTestTracerProvider(t)
+
+	rtr := router.NewRouter()
+	UseOpenTelemetry(rtr)
+	rtr.POST("/orders/{orderId}", func(c routing.RouteContext) { c.OK("ok") })
+
+	req, rec := testhelpers.NewRequestRecorder(http.MethodPost, "/orders/42", nil)
+	rtr.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	spans := recorder.Ended()
+	if assert.NotEmpty(t, spans) {
+		attrs := attributesToMap(spans[len(spans)-1].Attributes())
+		assert.Equal(t, "/orders/{orderId}", attrs["http.route"])
+		assert.Equal(t, "/orders/{orderId}", attrs["mux.route.pattern"])
+		assert.Equal(t, http.MethodPost, attrs["http.request.method"])
+	}
+}
+
+func TestShouldFallbackToOperationNameWhenRouteMetadataMissing(t *testing.T) {
+	recorder := installTestTracerProvider(t)
+
+	middleware := &otelMiddleware{operation: "fallback-operation"}
+	ctx, _ := testhelpers.NewRouteContext(http.MethodGet, "/raw/path", nil)
+
+	middleware.Invoke(ctx, func(c routing.RouteContext) {
+		c.OK("ok")
+	})
+
+	spans := recorder.Ended()
+	if assert.NotEmpty(t, spans) {
+		assert.Equal(t, "fallback-operation", spans[len(spans)-1].Name())
+	}
+}
+
+func installTestTracerProvider(t *testing.T) *tracetest.SpanRecorder {
+	t.Helper()
+
+	recorder := tracetest.NewSpanRecorder()
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))
+
+	prev := otel.GetTracerProvider()
+	otel.SetTracerProvider(tp)
+	t.Cleanup(func() {
+		_ = tp.Shutdown(t.Context())
+		otel.SetTracerProvider(prev)
+	})
+
+	return recorder
+}
+
+func attributesToMap(attrs []attribute.KeyValue) map[string]string {
+	out := make(map[string]string, len(attrs))
+	for _, kv := range attrs {
+		out[string(kv.Key)] = kv.Value.AsString()
+	}
+	return out
 }

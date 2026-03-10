@@ -320,8 +320,16 @@ mux.UseOpenTelemetry(router,
 ### Configuration Options
 - `WithOperation(name string)` - Sets the operation name for traces (default: "http.server")
 
+### Default Route Tracing Behavior
+- Span name uses `METHOD + route pattern` when route metadata is available (example: `GET /users/{id}`)
+- Adds `http.route` with the resolved route pattern
+- Adds `http.request.method` with the HTTP method
+- Adds `mux.route.pattern` as a mux-specific route label
+- Falls back to `WithOperation(...)` (or `http.server`) when route metadata is unavailable
+
 ### Features
 - **Automatic span creation**: Creates spans for each HTTP request
+- **Per-route grouping**: Uses route templates instead of raw URL paths to avoid high-cardinality span names
 - **Request/response metrics**: Collects timing and status metrics  
 - **Context propagation**: Properly propagates trace context
 - **Integration ready**: Works with standard OpenTelemetry exporters
