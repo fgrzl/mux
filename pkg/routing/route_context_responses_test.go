@@ -1,6 +1,7 @@
 package routing
 
 import (
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -149,6 +150,24 @@ func TestShouldReturnOKWithData(t *testing.T) {
 	assert.Equal(t, http.StatusOK, recorder.Code)
 	assert.Equal(t, common.MimeJSON, recorder.Header().Get(common.HeaderContentType))
 	assert.Contains(t, recorder.Body.String(), "\"message\":\"success\"")
+}
+
+func TestShouldReturnInternalServerErrorWhenJSONEncodingFails(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	recorder := httptest.NewRecorder()
+	ctx := NewRouteContext(recorder, req)
+
+	data := map[string]float64{"value": math.NaN()}
+
+	// Act
+	ctx.OK(data)
+
+	// Assert
+	assert.Equal(t, http.StatusInternalServerError, recorder.Code)
+	assert.NotEmpty(t, recorder.Body.String())
+	assert.Contains(t, recorder.Body.String(), "Internal Server Error")
+	assert.NotEqual(t, common.MimeJSON, recorder.Header().Get(common.HeaderContentType))
 }
 
 func TestShouldReturnCreatedWithData(t *testing.T) {
