@@ -3,6 +3,7 @@ package opentelemetry
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/fgrzl/mux/pkg/router"
 	"github.com/fgrzl/mux/pkg/routing"
@@ -45,6 +46,11 @@ type otelMiddleware struct {
 
 // Invoke implements the Middleware interface, adding OpenTelemetry tracing to HTTP requests.
 func (m *otelMiddleware) Invoke(c routing.RouteContext, next router.HandlerFunc) {
+	if isWebSocketUpgrade(c.Request()) {
+		next(c)
+		return
+	}
+
 	// Lazy init handler for cases where tests construct the middleware directly.
 	if m.handler == nil {
 		m.handler = buildOTELHandler(m.operation)
@@ -149,4 +155,24 @@ func enrichSpanWithRouteAttributes(ctx context.Context) {
 	if len(attrs) > 0 {
 		span.SetAttributes(attrs...)
 	}
+}
+
+func isWebSocketUpgrade(r *http.Request) bool {
+	if r == nil {
+		return false
+	}
+
+	if !strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
+		return false
+	}
+
+	for _, value := range r.Header.Values("Connection") {
+		for _, token := range strings.Split(value, ",") {
+			if strings.EqualFold(strings.TrimSpace(token), "Upgrade") {
+				return true
+			}
+		}
+	}
+
+	return false
 }

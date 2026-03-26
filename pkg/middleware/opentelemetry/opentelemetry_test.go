@@ -13,6 +13,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const bearerToken = "Bearer token123"
@@ -264,6 +265,28 @@ func TestShouldFallbackToOperationNameWhenRouteMetadataMissing(t *testing.T) {
 	if assert.NotEmpty(t, spans) {
 		assert.Equal(t, "fallback-operation", spans[len(spans)-1].Name())
 	}
+}
+
+func TestShouldBypassTracingForWebSocketUpgradeRequests(t *testing.T) {
+	recorder := installTestTracerProvider(t)
+
+	rtr := router.NewRouter()
+	UseOpenTelemetry(rtr, WithOperation("http.server"))
+
+	hasActiveSpan := true
+	rtr.GET("/ws", func(c routing.RouteContext) {
+		hasActiveSpan = trace.SpanFromContext(c.Request().Context()).SpanContext().IsValid()
+		c.Response().WriteHeader(http.StatusSwitchingProtocols)
+	})
+
+	req, rec := testhelpers.NewRequestRecorder(http.MethodGet, "/ws", nil)
+	req.Header.Set("Connection", "keep-alive, Upgrade")
+	req.Header.Set("Upgrade", "websocket")
+	rtr.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusSwitchingProtocols, rec.Code)
+	assert.False(t, hasActiveSpan)
+	assert.Empty(t, recorder.Ended())
 }
 
 func installTestTracerProvider(t *testing.T) *tracetest.SpanRecorder {
