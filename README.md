@@ -41,7 +41,7 @@ func main() {
         c.OK("Hello, World!")
     })
 
-    server := mux.NewServer(router, ":8080")
+    server := mux.NewServer(":8080", router)
     if err := server.Start(ctx); err != nil {
         panic(err)
     }
@@ -107,10 +107,15 @@ func main() {
 
     // Generate OpenAPI after routes are declared.
     generator := mux.NewGenerator()
-    spec := generator.GenerateSpec(router)
-    _ = spec.MarshalToFile("openapi.yaml")
+    spec, err := mux.GenerateSpecWithGenerator(generator, router)
+    if err != nil {
+        panic(err)
+    }
+    if err := spec.MarshalToFile("openapi.yaml"); err != nil {
+        panic(err)
+    }
 
-    server := mux.NewServer(router, ":8080")
+    server := mux.NewServer(":8080", router)
     if err := server.Start(ctx); err != nil {
         panic(err)
     }
@@ -125,8 +130,8 @@ func listUsers(c mux.RouteContext) {
 }
 
 func createUser(c mux.RouteContext) {
-    // Use Bind when your handler accepts a request body or mixed inputs
-    // (JSON, form values, query params, and route params).
+    // Use Bind when your handler accepts JSON, form-urlencoded,
+    // multipart form data, query params, route params, or headers.
     var user User
     if err := c.Bind(&user); err != nil {
         c.BadRequest("Invalid request", err.Error())

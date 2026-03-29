@@ -69,11 +69,19 @@ func (rb *RouteBuilder) WithRateLimit(limit int, interval time.Duration) *RouteB
 
 // WithOperationID sets/validates the OpenAPI OperationID.
 func (rb *RouteBuilder) WithOperationID(id string) *RouteBuilder {
+	if _, err := rb.WithOperationIDErr(id); err != nil {
+		panic(err.Error())
+	}
+	return rb
+}
+
+// WithOperationIDErr validates and sets the OpenAPI OperationID without panicking.
+func (rb *RouteBuilder) WithOperationIDErr(id string) (*RouteBuilder, error) {
 	if !opIDValidator.MatchString(id) {
-		panic(fmt.Sprintf("invalid OperationID %q (only alnum + _ allowed)", id))
+		return rb, fmt.Errorf("invalid OperationID %q (only alnum + _ allowed)", id)
 	}
 	rb.Options.OperationID = id
-	return rb
+	return rb, nil
 }
 
 // WithPathParam adds a required path parameter to this route.
@@ -161,35 +169,52 @@ func (rb *RouteBuilder) WithCookieParam(name, description string, example any, r
 //
 // Panics if name or in is empty, or if in is not one of the valid parameter locations.
 func (rb *RouteBuilder) WithParam(name, in, description string, example any, required bool) *RouteBuilder {
+	if _, err := rb.WithParamErr(name, in, description, example, required); err != nil {
+		panic(err.Error())
+	}
+	return rb
+}
+
+// WithParamErr adds a parameter without panicking on validation failures.
+func (rb *RouteBuilder) WithParamErr(name, in, description string, example any, required bool) (*RouteBuilder, error) {
 	if name == "" || in == "" {
-		panic("parameter name and 'in' cannot be empty")
+		return rb, fmt.Errorf("parameter name and 'in' cannot be empty")
 	}
 	if !isValidParameterIn(in) {
-		panic(fmt.Sprintf("invalid parameter 'in': %q", in))
+		return rb, fmt.Errorf("invalid parameter 'in': %q", in)
 	}
+
 	schema, err := QuickSchema(reflect.TypeOf(example))
 	if err != nil {
-		panic(err)
+		return rb, err
 	}
+
 	conv := binder.MakeConverter(reflect.TypeOf(example), schema)
 	rb.Options.Parameters = append(rb.Options.Parameters, &openapi.ParameterObject{
 		Name:        name,
 		In:          in,
 		Description: description,
-		Required:    required || in == "path", // paths are always required
+		Required:    required || in == "path",
 		Schema:      schema,
 		Example:     example,
 		Converter:   conv,
 	})
-	// Keep ParamIndex in sync for fast lookups at runtime
 	rb.Options.ParamIndex = routing.BuildParamIndex(rb.Options.Parameters)
-	return rb
+	return rb, nil
 }
 
 // makeConverter is implemented in binding_convert.go
 
 // WithResponse registers a response example and schema for the given HTTP code.
 func (rb *RouteBuilder) WithResponse(code int, example any) *RouteBuilder {
+	if _, err := rb.WithResponseErr(code, example); err != nil {
+		panic(err.Error())
+	}
+	return rb
+}
+
+// WithResponseErr registers a response example and schema without panicking.
+func (rb *RouteBuilder) WithResponseErr(code int, example any) (*RouteBuilder, error) {
 	if rb.Options.Responses == nil {
 		rb.Options.Responses = map[string]*openapi.ResponseObject{}
 	}
@@ -197,14 +222,14 @@ func (rb *RouteBuilder) WithResponse(code int, example any) *RouteBuilder {
 	if example != nil {
 		schema, err := QuickSchema(reflect.TypeOf(example))
 		if err != nil {
-			panic(err)
+			return rb, err
 		}
 		resp.Content = map[string]*openapi.MediaType{
 			common.MimeJSON: {Schema: schema, Example: example},
 		}
 	}
 	rb.Options.Responses[fmt.Sprintf("%d", code)] = resp
-	return rb
+	return rb, nil
 }
 
 func (rb *RouteBuilder) WithOKResponse(example any) *RouteBuilder {
@@ -282,71 +307,131 @@ func (rb *RouteBuilder) WithPermanentRedirectResponse() *RouteBuilder {
 
 // WithJsonBody describes a JSON request body (required=true).
 func (rb *RouteBuilder) WithJsonBody(example any) *RouteBuilder {
-	return rb.withBody(example, common.MimeJSON)
+	if _, err := rb.WithJsonBodyErr(example); err != nil {
+		panic(err.Error())
+	}
+	return rb
+}
+
+// WithJsonBodyErr describes a JSON request body without panicking.
+func (rb *RouteBuilder) WithJsonBodyErr(example any) (*RouteBuilder, error) {
+	return rb.withBodyErr(example, common.MimeJSON)
 }
 
 // WithOneOfJsonBody describes a JSON request body using oneOf for polymorphic types.
 // Pass example instances of each possible type as separate arguments.
 func (rb *RouteBuilder) WithOneOfJsonBody(examples ...any) *RouteBuilder {
-	return rb.withCompositeBody(examples, common.MimeJSON, "oneOf")
+	if _, err := rb.WithOneOfJsonBodyErr(examples...); err != nil {
+		panic(err.Error())
+	}
+	return rb
+}
+
+// WithOneOfJsonBodyErr describes a JSON request body using oneOf without panicking.
+func (rb *RouteBuilder) WithOneOfJsonBodyErr(examples ...any) (*RouteBuilder, error) {
+	return rb.withCompositeBodyErr(examples, common.MimeJSON, "oneOf")
 }
 
 // WithAnyOfJsonBody describes a JSON request body using anyOf for polymorphic types.
 // Pass example instances of each possible type as separate arguments.
 func (rb *RouteBuilder) WithAnyOfJsonBody(examples ...any) *RouteBuilder {
-	return rb.withCompositeBody(examples, common.MimeJSON, "anyOf")
+	if _, err := rb.WithAnyOfJsonBodyErr(examples...); err != nil {
+		panic(err.Error())
+	}
+	return rb
+}
+
+// WithAnyOfJsonBodyErr describes a JSON request body using anyOf without panicking.
+func (rb *RouteBuilder) WithAnyOfJsonBodyErr(examples ...any) (*RouteBuilder, error) {
+	return rb.withCompositeBodyErr(examples, common.MimeJSON, "anyOf")
 }
 
 // WithAllOfJsonBody describes a JSON request body using allOf for composition.
 // Pass example instances of each schema to compose as separate arguments.
 func (rb *RouteBuilder) WithAllOfJsonBody(examples ...any) *RouteBuilder {
-	return rb.withCompositeBody(examples, common.MimeJSON, "allOf")
+	if _, err := rb.WithAllOfJsonBodyErr(examples...); err != nil {
+		panic(err.Error())
+	}
+	return rb
+}
+
+// WithAllOfJsonBodyErr describes a JSON request body using allOf without panicking.
+func (rb *RouteBuilder) WithAllOfJsonBodyErr(examples ...any) (*RouteBuilder, error) {
+	return rb.withCompositeBodyErr(examples, common.MimeJSON, "allOf")
 }
 
 // WithFormBody describes an urlencoded form body.
 func (rb *RouteBuilder) WithFormBody(example any) *RouteBuilder {
-	return rb.withBody(example, "application/x-www-form-urlencoded")
+	if _, err := rb.WithFormBodyErr(example); err != nil {
+		panic(err.Error())
+	}
+	return rb
+}
+
+// WithFormBodyErr describes an urlencoded form body without panicking.
+func (rb *RouteBuilder) WithFormBodyErr(example any) (*RouteBuilder, error) {
+	return rb.withBodyErr(example, common.MimeFormURLEncoded)
 }
 
 // WithMultipartBody describes a multipart form body.
 func (rb *RouteBuilder) WithMultipartBody(example any) *RouteBuilder {
-	return rb.withBody(example, "multipart/form-data")
+	if _, err := rb.WithMultipartBodyErr(example); err != nil {
+		panic(err.Error())
+	}
+	return rb
+}
+
+// WithMultipartBodyErr describes a multipart form body without panicking.
+func (rb *RouteBuilder) WithMultipartBodyErr(example any) (*RouteBuilder, error) {
+	return rb.withBodyErr(example, common.MimeMultipartFormData)
 }
 
 func (rb *RouteBuilder) withBody(example any, ctype string) *RouteBuilder {
+	if _, err := rb.withBodyErr(example, ctype); err != nil {
+		panic(err.Error())
+	}
+	return rb
+}
+
+func (rb *RouteBuilder) withBodyErr(example any, ctype string) (*RouteBuilder, error) {
 
 	method := rb.Options.Method
 	if method == http.MethodHead || method == http.MethodGet || method == http.MethodDelete {
-		panic(fmt.Sprintf("HTTP method %s does not support a request body", method))
+		return rb, fmt.Errorf("HTTP method %s does not support a request body", method)
 	}
 
 	if example == nil {
-		return rb
+		return rb, nil
 	}
 	schema, err := QuickSchema(reflect.TypeOf(example))
 	if err != nil {
-		panic(err)
+		return rb, err
 	}
 	rb.Options.RequestBody = &openapi.RequestBodyObject{
 		Content:  map[string]*openapi.MediaType{ctype: {Schema: schema, Example: example}},
 		Required: true,
 	}
-	return rb
+	return rb, nil
 }
 
 func (rb *RouteBuilder) withCompositeBody(examples []any, ctype string, compositionType string) *RouteBuilder {
+	if _, err := rb.withCompositeBodyErr(examples, ctype, compositionType); err != nil {
+		panic(err.Error())
+	}
+	return rb
+}
+
+func (rb *RouteBuilder) withCompositeBodyErr(examples []any, ctype string, compositionType string) (*RouteBuilder, error) {
 	method := rb.Options.Method
 	if method == http.MethodHead || method == http.MethodGet || method == http.MethodDelete {
-		panic(fmt.Sprintf("HTTP method %s does not support a request body", method))
+		return rb, fmt.Errorf("HTTP method %s does not support a request body", method)
 	}
 
 	if len(examples) == 0 {
-		return rb
+		return rb, nil
 	}
 
 	schemas := make([]*openapi.Schema, 0, len(examples))
-	// Store examples alongside their schemas so they can be matched during generation
-	schemaExamples := make([]any, 0, len(examples))
 
 	for _, example := range examples {
 		if example == nil {
@@ -354,16 +439,15 @@ func (rb *RouteBuilder) withCompositeBody(examples []any, ctype string, composit
 		}
 		schema, err := QuickSchema(reflect.TypeOf(example))
 		if err != nil {
-			panic(err)
+			return rb, err
 		}
 		// Attach the example directly to the schema so it's available during generation
 		schema.Example = example
 		schemas = append(schemas, schema)
-		schemaExamples = append(schemaExamples, example)
 	}
 
 	if len(schemas) == 0 {
-		return rb
+		return rb, nil
 	}
 
 	compositeSchema := &openapi.Schema{}
@@ -375,7 +459,7 @@ func (rb *RouteBuilder) withCompositeBody(examples []any, ctype string, composit
 	case "allOf":
 		compositeSchema.AllOf = schemas
 	default:
-		panic(fmt.Sprintf("unsupported composition type: %s", compositionType))
+		return rb, fmt.Errorf("unsupported composition type: %s", compositionType)
 	}
 
 	// Use the first non-nil example as the overall example value for the media type
@@ -391,7 +475,7 @@ func (rb *RouteBuilder) withCompositeBody(examples []any, ctype string, composit
 		Content:  map[string]*openapi.MediaType{ctype: {Schema: compositeSchema, Example: exampleValue}},
 		Required: true,
 	}
-	return rb
+	return rb, nil
 }
 
 // WithSummary sets the summary.

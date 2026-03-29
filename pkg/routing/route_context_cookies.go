@@ -11,6 +11,8 @@ import (
 	"github.com/fgrzl/mux/pkg/tokenizer"
 )
 
+const csrfCookieName = "csrf_token"
+
 // EnforceSecureForSameSiteNone controls whether SetCookie will force the Secure
 // flag when SameSite=None is specified. Default true to match browser
 // expectations; flip to false in local development environments that use plain HTTP.
@@ -76,15 +78,28 @@ func (c *DefaultRouteContext) GetCookie(name string) (string, error) {
 
 // ClearCookie deletes the specified cookie by setting an expired cookie value.
 func (c *DefaultRouteContext) ClearCookie(name string) {
+	ClearCookieWithOptions(c, name, cookiekit.WithSameSite(http.SameSiteLaxMode))
+}
+
+// ClearCookieWithOptions deletes the specified cookie using the provided path,
+// domain, and attribute options. Use this when the cookie was originally set
+// with non-default attributes so the browser matches the deletion cookie.
+func ClearCookieWithOptions(c RouteContext, name string, opts ...cookiekit.CookieOption) {
+	if c == nil || c.Response() == nil {
+		return
+	}
+
+	_, path, domain, secure, httpOnly, sameSite := cookiekit.ResolveCookieOptions(opts...)
 	http.SetCookie(c.Response(), &http.Cookie{
 		Name:     name,
 		Value:    "",
-		Path:     "/",
+		Path:     path,
+		Domain:   domain,
 		MaxAge:   -1,
 		Expires:  time.Unix(1, 0).UTC(), // old enough to be invalid
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteLaxMode,
+		HttpOnly: httpOnly,
+		Secure:   secure,
+		SameSite: sameSite,
 	})
 }
 
@@ -143,8 +158,20 @@ func (c *DefaultRouteContext) SignIn(user claims.Principal, redirectUrl string, 
 
 // SignOut clears user-related cookies and redirects to the logout page.
 func (c *DefaultRouteContext) SignOut(redirectUrl string) {
-	c.ClearCookie(cookiekit.GetUserCookieName())
-	c.ClearCookie(cookiekit.GetTwoFactorCookieName())
-	c.ClearCookie(cookiekit.GetIdpSessionCookieName())
+	SignOutWithOptions(c, redirectUrl, cookiekit.WithSameSite(http.SameSiteLaxMode))
+}
+
+// SignOutWithOptions clears user-related cookies using the provided cookie
+// attributes and redirects to the logout page. Use this when the cookies were
+// originally issued with non-default path or domain options.
+func SignOutWithOptions(c RouteContext, redirectUrl string, opts ...cookiekit.CookieOption) {
+	if c == nil {
+		return
+	}
+
+	ClearCookieWithOptions(c, cookiekit.GetUserCookieName(), opts...)
+	ClearCookieWithOptions(c, cookiekit.GetTwoFactorCookieName(), opts...)
+	ClearCookieWithOptions(c, cookiekit.GetIdpSessionCookieName(), opts...)
+	ClearCookieWithOptions(c, csrfCookieName, opts...)
 	c.TemporaryRedirect(redirectUrl)
 }

@@ -233,8 +233,13 @@ Generate OpenAPI specs from your routes:
 
 ```go
 generator := mux.NewGenerator()
-spec := generator.GenerateSpec(router)
-spec.MarshalToFile("openapi.yaml")
+spec, err := mux.GenerateSpecWithGenerator(generator, router)
+if err != nil {
+    panic(err)
+}
+if err := spec.MarshalToFile("openapi.yaml"); err != nil {
+    panic(err)
+}
 ```
 
 ## Best Practices

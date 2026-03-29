@@ -6,7 +6,10 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"errors"
+	"fmt"
+	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -89,9 +92,10 @@ func WithCSRFProtection() AuthOption {
 	}
 }
 
-// WithRateLimiter sets a custom rate limiter for authentication failures.
-// The function should return true if the request should be allowed, false if rate limited.
-// The string parameter is the client identifier (typically IP address).
+// WithRateLimiter sets a custom rate limiter for failed authentication attempts.
+// The function should return true if another failed attempt should be allowed,
+// false if the client should be rate limited. The string parameter is the client
+// identifier (typically IP address).
 func WithRateLimiter(fn func(clientID string) bool) AuthOption {
 	return func(o *AuthenticationOptions) {
 		o.RateLimiter = fn
@@ -220,6 +224,8 @@ const (
 	csrfTokenLength     = 32
 )
 
+var csrfTokenEntropySource io.Reader = rand.Reader
+
 // ---- Middleware Logic ----
 
 // Invoke implements the middleware interface for authentication.
@@ -233,18 +239,6 @@ func (m *authenticationMiddleware) Invoke(c routing.RouteContext, next router.Ha
 		slog.DebugContext(c, "authentication skipped: anonymous access allowed")
 		next(c)
 		return
-	}
-
-	// Check rate limiting before processing authentication
-	if m.options != nil && m.options.RateLimiter != nil {
-		clientID := getClientID(c.Request())
-		if !m.options.RateLimiter(clientID) {
-			slog.WarnContext(c, "authentication rate limited", "client", clientID)
-			c.JSON(http.StatusTooManyRequests, map[string]string{
-				"error": "too many authentication failures, please try again later",
-			})
-			return
-		}
 	}
 
 	// Try cookie authentication first
@@ -272,8 +266,28 @@ func (m *authenticationMiddleware) Invoke(c routing.RouteContext, next router.Ha
 	}
 
 	// No valid authentication found
+	if m.rateLimitFailure(c) {
+		return
+	}
 	slog.DebugContext(c, "authentication failed: no valid token found")
 	c.Unauthorized()
+}
+
+func (m *authenticationMiddleware) rateLimitFailure(c routing.RouteContext) bool {
+	if m.options == nil || m.options.RateLimiter == nil {
+		return false
+	}
+
+	clientID := getClientID(c.Request())
+	if m.options.RateLimiter(clientID) {
+		return false
+	}
+
+	slog.WarnContext(c, "authentication rate limited", "client", clientID)
+	c.JSON(http.StatusTooManyRequests, map[string]string{
+		"error": "too many authentication failures, please try again later",
+	})
+	return true
 }
 
 // enrichContext calls the context enricher if configured, updating
@@ -418,15 +432,17 @@ func (m *authenticationMiddleware) updateCookieProperties(cookie *http.Cookie, t
 }
 
 // isSecureRequest determines if the request was made over HTTPS.
-// It checks both direct TLS connections and proxy headers (X-Forwarded-Proto).
+// Trusted proxy middleware should normalize request state before authentication
+// runs so raw client headers are not treated as authoritative here.
 func isSecureRequest(r *http.Request) bool {
+	if r == nil {
+		return false
+	}
 	// Direct TLS connection
 	if r.TLS != nil {
 		return true
 	}
-	// Check X-Forwarded-Proto header (set by reverse proxies)
-	proto := r.Header.Get("X-Forwarded-Proto")
-	return strings.EqualFold(proto, "https")
+	return strings.EqualFold(r.URL.Scheme, "https")
 }
 
 // extractBearerToken extracts the bearer token from the Authorization header value.
@@ -471,7 +487,29 @@ func (m *authenticationMiddleware) validateCSRFToken(c routing.RouteContext) boo
 // GenerateCSRFToken generates a new CSRF token and sets it as a cookie.
 // Call this function when establishing a session to provide the client with a CSRF token.
 func GenerateCSRFToken(c routing.RouteContext) string {
-	token := generateSecureToken(csrfTokenLength)
+	token, err := GenerateCSRFTokenErr(c)
+	if err != nil {
+		logCtx := context.Background()
+		if c != nil && c.Request() != nil && c.Request().Context() != nil {
+			logCtx = c.Request().Context()
+		}
+		slog.ErrorContext(logCtx, "failed to generate CSRF token", "error", err)
+		return ""
+	}
+	return token
+}
+
+// GenerateCSRFTokenErr generates a new CSRF token and sets it as a cookie.
+// It returns an error instead of falling back to weak entropy if the token
+// cannot be generated securely.
+func GenerateCSRFTokenErr(c routing.RouteContext) (string, error) {
+	token, err := generateSecureToken(csrfTokenLength)
+	if err != nil {
+		return "", err
+	}
+	if c == nil || c.Request() == nil || c.Response() == nil {
+		return "", errors.New("route context is not initialized")
+	}
 
 	isSecure := isSecureRequest(c.Request())
 	cookie := &http.Cookie{
@@ -484,22 +522,16 @@ func GenerateCSRFToken(c routing.RouteContext) string {
 	}
 	http.SetCookie(c.Response(), cookie)
 
-	return token
+	return token, nil
 }
 
 // generateSecureToken generates a cryptographically secure random token.
-func generateSecureToken(length int) string {
+func generateSecureToken(length int) (string, error) {
 	b := make([]byte, length)
-	if _, err := rand.Read(b); err != nil {
-		// SECURITY WARNING: Falling back to weak token generation.
-		// This should never happen in practice, but if it does, the generated
-		// token will be predictable and should not be relied upon for security.
-		slog.Error("crypto/rand failed, falling back to weak CSRF token generation",
-			"error", err,
-			"warning", "CSRF tokens may be predictable - investigate system entropy source")
-		return base64.URLEncoding.EncodeToString([]byte(time.Now().String()))
+	if _, err := io.ReadFull(csrfTokenEntropySource, b); err != nil {
+		return "", fmt.Errorf("generate CSRF token: %w", err)
 	}
-	return base64.URLEncoding.EncodeToString(b)[:length]
+	return strings.TrimRight(base64.RawURLEncoding.EncodeToString(b), "=")[:length], nil
 }
 
 // isStateChangingMethod returns true for HTTP methods that can change state.
@@ -515,28 +547,26 @@ func isStateChangingMethod(method string) bool {
 // ---- Rate Limiting Helpers ----
 
 // getClientID extracts a client identifier from the request for rate limiting.
-// It checks X-Forwarded-For first (for proxied requests), then falls back to RemoteAddr.
+// It relies on the normalized RemoteAddr so only trusted middleware can affect
+// the effective client identity.
 func getClientID(r *http.Request) string {
-	// Check X-Forwarded-For header first (common in proxied setups)
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		// Take the first IP in the list (original client)
-		if idx := strings.Index(xff, ","); idx != -1 {
-			return strings.TrimSpace(xff[:idx])
-		}
-		return strings.TrimSpace(xff)
+	if r == nil {
+		return ""
+	}
+	return normalizeClientID(r.RemoteAddr)
+}
+
+func normalizeClientID(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
 	}
 
-	// Check X-Real-IP header (nginx convention)
-	if xri := r.Header.Get("X-Real-IP"); xri != "" {
-		return strings.TrimSpace(xri)
+	if host, _, err := net.SplitHostPort(value); err == nil {
+		value = host
 	}
 
-	// Fall back to RemoteAddr, stripping port if present
-	addr := r.RemoteAddr
-	if idx := strings.LastIndex(addr, ":"); idx != -1 {
-		return addr[:idx]
-	}
-	return addr
+	return strings.Trim(value, "[]")
 }
 
 // NewInMemoryRateLimiter creates a simple in-memory rate limiter.

@@ -114,33 +114,35 @@ func (m *authorizationMiddleware) Invoke(c routing.RouteContext, next router.Han
 }
 
 func (m *authorizationMiddleware) checkRoles(c routing.RouteContext) bool {
-	opts := c.Options()
-	var valid []string
-	if opts != nil {
-		valid = opts.Roles
-	}
 	var checker func(claims.Principal, []string) bool = func(p claims.Principal, vals []string) bool {
 		if m.options != nil && m.options.CheckRoles != nil {
 			return m.options.CheckRoles(p, vals)
 		}
 		return matchAny(vals, p.Roles())
 	}
-	return m.checkStringList(valid, c.User(), checker)
+	if m.options != nil && !m.checkStringList(m.options.Roles, c.User(), checker) {
+		return false
+	}
+	if opts := c.Options(); opts != nil {
+		return m.checkStringList(opts.Roles, c.User(), checker)
+	}
+	return true
 }
 
 func (m *authorizationMiddleware) checkScopes(c routing.RouteContext) bool {
-	opts := c.Options()
-	var valid []string
-	if opts != nil {
-		valid = opts.Scopes
-	}
 	var checker func(claims.Principal, []string) bool = func(p claims.Principal, vals []string) bool {
 		if m.options != nil && m.options.CheckScopes != nil {
 			return m.options.CheckScopes(p, vals)
 		}
 		return matchAny(vals, p.Scopes())
 	}
-	return m.checkStringList(valid, c.User(), checker)
+	if m.options != nil && !m.checkStringList(m.options.Scopes, c.User(), checker) {
+		return false
+	}
+	if opts := c.Options(); opts != nil {
+		return m.checkStringList(opts.Scopes, c.User(), checker)
+	}
+	return true
 }
 
 // checkStringList centralizes the logic used by checkRoles and checkScopes.

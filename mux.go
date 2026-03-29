@@ -49,6 +49,14 @@ type HandlerFunc = routing.HandlerFunc
 // RouteContext is the request-scoped context passed to handlers.
 type RouteContext = routing.RouteContext
 
+// ClearCookieWithOptions deletes a cookie using explicit path/domain options.
+// Alias of routing.ClearCookieWithOptions.
+var ClearCookieWithOptions = routing.ClearCookieWithOptions
+
+// SignOutWithOptions clears framework-managed auth cookies using explicit
+// path/domain options and redirects. Alias of routing.SignOutWithOptions.
+var SignOutWithOptions = routing.SignOutWithOptions
+
 // RouteOptions is the per-route configuration type.
 type RouteOptions = routing.RouteOptions
 
@@ -285,6 +293,11 @@ var NewInMemoryRateLimiter = authentication.NewInMemoryRateLimiter
 // GenerateCSRFToken generates a new CSRF token and sets it as a cookie.
 // Alias of authentication.GenerateCSRFToken.
 var GenerateCSRFToken = authentication.GenerateCSRFToken
+
+// GenerateCSRFTokenErr generates a new CSRF token and sets it as a cookie,
+// returning an error if secure token generation fails.
+// Alias of authentication.GenerateCSRFTokenErr.
+var GenerateCSRFTokenErr = authentication.GenerateCSRFTokenErr
 
 // --- Authorization middleware ---
 // AuthZOption is a functional option used to configure the authorization

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/fgrzl/mux/pkg/builder"
@@ -208,15 +209,12 @@ func (rg *RouteGroup) Deprecated() *RouteGroup {
 
 // copyDefaults copies all default settings from source to target RouteGroup.
 func (target *RouteGroup) copyDefaults(source *RouteGroup) {
-	// For startup-only registration we can avoid copying slices and keep
-	// references to reduce allocations. This assumes defaults won't be
-	// mutated concurrently after group creation.
-	target.defaultParams = source.defaultParams
-	target.defaultRoles = source.defaultRoles
-	target.defaultScopes = source.defaultScopes
-	target.defaultPermissions = source.defaultPermissions
-	target.defaultTags = source.defaultTags
-	target.defaultSecurity = source.defaultSecurity
+	target.defaultParams = slices.Clone(source.defaultParams)
+	target.defaultRoles = slices.Clone(source.defaultRoles)
+	target.defaultScopes = slices.Clone(source.defaultScopes)
+	target.defaultPermissions = slices.Clone(source.defaultPermissions)
+	target.defaultTags = slices.Clone(source.defaultTags)
+	target.defaultSecurity = slices.Clone(source.defaultSecurity)
 	target.defaultSummary = source.defaultSummary
 	target.defaultDescription = source.defaultDescription
 	target.defaultAllowAnon = source.defaultAllowAnon
@@ -259,15 +257,14 @@ func (rg *RouteGroup) registerRoute(method, pattern string, handler routing.Hand
 		Responses:   map[string]*openapi.ResponseObject{},
 	}
 
-	// Use references to group defaults to avoid allocations during registration.
 	if len(rg.defaultTags) > 0 {
-		op.Tags = rg.defaultTags
+		op.Tags = slices.Clone(rg.defaultTags)
 	}
 	if len(rg.defaultSecurity) > 0 {
-		op.Security = rg.defaultSecurity
+		op.Security = slices.Clone(rg.defaultSecurity)
 	}
 	if len(rg.defaultParams) > 0 {
-		op.Parameters = rg.defaultParams
+		op.Parameters = slices.Clone(rg.defaultParams)
 	}
 
 	options := &routing.RouteOptions{
@@ -275,9 +272,9 @@ func (rg *RouteGroup) registerRoute(method, pattern string, handler routing.Hand
 		Pattern:        pattern,
 		Handler:        handler,
 		AllowAnonymous: rg.defaultAllowAnon,
-		Roles:          rg.defaultRoles,
-		Scopes:         rg.defaultScopes,
-		Permissions:    rg.defaultPermissions,
+		Roles:          slices.Clone(rg.defaultRoles),
+		Scopes:         slices.Clone(rg.defaultScopes),
+		Permissions:    slices.Clone(rg.defaultPermissions),
 		RateLimit:      0,
 		RateInterval:   0,
 		Operation:      op,
@@ -392,8 +389,8 @@ func (rg *RouteGroup) StaticFallback(pattern, dir, fallback string) *builder.Rou
 	absDir, _ := filepath.Abs(dir)
 	// Always serve from absolute directory to avoid CWD surprises
 	fs := http.FileServer(http.Dir(absDir))
-	// Resolve fallback to a file within absDir; assume fallback file name lives under dir
-	fallbackAbs := filepath.Join(absDir, filepath.Base(fallback))
+	// Resolve fallback to a file within absDir while preserving nested paths.
+	fallbackAbs := resolveStaticFallbackPath(absDir, dir, fallback)
 
 	// Catch-all handler: serve static file if it exists within dir, otherwise serve fallback
 	handler := func(c routing.RouteContext) {
@@ -402,7 +399,7 @@ func (rg *RouteGroup) StaticFallback(pattern, dir, fallback string) *builder.Rou
 		trimmed = strings.TrimPrefix(trimmed, "/")
 		absFullPath := filepath.Join(absDir, trimmed)
 		// Safety: ensure the resolved path is within the static directory
-		if !strings.HasPrefix(absFullPath, absDir) {
+		if !isPathWithinDir(absDir, absFullPath) {
 			http.ServeFile(c.Response(), c.Request(), fallbackAbs)
 			return
 		}
@@ -444,4 +441,42 @@ func normalizeRoute(route, prefix string) string {
 	}
 	route = strings.ReplaceAll(route, "//", "/")
 	return route
+}
+
+func resolveStaticFallbackPath(absDir, dir, fallback string) string {
+	fallbackPath := fallback
+	if !filepath.IsAbs(fallbackPath) {
+		fallbackPath = filepath.Clean(filepath.FromSlash(fallbackPath))
+		dirClean := filepath.Clean(filepath.FromSlash(dir))
+		prefixes := []string{dirClean, filepath.Base(dirClean)}
+		for _, prefix := range prefixes {
+			if prefix == "." || prefix == string(filepath.Separator) || prefix == "" {
+				continue
+			}
+			if fallbackPath == prefix {
+				fallbackPath = "."
+				break
+			}
+			trimPrefix := prefix + string(filepath.Separator)
+			if strings.HasPrefix(fallbackPath, trimPrefix) {
+				fallbackPath = strings.TrimPrefix(fallbackPath, trimPrefix)
+				break
+			}
+		}
+		fallbackPath = filepath.Join(absDir, fallbackPath)
+	}
+
+	fallbackPath = filepath.Clean(fallbackPath)
+	if !isPathWithinDir(absDir, fallbackPath) {
+		return filepath.Join(absDir, filepath.Base(fallbackPath))
+	}
+	return fallbackPath
+}
+
+func isPathWithinDir(root, candidate string) bool {
+	rel, err := filepath.Rel(root, candidate)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
 }

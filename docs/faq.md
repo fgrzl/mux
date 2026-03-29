@@ -271,7 +271,7 @@ func validateToken(tokenString string) (claims.Principal, error) {
 **A:** Use route-level authorization:
 ```go
 router.GET("/admin", adminHandler).RequireRoles("admin")
-router.POST("/users", createUser).RequirePermissions("write")
+router.POST("/users", createUser).RequirePermission("write")
 ```
 
 ### Q: How do I handle CORS?
@@ -308,8 +308,13 @@ router.POST("/users", createUser).
 
 // Generate spec
 generator := mux.NewGenerator()
-spec := generator.GenerateSpec(router)
-spec.MarshalToFile("openapi.yaml")
+spec, err := mux.GenerateSpecWithGenerator(generator, router)
+if err != nil {
+    panic(err)
+}
+if err := spec.MarshalToFile("openapi.yaml"); err != nil {
+    panic(err)
+}
 ```
 
 ### Q: Can I customize the OpenAPI output?

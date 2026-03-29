@@ -1,8 +1,10 @@
 package authentication
 
 import (
+	"crypto/rand"
 	"crypto/tls"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -370,15 +372,15 @@ func TestIsSecureRequestShouldDetectTLS(t *testing.T) {
 	assert.True(t, isSecureRequest(req))
 }
 
-func TestIsSecureRequestShouldDetectXForwardedProto(t *testing.T) {
+func TestIsSecureRequestShouldIgnoreXForwardedProtoWithoutTrustedMiddleware(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
 	req.Header.Set("X-Forwarded-Proto", "https")
-	assert.True(t, isSecureRequest(req))
+	assert.False(t, isSecureRequest(req))
 }
 
-func TestIsSecureRequestShouldDetectXForwardedProtoCaseInsensitive(t *testing.T) {
+func TestIsSecureRequestShouldRespectRequestScheme(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
-	req.Header.Set("X-Forwarded-Proto", "HTTPS")
+	req.URL.Scheme = "https"
 	assert.True(t, isSecureRequest(req))
 }
 
@@ -546,6 +548,37 @@ func TestAuthenticationWithRateLimitingShouldRejectRateLimitedRequests(t *testin
 	assert.Equal(t, http.StatusTooManyRequests, res.Code)
 }
 
+func TestAuthenticationWithRateLimitingShouldNotBlockValidAuthenticatedRequests(t *testing.T) {
+	limiterCalled := false
+	mockUser := newMockPrincipal("user123")
+
+	rtr := router.NewRouter()
+	UseAuthentication(rtr,
+		WithValidator(func(token string) (claims.Principal, error) {
+			if token == "valid-token" {
+				return mockUser, nil
+			}
+			return nil, ErrInvalidToken
+		}),
+		WithRateLimiter(func(clientID string) bool {
+			limiterCalled = true
+			return false
+		}),
+	)
+
+	ctx, res := newRouteContext(func(r *http.Request) {
+		r.Header.Set(common.HeaderAuthorization, "Bearer valid-token")
+	})
+	rtr.GET("/test", func(c routing.RouteContext) {
+		c.OK("success")
+	})
+
+	rtr.ServeHTTP(res, ctx.Request())
+
+	assert.Equal(t, http.StatusOK, res.Code)
+	assert.False(t, limiterCalled)
+}
+
 // ---- Tests for Token Revocation ----
 
 func TestTokenRevocationShouldBlockRevokedTokens(t *testing.T) {
@@ -684,22 +717,30 @@ func TestAudienceValidationShouldAcceptValidAudience(t *testing.T) {
 
 // ---- Tests for Client ID Extraction ----
 
-func TestGetClientIDShouldExtractFromXForwardedFor(t *testing.T) {
+func TestGetClientIDShouldIgnoreXForwardedForWithoutTrustedMiddleware(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.RemoteAddr = "192.168.1.1:12345"
 	req.Header.Set("X-Forwarded-For", "203.0.113.195, 70.41.3.18, 150.172.238.178")
-	assert.Equal(t, "203.0.113.195", getClientID(req))
+	assert.Equal(t, "192.168.1.1", getClientID(req))
 }
 
-func TestGetClientIDShouldExtractFromXRealIP(t *testing.T) {
+func TestGetClientIDShouldIgnoreXRealIPWithoutTrustedMiddleware(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.RemoteAddr = "192.168.1.1:12345"
 	req.Header.Set("X-Real-IP", "203.0.113.195")
-	assert.Equal(t, "203.0.113.195", getClientID(req))
+	assert.Equal(t, "192.168.1.1", getClientID(req))
 }
 
 func TestGetClientIDShouldFallbackToRemoteAddr(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.RemoteAddr = "192.168.1.1:12345"
 	assert.Equal(t, "192.168.1.1", getClientID(req))
+}
+
+func TestGetClientIDShouldParseIPv6RemoteAddr(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.RemoteAddr = "[2001:db8::1]:12345"
+	assert.Equal(t, "2001:db8::1", getClientID(req))
 }
 
 // ---- Tests for CSRF Token Generation ----
@@ -726,6 +767,62 @@ func TestGenerateCSRFTokenShouldSetCookie(t *testing.T) {
 	assert.Equal(t, http.SameSiteStrictMode, csrfCookie.SameSite)
 }
 
+func TestGenerateCSRFTokenShouldIgnoreSpoofedForwardedProto(t *testing.T) {
+	ctx, res := newRouteContext(func(r *http.Request) {
+		r.Header.Set("X-Forwarded-Proto", "https")
+	})
+	token, err := GenerateCSRFTokenErr(ctx)
+
+	require.NoError(t, err)
+	assert.NotEmpty(t, token)
+
+	cookies := res.Result().Cookies()
+	var csrfCookie *http.Cookie
+	for _, c := range cookies {
+		if c.Name == csrfTokenCookieName {
+			csrfCookie = c
+			break
+		}
+	}
+	require.NotNil(t, csrfCookie)
+	assert.False(t, csrfCookie.Secure)
+}
+
+func TestGenerateCSRFTokenErrShouldReturnErrorWhenEntropyFails(t *testing.T) {
+	// Arrange
+	ctx, res := newRouteContext(nil)
+	originalReader := csrfTokenEntropySource
+	csrfTokenEntropySource = failingCSRFEntropyReader{}
+	t.Cleanup(func() {
+		csrfTokenEntropySource = originalReader
+	})
+
+	// Act
+	token, err := GenerateCSRFTokenErr(ctx)
+
+	// Assert
+	require.Error(t, err)
+	assert.Empty(t, token)
+	assert.Empty(t, res.Result().Cookies())
+}
+
+func TestGenerateCSRFTokenShouldReturnEmptyStringWhenEntropyFails(t *testing.T) {
+	// Arrange
+	ctx, res := newRouteContext(nil)
+	originalReader := csrfTokenEntropySource
+	csrfTokenEntropySource = failingCSRFEntropyReader{}
+	t.Cleanup(func() {
+		csrfTokenEntropySource = originalReader
+	})
+
+	// Act
+	token := GenerateCSRFToken(ctx)
+
+	// Assert
+	assert.Empty(t, token)
+	assert.Empty(t, res.Result().Cookies())
+}
+
 // ---- Tests for Context Enricher ----
 
 type testContextKey string
@@ -734,6 +831,16 @@ const (
 	tenantIDKey testContextKey = "tenant_id"
 	userInfoKey testContextKey = "user_info"
 )
+
+type failingCSRFEntropyReader struct{}
+
+func (failingCSRFEntropyReader) Read(p []byte) (int, error) {
+	return 0, io.ErrUnexpectedEOF
+}
+
+func TestGenerateSecureTokenShouldUseCryptoRandReaderByDefault(t *testing.T) {
+	assert.Same(t, rand.Reader, csrfTokenEntropySource)
+}
 
 func TestContextEnricherShouldEnrichContextAfterAuthentication(t *testing.T) {
 	rtr := router.NewRouter()

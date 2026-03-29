@@ -165,13 +165,13 @@ func setupUserRoutes(group *mux.RouteGroup) {
         WithPathParam("id", "The unique user identifier", uuid.Nil).
         WithJsonBody(User{}).
         WithOKResponse(User{}).
-        RequirePermissions("write") // Additional permission check
+        RequirePermission("write") // Additional permission check
         
     users.DELETE("/{id}", deleteUser).
         WithSummary("Delete user").
         WithPathParam("id", "The unique user identifier", uuid.Nil).
         WithNoContentResponse().
-        RequirePermissions("delete")
+        RequirePermission("delete")
 }
 ```
 
@@ -202,8 +202,8 @@ func (h *UserHandler) CreateUser(c mux.RouteContext) {
     }
     
     // 3. Authorization (if not handled by middleware)
-    principal, ok := c.GetPrincipal()
-    if !ok {
+    principal := c.User()
+    if principal == nil {
         c.Unauthorized()
         return
     }
@@ -226,7 +226,7 @@ func (h *UserHandler) CreateUser(c mux.RouteContext) {
     }
     
     // 5. Success response
-    h.logger.InfoContext(c, "user created", "user_id", user.ID, "created_by", principal.GetUserID())
+    h.logger.InfoContext(c, "user created", "user_id", user.ID, "created_by", principal.Subject())
     c.Created(user.ToResponse())
 }
 
@@ -507,9 +507,9 @@ func validateToken(tokenString string) (claims.Principal, error) {
         }
     }
     
-    principal := claims.NewPrincipal()
+    claimSet := claims.NewClaimsSet("")
     if sub, ok := mapClaims["sub"].(string); ok {
-        principal.SetUserID(sub)
+        claimSet.SetSubject(sub)
     }
     if roles, ok := mapClaims["roles"].([]interface{}); ok {
         roleStrings := make([]string, len(roles))
@@ -518,10 +518,10 @@ func validateToken(tokenString string) (claims.Principal, error) {
                 roleStrings[i] = roleStr
             }
         }
-        principal.SetRoles(roleStrings)
+        claimSet.SetRoles(roleStrings...)
     }
-    
-    return principal, nil
+
+    return claims.NewPrincipal(claimSet), nil
 }
 
 // Implement input validation

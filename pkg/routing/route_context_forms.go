@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/fgrzl/mux/pkg/binder"
+	"github.com/fgrzl/mux/pkg/common"
 	"github.com/google/uuid"
 )
 
@@ -15,12 +16,12 @@ func (c *DefaultRouteContext) ensureFormsParsed() error {
 	}
 
 	ct := c.Request().Header.Get("Content-Type")
-	if strings.HasPrefix(ct, "multipart/form-data") {
+	if strings.HasPrefix(ct, common.MimeMultipartFormData) {
 		// Parse multipart form with a 32MB max memory
 		if err := c.Request().ParseMultipartForm(32 << 20); err != nil {
 			return err
 		}
-	} else if ct == "application/x-www-form-urlencoded" {
+	} else if strings.HasPrefix(ct, common.MimeFormURLEncoded) {
 		if err := c.Request().ParseForm(); err != nil {
 			return err
 		}

@@ -4,6 +4,7 @@ package openapi
 import (
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"reflect"
 	"regexp"
 	"strings"
@@ -66,6 +67,9 @@ type Generator struct {
 	spec            *OpenAPISpec
 	builder         *jsonschema.Builder
 	visited         map[reflect.Type]bool
+	componentNames  map[string]string
+	componentKeys   map[string]string
+	componentHashes map[string]string
 	withExamples    bool // default is false
 	includePrefixes []string
 }
@@ -78,12 +82,15 @@ type Generator struct {
 // Example:
 //
 //	gen := NewGenerator(WithExamples(), WithPathPrefix("api/v1"))
-//	spec, err := gen.GenerateSpec(router)
+//	spec, err := mux.GenerateSpecWithGenerator(gen, router)
 func NewGenerator(opts ...GeneratorOption) *Generator {
 	gen := &Generator{
-		spec:    NewOpenAPISpec(),
-		builder: jsonschema.NewBuilder(),
-		visited: make(map[reflect.Type]bool),
+		spec:            NewOpenAPISpec(),
+		builder:         jsonschema.NewBuilder(),
+		visited:         make(map[reflect.Type]bool),
+		componentNames:  make(map[string]string),
+		componentKeys:   make(map[string]string),
+		componentHashes: make(map[string]string),
 	}
 
 	for _, opt := range opts {
@@ -108,6 +115,11 @@ func (g *Generator) GenerateSpecFromRoutes(info *InfoObject, routes []RouteData)
 		return nil, fmt.Errorf("info is nil")
 	}
 
+	g.spec = NewOpenAPISpec()
+	g.visited = make(map[reflect.Type]bool)
+	g.componentNames = make(map[string]string)
+	g.componentKeys = make(map[string]string)
+	g.componentHashes = make(map[string]string)
 	g.spec.Info = info
 	g.ensureComponentInit()
 	// If includePrefixes is set, filter routes to those starting with any prefix.
@@ -429,34 +441,42 @@ func (g *Generator) GenerateSchemaForType(t reflect.Type) (*Schema, error) {
 	if t.Name() == "" {
 		return nil, fmt.Errorf("unnamed types cannot be registered")
 	}
+	scope := typeIdentity(t)
+	typeName := g.resolveComponentName(t.Name(), scope, scope)
 	// Protection: Check if we're already processing this type (prevents infinite recursion)
 	// This is critical for types with circular references (e.g., Node.Parent -> *Node)
 	if g.visited[t] {
-		return &Schema{Ref: "#/components/schemas/" + sanitizeComponentName(t.Name())}, nil
+		return &Schema{Ref: "#/components/schemas/" + typeName}, nil
 	}
 	g.visited[t] = true
 	defer delete(g.visited, t)
 
 	root, components := g.builder.SchemaWithComponents(t)
+	componentJSON := make(map[string][]byte, len(components))
+	componentHashes := make(map[string]string, len(components))
+	for name, raw := range components {
+		data, err := json.Marshal(raw)
+		if err != nil {
+			return nil, fmt.Errorf("marshal component schema %q: %w", name, err)
+		}
+		componentJSON[name] = data
+		componentHashes[name] = string(data)
+	}
 
 	// Build a name mapping for all components to sanitized names
 	nameMap := make(map[string]string, len(components))
 	for name := range components {
-		nameMap[name] = sanitizeComponentName(name)
+		nameMap[name] = g.resolveComponentName(name, scope, componentHashes[name])
 	}
 
 	// Insert/Update components with sanitized names and rewritten refs
-	for oldName, raw := range components {
+	for oldName := range components {
 		newName := nameMap[oldName]
 		if _, exists := g.spec.Components.Schemas[newName]; exists {
 			continue
 		}
-		data, err := json.Marshal(raw)
-		if err != nil {
-			return nil, fmt.Errorf("marshal component schema %q: %w", oldName, err)
-		}
 		s := &Schema{}
-		if err := json.Unmarshal(data, &s); err != nil {
+		if err := json.Unmarshal(componentJSON[oldName], &s); err != nil {
 			return nil, fmt.Errorf("unmarshal component schema %q: %w", oldName, err)
 		}
 		rewriteSchemaRefs(s, nameMap)
@@ -647,6 +667,87 @@ func sanitizeComponentName(name string) string {
 		return name // fallback
 	}
 	return result
+}
+
+func typeIdentity(t reflect.Type) string {
+	if t == nil {
+		return ""
+	}
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	if pkg := t.PkgPath(); pkg != "" {
+		return pkg + "." + t.String()
+	}
+	return t.String()
+}
+
+func componentNameSuffix(key string) string {
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(key))
+	return fmt.Sprintf("%08x", h.Sum32())[:8]
+}
+
+func (g *Generator) resolveComponentName(rawName, scope, hash string) string {
+	if rawName == "" {
+		return rawName
+	}
+	if g.spec == nil {
+		g.spec = NewOpenAPISpec()
+	}
+	g.ensureComponentInit()
+	if g.componentNames == nil {
+		g.componentNames = make(map[string]string)
+	}
+	if g.componentKeys == nil {
+		g.componentKeys = make(map[string]string)
+	}
+	if g.componentHashes == nil {
+		g.componentHashes = make(map[string]string)
+	}
+
+	key := rawName
+	if scope != "" {
+		key = scope + "::" + rawName
+	}
+	if resolved, ok := g.componentNames[key]; ok {
+		return resolved
+	}
+
+	base := sanitizeComponentName(rawName)
+	suffix := componentNameSuffix(key)
+	for attempt := 0; ; attempt++ {
+		candidate := base
+		switch attempt {
+		case 0:
+		case 1:
+			candidate = base + "_" + suffix
+		default:
+			candidate = fmt.Sprintf("%s_%s_%d", base, suffix, attempt)
+		}
+
+		if existingHash, ok := g.componentHashes[candidate]; ok {
+			if hash != "" && existingHash == hash {
+				g.componentNames[key] = candidate
+				return candidate
+			}
+			if existingKey, ok := g.componentKeys[candidate]; ok && existingKey != key {
+				continue
+			}
+		}
+		if _, exists := g.spec.Components.Schemas[candidate]; exists {
+			if existingKey, ok := g.componentKeys[candidate]; !ok || existingKey != key {
+				continue
+			}
+		}
+
+		g.componentNames[key] = candidate
+		g.componentKeys[candidate] = key
+		if hash != "" {
+			g.componentHashes[candidate] = hash
+		}
+		return candidate
+	}
 }
 
 // rewriteSchemaRefs updates $ref values in a schema tree according to a name mapping.

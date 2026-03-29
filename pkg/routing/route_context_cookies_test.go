@@ -191,6 +191,7 @@ func TestShouldClearAllCookiesAndRedirectGivenSignOut(t *testing.T) {
 	userCookieCleared := false
 	twoFactorCookieCleared := false
 	idpSessionCookieCleared := false
+	csrfCookieCleared := false
 
 	for _, header := range setCookieHeaders {
 		if strings.Contains(header, cookiekit.GetUserCookieName()) {
@@ -202,13 +203,44 @@ func TestShouldClearAllCookiesAndRedirectGivenSignOut(t *testing.T) {
 		if strings.Contains(header, cookiekit.GetIdpSessionCookieName()) {
 			idpSessionCookieCleared = true
 		}
+		if strings.Contains(header, "csrf_token") {
+			csrfCookieCleared = true
+		}
 	}
 
 	assert.True(t, userCookieCleared, "User cookie should be cleared")
 	assert.True(t, twoFactorCookieCleared, "Two-factor cookie should be cleared")
 	assert.True(t, idpSessionCookieCleared, "IDP session cookie should be cleared")
+	assert.True(t, csrfCookieCleared, "CSRF cookie should be cleared")
 
 	// Should redirect to logout page
+	assert.Equal(t, http.StatusTemporaryRedirect, res.Code)
+	assert.Equal(t, "http://example.com/logout", res.Header().Get(common.HeaderLocation))
+}
+
+func TestShouldClearCustomCookieAttributesGivenSignOutWithOptions(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodPost, "/signout", nil)
+	res := httptest.NewRecorder()
+	ctx := NewRouteContext(res, req)
+
+	// Act
+	SignOutWithOptions(ctx, "http://example.com/logout",
+		cookiekit.WithDomain(".example.com"),
+		cookiekit.WithPath("/app"),
+		cookiekit.WithSameSite(http.SameSiteStrictMode),
+	)
+
+	// Assert
+	setCookieHeaders := res.Header().Values(common.HeaderSetCookie)
+	require.Len(t, setCookieHeaders, 4)
+
+	for _, header := range setCookieHeaders {
+		assert.Contains(t, header, "Domain=example.com")
+		assert.Contains(t, header, "Path=/app")
+		assert.Contains(t, header, "Expires=Thu, 01 Jan 1970 00:00:01 GMT")
+	}
+
 	assert.Equal(t, http.StatusTemporaryRedirect, res.Code)
 	assert.Equal(t, "http://example.com/logout", res.Header().Get(common.HeaderLocation))
 }

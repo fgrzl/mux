@@ -3,8 +3,11 @@ package openapi
 import (
 	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 
+	baruser "github.com/fgrzl/mux/pkg/openapi/testtypes/bar"
+	foouser "github.com/fgrzl/mux/pkg/openapi/testtypes/foo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -332,4 +335,120 @@ func TestShouldRegisterComponentForArrayResponse(t *testing.T) {
 	assert.Equal(t, "array", mediaType.Schema.Type)
 	assert.NotNil(t, mediaType.Schema.Items)
 	assert.Equal(t, "#/components/schemas/User", mediaType.Schema.Items.Ref)
+}
+
+func TestShouldNotLeakSpecStateWhenReusingGenerator(t *testing.T) {
+	// Arrange
+	gen := NewGenerator()
+
+	routesOne := []RouteData{{
+		Path:   "/users",
+		Method: "GET",
+		Options: &Operation{
+			OperationID: "getUsers",
+			Responses: map[string]*ResponseObject{
+				"200": {Description: "Success"},
+			},
+		},
+	}}
+	routesTwo := []RouteData{{
+		Path:   "/orders",
+		Method: "GET",
+		Options: &Operation{
+			OperationID: "getOrders",
+			Responses: map[string]*ResponseObject{
+				"200": {Description: "Success"},
+			},
+		},
+	}}
+
+	// Act
+	firstSpec, err := gen.GenerateSpecFromRoutes(&InfoObject{Title: "Users API", Version: "1.0.0"}, routesOne)
+	require.NoError(t, err)
+	secondSpec, err := gen.GenerateSpecFromRoutes(&InfoObject{Title: "Orders API", Version: "2.0.0"}, routesTwo)
+	require.NoError(t, err)
+
+	// Assert
+	assert.Contains(t, firstSpec.Paths, "/users")
+	assert.NotContains(t, firstSpec.Paths, "/orders")
+	assert.Equal(t, "Users API", firstSpec.Info.Title)
+
+	assert.Contains(t, secondSpec.Paths, "/orders")
+	assert.NotContains(t, secondSpec.Paths, "/users")
+	assert.Equal(t, "Orders API", secondSpec.Info.Title)
+}
+
+func TestShouldDisambiguateSanitizedComponentNameCollisions(t *testing.T) {
+	// Arrange
+	gen := NewGenerator()
+	gen.ensureComponentInit()
+
+	info := &InfoObject{Title: "API", Version: "1.0"}
+
+	fooPage := Page[foouser.User]{Items: []foouser.User{{Foo: "alpha"}}, Total: 1}
+	barPage := Page[baruser.User]{Items: []baruser.User{{Bar: 42}}, Total: 1}
+
+	routes := []RouteData{
+		{
+			Path:   "/foo-users",
+			Method: "POST",
+			Options: &Operation{
+				OperationID: "createFooUsers",
+				RequestBody: &RequestBodyObject{
+					Content: map[string]*MediaType{
+						"application/json": {
+							Schema:  &Schema{Ref: "#/components/schemas/FooPage"},
+							Example: fooPage,
+						},
+					},
+				},
+			},
+		},
+		{
+			Path:   "/bar-users",
+			Method: "POST",
+			Options: &Operation{
+				OperationID: "createBarUsers",
+				RequestBody: &RequestBodyObject{
+					Content: map[string]*MediaType{
+						"application/json": {
+							Schema:  &Schema{Ref: "#/components/schemas/BarPage"},
+							Example: barPage,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Act
+	spec, err := gen.GenerateSpecFromRoutes(info, routes)
+
+	// Assert
+	require.NoError(t, err)
+	require.NotNil(t, spec)
+
+	fooComponent := spec.Components.Schemas["FooPage"]
+	barComponent := spec.Components.Schemas["BarPage"]
+	require.NotNil(t, fooComponent)
+	require.NotNil(t, barComponent)
+	require.Contains(t, fooComponent.Properties, "items")
+	require.Contains(t, barComponent.Properties, "items")
+	require.NotNil(t, fooComponent.Properties["items"].Items)
+	require.NotNil(t, barComponent.Properties["items"].Items)
+
+	fooRef := strings.TrimPrefix(fooComponent.Properties["items"].Items.Ref, "#/components/schemas/")
+	barRef := strings.TrimPrefix(barComponent.Properties["items"].Items.Ref, "#/components/schemas/")
+	require.NotEmpty(t, fooRef)
+	require.NotEmpty(t, barRef)
+	assert.NotEqual(t, fooRef, barRef)
+
+	fooUserSchema := spec.Components.Schemas[fooRef]
+	barUserSchema := spec.Components.Schemas[barRef]
+	require.NotNil(t, fooUserSchema)
+	require.NotNil(t, barUserSchema)
+	assert.Contains(t, fooUserSchema.Properties, "foo")
+	assert.NotContains(t, fooUserSchema.Properties, "bar")
+	assert.Contains(t, barUserSchema.Properties, "bar")
+	assert.NotContains(t, barUserSchema.Properties, "foo")
 }

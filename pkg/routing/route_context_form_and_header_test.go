@@ -1,6 +1,8 @@
 package routing
 
 import (
+	"bytes"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -26,6 +28,50 @@ func TestShouldBindFormURLEncoded(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(vals.Encode()))
 	req.Header.Set(common.HeaderContentType, common.MimeFormURLEncoded)
+	rr := httptest.NewRecorder()
+
+	c := NewRouteContext(rr, req)
+	var out formModel
+	// Act
+	err := c.Bind(&out)
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, "alice", out.Name)
+	assert.ElementsMatch(t, []string{"a", "b"}, out.Tags)
+}
+
+func TestShouldBindFormURLEncodedWithCharset(t *testing.T) {
+	// Arrange
+	vals := url.Values{}
+	vals.Add("name", "alice")
+	vals.Add("tags", "a")
+	vals.Add("tags", "b")
+
+	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(vals.Encode()))
+	req.Header.Set(common.HeaderContentType, common.MimeFormURLEncoded+"; charset=utf-8")
+	rr := httptest.NewRecorder()
+
+	c := NewRouteContext(rr, req)
+	var out formModel
+	// Act
+	err := c.Bind(&out)
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, "alice", out.Name)
+	assert.ElementsMatch(t, []string{"a", "b"}, out.Tags)
+}
+
+func TestShouldBindMultipartFormData(t *testing.T) {
+	// Arrange
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+	assert.NoError(t, writer.WriteField("name", "alice"))
+	assert.NoError(t, writer.WriteField("tags", "a"))
+	assert.NoError(t, writer.WriteField("tags", "b"))
+	assert.NoError(t, writer.Close())
+
+	req := httptest.NewRequest(http.MethodPost, "/", &buf)
+	req.Header.Set(common.HeaderContentType, writer.FormDataContentType())
 	rr := httptest.NewRecorder()
 
 	c := NewRouteContext(rr, req)

@@ -36,10 +36,11 @@ type RouteParams map[string]string
 // THREAD SAFETY: RouteContext instances are NOT safe for concurrent use by multiple goroutines.
 // Each RouteContext is bound to a single request lifecycle and may be pooled for reuse.
 // If you need to use the context in a goroutine that may outlive the request handler,
-// use the Detach() function to create a safe copy:
+// use the Detach() function to create a safe background copy:
 //
 //	go func(ctx *routing.DefaultRouteContext) {
-//	    // Safe to use ctx here
+//	    // Safe to read request metadata, params, services, and user here.
+//	    // Response writes are discarded on detached contexts.
 //	}(routing.Detach(c))
 //
 // WARNING: After the request handler returns, the original RouteContext may be recycled.
@@ -330,8 +331,11 @@ func ReleaseContext(c *DefaultRouteContext) {
 }
 
 // Detach clones the provided RouteContext into a new non-pooled DefaultRouteContext
-// that is safe to use in goroutines that outlive the request. The returned
-// context must not be released via ReleaseContext.
+// that is safe to use in goroutines that outlive the request. The detached copy
+// uses a background context, preserves framework-level state such as user,
+// params, services, and route options, and replaces the response writer with a
+// no-op writer so background work cannot accidentally write to the original
+// HTTP response. The returned context must not be released via ReleaseContext.
 func Detach(c RouteContext) *DefaultRouteContext {
 	if c == nil {
 		return nil
@@ -340,10 +344,23 @@ func Detach(c RouteContext) *DefaultRouteContext {
 	if !ok {
 		return nil
 	}
+	baseCtx := context.Background()
+	if d.user != nil {
+		baseCtx = claims.WithUser(baseCtx, d.user)
+	}
+
+	var reqClone *http.Request
+	if d.request != nil {
+		reqClone = d.request.Clone(baseCtx)
+		if reqClone.Body != nil {
+			reqClone.Body = http.NoBody
+		}
+		baseCtx = reqClone.Context()
+	}
 	clone := &DefaultRouteContext{
-		Context:      d.Context,
-		response:     d.response,
-		request:      d.request,
+		Context:      baseCtx,
+		response:     &detachedResponseWriter{},
+		request:      reqClone,
 		clientURL:    d.clientURL,
 		user:         d.user,
 		options:      d.options,
@@ -393,6 +410,19 @@ type DefaultRouteContext struct {
 	// bodyLimitApplied tracks whether MaxBytesReader has been applied to prevent double-wrapping.
 	bodyLimitApplied bool
 }
+
+type detachedResponseWriter struct{ header http.Header }
+
+func (w *detachedResponseWriter) Header() http.Header {
+	if w.header == nil {
+		w.header = make(http.Header)
+	}
+	return w.header
+}
+
+func (w *detachedResponseWriter) Write(p []byte) (int, error) { return len(p), nil }
+
+func (w *detachedResponseWriter) WriteHeader(statusCode int) {}
 
 func (c *DefaultRouteContext) Response() http.ResponseWriter {
 	return c.response
@@ -551,7 +581,7 @@ func (c *DefaultRouteContext) collectRequestData(staging map[string]any) error {
 	switch c.request.Method {
 	case http.MethodGet, http.MethodHead, http.MethodDelete:
 		return c.collectQueryParams(staging)
-	case http.MethodPut, http.MethodPost:
+	case http.MethodPut, http.MethodPost, http.MethodPatch:
 		return c.collectBodyData(staging)
 	}
 	return nil
@@ -693,7 +723,7 @@ func (c *DefaultRouteContext) collectBodyData(staging map[string]any) error {
 
 	ct := c.request.Header.Get(common.HeaderContentType)
 	switch {
-	case ct == common.MimeFormURLEncoded:
+	case strings.HasPrefix(ct, common.MimeFormURLEncoded), strings.HasPrefix(ct, common.MimeMultipartFormData):
 		return c.collectFormData(staging)
 	case strings.HasPrefix(ct, common.MimeJSON):
 		return c.collectJSONBody(staging)
@@ -703,8 +733,15 @@ func (c *DefaultRouteContext) collectBodyData(staging map[string]any) error {
 }
 
 func (c *DefaultRouteContext) collectFormData(staging map[string]any) error {
-	if err := c.request.ParseForm(); err != nil {
-		return err
+	ct := c.request.Header.Get(common.HeaderContentType)
+	if strings.HasPrefix(ct, common.MimeMultipartFormData) {
+		if err := c.request.ParseMultipartForm(32 << 20); err != nil {
+			return err
+		}
+	} else {
+		if err := c.request.ParseForm(); err != nil {
+			return err
+		}
 	}
 	for key, values := range c.request.Form {
 		addToStaging(staging, key, values)

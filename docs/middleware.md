@@ -12,13 +12,13 @@ type Middleware interface {
 }
 ```
 
-All built-in middleware can be added to routers or route groups and will execute in the order they are added.
+Built-in middleware is installed on the router and executes in the order it is added.
 
 ## Execution Model
 
 - Order: Middleware runs in the order you register it with `router.Use(...)`. The last registered middleware wraps the handler last.
 - Short-circuiting: A middleware may choose not to call `next(c)`. In that case, it terminates the pipeline early (e.g., to reject unauthorized requests).
-- Scope: Middleware added to a `RouteGroup` applies to the routes within that group in addition to any router-level middleware.
+- Scope: Middleware is registered on the router. Use `AllowAnonymous()` and route-group defaults such as `RequireRoles(...)`, `RequireScopes(...)`, and `RequirePermission(...)` to shape behavior for subsets of routes.
 - Performance: Mux composes the middleware pipeline and caches it. The pipeline is rebuilt only when middleware are added, avoiding per-request allocations.
 
 ## Authentication Middleware
@@ -35,16 +35,18 @@ mux.UseAuthentication(router,
 ```
 
 ### Configuration Options
-- `WithValidator(func(string) (claims.Principal, error))` - JWT token validation function
-- `WithTokenCreator(func(claims.Principal) (string, error))` - JWT token creation function  
+- `WithValidator(func(string) (claims.Principal, error))` - Token validation function
+- `WithTokenCreator(func(claims.Principal, time.Duration) (string, error))` - Token creation function
 - `WithTokenTTL(time.Duration)` - Token time-to-live duration
-- `WithAnonymousAccess()` - Allow anonymous access (no authentication required)
+- `WithCSRFProtection()` - Double-submit CSRF protection for cookie-authenticated state-changing requests
+- `WithAuthRateLimiter(func(string) bool)` - Rate limiting for failed authentication attempts
+
+Mark routes or route groups public with `AllowAnonymous()` rather than configuring anonymous access on the middleware itself.
 
 ### Token Sources
-The middleware automatically checks for tokens in multiple locations:
+The middleware checks tokens in these locations:
 1. **Authorization header**: `Authorization: Bearer <token>`
-2. **Cookies**: Configurable cookie names for different token types
-3. **Custom headers**: Additional header-based token sources
+2. **App session cookie**: The framework-managed session cookie used by `c.SignIn(...)`
 
 ### Example Implementation
 ```go
@@ -56,20 +58,25 @@ func validateToken(tokenString string) (claims.Principal, error) {
     if err != nil || !token.Valid {
         return nil, errors.New("invalid token")
     }
-    
-    claims := token.Claims.(jwt.MapClaims)
-    principal := claims.NewPrincipal()
-    principal.SetUserID(claims["sub"].(string))
-    principal.SetRoles(claims["roles"].([]string))
-    
-    return principal, nil
+
+    mapClaims, ok := token.Claims.(jwt.MapClaims)
+    if !ok {
+        return nil, errors.New("invalid token claims")
+    }
+
+    claimSet := claims.NewClaimsSet("")
+    if sub, ok := mapClaims["sub"].(string); ok {
+        claimSet.SetSubject(sub)
+    }
+
+    return claims.NewPrincipal(claimSet), nil
 }
 
-func createToken(principal claims.Principal) (string, error) {
+func createToken(principal claims.Principal, ttl time.Duration) (string, error) {
     token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-        "sub":   principal.GetUserID(),
-        "roles": principal.GetRoles(),
-        "exp":   time.Now().Add(time.Hour).Unix(),
+        "sub":   principal.Subject(),
+        "roles": principal.Roles(),
+        "exp":   time.Now().Add(ttl).Unix(),
     })
     
     secret := os.Getenv("JWT_SECRET")
@@ -90,8 +97,8 @@ mux.UseAuthorization(router,
 ```
 
 ### Configuration Options
-- `WithRoles(roles ...string)` - Define available roles
-- `WithPermissions(permissions ...string)` - Define available permissions
+- `WithRoles(roles ...string)` - Require roles at middleware level
+- `WithPermissions(permissions ...string)` - Require permissions at middleware level
 
 ### Route-Level Authorization
 ```go
@@ -99,12 +106,12 @@ mux.UseAuthorization(router,
 router.GET("/admin", adminHandler).RequireRoles("admin")
 
 // Require specific permissions
-router.POST("/users", createUser).RequirePermissions("write")
+router.POST("/users", createUser).RequirePermission("write")
 
 // Combine roles and permissions
 router.DELETE("/users/{id}", deleteUser).
     RequireRoles("admin", "moderator").
-    RequirePermissions("delete")
+    RequirePermission("delete")
 ```
 
 ## Compression Middleware

@@ -171,10 +171,15 @@ mux.UseCORS(router, &mux.CORSOptions{...})
 mux.UseRateLimit(router, &mux.RateLimitOptions{...})
 ```
 
-### Group Middleware
+### Route Group Defaults
 ```go
-api := router.NewRouteGroup("/api")
-mux.UseAuthentication(api, &mux.AuthenticationOptions{...})
+// Middleware is installed on the router.
+// Use route-group defaults to mark public or protected areas.
+public := router.NewRouteGroup("/public")
+public.AllowAnonymous()
+
+admin := router.NewRouteGroup("/admin")
+admin.RequireRoles("admin")
 ```
 
 ### Custom Middleware
@@ -194,30 +199,33 @@ router.Use(mux.MiddlewareFunc(MyMiddleware))
 
 ### Bearer Token
 ```go
-mux.UseAuthentication(router, &mux.AuthenticationOptions{
-    Scheme: "Bearer",
-    ValidateToken: func(token string) (any, error) {
-        // Validate token, return user info
-        return userID, nil
-    },
-})
+mux.UseAuthentication(router,
+    mux.WithValidator(func(token string) (claims.Principal, error) {
+        // Validate token and return a principal.
+        claimSet := claims.NewClaimsSet("user-123")
+        return claims.NewPrincipal(claimSet), nil
+    }),
+)
 ```
 
 ### Get Authenticated User
 ```go
-user := c.Principal()  // Returns the value from ValidateToken
+user := c.User()
+if user != nil {
+    subject := user.Subject()
+    _ = subject
+}
 ```
 
 ### Cookie Auth
 ```go
-mux.UseAuthentication(router, &mux.AuthenticationOptions{
-    Scheme: "Cookie",
-    CookieName: "session_id",
-    ValidateToken: func(token string) (any, error) {
-        // Validate session
-        return user, nil
-    },
-})
+mux.UseAuthentication(router,
+    mux.WithValidator(validateToken),
+    mux.WithTokenCreator(createToken),
+    mux.WithCSRFProtection(),
+)
+
+// Use c.SignIn(...) to issue the framework-managed session cookie.
 ```
 
 ---
@@ -250,6 +258,23 @@ router.GET("/data", getData).
 router.GET("/custom", handler).
     WithParam("id", "path", "Unique identifier", "123", true).  // name, in, description, example, required
     WithParam("filter", "query", "Filter criteria", "active", false)
+```
+
+### Non-Panicking Builder Variants
+Use the `Err` variants when routes are assembled from config, generators, or other dynamic inputs and you want explicit error handling instead of panics.
+
+```go
+route := mux.Route("POST", "/users")
+
+if _, err := route.WithOperationIDErr("createUser"); err != nil {
+    return err
+}
+if _, err := route.WithJsonBodyErr(CreateUserRequest{}); err != nil {
+    return err
+}
+if _, err := route.WithResponseErr(201, User{}); err != nil {
+    return err
+}
 ```
 
 ### Automatic Type Inference

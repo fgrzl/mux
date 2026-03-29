@@ -1,6 +1,7 @@
 package routing
 
 import (
+	"context"
 	"net/http/httptest"
 	"sync"
 	"testing"
@@ -69,4 +70,45 @@ func TestDetachUsableInGoroutine(t *testing.T) {
 
 	ReleaseContext(c)
 	wg.Wait()
+}
+
+func TestDetachShouldNotWriteToOriginalResponse(t *testing.T) {
+	// Arrange
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/", nil)
+	c := AcquireContext(rr, req)
+	require.NotNil(t, c)
+
+	d := Detach(c)
+	require.NotNil(t, d)
+
+	// Act
+	d.OK(map[string]string{"status": "background"})
+	ReleaseContext(c)
+
+	// Assert
+	require.Empty(t, rr.Body.String())
+	require.Empty(t, rr.Header().Get(common.HeaderContentType))
+}
+
+func TestDetachShouldUseBackgroundContext(t *testing.T) {
+	// Arrange
+	baseCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/", nil).WithContext(baseCtx)
+	c := AcquireContext(rr, req)
+	require.NotNil(t, c)
+
+	d := Detach(c)
+	require.NotNil(t, d)
+
+	// Act
+	cancel()
+	ReleaseContext(c)
+
+	// Assert
+	require.NoError(t, d.Err())
+	require.NoError(t, d.Request().Context().Err())
 }

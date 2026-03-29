@@ -194,30 +194,34 @@ func main() {
     // Global middleware (applies to all routes)
     mux.UseLogging(router)      // Log all requests
     mux.UseCompression(router)  // Compress responses
+
+    mux.UseAuthentication(router,
+        mux.WithValidator(func(token string) (claims.Principal, error) {
+            if token != "secret-token" {
+                return nil, errors.New("invalid token")
+            }
+
+            claimSet := claims.NewClaimsSet("user123")
+            return claims.NewPrincipal(claimSet), nil
+        }),
+    )
     
     // Public routes (no auth needed)
     router.GET("/", func(c mux.RouteContext) {
         c.OK("Public homepage")
-    })
+    }).AllowAnonymous()
     
-    // Protected routes (require authentication)
+    // Protected routes inherit router middleware.
     api := router.NewRouteGroup("/api")
     
-    // Add auth middleware to this group only
-    mux.UseAuthentication(api, &mux.AuthenticationOptions{
-        Scheme: "Bearer",
-        ValidateToken: func(token string) (any, error) {
-            if token == "secret-token" {
-                return "user123", nil
-            }
-            return nil, errors.New("invalid token")
-        },
-    })
-    
     api.GET("/profile", func(c mux.RouteContext) {
-        // Get the authenticated user
-        user := c.Principal()
-        c.OK(map[string]any{"user": user})
+        user := c.User()
+        if user == nil {
+            c.Unauthorized()
+            return
+        }
+
+        c.OK(map[string]any{"user": user.Subject()})
     })
     
     http.ListenAndServe(":8080", router)
@@ -238,10 +242,10 @@ curl http://localhost:8080/api/profile \
 ```
 
 **You just learned**:
-- ✅ Global middleware with `UseMiddleware(router, ...)`
-- ✅ Group-specific middleware
+- ✅ Global middleware with `mux.UseLogging(router)` and `mux.UseCompression(router)`
+- ✅ Public routes with `AllowAnonymous()`
 - ✅ Built-in authentication middleware
-- ✅ Accessing authenticated user with `c.Principal()`
+- ✅ Accessing authenticated user with `c.User()`
 
 **Next**: [Level 6 - OpenAPI Documentation](#level-6-openapi-documentation-20-minutes)
 

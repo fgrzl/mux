@@ -69,6 +69,23 @@ func TestShouldMaintainIndependentDefaultsWhenModifyingNestedRouteGroup(t *testi
 	assert.Equal(t, []string{"API", "V1"}, v1.defaultTags)
 }
 
+func TestShouldKeepParentAndChildDefaultsIndependentWithSharedCapacity(t *testing.T) {
+	// Arrange: force extra capacity so append reuse would leak across groups
+	rtr := NewRouter()
+	api := rtr.NewRouteGroup("/api")
+	api.defaultTags = make([]string, 0, 4)
+	api.defaultTags = append(api.defaultTags, "API")
+
+	// Act
+	v1 := api.NewRouteGroup("/v1")
+	v1.WithTags("V1")
+	api.WithTags("ADMIN")
+
+	// Assert
+	assert.Equal(t, []string{"API", "ADMIN"}, api.defaultTags)
+	assert.Equal(t, []string{"API", "V1"}, v1.defaultTags)
+}
+
 func TestShouldSupportMultipleLevelsOfNestingWhenCreatingRouteGroups(t *testing.T) {
 	// Arrange: Create multiple levels of nesting
 	rtr := NewRouter()

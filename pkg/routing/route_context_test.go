@@ -147,6 +147,28 @@ func TestShouldBindFromJSONBody(t *testing.T) {
 	assert.Equal(t, 30, result.Age)
 }
 
+func TestShouldBindFromPatchJSONBody(t *testing.T) {
+	// Arrange
+	body := `{"name":"John","age":30}`
+	req := httptest.NewRequest(http.MethodPatch, "/test", strings.NewReader(body))
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
+	rec := httptest.NewRecorder()
+	ctx := NewRouteContext(rec, req)
+
+	var result struct {
+		Name string `json:"name"`
+		Age  int    `json:"age"`
+	}
+
+	// Act
+	err := ctx.Bind(&result)
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, "John", result.Name)
+	assert.Equal(t, 30, result.Age)
+}
+
 func TestShouldBindFromFormData(t *testing.T) {
 	// Arrange
 	formData := url.Values{}

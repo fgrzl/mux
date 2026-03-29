@@ -7,7 +7,7 @@ Mux is a lightweight, modular HTTP router for Go designed for building modern AP
 ### Core Components
 
 - **Router**: The main entry point that handles HTTP routing and middleware execution
-- **RouteGroup**: Groups routes with shared configuration and middleware
+- **RouteGroup**: Groups routes with shared configuration and route defaults
 - **RouteContext**: Provides context for handling HTTP requests with type-safe parameter access
 - **Middleware**: Modular components for cross-cutting concerns
 

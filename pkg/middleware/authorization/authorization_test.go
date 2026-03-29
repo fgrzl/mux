@@ -203,6 +203,56 @@ func TestShouldDenyAccessWhenUserLacksRequiredRole(t *testing.T) {
 	assert.Equal(t, 403, rec.Code) // Forbidden
 }
 
+func TestShouldDenyAccessWhenMiddlewareRequiresRoleAndUserLacksIt(t *testing.T) {
+	// Arrange
+	middleware := &authorizationMiddleware{
+		options: &AuthorizationOptions{Roles: []string{roleAdmin}},
+	}
+
+	req := httptest.NewRequest(http.MethodGet, pathTest, nil)
+	rec := httptest.NewRecorder()
+	ctx := routing.NewRouteContext(rec, req)
+	ctx.SetUser(&mockPrincipalForAuth{roles: []string{roleUser}})
+	ctx.SetOptions(&routing.RouteOptions{})
+
+	nextCalled := false
+	next := func(c routing.RouteContext) {
+		nextCalled = true
+	}
+
+	// Act
+	middleware.Invoke(ctx, next)
+
+	// Assert
+	assert.False(t, nextCalled)
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+}
+
+func TestShouldRequireBothMiddlewareAndRouteRoles(t *testing.T) {
+	// Arrange
+	middleware := &authorizationMiddleware{
+		options: &AuthorizationOptions{Roles: []string{roleAdmin}},
+	}
+
+	req := httptest.NewRequest(http.MethodGet, pathTest, nil)
+	rec := httptest.NewRecorder()
+	ctx := routing.NewRouteContext(rec, req)
+	ctx.SetUser(&mockPrincipalForAuth{roles: []string{roleAdmin}})
+	ctx.SetOptions(&routing.RouteOptions{Roles: []string{roleUser}})
+
+	nextCalled := false
+	next := func(c routing.RouteContext) {
+		nextCalled = true
+	}
+
+	// Act
+	middleware.Invoke(ctx, next)
+
+	// Assert
+	assert.False(t, nextCalled)
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+}
+
 func TestShouldAllowAccessWhenUserHasRequiredScope(t *testing.T) {
 	// Arrange
 	middleware := &authorizationMiddleware{
@@ -250,6 +300,56 @@ func TestShouldDenyAccessWhenUserLacksRequiredScope(t *testing.T) {
 	// Assert
 	assert.False(t, nextCalled)
 	assert.Equal(t, 403, rec.Code)
+}
+
+func TestShouldDenyAccessWhenMiddlewareRequiresScopeAndUserLacksIt(t *testing.T) {
+	// Arrange
+	middleware := &authorizationMiddleware{
+		options: &AuthorizationOptions{Scopes: []string{ScopeAPIAdmin}},
+	}
+
+	req := httptest.NewRequest(http.MethodGet, pathTest, nil)
+	rec := httptest.NewRecorder()
+	ctx := routing.NewRouteContext(rec, req)
+	ctx.SetUser(&mockPrincipalForAuth{scopes: []string{ScopeAPIRead}})
+	ctx.SetOptions(&routing.RouteOptions{})
+
+	nextCalled := false
+	next := func(c routing.RouteContext) {
+		nextCalled = true
+	}
+
+	// Act
+	middleware.Invoke(ctx, next)
+
+	// Assert
+	assert.False(t, nextCalled)
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+}
+
+func TestShouldRequireBothMiddlewareAndRouteScopes(t *testing.T) {
+	// Arrange
+	middleware := &authorizationMiddleware{
+		options: &AuthorizationOptions{Scopes: []string{ScopeAPIAdmin}},
+	}
+
+	req := httptest.NewRequest(http.MethodGet, pathTest, nil)
+	rec := httptest.NewRecorder()
+	ctx := routing.NewRouteContext(rec, req)
+	ctx.SetUser(&mockPrincipalForAuth{scopes: []string{ScopeAPIAdmin}})
+	ctx.SetOptions(&routing.RouteOptions{Scopes: []string{ScopeAPIRead}})
+
+	nextCalled := false
+	next := func(c routing.RouteContext) {
+		nextCalled = true
+	}
+
+	// Act
+	middleware.Invoke(ctx, next)
+
+	// Assert
+	assert.False(t, nextCalled)
+	assert.Equal(t, http.StatusForbidden, rec.Code)
 }
 
 func TestShouldUseCustomRoleChecker(t *testing.T) {
