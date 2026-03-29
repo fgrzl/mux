@@ -272,7 +272,7 @@ func (m *authenticationMiddleware) Invoke(c routing.RouteContext, next router.Ha
 	}
 
 	// No valid authentication found
-	slog.InfoContext(c, "authentication failed: no valid token found")
+	slog.DebugContext(c, "authentication failed: no valid token found")
 	c.Unauthorized()
 }
 

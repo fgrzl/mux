@@ -11,6 +11,7 @@ import (
 	"github.com/fgrzl/mux/pkg/routing"
 	"github.com/fgrzl/mux/test/testhelpers"
 	"github.com/stretchr/testify/assert"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func newTestLogger(minLevel slog.Level) (*bytes.Buffer, *slog.Logger) {
@@ -96,6 +97,28 @@ func TestLoggingMiddlewareShouldUseWarningLevelForClientErrors(t *testing.T) {
 	assert.Contains(t, logOutput, "level=WARN")
 	assert.Contains(t, logOutput, "status=400")
 	assert.Contains(t, logOutput, "GET /bad-request -> 400")
+}
+
+func TestLoggingMiddlewareShouldLogConflictAtWarningLevel(t *testing.T) {
+	// Arrange
+	logBuffer, logger := newTestLogger(slog.LevelWarn)
+	slog.SetDefault(logger)
+
+	middleware := &loggingMiddleware{options: &LoggingOptions{}}
+	ctx, _ := testhelpers.NewRouteContext(http.MethodPut, "/conflict", nil)
+
+	next := func(c routing.RouteContext) {
+		c.Response().WriteHeader(http.StatusConflict)
+	}
+
+	// Act
+	middleware.Invoke(ctx, next)
+
+	// Assert
+	logOutput := logBuffer.String()
+	assert.Contains(t, logOutput, "level=WARN")
+	assert.Contains(t, logOutput, "status=409")
+	assert.Contains(t, logOutput, "PUT /conflict -> 409")
 }
 
 func TestLoggingMiddlewareShouldHandleErrorStatus(t *testing.T) {
@@ -222,4 +245,31 @@ func TestLoggingMiddlewareShouldUseRoutePatternInMessageAndAttrs(t *testing.T) {
 	assert.Contains(t, logOutput, "GET /users/{id} -> 202")
 	assert.Contains(t, logOutput, "route=/users/{id}")
 	assert.Contains(t, logOutput, "path=/users/42")
+}
+
+func TestLoggingMiddlewareShouldIncludeTraceAndSpanIDsWhenPresent(t *testing.T) {
+	// Arrange
+	logBuffer, logger := newTestLogger(slog.LevelDebug)
+	slog.SetDefault(logger)
+
+	middleware := &loggingMiddleware{options: &LoggingOptions{}}
+	ctx, _ := testhelpers.NewRouteContext(http.MethodGet, "/trace", nil)
+	spanContext := trace.NewSpanContext(trace.SpanContextConfig{
+		TraceID:    trace.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+		SpanID:     trace.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
+		TraceFlags: trace.FlagsSampled,
+	})
+	ctx.SetRequest(ctx.Request().WithContext(trace.ContextWithSpanContext(ctx.Request().Context(), spanContext)))
+
+	next := func(c routing.RouteContext) {
+		c.Response().WriteHeader(http.StatusOK)
+	}
+
+	// Act
+	middleware.Invoke(ctx, next)
+
+	// Assert
+	logOutput := logBuffer.String()
+	assert.Contains(t, logOutput, "trace_id=000102030405060708090a0b0c0d0e0f")
+	assert.Contains(t, logOutput, "span_id=0001020304050607")
 }

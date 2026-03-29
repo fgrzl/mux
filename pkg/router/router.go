@@ -189,7 +189,6 @@ func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	res, outcome := rtr.resolveRoute(r, c)
 	switch outcome {
 	case routeOutcomeNotFound:
-		slog.DebugContext(c, "not found", "path", r.URL.Path, "method", r.Method)
 		c.NotFound()
 		rtr.releaseContext(c)
 		return

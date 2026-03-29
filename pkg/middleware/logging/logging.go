@@ -10,6 +10,7 @@ import (
 
 	"github.com/fgrzl/mux/pkg/router"
 	"github.com/fgrzl/mux/pkg/routing"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // ---- Functional Options ----
@@ -53,9 +54,6 @@ func (m *loggingMiddleware) Invoke(c routing.RouteContext, next router.HandlerFu
 	if logger == nil {
 		logger = slog.Default()
 	}
-	if !logger.Enabled(c, slog.LevelInfo) {
-		return
-	}
 
 	req := c.Request()
 	duration := time.Since(start)
@@ -88,6 +86,12 @@ func (m *loggingMiddleware) Invoke(c routing.RouteContext, next router.HandlerFu
 		slog.String("user_agent", safeUA),
 		slog.Duration("duration", duration),
 	)
+	if traceID, spanID, ok := traceIDsForLog(req); ok {
+		attrs = append(attrs,
+			slog.String("trace_id", traceID),
+			slog.String("span_id", spanID),
+		)
+	}
 	logger.LogAttrs(c, level, requestLogMessage(req.Method, routePattern, safePath, statusCode), attrs...)
 	// reset and return to pool
 	*bufp = attrs[:0]
@@ -129,6 +133,19 @@ func requestLogLevel(statusCode int) slog.Level {
 	default:
 		return slog.LevelDebug
 	}
+}
+
+func traceIDsForLog(req *http.Request) (traceID string, spanID string, ok bool) {
+	if req == nil {
+		return "", "", false
+	}
+
+	spanContext := trace.SpanContextFromContext(req.Context())
+	if !spanContext.IsValid() {
+		return "", "", false
+	}
+
+	return spanContext.TraceID().String(), spanContext.SpanID().String(), true
 }
 
 // ---- Helpers ----

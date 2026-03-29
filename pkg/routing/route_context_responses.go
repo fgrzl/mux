@@ -69,30 +69,16 @@ func (c *DefaultRouteContext) Problem(problem *ProblemDetails) {
 	if problem.Status == 0 {
 		problem.Status = http.StatusInternalServerError
 	}
-	// Log at Error level for server errors (5xx); use Debug for client errors (4xx)
-	if problem.Status >= 500 {
-		slog.Error("problem response",
-			slog.Int("status", problem.Status),
-			slog.String("title", problem.Title),
-			slog.String("detail", problem.Detail),
-		)
-	} else {
-		slog.Debug("problem response",
-			slog.Int("status", problem.Status),
-			slog.String("title", problem.Title),
-			slog.String("detail", problem.Detail),
-		)
-	}
 	c.Response().Header().Set(common.HeaderContentType, common.MimeProblemJSON)
 	b, err := json.Marshal(problem)
 	if err != nil {
-		slog.Error("failed to marshal problem response", "err", err)
+		slog.ErrorContext(c, "failed to marshal problem response", responseLogArgs(c, problem.Status, "problem")...)
 		http.Error(c.Response(), http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 	c.Response().WriteHeader(problem.Status)
 	if _, err := c.Response().Write(b); err != nil {
-		slog.Error("failed to write problem response", "err", err)
+		slog.ErrorContext(c, "failed to write problem response", responseLogArgs(c, problem.Status, "problem", "error", err)...)
 	}
 }
 
@@ -107,13 +93,13 @@ func (c *DefaultRouteContext) JSON(status int, model any) {
 
 	b, err := json.Marshal(model)
 	if err != nil {
-		slog.Error("failed to marshal json response", "err", err)
+		slog.ErrorContext(c, "failed to marshal json response", responseLogArgs(c, status, "json", "error", err)...)
 		http.Error(c.Response(), http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 	c.Response().WriteHeader(status)
 	if _, err := c.Response().Write(b); err != nil {
-		slog.Error("failed to write json response", "err", err)
+		slog.ErrorContext(c, "failed to write json response", responseLogArgs(c, status, "json", "error", err)...)
 	}
 }
 
@@ -123,7 +109,7 @@ func (c *DefaultRouteContext) Plain(status int, data []byte) {
 	c.Response().WriteHeader(status)
 	if len(data) > 0 {
 		if _, err := c.Response().Write(data); err != nil {
-			slog.Error("failed to write plain response", "err", err)
+			slog.ErrorContext(c, "failed to write plain response", responseLogArgs(c, status, "plain", "error", err)...)
 		}
 	}
 }
@@ -133,7 +119,7 @@ func (c *DefaultRouteContext) HTML(status int, html string) {
 	c.Response().Header().Set(common.HeaderContentType, common.MimeTextHTML)
 	c.Response().WriteHeader(status)
 	if _, err := c.Response().Write([]byte(html)); err != nil {
-		slog.Error("failed to write html response", "err", err)
+		slog.ErrorContext(c, "failed to write html response", responseLogArgs(c, status, "html", "error", err)...)
 	}
 }
 
@@ -195,8 +181,30 @@ func (c *DefaultRouteContext) Download(filePath, filename string) {
 	c.Response().WriteHeader(http.StatusOK)
 	if _, err := io.Copy(c.Response(), f); err != nil {
 		// Log copy errors; response headers/body were already sent so best-effort logging is appropriate
-		slog.Error("failed to copy file to response", "err", err, "file", filePath)
+		slog.ErrorContext(c, "failed to copy file to response", responseLogArgs(c, http.StatusOK, "file", "error", err, "file", filePath)...)
 	}
+}
+
+func responseLogArgs(c *DefaultRouteContext, status int, responseType string, extra ...any) []any {
+	args := make([]any, 0, 12+len(extra))
+	args = append(args,
+		"status", status,
+		"response_type", responseType,
+	)
+
+	if req := c.Request(); req != nil {
+		args = append(args, "method", req.Method)
+		if req.URL != nil {
+			args = append(args, "path", req.URL.Path)
+		}
+	}
+
+	if opts := c.Options(); opts != nil && opts.Pattern != "" {
+		args = append(args, "route", opts.Pattern)
+	}
+
+	args = append(args, extra...)
+	return args
 }
 
 // buildContentDisposition constructs a safe Content-Disposition header value per RFC 6266.

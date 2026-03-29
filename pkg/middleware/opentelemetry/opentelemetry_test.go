@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
@@ -251,6 +252,58 @@ func TestShouldAttachRouteAttributesToSpan(t *testing.T) {
 	}
 }
 
+func TestShouldSetSpanErrorStatusForServerErrors(t *testing.T) {
+	recorder := installTestTracerProvider(t)
+
+	rtr := router.NewRouter()
+	UseOpenTelemetry(rtr)
+	rtr.GET("/fail", func(c routing.RouteContext) {
+		c.Response().WriteHeader(http.StatusInternalServerError)
+	})
+
+	req, rec := testhelpers.NewRequestRecorder(http.MethodGet, "/fail", nil)
+	rtr.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+
+	spans := recorder.Ended()
+	if assert.NotEmpty(t, spans) {
+		span := spans[len(spans)-1]
+		assert.Equal(t, codes.Error, span.Status().Code)
+
+		statusCode, ok := findSpanAttribute(span.Attributes(), "http.response.status_code")
+		if assert.True(t, ok) {
+			assert.Equal(t, int64(http.StatusInternalServerError), statusCode.AsInt64())
+		}
+	}
+}
+
+func TestShouldCaptureConflictStatusWithoutMarkingSpanAsError(t *testing.T) {
+	recorder := installTestTracerProvider(t)
+
+	rtr := router.NewRouter()
+	UseOpenTelemetry(rtr)
+	rtr.POST("/orders/{orderId}", func(c routing.RouteContext) {
+		c.Conflict("Resource Exists", "The resource already exists")
+	})
+
+	req, rec := testhelpers.NewRequestRecorder(http.MethodPost, "/orders/42", nil)
+	rtr.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusConflict, rec.Code)
+
+	spans := recorder.Ended()
+	if assert.NotEmpty(t, spans) {
+		span := spans[len(spans)-1]
+		assert.Equal(t, codes.Unset, span.Status().Code)
+
+		statusCode, ok := findSpanAttribute(span.Attributes(), "http.response.status_code")
+		if assert.True(t, ok) {
+			assert.Equal(t, int64(http.StatusConflict), statusCode.AsInt64())
+		}
+	}
+}
+
 func TestShouldFallbackToOperationNameWhenRouteMetadataMissing(t *testing.T) {
 	recorder := installTestTracerProvider(t)
 
@@ -311,4 +364,14 @@ func attributesToMap(attrs []attribute.KeyValue) map[string]string {
 		out[string(kv.Key)] = kv.Value.AsString()
 	}
 	return out
+}
+
+func findSpanAttribute(attrs []attribute.KeyValue, key string) (attribute.Value, bool) {
+	for _, kv := range attrs {
+		if string(kv.Key) == key {
+			return kv.Value, true
+		}
+	}
+
+	return attribute.Value{}, false
 }

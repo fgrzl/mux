@@ -1,6 +1,8 @@
 package routing
 
 import (
+	"bytes"
+	"log/slog"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +11,12 @@ import (
 	"github.com/fgrzl/mux/pkg/common"
 	"github.com/stretchr/testify/assert"
 )
+
+func newRoutingTestLogger(minLevel slog.Level) (*bytes.Buffer, *slog.Logger) {
+	var logBuffer bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logBuffer, &slog.HandlerOptions{Level: minLevel}))
+	return &logBuffer, logger
+}
 
 func TestShouldReturnServerErrorWithProblemDetails(t *testing.T) {
 	// Arrange
@@ -89,6 +97,22 @@ func TestShouldReturnConflictWithProblemDetails(t *testing.T) {
 	assert.Contains(t, recorder.Body.String(), "\"status\":409")
 }
 
+func TestConflictShouldNotEmitRoutineLog(t *testing.T) {
+	// Arrange
+	logBuffer, logger := newRoutingTestLogger(slog.LevelDebug)
+	slog.SetDefault(logger)
+
+	req := httptest.NewRequest(http.MethodPut, "/test", nil)
+	recorder := httptest.NewRecorder()
+	ctx := NewRouteContext(recorder, req)
+
+	// Act
+	ctx.Conflict("Resource Exists", "The resource already exists")
+
+	// Assert
+	assert.Empty(t, logBuffer.String())
+}
+
 func TestShouldReturnUnauthorized(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
@@ -154,6 +178,9 @@ func TestShouldReturnOKWithData(t *testing.T) {
 
 func TestShouldReturnInternalServerErrorWhenJSONEncodingFails(t *testing.T) {
 	// Arrange
+	logBuffer, logger := newRoutingTestLogger(slog.LevelError)
+	slog.SetDefault(logger)
+
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
@@ -168,6 +195,11 @@ func TestShouldReturnInternalServerErrorWhenJSONEncodingFails(t *testing.T) {
 	assert.NotEmpty(t, recorder.Body.String())
 	assert.Contains(t, recorder.Body.String(), "Internal Server Error")
 	assert.NotEqual(t, common.MimeJSON, recorder.Header().Get(common.HeaderContentType))
+	assert.Contains(t, logBuffer.String(), "failed to marshal json response")
+	assert.Contains(t, logBuffer.String(), "status=200")
+	assert.Contains(t, logBuffer.String(), "response_type=json")
+	assert.Contains(t, logBuffer.String(), "method=GET")
+	assert.Contains(t, logBuffer.String(), "path=/test")
 }
 
 func TestShouldReturnCreatedWithData(t *testing.T) {

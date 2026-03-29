@@ -109,6 +109,7 @@ func buildOTELHandler(operation string) http.Handler {
 		enrichSpanWithRouteAttributes(r.Context())
 		if v := r.Context().Value(otelNextKey{}); v != nil {
 			if data, ok := v.(*otelData); ok && data.c != nil && data.next != nil {
+				data.c.SetResponse(w)
 				// Use the named RequestSetter interface so callers and tests can
 				// rely on a clear, documented contract instead of an anonymous type.
 				if dc, ok2 := data.c.(RequestSetter); ok2 {

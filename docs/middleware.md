@@ -153,6 +153,7 @@ Each request generates a structured log entry with:
 - **remote**: Client IP address
 - **user_agent**: Client user agent string
 - **duration**: Request processing time
+- **trace_id** / **span_id**: Included automatically when OpenTelemetry tracing is active
 
 ### Example Log Entry
 ```json
