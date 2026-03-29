@@ -13,10 +13,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func newTestLogger(minLevel slog.Level) (*bytes.Buffer, *slog.Logger) {
+	var logBuffer bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logBuffer, &slog.HandlerOptions{Level: minLevel}))
+	return &logBuffer, logger
+}
+
 func TestLoggingMiddlewareShouldLogRequestDetails(t *testing.T) {
 	// Arrange
-	var logBuffer bytes.Buffer
-	logger := slog.New(slog.NewTextHandler(&logBuffer, nil))
+	logBuffer, logger := newTestLogger(slog.LevelDebug)
 	slog.SetDefault(logger)
 
 	middleware := &loggingMiddleware{options: &LoggingOptions{}}
@@ -39,7 +44,8 @@ func TestLoggingMiddlewareShouldLogRequestDetails(t *testing.T) {
 	assert.True(t, nextCalled, "next handler should be called")
 
 	logOutput := logBuffer.String()
-	assert.Contains(t, logOutput, "http_request")
+	assert.Contains(t, logOutput, "level=DEBUG")
+	assert.Contains(t, logOutput, "GET /test -> 200")
 	assert.Contains(t, logOutput, "method=GET")
 	// Slog text handler may wrap values in quotes; assert on stable substrings instead
 	assert.Contains(t, logOutput, "/test")
@@ -51,8 +57,7 @@ func TestLoggingMiddlewareShouldLogRequestDetails(t *testing.T) {
 
 func TestLoggingMiddlewareShouldCaptureStatusCode(t *testing.T) {
 	// Arrange
-	var logBuffer bytes.Buffer
-	logger := slog.New(slog.NewTextHandler(&logBuffer, nil))
+	logBuffer, logger := newTestLogger(slog.LevelDebug)
 	slog.SetDefault(logger)
 
 	middleware := &loggingMiddleware{options: &LoggingOptions{}}
@@ -67,13 +72,35 @@ func TestLoggingMiddlewareShouldCaptureStatusCode(t *testing.T) {
 
 	// Assert
 	logOutput := logBuffer.String()
+	assert.Contains(t, logOutput, "level=DEBUG")
 	assert.Contains(t, logOutput, "status=201")
+}
+
+func TestLoggingMiddlewareShouldUseWarningLevelForClientErrors(t *testing.T) {
+	// Arrange
+	logBuffer, logger := newTestLogger(slog.LevelInfo)
+	slog.SetDefault(logger)
+
+	middleware := &loggingMiddleware{options: &LoggingOptions{}}
+	ctx, _ := testhelpers.NewRouteContext(http.MethodGet, "/bad-request", nil)
+
+	next := func(c routing.RouteContext) {
+		c.Response().WriteHeader(http.StatusBadRequest)
+	}
+
+	// Act
+	middleware.Invoke(ctx, next)
+
+	// Assert
+	logOutput := logBuffer.String()
+	assert.Contains(t, logOutput, "level=WARN")
+	assert.Contains(t, logOutput, "status=400")
+	assert.Contains(t, logOutput, "GET /bad-request -> 400")
 }
 
 func TestLoggingMiddlewareShouldHandleErrorStatus(t *testing.T) {
 	// Arrange
-	var logBuffer bytes.Buffer
-	logger := slog.New(slog.NewTextHandler(&logBuffer, nil))
+	logBuffer, logger := newTestLogger(slog.LevelInfo)
 	slog.SetDefault(logger)
 
 	middleware := &loggingMiddleware{options: &LoggingOptions{}}
@@ -88,13 +115,13 @@ func TestLoggingMiddlewareShouldHandleErrorStatus(t *testing.T) {
 
 	// Assert
 	logOutput := logBuffer.String()
+	assert.Contains(t, logOutput, "level=ERROR")
 	assert.Contains(t, logOutput, "status=500")
 }
 
 func TestLoggingMiddlewareShouldDefaultTo200Status(t *testing.T) {
 	// Arrange
-	var logBuffer bytes.Buffer
-	logger := slog.New(slog.NewTextHandler(&logBuffer, nil))
+	logBuffer, logger := newTestLogger(slog.LevelDebug)
 	slog.SetDefault(logger)
 
 	middleware := &loggingMiddleware{options: &LoggingOptions{}}
@@ -111,6 +138,7 @@ func TestLoggingMiddlewareShouldDefaultTo200Status(t *testing.T) {
 	// Assert
 	logOutput := logBuffer.String()
 	// When WriteHeader is not called explicitly, our recorder should default to 200 on first Write
+	assert.Contains(t, logOutput, "level=DEBUG")
 	assert.Contains(t, logOutput, "status=200")
 }
 
@@ -154,8 +182,7 @@ func TestShouldAddLoggingMiddlewareToRouter(t *testing.T) {
 
 	UseLogging(rtr)
 
-	var logBuffer bytes.Buffer
-	logger := slog.New(slog.NewTextHandler(&logBuffer, nil))
+	logBuffer, logger := newTestLogger(slog.LevelDebug)
 	slog.SetDefault(logger)
 
 	rtr.GET("/test", func(c routing.RouteContext) { _, _ = c.Response().Write([]byte("ok")) })
@@ -168,5 +195,31 @@ func TestShouldAddLoggingMiddlewareToRouter(t *testing.T) {
 
 	// Assert
 	assert.Equal(t, http.StatusOK, rec.Code)
-	assert.Contains(t, logBuffer.String(), "http_request")
+	assert.Contains(t, logBuffer.String(), "level=DEBUG")
+	assert.Contains(t, logBuffer.String(), "GET /test -> 200")
+}
+
+func TestLoggingMiddlewareShouldUseRoutePatternInMessageAndAttrs(t *testing.T) {
+	// Arrange
+	logBuffer, logger := newTestLogger(slog.LevelDebug)
+	slog.SetDefault(logger)
+
+	rtr := router.NewRouter()
+	UseLogging(rtr)
+	rtr.GET("/users/{id}", func(c routing.RouteContext) {
+		c.Response().WriteHeader(http.StatusAccepted)
+	})
+
+	req, rec := testhelpers.NewRequestRecorder(http.MethodGet, "/users/42", nil)
+
+	// Act
+	rtr.ServeHTTP(rec, req)
+
+	// Assert
+	assert.Equal(t, http.StatusAccepted, rec.Code)
+	logOutput := logBuffer.String()
+	assert.Contains(t, logOutput, "level=DEBUG")
+	assert.Contains(t, logOutput, "GET /users/{id} -> 202")
+	assert.Contains(t, logOutput, "route=/users/{id}")
+	assert.Contains(t, logOutput, "path=/users/42")
 }

@@ -136,6 +136,7 @@ router.GET("/api/data", func(c mux.RouteContext) {
 ## Logging Middleware
 
 Provides structured HTTP request/response logging using Go's structured logging (slog).
+Successful requests are emitted at DEBUG, 4xx responses at WARN, and 5xx responses at ERROR.
 
 ### Setup
 ```go
@@ -145,8 +146,10 @@ mux.UseLogging(router)
 ### Log Output
 Each request generates a structured log entry with:
 - **method**: HTTP method (GET, POST, etc.)
+- **route**: Matched route pattern when available
 - **path**: Request path
 - **status**: HTTP response status code
+- **level**: `DEBUG` for responses below 400, `WARN` for 4xx, `ERROR` for 5xx
 - **remote**: Client IP address
 - **user_agent**: Client user agent string
 - **duration**: Request processing time
@@ -154,15 +157,16 @@ Each request generates a structured log entry with:
 ### Example Log Entry
 ```json
 {
-  "time": "2024-01-15T10:30:00Z",
-  "level": "INFO",
-  "msg": "http_request",
-  "method": http.MethodGet,
-  "path": "/api/users",
-  "status": 200,
-  "remote": "192.168.1.100",
-  "user_agent": "Mozilla/5.0...",
-  "duration": "25ms"
+"time": "2024-01-15T10:30:00Z",
+"level": "DEBUG",
+"msg": "GET /api/users/{id} -> 200",
+"method": "GET",
+"route": "/api/users/{id}",
+"path": "/api/users/42",
+"status": 200,
+"remote": "192.168.1.100",
+"user_agent": "Mozilla/5.0...",
+"duration": "25ms"
 }
 ```
 

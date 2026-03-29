@@ -4,6 +4,7 @@ import (
 	"html"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -58,6 +59,11 @@ func (m *loggingMiddleware) Invoke(c routing.RouteContext, next router.HandlerFu
 
 	req := c.Request()
 	duration := time.Since(start)
+	statusCode := rec.StatusCode()
+	level := requestLogLevel(statusCode)
+	if !logger.Enabled(c, level) {
+		return
+	}
 
 	bufp := attrPool.Get().(*[]slog.Attr)
 	attrs := (*bufp)[:0]
@@ -66,17 +72,23 @@ func (m *loggingMiddleware) Invoke(c routing.RouteContext, next router.HandlerFu
 	// accidental log amplification.
 	// Sanitize values but avoid adding extra quoting which creates small
 	// allocations that provide little diagnostic value.
+	routePattern := routePatternForLog(c)
 	safePath := sanitizeForLog(req.URL.Path)
 	safeUA := sanitizeForLog(req.UserAgent())
 	attrs = append(attrs,
 		slog.String("method", req.Method),
+	)
+	if routePattern != "" {
+		attrs = append(attrs, slog.String("route", routePattern))
+	}
+	attrs = append(attrs,
 		slog.String("path", safePath),
-		slog.Int("status", rec.StatusCode()),
+		slog.Int("status", statusCode),
 		slog.String("remote", req.RemoteAddr),
 		slog.String("user_agent", safeUA),
 		slog.Duration("duration", duration),
 	)
-	logger.LogAttrs(c, slog.LevelInfo, "http_request", attrs...)
+	logger.LogAttrs(c, level, requestLogMessage(req.Method, routePattern, safePath, statusCode), attrs...)
 	// reset and return to pool
 	*bufp = attrs[:0]
 	attrPool.Put(bufp)
@@ -90,6 +102,33 @@ func sanitizeForLog(s string) string {
 		return esc[:max] + "..."
 	}
 	return esc
+}
+
+func routePatternForLog(c routing.RouteContext) string {
+	options := c.Options()
+	if options == nil || options.Pattern == "" {
+		return ""
+	}
+	return sanitizeForLog(options.Pattern)
+}
+
+func requestLogMessage(method string, routePattern string, safePath string, statusCode int) string {
+	target := safePath
+	if routePattern != "" {
+		target = routePattern
+	}
+	return method + " " + target + " -> " + strconv.Itoa(statusCode)
+}
+
+func requestLogLevel(statusCode int) slog.Level {
+	switch {
+	case statusCode >= http.StatusInternalServerError:
+		return slog.LevelError
+	case statusCode >= http.StatusBadRequest:
+		return slog.LevelWarn
+	default:
+		return slog.LevelDebug
+	}
 }
 
 // ---- Helpers ----
