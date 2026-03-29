@@ -582,6 +582,9 @@ func (c *DefaultRouteContext) collectRequestData(staging map[string]any) error {
 	case http.MethodGet, http.MethodHead, http.MethodDelete:
 		return c.collectQueryParams(staging)
 	case http.MethodPut, http.MethodPost, http.MethodPatch:
+		if err := c.collectQueryParams(staging); err != nil {
+			return err
+		}
 		return c.collectBodyData(staging)
 	}
 	return nil
@@ -738,21 +741,26 @@ func (c *DefaultRouteContext) collectFormData(staging map[string]any) error {
 		if err := c.request.ParseMultipartForm(32 << 20); err != nil {
 			return err
 		}
+		if c.request.MultipartForm == nil {
+			return nil
+		}
+		for key, values := range c.request.MultipartForm.Value {
+			addToStaging(staging, key, values)
+		}
 	} else {
 		if err := c.request.ParseForm(); err != nil {
 			return err
 		}
-	}
-	for key, values := range c.request.Form {
-		addToStaging(staging, key, values)
+		for key, values := range c.request.PostForm {
+			addToStaging(staging, key, values)
+		}
 	}
 	return nil
 }
 
 func (c *DefaultRouteContext) collectJSONBody(staging map[string]any) error {
-	// Read and decode JSON body. Support both object and array roots. If an
-	// array root is provided, store it under a special key so Bind can
-	// marshal the array directly into slice targets.
+	// Read and decode JSON body. Support object roots for mixed-source binding
+	// and array roots for slice targets.
 	decoder := json.NewDecoder(c.request.Body)
 	// Use interface{} to accept either map or slice
 	var bodyAny any
@@ -775,9 +783,7 @@ func (c *DefaultRouteContext) collectJSONBody(staging map[string]any) error {
 		staging["__root_json_array"] = v
 		return nil
 	default:
-		// For primitive roots (string, number, etc) store under special key
-		staging["__root_json_primitive"] = v
-		return nil
+		return fmt.Errorf("unsupported JSON root type %T", v)
 	}
 }
 

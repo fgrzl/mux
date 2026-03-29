@@ -169,6 +169,136 @@ func TestShouldBindFromPatchJSONBody(t *testing.T) {
 	assert.Equal(t, 30, result.Age)
 }
 
+func TestShouldBindMixedSourcesGivenPostJSONBody(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodPost, "/users/42?limit=5", strings.NewReader(`{"name":"John"}`))
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
+	req.Header.Set("X-Trace-ID", "trace-1")
+	rec := httptest.NewRecorder()
+	ctx := NewRouteContext(rec, req)
+	params := &Params{}
+	params.Set("id", "42")
+	ctx.paramsSlice = params
+	ctx.options = Route(http.MethodPost, "/users/{id}").
+		WithQueryParam("limit", 1).
+		WithHeaderParam("X-Trace-ID", "", false).
+		WithPathParam("id", 1)
+
+	var result struct {
+		Name    string `json:"name"`
+		Limit   int    `json:"limit"`
+		TraceID string `json:"X-Trace-ID"`
+		ID      int    `json:"id"`
+	}
+
+	// Act
+	err := ctx.Bind(&result)
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, "John", result.Name)
+	assert.Equal(t, 5, result.Limit)
+	assert.Equal(t, "trace-1", result.TraceID)
+	assert.Equal(t, 42, result.ID)
+}
+
+func TestShouldBindMixedSourcesGivenPatchJSONBody(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodPatch, "/users/42?version=7", strings.NewReader(`{"name":"Patched"}`))
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
+	rec := httptest.NewRecorder()
+	ctx := NewRouteContext(rec, req)
+	params := &Params{}
+	params.Set("id", "42")
+	ctx.paramsSlice = params
+	ctx.options = Route(http.MethodPatch, "/users/{id}").
+		WithQueryParam("version", 1).
+		WithPathParam("id", 1)
+
+	var result struct {
+		Name    string `json:"name"`
+		Version int    `json:"version"`
+		ID      int    `json:"id"`
+	}
+
+	// Act
+	err := ctx.Bind(&result)
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, "Patched", result.Name)
+	assert.Equal(t, 7, result.Version)
+	assert.Equal(t, 42, result.ID)
+}
+
+func TestShouldBindMixedSourcesGivenPostFormBody(t *testing.T) {
+	// Arrange
+	formData := url.Values{}
+	formData.Set("name", "John")
+	req := httptest.NewRequest(http.MethodPost, "/users?limit=5", strings.NewReader(formData.Encode()))
+	req.Header.Set(common.HeaderContentType, common.MimeFormURLEncoded)
+	rec := httptest.NewRecorder()
+	ctx := NewRouteContext(rec, req)
+	ctx.options = Route(http.MethodPost, "/users").WithQueryParam("limit", 1)
+
+	var result struct {
+		Name  string `json:"name"`
+		Limit int    `json:"limit"`
+	}
+
+	// Act
+	err := ctx.Bind(&result)
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, "John", result.Name)
+	assert.Equal(t, 5, result.Limit)
+}
+
+func TestShouldPreferJSONBodyOverQueryWhenKeysConflict(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodPost, "/users?name=query", strings.NewReader(`{"name":"body"}`))
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
+	rec := httptest.NewRecorder()
+	ctx := NewRouteContext(rec, req)
+
+	var result struct {
+		Name string `json:"name"`
+	}
+
+	// Act
+	err := ctx.Bind(&result)
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, "body", result.Name)
+}
+
+func TestShouldPreferPathParamsOverJSONBodyAndQueryWhenKeysConflict(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodPost, "/users/42?id=1", strings.NewReader(`{"id":2}`))
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
+	rec := httptest.NewRecorder()
+	ctx := NewRouteContext(rec, req)
+	params := &Params{}
+	params.Set("id", "42")
+	ctx.paramsSlice = params
+	ctx.options = Route(http.MethodPost, "/users/{id}").
+		WithQueryParam("id", 0).
+		WithPathParam("id", 0)
+
+	var result struct {
+		ID int `json:"id"`
+	}
+
+	// Act
+	err := ctx.Bind(&result)
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, 42, result.ID)
+}
+
 func TestShouldBindFromFormData(t *testing.T) {
 	// Arrange
 	formData := url.Values{}

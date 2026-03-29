@@ -8,6 +8,7 @@ import (
 
 	"github.com/fgrzl/mux/pkg/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestShouldBindJSONArrayRootIntoSlice(t *testing.T) {
@@ -26,4 +27,22 @@ func TestShouldBindJSONArrayRootIntoSlice(t *testing.T) {
 	assert.Len(t, out, 2)
 	assert.Equal(t, "a", out[0].Name)
 	assert.Equal(t, "b", out[1].Name)
+}
+
+func TestShouldReturnExplicitErrorForJSONPrimitiveRoot(t *testing.T) {
+	// Arrange
+	body := []byte(`"hello"`)
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
+	rr := httptest.NewRecorder()
+
+	c := NewRouteContext(rr, req)
+	var out string
+
+	// Act
+	err := c.Bind(&out)
+
+	// Assert
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unsupported JSON root type")
 }
