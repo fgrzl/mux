@@ -527,8 +527,13 @@ func (c *DefaultRouteContext) GetService(key ServiceKey) (any, bool) {
 	return svc, ok
 }
 
-// Bind collects input data from query parameters, request body, headers, and path parameters,
-// then binds them to the provided model struct. It supports JSON and form-encoded data.
+// Bind collects input data from request sources according to the HTTP method,
+// then binds them to the provided model struct.
+//
+// Query parameters, headers, and path parameters are bound for all request
+// methods. Request bodies are bound only for POST, PUT, and PATCH using JSON,
+// application/x-www-form-urlencoded, or multipart/form-data payloads. Methods
+// such as GET, HEAD, and DELETE do not bind request bodies.
 //
 // If a request declares RequestBody.Required=true but sends an empty body, Bind returns ErrMissingBody.
 // Callers can check for this using errors.Is(err, ErrMissingBody) and map it to a custom response,
@@ -578,16 +583,22 @@ func (c *DefaultRouteContext) Bind(model any) error {
 }
 
 func (c *DefaultRouteContext) collectRequestData(staging map[string]any) error {
-	switch c.request.Method {
-	case http.MethodGet, http.MethodHead, http.MethodDelete:
-		return c.collectQueryParams(staging)
-	case http.MethodPut, http.MethodPost, http.MethodPatch:
-		if err := c.collectQueryParams(staging); err != nil {
-			return err
-		}
-		return c.collectBodyData(staging)
+	if err := c.collectQueryParams(staging); err != nil {
+		return err
 	}
-	return nil
+	if !methodAllowsBodyBinding(c.request.Method) {
+		return nil
+	}
+	return c.collectBodyData(staging)
+}
+
+func methodAllowsBodyBinding(method string) bool {
+	switch method {
+	case http.MethodPost, http.MethodPut, http.MethodPatch:
+		return true
+	default:
+		return false
+	}
 }
 
 func (c *DefaultRouteContext) collectQueryParams(staging map[string]any) error {

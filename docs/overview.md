@@ -41,7 +41,10 @@ age, _ := c.FormInt("age")
 
 ### Automatic Request Binding
 
-The `Bind()` method automatically collects data from multiple sources:
+The `Bind()` method automatically collects data according to the HTTP method:
+
+- `POST`, `PUT`, and `PATCH`: query params, path params, headers, and supported request bodies
+- `GET`, `HEAD`, `DELETE`, and other methods without body binding: query params, path params, and headers only
 
 ```go
 type User struct {
@@ -56,7 +59,8 @@ func updateUser(c mux.RouteContext) {
         c.BadRequest("Invalid request", err.Error())
         return
     }
-    // user struct is populated from path params, query params, and body
+    // user struct is populated from path params, query params, headers,
+    // and the request body when the HTTP method allows one.
     c.OK(user)
 }
 ```

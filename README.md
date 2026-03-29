@@ -131,7 +131,8 @@ func listUsers(c mux.RouteContext) {
 
 func createUser(c mux.RouteContext) {
     // Use Bind when your handler accepts JSON, form-urlencoded,
-    // multipart form data, query params, route params, or headers.
+    // or multipart form data on POST, PUT, or PATCH handlers.
+    // Query params, route params, and headers are bound for all methods.
     var user User
     if err := c.Bind(&user); err != nil {
         c.BadRequest("Invalid request", err.Error())

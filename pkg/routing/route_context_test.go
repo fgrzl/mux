@@ -169,6 +169,28 @@ func TestShouldBindFromPatchJSONBody(t *testing.T) {
 	assert.Equal(t, 30, result.Age)
 }
 
+func TestShouldBindFromPutJSONBody(t *testing.T) {
+	// Arrange
+	body := `{"name":"John","age":30}`
+	req := httptest.NewRequest(http.MethodPut, "/test", strings.NewReader(body))
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
+	rec := httptest.NewRecorder()
+	ctx := NewRouteContext(rec, req)
+
+	var result struct {
+		Name string `json:"name"`
+		Age  int    `json:"age"`
+	}
+
+	// Act
+	err := ctx.Bind(&result)
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, "John", result.Name)
+	assert.Equal(t, 30, result.Age)
+}
+
 func TestShouldBindMixedSourcesGivenPostJSONBody(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodPost, "/users/42?limit=5", strings.NewReader(`{"name":"John"}`))
@@ -297,6 +319,64 @@ func TestShouldPreferPathParamsOverJSONBodyAndQueryWhenKeysConflict(t *testing.T
 	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, 42, result.ID)
+}
+
+func TestShouldIgnoreJSONBodyGivenDeleteRequest(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodDelete, "/users?id=7", strings.NewReader(`{"id":99}`))
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
+	rec := httptest.NewRecorder()
+	ctx := NewRouteContext(rec, req)
+	ctx.options = Route(http.MethodDelete, "/users").WithQueryParam("id", 0)
+
+	var result struct {
+		ID int `json:"id"`
+	}
+
+	// Act
+	err := ctx.Bind(&result)
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, 7, result.ID)
+}
+
+func TestShouldIgnoreJSONBodyGivenHeadRequest(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodHead, "/users?name=query", strings.NewReader(`{"name":"body"}`))
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
+	rec := httptest.NewRecorder()
+	ctx := NewRouteContext(rec, req)
+
+	var result struct {
+		Name string `json:"name"`
+	}
+
+	// Act
+	err := ctx.Bind(&result)
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, "query", result.Name)
+}
+
+func TestShouldBindQueryParametersGivenOptionsRequest(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodOptions, "/users?name=option", strings.NewReader(`{"name":"body"}`))
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
+	rec := httptest.NewRecorder()
+	ctx := NewRouteContext(rec, req)
+
+	var result struct {
+		Name string `json:"name"`
+	}
+
+	// Act
+	err := ctx.Bind(&result)
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, "option", result.Name)
 }
 
 func TestShouldBindFromFormData(t *testing.T) {
