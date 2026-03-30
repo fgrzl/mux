@@ -14,27 +14,39 @@ go get github.com/fgrzl/mux
 
 ## 🚀 Basic Setup
 
-### Quick Start (Manual)
-```go
-router := mux.NewRouter()
-http.ListenAndServe(":8080", router)
-```
-
-### Production Ready (WebServer)
+### Quick Start
 ```go
 import (
     "context"
+    "os"
     "os/signal"
+    "syscall"
+
     "github.com/fgrzl/mux"
 )
 
-router := mux.NewRouter()
+router := mux.NewRouter().Safe()
+router.GET("/health", healthHandler)
+
+if err := router.Err(); err != nil { panic(err) }
+
 server := mux.NewServer(":8080", router)
 
-ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 defer cancel()
 
 if err := server.Listen(ctx); err != nil { panic(err) }  // Graceful shutdown included!
+```
+
+### Background Start
+```go
+router := mux.NewRouter()
+server := mux.NewServer(":9090", router)
+
+ctx, cancel := context.WithCancel(context.Background())
+defer cancel()
+
+if err := server.Start(ctx); err != nil { panic(err) }
 ```
 
 ### With HTTPS

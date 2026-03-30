@@ -26,6 +26,7 @@ package main
 
 import (
     "context"
+    "os"
     "os/signal"
     "syscall"
 
@@ -33,16 +34,20 @@ import (
 )
 
 func main() {
-    ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-    defer stop()
-
-    router := mux.NewRouter()
+    router := mux.NewRouter().Safe()
     router.GET("/hello", func(c mux.RouteContext) {
         c.OK("Hello, World!")
     })
 
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
+
+    ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer stop()
+
     server := mux.NewServer(":8080", router)
-    if err := server.Start(ctx); err != nil {
+    if err := server.Listen(ctx); err != nil {
         panic(err)
     }
 }
@@ -52,6 +57,7 @@ func main() {
 
 - **One model** for routing, binding, validation, and OpenAPI generation
 - **Deterministic middleware** order and structured error responses
+- **Scoped services** via `Services()` registries on routers, groups, and routes
 - **Server lifecycle** helpers (including graceful shutdown)
 - **OpenAPI artifacts** generated from declared operations
 
@@ -62,6 +68,7 @@ package main
 
 import (
     "context"
+    "os"
     "os/signal"
     "syscall"
 
@@ -76,10 +83,7 @@ type User struct {
 }
 
 func main() {
-    ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-    defer stop()
-
-    router := mux.NewRouter()
+    router := mux.NewRouter().Safe()
 
     // Route groups help keep versioned paths and tags consistent.
     api := router.NewRouteGroup("/api/v1")
@@ -105,6 +109,13 @@ func main() {
         WithPathParam("id", "The unique user identifier", uuid.Nil).
         WithOKResponse(User{})
 
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
+
+    ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer stop()
+
     // Generate OpenAPI after routes are declared.
     generator := mux.NewGenerator()
     spec, err := mux.GenerateSpecWithGenerator(generator, router)
@@ -116,7 +127,7 @@ func main() {
     }
 
     server := mux.NewServer(":8080", router)
-    if err := server.Start(ctx); err != nil {
+    if err := server.Listen(ctx); err != nil {
         panic(err)
     }
 }
@@ -181,6 +192,21 @@ mux.UseAuthentication(router,
 // Custom middleware
 router.Use(&CustomMiddleware{})
 ```
+
+## Register services
+
+```go
+router := mux.NewRouter()
+
+router.Services().
+    Register("auditWriter", auditWriter).
+    Register("clock", systemClock)
+
+api := router.NewRouteGroup("/api")
+api.Services().Register("mailer", mailer)
+```
+
+Handlers and middleware can read scoped values with `c.GetService(...)`. Child groups and route builders can override root registrations when they need different behavior.
 
 ## Docs and examples
 

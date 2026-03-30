@@ -45,12 +45,16 @@ Create `main.go`:
 package main
 
 import (
-    "net/http"
+    "context"
+    "os"
+    "os/signal"
+    "syscall"
+
     "github.com/fgrzl/mux"
 )
 
 func main() {
-    router := mux.NewRouter()
+    router := mux.NewRouter().Safe()
     
     router.GET("/", func(c mux.RouteContext) {
         c.OK(map[string]string{
@@ -58,8 +62,18 @@ func main() {
             "version": "1.0.0",
         })
     })
+
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
     
-    http.ListenAndServe(":8080", router)
+    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer cancel()
+
+    server := mux.NewServer(":8080", router)
+    if err := server.Listen(ctx); err != nil {
+        panic(err)
+    }
 }
 ```
 
@@ -132,12 +146,22 @@ func listTodos(c mux.RouteContext) {
 }
 
 func main() {
-    router := mux.NewRouter()
+    router := mux.NewRouter().Safe()
     
     // Add the endpoint
     router.GET("/todos", listTodos)
+
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
     
-    http.ListenAndServe(":8080", router)
+    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer cancel()
+
+    server := mux.NewServer(":8080", router)
+    if err := server.Listen(ctx); err != nil {
+        panic(err)
+    }
 }
 ```
 
@@ -197,12 +221,22 @@ func createTodo(c mux.RouteContext) {
 }
 
 func main() {
-    router := mux.NewRouter()
+    router := mux.NewRouter().Safe()
     
     router.GET("/todos", listTodos)
     router.POST("/todos", createTodo)  // Add this line
+
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
     
-    http.ListenAndServe(":8080", router)
+    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer cancel()
+
+    server := mux.NewServer(":8080", router)
+    if err := server.Listen(ctx); err != nil {
+        panic(err)
+    }
 }
 ```
 
@@ -248,13 +282,23 @@ func getTodo(c mux.RouteContext) {
 }
 
 func main() {
-    router := mux.NewRouter()
+    router := mux.NewRouter().Safe()
     
     router.GET("/todos", listTodos)
     router.POST("/todos", createTodo)
     router.GET("/todos/{id}", getTodo)  // Add this line
+
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
     
-    http.ListenAndServe(":8080", router)
+    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer cancel()
+
+    server := mux.NewServer(":8080", router)
+    if err := server.Listen(ctx); err != nil {
+        panic(err)
+    }
 }
 ```
 
@@ -323,14 +367,24 @@ func updateTodo(c mux.RouteContext) {
 }
 
 func main() {
-    router := mux.NewRouter()
+    router := mux.NewRouter().Safe()
     
     router.GET("/todos", listTodos)
     router.POST("/todos", createTodo)
     router.GET("/todos/{id}", getTodo)
     router.PUT("/todos/{id}", updateTodo)  // Add this line
+
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
     
-    http.ListenAndServe(":8080", router)
+    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer cancel()
+
+    server := mux.NewServer(":8080", router)
+    if err := server.Listen(ctx); err != nil {
+        panic(err)
+    }
 }
 ```
 
@@ -371,15 +425,25 @@ func deleteTodo(c mux.RouteContext) {
 }
 
 func main() {
-    router := mux.NewRouter()
+    router := mux.NewRouter().Safe()
     
     router.GET("/todos", listTodos)
     router.POST("/todos", createTodo)
     router.GET("/todos/{id}", getTodo)
     router.PUT("/todos/{id}", updateTodo)
     router.DELETE("/todos/{id}", deleteTodo)  // Add this line
+
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
     
-    http.ListenAndServe(":8080", router)
+    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer cancel()
+
+    server := mux.NewServer(":8080", router)
+    if err := server.Listen(ctx); err != nil {
+        panic(err)
+    }
 }
 ```
 
@@ -403,7 +467,7 @@ Document your API:
 
 ```go
 func main() {
-    router := mux.NewRouter()
+    router := mux.NewRouter().Safe()
     
     // Add middleware
     mux.UseLogging(router)
@@ -416,6 +480,7 @@ func main() {
     api.GET("/", listTodos).
         WithOperationID("listTodos").
         WithSummary("List all todos").
+        WithQueryParam("completed", "Filter todos by completion state", true).
         WithOKResponse([]Todo{})
     
     api.POST("/", createTodo).
@@ -446,15 +511,26 @@ func main() {
     
     // Serve OpenAPI spec
     router.GET("/openapi.json", func(c mux.RouteContext) {
-        spec := router.OpenAPI(&mux.OpenAPIOptions{
-            Title:       "Todo API",
-            Version:     "1.0.0",
-            Description: "A simple todo management API built with Mux",
-        })
+        generator := mux.NewGenerator()
+        spec, err := mux.GenerateSpecWithGenerator(generator, router)
+        if err != nil {
+            c.ServerError("OpenAPI generation failed", err.Error())
+            return
+        }
         c.OK(spec)
     })
+
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
     
-    http.ListenAndServe(":8080", router)
+    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer cancel()
+
+    server := mux.NewServer(":8080", router)
+    if err := server.Listen(ctx); err != nil {
+        panic(err)
+    }
 }
 ```
 
@@ -477,7 +553,7 @@ Add Kubernetes-style health probe endpoints:
 
 ```go
 func main() {
-    router := mux.NewRouter()
+    router := mux.NewRouter().Safe()
     
     // Add built-in health probes
     router.Healthz()  // GET /healthz

@@ -179,3 +179,19 @@ func TestShouldAddServiceMiddlewareToRouter(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Equal(t, "test", rec.Body.String())
 }
+
+func TestShouldBridgeUseServicesIntoRootServiceRegistry(t *testing.T) {
+	// Arrange
+	rtr := router.NewRouter()
+	service := &MockService{Name: "test"}
+
+	// Act
+	UseServices(rtr, WithService("test", service))
+	api := rtr.NewRouteGroup("/api")
+	route := api.GET("/users", func(c routing.RouteContext) {
+		c.OK("users")
+	})
+
+	// Assert
+	assert.Equal(t, service, route.Options.Services[routing.ServiceKey("test")])
+}

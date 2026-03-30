@@ -49,7 +49,7 @@ const (
 )
 
 func main() {
-	router := mux.NewRouter()
+	router := mux.NewRouter().Safe()
 
 	// Create API group
 	api := router.NewRouteGroup("/todos")
@@ -59,6 +59,7 @@ func main() {
 	api.GET("/", listTodos).
 		WithOperationID("listTodos").
 		WithSummary("List all todos").
+		WithQueryParam("completed", "Filter todos by completion state", true).
 		WithOKResponse([]Todo{})
 
 	api.POST("/", createTodo).
@@ -89,11 +90,23 @@ func main() {
 
 	// Serve OpenAPI spec
 	router.GET("/openapi.json", func(c mux.RouteContext) {
-		info, _ := router.InfoObject()
-		routes, _ := router.Routes()
+		info, err := router.InfoObject()
+		if err != nil {
+			c.ServerError("OpenAPI generation failed", err.Error())
+			return
+		}
+		routes, err := router.Routes()
+		if err != nil {
+			c.ServerError("OpenAPI generation failed", err.Error())
+			return
+		}
 
 		gen := openapi.NewGenerator()
-		spec, _ := gen.GenerateSpecFromRoutes(info, routes)
+		spec, err := gen.GenerateSpecFromRoutes(info, routes)
+		if err != nil {
+			c.ServerError("OpenAPI generation failed", err.Error())
+			return
+		}
 		c.OK(spec)
 	})
 
@@ -105,6 +118,10 @@ func main() {
 			"docs":    "/openapi.json",
 		})
 	})
+
+	if err := router.Err(); err != nil {
+		panic(err)
+	}
 
 	// Start server with graceful shutdown
 	server := mux.NewServer(":8080", router)
@@ -122,7 +139,7 @@ func main() {
 }
 
 func listTodos(c mux.RouteContext) {
-	completed, hasCompleted := c.Params()["completed"]
+	completed, hasCompleted := c.QueryBool("completed")
 
 	todosMu.RLock()
 	defer todosMu.RUnlock()
@@ -131,13 +148,8 @@ func listTodos(c mux.RouteContext) {
 	result := make([]*Todo, 0, len(todos))
 	for _, todo := range todos {
 		// Filter by completion status if provided
-		if hasCompleted {
-			if completed == "true" && !todo.Completed {
-				continue
-			}
-			if completed == "false" && todo.Completed {
-				continue
-			}
+		if hasCompleted && todo.Completed != completed {
+			continue
 		}
 		result = append(result, todo)
 	}

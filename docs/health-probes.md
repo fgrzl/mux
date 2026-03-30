@@ -12,14 +12,24 @@ Health probes help orchestration platforms like Kubernetes determine:
 ## Quick Start
 
 ```go
-router := mux.NewRouter()
+router := mux.NewRouter().Safe()
 
 // Simple health probes (always return "ok")
 router.Healthz()  // GET /healthz
 router.Livez()    // GET /livez
 router.Readyz()   // GET /readyz
 
-http.ListenAndServe(":8080", router)
+if err := router.Err(); err != nil {
+    panic(err)
+}
+
+ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+defer cancel()
+
+server := mux.NewServer(":8080", router)
+if err := server.Listen(ctx); err != nil {
+    panic(err)
+}
 ```
 
 Test:
@@ -233,7 +243,17 @@ func main() {
     api := router.NewRouteGroup("/api/v1")
     setupRoutes(api)
     
-    http.ListenAndServe(":8080", router)
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
+
+    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer cancel()
+
+    server := mux.NewServer(":8080", router)
+    if err := server.Listen(ctx); err != nil {
+        panic(err)
+    }
 }
 ```
 
@@ -295,20 +315,28 @@ Mark as not ready before shutdown:
 
 ```go
 func main() {
-    router := mux.NewRouter()
+    router := mux.NewRouter().Safe()
     
     router.ReadyzWithCheck(func(c mux.RouteContext) bool {
         return isReady.Load()
     })
+
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
     
-    server := &http.Server{Addr: ":8080", Handler: router}
-    
-    go server.ListenAndServe()
+    serveCtx, stopServing := context.WithCancel(context.Background())
+    defer stopServing()
+
+    server := mux.NewServer(":8080", router)
+    if err := server.Start(serveCtx); err != nil {
+        panic(err)
+    }
     
     // Wait for shutdown signal
-    quit := make(chan os.Signal, 1)
-    signal.Notify(quit, os.Interrupt)
-    <-quit
+    quitCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer stop()
+    <-quitCtx.Done()
     
     // Mark as not ready (stop receiving traffic)
     isReady.Store(false)
@@ -317,7 +345,9 @@ func main() {
     // Graceful shutdown
     ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
     defer cancel()
-    server.Shutdown(ctx)
+    if err := server.Stop(ctx); err != nil {
+        panic(err)
+    }
 }
 ```
 

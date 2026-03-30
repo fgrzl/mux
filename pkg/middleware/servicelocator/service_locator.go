@@ -8,14 +8,23 @@ import (
 // ---- Service Middleware ----
 
 // ServiceSetterOptions holds the services to be set on the RouteContext.
+//
+// Deprecated: use router.Services().Register(...) or the Services() registry
+// on route groups and route builders instead.
 type ServiceSetterOptions struct {
 	Services map[routing.ServiceKey]any
 }
 
 // ServiceSetterOption configures ServiceSetterOptions.
+//
+// Deprecated: use router.Services().Register(...) or the Services() registry
+// on route groups and route builders instead.
 type ServiceSetterOption func(*ServiceSetterOptions)
 
 // WithService adds a service to the options.
+//
+// Deprecated: use router.Services().Register(...) or the Services() registry
+// on route groups and route builders instead.
 func WithService(key routing.ServiceKey, svc any) ServiceSetterOption {
 	return func(opts *ServiceSetterOptions) {
 		if opts.Services == nil {
@@ -26,11 +35,18 @@ func WithService(key routing.ServiceKey, svc any) ServiceSetterOption {
 }
 
 // UseServices adds middleware that sets services on the RouteContext.
+//
+// Deprecated: use (*router.Router).Services().Register(...) or the Services()
+// registry on route groups and route builders instead.
 func UseServices(rtr *router.Router, opts ...ServiceSetterOption) {
+	if rtr == nil {
+		return
+	}
 	options := &ServiceSetterOptions{}
 	for _, opt := range opts {
 		opt(options)
 	}
+	rtr.Services().RegisterMany(options.Services)
 	rtr.Use(&serviceSetterMiddleware{options: options})
 }
 

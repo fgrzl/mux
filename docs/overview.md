@@ -162,15 +162,17 @@ type ProblemDetails struct {
 
 Built-in response helpers automatically create properly structured error responses.
 
-## Service Injection
+## Scoped Services
 
-Inject services into route handlers through middleware:
+Register services on the router, a route group, or an individual route when middleware and handlers need shared collaborators:
 
 ```go
-mux.UseServices(router,
-    mux.WithService("db", database),
-    mux.WithService("logger", logger),
-)
+router.Services().
+    Register("db", database).
+    Register("logger", logger)
+
+admin := router.NewRouteGroup("/admin")
+admin.Services().Register("auditSink", auditSink)
 
 func handler(c mux.RouteContext) {
     db, _ := c.GetService("db")
@@ -178,6 +180,8 @@ func handler(c mux.RouteContext) {
     // Use services...
 }
 ```
+
+Child groups and route builders can override root registrations when a narrower scope needs different behavior.
 
 ## Performance Considerations
 

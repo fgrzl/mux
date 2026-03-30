@@ -28,6 +28,7 @@ func NewRouter(opts ...RouterOption) *Router {
 		RouteGroup: RouteGroup{
 			prefix:        "",
 			routeRegistry: registry.NewRouteRegistry(),
+			validation:    routing.NewValidationState(),
 		},
 		options: options,
 	}
@@ -36,7 +37,7 @@ func NewRouter(opts ...RouterOption) *Router {
 	// configured handler when executed. We also store the current middleware
 	// count to detect changes and rebuild lazily in ServeHTTP.
 	defaultHandler := func(c routing.RouteContext) {
-		c.Options().Handler(c)
+		invokeRouteHandler(c)
 	}
 	r.pipeline.Store(pipelineCache{h: HandlerFunc(defaultHandler), mwCount: 0})
 	return r
@@ -46,7 +47,7 @@ func NewRouter(opts ...RouterOption) *Router {
 // HandlerFunc defines the signature for HTTP request handlers.
 // The function receives a RouteContext which contains request/response helpers
 // and route-specific options.
-type HandlerFunc func(c routing.RouteContext)
+type HandlerFunc = routing.HandlerFunc
 
 // RouteKey uniquely identifies a route by its HTTP method and pattern.
 // RouteKey uniquely identifies a route by its HTTP method and pattern.
@@ -65,9 +66,7 @@ type Action struct {
 // Middleware defines the interface for HTTP middleware components.
 // Middleware defines the interface for HTTP middleware components.
 // Implementations should perform pre/post processing and call next when ready.
-type Middleware interface {
-	Invoke(c routing.RouteContext, next HandlerFunc)
-}
+type Middleware = routing.Middleware
 
 // Router is the main HTTP router that handles routing and middleware execution.
 // Router is the main HTTP router that handles routing and middleware execution.
@@ -80,6 +79,36 @@ type Router struct {
 	// rebuilt when middleware are added via Use. Stored with atomic.Value
 	// to avoid per-request locking and allocations.
 	pipeline atomic.Value // holds pipelineCache
+}
+
+// Safe switches the router's configuration tree into non-panicking validation
+// mode and returns the router for fluent startup configuration.
+func (rtr *Router) Safe() *Router {
+	rtr.RouteGroup.Safe()
+	return rtr
+}
+
+// Errors returns accumulated configuration errors for the router tree.
+func (rtr *Router) Errors() []error {
+	return rtr.RouteGroup.Errors()
+}
+
+// Err returns accumulated configuration errors for the router tree.
+func (rtr *Router) Err() error {
+	return rtr.RouteGroup.Err()
+}
+
+// Services returns a fluent registry for configuring scoped services on the
+// root router.
+func (rtr *Router) Services() *routing.ServiceRegistry {
+	return rtr.RouteGroup.Services()
+}
+
+// WithService registers a service on the root router and returns the router
+// for fluent startup configuration.
+func (rtr *Router) WithService(key routing.ServiceKey, svc any) *Router {
+	rtr.RouteGroup.WithService(key, svc)
+	return rtr
 }
 
 // pipelineCache stores the composed handler and the middleware count used to build it.
@@ -137,7 +166,7 @@ func (rtr *Router) Use(m Middleware) {
 	// doesn't pay for pipeline construction.
 	mw := rtr.middleware
 	var final HandlerFunc = func(c routing.RouteContext) {
-		c.Options().Handler(c)
+		invokeRouteHandler(c)
 	}
 	for i := len(mw) - 1; i >= 0; i-- {
 		m := mw[i]
@@ -155,7 +184,9 @@ func (rtr *Router) Use(m Middleware) {
 // The prefix will be added to all routes using this router (e.g., /api/v1).
 func (rtr *Router) NewRouteGroup(prefix string) *RouteGroup {
 	prefix = normalizeRoute(prefix, "/")
-	return newRouteGroupBase(prefix, rtr.routeRegistry)
+	group := newRouteGroupBase(prefix, rtr.routeRegistry)
+	group.copyDefaults(&rtr.RouteGroup)
+	return group
 }
 
 // ServeHTTP implements http.Handler.
@@ -170,11 +201,11 @@ func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if opt, ok := rtr.routeRegistry.LoadExact(r.URL.Path, r.Method); ok {
 		c := rtr.acquireRouteContext(w, r)
 		// Manual release instead of defer for ~5-10ns improvement
-		c.SetOptions(opt)
+		rtr.configureContext(c, w, routeResolution{options: opt})
 
 		// Skip middleware pipeline if no middleware configured (~20-30ns faster)
 		if len(rtr.middleware) == 0 {
-			rtr.executeHandlerWithRecover(opt.Handler, c, w, r)
+			rtr.executeHandlerWithRecover(opt.EffectiveHandler(), c, w, r)
 			rtr.releaseContext(c)
 		} else {
 			rtr.executePipelineWithRecover(c, w, r)
@@ -205,7 +236,7 @@ func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Skip middleware pipeline if no middleware configured (~20-30ns faster)
 	if len(rtr.middleware) == 0 {
-		rtr.executeHandlerWithRecover(res.options.Handler, c, w, r)
+		rtr.executeHandlerWithRecover(res.options.EffectiveHandler(), c, w, r)
 		rtr.releaseContext(c)
 	} else {
 		rtr.executePipelineWithRecover(c, w, r)
@@ -299,6 +330,21 @@ func safeMethod(r *http.Request) string {
 		return ""
 	}
 	return r.Method
+}
+
+func invokeRouteHandler(c routing.RouteContext) {
+	if c == nil {
+		return
+	}
+	options := c.Options()
+	if options == nil {
+		return
+	}
+	handler := options.EffectiveHandler()
+	if handler == nil {
+		return
+	}
+	handler(c)
 }
 
 func (rtr *Router) resolveRoute(r *http.Request, c *routing.DefaultRouteContext) (routeResolution, routeOutcome) {
@@ -397,6 +443,9 @@ func (rtr *Router) shouldFallbackToGet() bool {
 
 func (rtr *Router) configureContext(c *routing.DefaultRouteContext, w http.ResponseWriter, res routeResolution) {
 	c.SetOptions(res.options)
+	if res.options != nil {
+		res.options.ApplyServices(c)
+	}
 
 	// paramsSlice is already set on the context from resolveRoute
 
@@ -430,7 +479,7 @@ func (rtr *Router) executePipeline(c routing.RouteContext) {
 
 func (rtr *Router) buildPipeline(mw []Middleware) HandlerFunc {
 	final := HandlerFunc(func(c routing.RouteContext) {
-		c.Options().Handler(c)
+		invokeRouteHandler(c)
 	})
 	for i := len(mw) - 1; i >= 0; i-- {
 		middleware := mw[i]

@@ -20,7 +20,8 @@ import (
 
 // RouteBuilder provides a fluent interface for configuring HTTP routes with OpenAPI documentation.
 type RouteBuilder struct {
-	Options *routing.RouteOptions
+	Options    *routing.RouteOptions
+	Validation *routing.ValidationState
 }
 
 var opIDValidator = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
@@ -33,12 +34,69 @@ func Route(method, pattern string) *RouteBuilder {
 			Pattern:   pattern,
 			Operation: openapi.Operation{Responses: map[string]*openapi.ResponseObject{}},
 		},
+		Validation: routing.NewValidationState(),
 	}
+}
+
+// Safe switches this builder into non-panicking validation mode and returns it.
+func (rb *RouteBuilder) Safe() *RouteBuilder {
+	rb.Validation = rb.validationState().WithPanicOnError(false)
+	return rb
+}
+
+// Errors returns accumulated configuration errors for this builder.
+func (rb *RouteBuilder) Errors() []error {
+	return rb.validationState().Errors()
+}
+
+// Err returns accumulated configuration errors for this builder.
+func (rb *RouteBuilder) Err() error {
+	return rb.validationState().Err()
+}
+
+func (rb *RouteBuilder) validationState() *routing.ValidationState {
+	if rb.Validation == nil {
+		rb.Validation = routing.NewValidationState()
+	}
+	return rb.Validation
+}
+
+func (rb *RouteBuilder) handleValidation(err error) *RouteBuilder {
+	rb.validationState().Handle(err)
+	return rb
 }
 
 // AllowAnonymous marks the route as accessible without authentication.
 func (rb *RouteBuilder) AllowAnonymous() *RouteBuilder {
 	rb.Options.AllowAnonymous = true
+	return rb
+}
+
+// Use appends route-scoped middleware to this route.
+func (rb *RouteBuilder) Use(middleware ...routing.Middleware) *RouteBuilder {
+	rb.Options.AppendMiddleware(middleware...)
+	return rb
+}
+
+// Services returns a fluent registry for configuring scoped services on this route.
+func (rb *RouteBuilder) Services() *routing.ServiceRegistry {
+	return routing.NewServiceRegistry(
+		func(key routing.ServiceKey, svc any) {
+			rb.Options.SetService(key, svc)
+		},
+		func(key routing.ServiceKey) (any, bool) {
+			if rb.Options == nil || rb.Options.Services == nil {
+				return nil, false
+			}
+			svc, ok := rb.Options.Services[key]
+			return svc, ok
+		},
+	)
+}
+
+// WithService registers a scoped service for this route.
+func (rb *RouteBuilder) WithService(key routing.ServiceKey, svc any) *RouteBuilder {
+	rb.Options.SetService(key, svc)
 	return rb
 }
 
@@ -70,7 +128,7 @@ func (rb *RouteBuilder) WithRateLimit(limit int, interval time.Duration) *RouteB
 // WithOperationID sets/validates the OpenAPI OperationID.
 func (rb *RouteBuilder) WithOperationID(id string) *RouteBuilder {
 	if _, err := rb.WithOperationIDErr(id); err != nil {
-		panic(err.Error())
+		return rb.handleValidation(err)
 	}
 	return rb
 }
@@ -195,7 +253,7 @@ func (rb *RouteBuilder) WithCookieParamErr(name, description string, example any
 // Panics if name or in is empty, or if in is not one of the valid parameter locations.
 func (rb *RouteBuilder) WithParam(name, in, description string, example any, required bool) *RouteBuilder {
 	if _, err := rb.WithParamErr(name, in, description, example, required); err != nil {
-		panic(err.Error())
+		return rb.handleValidation(err)
 	}
 	return rb
 }
@@ -233,7 +291,7 @@ func (rb *RouteBuilder) WithParamErr(name, in, description string, example any, 
 // WithResponse registers a response example and schema for the given HTTP code.
 func (rb *RouteBuilder) WithResponse(code int, example any) *RouteBuilder {
 	if _, err := rb.WithResponseErr(code, example); err != nil {
-		panic(err.Error())
+		return rb.handleValidation(err)
 	}
 	return rb
 }
@@ -408,7 +466,7 @@ func (rb *RouteBuilder) WithPermanentRedirectResponseErr() (*RouteBuilder, error
 // WithJsonBody describes a JSON request body (required=true).
 func (rb *RouteBuilder) WithJsonBody(example any) *RouteBuilder {
 	if _, err := rb.WithJsonBodyErr(example); err != nil {
-		panic(err.Error())
+		return rb.handleValidation(err)
 	}
 	return rb
 }
@@ -422,7 +480,7 @@ func (rb *RouteBuilder) WithJsonBodyErr(example any) (*RouteBuilder, error) {
 // Pass example instances of each possible type as separate arguments.
 func (rb *RouteBuilder) WithOneOfJsonBody(examples ...any) *RouteBuilder {
 	if _, err := rb.WithOneOfJsonBodyErr(examples...); err != nil {
-		panic(err.Error())
+		return rb.handleValidation(err)
 	}
 	return rb
 }
@@ -436,7 +494,7 @@ func (rb *RouteBuilder) WithOneOfJsonBodyErr(examples ...any) (*RouteBuilder, er
 // Pass example instances of each possible type as separate arguments.
 func (rb *RouteBuilder) WithAnyOfJsonBody(examples ...any) *RouteBuilder {
 	if _, err := rb.WithAnyOfJsonBodyErr(examples...); err != nil {
-		panic(err.Error())
+		return rb.handleValidation(err)
 	}
 	return rb
 }
@@ -450,7 +508,7 @@ func (rb *RouteBuilder) WithAnyOfJsonBodyErr(examples ...any) (*RouteBuilder, er
 // Pass example instances of each schema to compose as separate arguments.
 func (rb *RouteBuilder) WithAllOfJsonBody(examples ...any) *RouteBuilder {
 	if _, err := rb.WithAllOfJsonBodyErr(examples...); err != nil {
-		panic(err.Error())
+		return rb.handleValidation(err)
 	}
 	return rb
 }
@@ -463,7 +521,7 @@ func (rb *RouteBuilder) WithAllOfJsonBodyErr(examples ...any) (*RouteBuilder, er
 // WithFormBody describes an urlencoded form body.
 func (rb *RouteBuilder) WithFormBody(example any) *RouteBuilder {
 	if _, err := rb.WithFormBodyErr(example); err != nil {
-		panic(err.Error())
+		return rb.handleValidation(err)
 	}
 	return rb
 }
@@ -476,7 +534,7 @@ func (rb *RouteBuilder) WithFormBodyErr(example any) (*RouteBuilder, error) {
 // WithMultipartBody describes a multipart form body.
 func (rb *RouteBuilder) WithMultipartBody(example any) *RouteBuilder {
 	if _, err := rb.WithMultipartBodyErr(example); err != nil {
-		panic(err.Error())
+		return rb.handleValidation(err)
 	}
 	return rb
 }
@@ -488,7 +546,7 @@ func (rb *RouteBuilder) WithMultipartBodyErr(example any) (*RouteBuilder, error)
 
 func (rb *RouteBuilder) withBody(example any, ctype string) *RouteBuilder {
 	if _, err := rb.withBodyErr(example, ctype); err != nil {
-		panic(err.Error())
+		return rb.handleValidation(err)
 	}
 	return rb
 }
@@ -516,7 +574,7 @@ func (rb *RouteBuilder) withBodyErr(example any, ctype string) (*RouteBuilder, e
 
 func (rb *RouteBuilder) withCompositeBody(examples []any, ctype string, compositionType string) *RouteBuilder {
 	if _, err := rb.withCompositeBodyErr(examples, ctype, compositionType); err != nil {
-		panic(err.Error())
+		return rb.handleValidation(err)
 	}
 	return rb
 }

@@ -3,6 +3,7 @@ package builder
 import (
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"reflect"
 	"testing"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/fgrzl/mux/pkg/common"
 	openapi "github.com/fgrzl/mux/pkg/openapi"
+	"github.com/fgrzl/mux/pkg/routing"
 )
 
 const (
@@ -34,6 +36,17 @@ type builderClonePayload struct {
 	Name   *string             `json:"name"`
 	Nested *builderCloneNested `json:"nested"`
 	Tags   []string            `json:"tags"`
+}
+
+type builderTestMiddleware struct {
+	id   string
+	seen *[]string
+}
+
+func (m *builderTestMiddleware) Invoke(c routing.RouteContext, next routing.HandlerFunc) {
+	*m.seen = append(*m.seen, "before:"+m.id)
+	next(c)
+	*m.seen = append(*m.seen, "after:"+m.id)
 }
 
 func TestShouldCreateRouteBuilder(t *testing.T) {
@@ -58,6 +71,66 @@ func TestShouldSetAllowAnonymous(t *testing.T) {
 	// Assert
 	assert.True(t, builder.Options.AllowAnonymous)
 	assert.Equal(t, builder, result) // Should return self for chaining
+}
+
+func TestShouldComposeRouteScopedMiddlewareOnBuilder(t *testing.T) {
+	// Arrange
+	builder := Route(http.MethodGet, pathUsers)
+	var seen []string
+
+	// Act
+	result := builder.Use(
+		&builderTestMiddleware{id: "A", seen: &seen},
+		&builderTestMiddleware{id: "B", seen: &seen},
+	)
+	builder.Options.Handler = func(c routing.RouteContext) {
+		seen = append(seen, "handler")
+		c.OK("ok")
+	}
+	req := httptest.NewRequest(http.MethodGet, pathUsers, nil)
+	rr := httptest.NewRecorder()
+	ctx := routing.NewRouteContext(rr, req)
+	ctx.SetOptions(builder.Options)
+	builder.Options.EffectiveHandler()(ctx)
+
+	// Assert
+	assert.Equal(t, builder, result)
+	assert.True(t, builder.Options.HasMiddleware())
+	assert.Len(t, builder.Options.Middleware, 2)
+	assert.Equal(t, []string{"before:A", "before:B", "handler", "after:B", "after:A"}, seen)
+	assert.Equal(t, http.StatusOK, rr.Code)
+}
+
+func TestShouldRegisterScopedServiceOnBuilder(t *testing.T) {
+	// Arrange
+	builder := Route(http.MethodGet, pathUsers)
+	serviceKey := routing.ServiceKey("svc")
+	service := struct{ Name string }{Name: "primary"}
+
+	// Act
+	result := builder.WithService(serviceKey, service)
+
+	// Assert
+	assert.Equal(t, builder, result)
+	assert.True(t, builder.Options.HasServices())
+	assert.Equal(t, service, builder.Options.Services[serviceKey])
+}
+
+func TestShouldExposeServiceRegistryOnBuilder(t *testing.T) {
+	// Arrange
+	builder := Route(http.MethodGet, pathUsers)
+	registry := builder.Services()
+	serviceKey := routing.ServiceKey("svc")
+
+	// Act
+	result := registry.Register(serviceKey, "primary")
+	retrieved, ok := registry.Get(serviceKey)
+
+	// Assert
+	assert.Same(t, registry, result)
+	assert.True(t, ok)
+	assert.Equal(t, "primary", retrieved)
+	assert.Equal(t, "primary", builder.Options.Services[serviceKey])
 }
 
 func TestShouldSetRequiredPermissions(t *testing.T) {
@@ -135,6 +208,23 @@ func TestShouldPanicOnInvalidOperationID(t *testing.T) {
 	assert.Panics(t, func() {
 		builder.WithOperationID("invalid-id")
 	})
+}
+
+func TestShouldAccumulateValidationErrorsWithoutPanickingWhenBuilderSafe(t *testing.T) {
+	// Arrange
+	builder := Route(http.MethodGet, pathUsers).Safe()
+
+	// Act / Assert
+	assert.NotPanics(t, func() {
+		builder.WithOperationID("invalid-id")
+		builder.WithJsonBody(struct{ Name string }{Name: "John"})
+	})
+
+	// Assert
+	errs := builder.Errors()
+	require.Len(t, errs, 2)
+	assert.ErrorContains(t, builder.Err(), "invalid OperationID")
+	assert.ErrorContains(t, builder.Err(), "does not support a request body")
 }
 
 func TestShouldAddPathParameter(t *testing.T) {

@@ -10,6 +10,7 @@ A complete REST API demonstrating CRUD operations with Mux.
 ✅ Proper HTTP status codes  
 ✅ OpenAPI 3.1 documentation  
 ✅ Thread-safe in-memory storage  
+✅ Startup validation before the server begins serving  
 ✅ Production-ready server with graceful shutdown  
 
 ## Quick Start
@@ -119,6 +120,8 @@ Or paste the JSON into [Swagger Editor](https://editor.swagger.io/) for an inter
 ## Code Structure
 
 ```go
+router := mux.NewRouter().Safe()
+
 // Data model
 type Todo struct {
     ID          string
@@ -136,6 +139,7 @@ api.WithTags("Todos")
 api.GET("/", listTodos).
     WithOperationID("listTodos").
     WithSummary("List all todos").
+    WithQueryParam("completed", "Filter todos by completion state", true).
     WithOKResponse([]Todo{})
 
 api.POST("/", createTodo).
@@ -143,6 +147,10 @@ api.POST("/", createTodo).
     WithSummary("Create a new todo").
     WithJsonBody(CreateTodoRequest{}).
     WithCreatedResponse(Todo{})
+
+if err := router.Err(); err != nil {
+    panic(err)
+}
 
 // Production-ready server
 server := mux.NewServer(":8080", router)
@@ -155,7 +163,7 @@ ctx, cancel := signal.NotifyContext(
 defer cancel()
 
 if err := server.Listen(ctx); err != nil {
-  panic(err)
+    panic(err)
 }
 ```
 
@@ -165,6 +173,7 @@ The example uses `WebServer` which provides:
 - **Graceful shutdown**: Completes in-flight requests before stopping
 - **Production timeouts**: 10s read/write, 120s idle
 - **Signal handling**: Responds to Ctrl+C and SIGTERM (Kubernetes)
+- **Startup validation**: Fails before serving traffic when route configuration is invalid
 - **Context-based lifecycle**: Clean shutdown management
 
 **Why WebServer vs http.ListenAndServe?**
@@ -186,11 +195,6 @@ This example demonstrates:
 7. **Documentation** - Auto-generating OpenAPI specs
 8. **Concurrency** - Thread-safe access with `sync.RWMutex`
 9. **Production Deployment** - Using `WebServer` for graceful shutdown
-4. **Query Parameters** - Filtering with `?completed=true`
-5. **Validation** - Checking required fields
-6. **Error Handling** - Returning appropriate errors
-7. **Documentation** - Auto-generating OpenAPI specs
-8. **Concurrency** - Thread-safe access with `sync.RWMutex`
 
 ## Next Steps
 

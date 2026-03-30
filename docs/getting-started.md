@@ -30,21 +30,35 @@ Create `main.go`:
 package main
 
 import (
-    "net/http"
+    "context"
+    "os"
+    "os/signal"
+    "syscall"
+
     "github.com/fgrzl/mux"
 )
 
 func main() {
-    router := mux.NewRouter()
-    
+    router := mux.NewRouter().Safe()
+
     router.GET("/", func(c mux.RouteContext) {
         c.OK(map[string]string{
             "message": "Welcome to my API!",
             "status":  "running",
         })
     })
-    
-    http.ListenAndServe(":8080", router)
+
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
+
+    ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer stop()
+
+    server := mux.NewServer(":8080", router)
+    if err := server.Listen(ctx); err != nil {
+        panic(err)
+    }
 }
 ```
 
@@ -184,17 +198,23 @@ Production-ready server with graceful shutdown and TLS:
 ```go
 import (
     "context"
+    "os"
     "os/signal"
+    "syscall"
+
     "github.com/fgrzl/mux"
 )
 
-router := mux.NewRouter()
+router := mux.NewRouter().Safe()
+
+if err := router.Err(); err != nil { panic(err) }
+
 server := mux.NewServer(":8080", router)
 
-ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 defer cancel()
 
-server.Listen(ctx)  // Graceful shutdown on Ctrl+C
+if err := server.Listen(ctx); err != nil { panic(err) }
 ```
 
 **Features**:
@@ -364,7 +384,7 @@ go get github.com/fgrzl/mux
 **Solutions:**
 - Check HTTP method matches (GET vs POST)
 - Verify path exactly matches (case-sensitive)
-- Ensure router is passed to `http.ListenAndServe`
+- Ensure your `mux.Router` is the handler passed to `mux.NewServer(...)` or a custom `http.Server`
 
 ### "Invalid JSON" errors
 

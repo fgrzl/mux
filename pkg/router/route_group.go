@@ -36,8 +36,11 @@ import (
 type RouteGroup struct {
 	prefix        string
 	routeRegistry *registry.RouteRegistry
+	validation    *routing.ValidationState
 
 	// Group-level defaults:
+	defaultMiddleware  []Middleware
+	defaultServices    map[routing.ServiceKey]any
 	defaultParams      []*openapi.ParameterObject
 	defaultRoles       []string
 	defaultScopes      []string
@@ -52,6 +55,72 @@ type RouteGroup struct {
 
 func (rg *RouteGroup) RouteRegistry() *registry.RouteRegistry {
 	return rg.routeRegistry
+}
+
+// Safe switches this RouteGroup into non-panicking validation mode and returns it.
+func (rg *RouteGroup) Safe() *RouteGroup {
+	rg.validation = rg.validationState().WithPanicOnError(false)
+	return rg
+}
+
+// Errors returns accumulated configuration errors for this RouteGroup tree.
+func (rg *RouteGroup) Errors() []error {
+	return rg.validationState().Errors()
+}
+
+// Err returns accumulated configuration errors for this RouteGroup tree.
+func (rg *RouteGroup) Err() error {
+	return rg.validationState().Err()
+}
+
+func (rg *RouteGroup) validationState() *routing.ValidationState {
+	if rg.validation == nil {
+		rg.validation = routing.NewValidationState()
+	}
+	return rg.validation
+}
+
+func (rg *RouteGroup) handleValidation(err error) *RouteGroup {
+	rg.validationState().Handle(err)
+	return rg
+}
+
+// Use registers middleware for this RouteGroup and all nested groups/routes
+// created from it. Middleware is inherited by child groups and copied into
+// each route at registration time.
+func (rg *RouteGroup) Use(middleware ...Middleware) *RouteGroup {
+	rg.defaultMiddleware = append(rg.defaultMiddleware, middleware...)
+	return rg
+}
+
+// Services returns a fluent registry for configuring scoped services on this
+// RouteGroup.
+func (rg *RouteGroup) Services() *routing.ServiceRegistry {
+	return routing.NewServiceRegistry(
+		func(key routing.ServiceKey, svc any) {
+			rg.WithService(key, svc)
+		},
+		func(key routing.ServiceKey) (any, bool) {
+			if rg.defaultServices == nil {
+				return nil, false
+			}
+			svc, ok := rg.defaultServices[key]
+			return svc, ok
+		},
+	)
+}
+
+// WithService registers a service for this RouteGroup and all nested
+// groups/routes created from it.
+func (rg *RouteGroup) WithService(key routing.ServiceKey, svc any) *RouteGroup {
+	if key == "" || svc == nil {
+		return rg
+	}
+	if rg.defaultServices == nil {
+		rg.defaultServices = make(map[routing.ServiceKey]any)
+	}
+	rg.defaultServices[key] = svc
+	return rg
 }
 
 // ---- Chainable Group Setters ----
@@ -165,7 +234,7 @@ func (rg *RouteGroup) WithCookieParamErr(name, description string, example any, 
 //     if false, it's marked as optional. Note: path parameters are always required regardless of this value.
 func (rg *RouteGroup) WithParam(name, in, description string, example any, required bool) *RouteGroup {
 	if _, err := rg.WithParamErr(name, in, description, example, required); err != nil {
-		panic(err.Error())
+		return rg.handleValidation(err)
 	}
 	return rg
 }
@@ -263,6 +332,11 @@ func (rg *RouteGroup) Deprecated() *RouteGroup {
 
 // copyDefaults copies all default settings from source to target RouteGroup.
 func (target *RouteGroup) copyDefaults(source *RouteGroup) {
+	target.defaultMiddleware = slices.Clone(source.defaultMiddleware)
+	target.validation = source.validationState().Clone()
+	if len(source.defaultServices) > 0 {
+		target.defaultServices = cloneGroupServices(source.defaultServices)
+	}
 	if len(source.defaultParams) > 0 {
 		target.defaultParams = make([]*openapi.ParameterObject, len(source.defaultParams))
 		for index, param := range source.defaultParams {
@@ -285,11 +359,29 @@ func (target *RouteGroup) copyDefaults(source *RouteGroup) {
 	target.defaultDeprecated = source.defaultDeprecated
 }
 
+func cloneGroupServices(services map[routing.ServiceKey]any) map[routing.ServiceKey]any {
+	if len(services) == 0 {
+		return nil
+	}
+	cloned := make(map[routing.ServiceKey]any, len(services))
+	for key, svc := range services {
+		if key == "" || svc == nil {
+			continue
+		}
+		cloned[key] = svc
+	}
+	if len(cloned) == 0 {
+		return nil
+	}
+	return cloned
+}
+
 // newRouteGroupBase creates a new RouteGroup with basic initialization.
 func newRouteGroupBase(prefix string, registry *registry.RouteRegistry) *RouteGroup {
 	return &RouteGroup{
 		prefix:        prefix,
 		routeRegistry: registry,
+		validation:    routing.NewValidationState(),
 	}
 }
 
@@ -353,9 +445,11 @@ func (rg *RouteGroup) registerRoute(method, pattern string, handler routing.Hand
 	if len(op.Parameters) > 0 {
 		options.ParamIndex = routing.BuildParamIndex(op.Parameters)
 	}
+	options.SetMiddleware(slices.Clone(rg.defaultMiddleware))
+	options.SetServices(cloneGroupServices(rg.defaultServices))
 
 	rg.routeRegistry.Register(pattern, method, options)
-	return &builder.RouteBuilder{Options: options}
+	return &builder.RouteBuilder{Options: options, Validation: rg.validationState().Clone()}
 }
 
 // ---- Route Methods ----

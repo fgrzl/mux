@@ -15,18 +15,32 @@ This document outlines a progressive learning path from "Hello World" to product
 package main
 
 import (
-    "net/http"
+    "context"
+    "os"
+    "os/signal"
+    "syscall"
+
     "github.com/fgrzl/mux"
 )
 
 func main() {
-    router := mux.NewRouter()
+    router := mux.NewRouter().Safe()
     
     router.GET("/", func(c mux.RouteContext) {
         c.OK("Welcome to Mux!")
     })
+
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
     
-    http.ListenAndServe(":8080", router)
+    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer cancel()
+
+    server := mux.NewServer(":8080", router)
+    if err := server.Listen(ctx); err != nil {
+        panic(err)
+    }
 }
 ```
 
@@ -49,7 +63,7 @@ type User struct {
 }
 
 func main() {
-    router := mux.NewRouter()
+    router := mux.NewRouter().Safe()
     
     // GET - Return JSON
     router.GET("/user", func(c mux.RouteContext) {
@@ -66,8 +80,18 @@ func main() {
         }
         c.Created(user)
     })
+
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
     
-    http.ListenAndServe(":8080", router)
+    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer cancel()
+
+    server := mux.NewServer(":8080", router)
+    if err := server.Listen(ctx); err != nil {
+        panic(err)
+    }
 }
 ```
 
@@ -96,7 +120,7 @@ curl -X POST http://localhost:8080/user \
 
 ```go
 func main() {
-    router := mux.NewRouter()
+    router := mux.NewRouter().Safe()
     
     // Path parameters: /users/123
     router.GET("/users/{id}", func(c mux.RouteContext) {
@@ -113,8 +137,18 @@ func main() {
         }
         c.OK(map[string]string{"searching": query})
     })
+
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
     
-    http.ListenAndServe(":8080", router)
+    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer cancel()
+
+    server := mux.NewServer(":8080", router)
+    if err := server.Listen(ctx); err != nil {
+        panic(err)
+    }
 }
 ```
 
@@ -138,7 +172,7 @@ curl http://localhost:8080/search?q=golang
 
 ```go
 func main() {
-    router := mux.NewRouter()
+    router := mux.NewRouter().Safe()
     
     // API version 1
     v1 := router.NewRouteGroup("/api/v1")
@@ -155,8 +189,18 @@ func main() {
     posts := v1.NewRouteGroup("/posts")
     posts.GET("/", listPosts)
     posts.POST("/", createPost)
+
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
     
-    http.ListenAndServe(":8080", router)
+    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer cancel()
+
+    server := mux.NewServer(":8080", router)
+    if err := server.Listen(ctx); err != nil {
+        panic(err)
+    }
 }
 
 func listUsers(c mux.RouteContext) {
@@ -189,7 +233,7 @@ func createUser(c mux.RouteContext) {
 
 ```go
 func main() {
-    router := mux.NewRouter()
+    router := mux.NewRouter().Safe()
     
     // Global middleware (applies to all routes)
     mux.UseLogging(router)      // Log all requests
@@ -223,8 +267,18 @@ func main() {
 
         c.OK(map[string]any{"user": user.Subject()})
     })
+
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
     
-    http.ListenAndServe(":8080", router)
+    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer cancel()
+
+    server := mux.NewServer(":8080", router)
+    if err := server.Listen(ctx); err != nil {
+        panic(err)
+    }
 }
 ```
 
@@ -262,7 +316,7 @@ type User struct {
 }
 
 func main() {
-    router := mux.NewRouter()
+    router := mux.NewRouter().Safe()
     
     api := router.NewRouteGroup("/api/v1")
     api.WithTags("API v1")
@@ -291,15 +345,26 @@ func main() {
     
     // Serve OpenAPI spec
     router.GET("/openapi.json", func(c mux.RouteContext) {
-        spec := router.OpenAPI(&mux.OpenAPIOptions{
-            Title:       "My API",
-            Version:     "1.0.0",
-            Description: "A simple user management API",
-        })
+        generator := mux.NewGenerator()
+        spec, err := mux.GenerateSpecWithGenerator(generator, router)
+        if err != nil {
+            c.ServerError("OpenAPI generation failed", err.Error())
+            return
+        }
         c.OK(spec)
     })
+
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
     
-    http.ListenAndServe(":8080", router)
+    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer cancel()
+
+    server := mux.NewServer(":8080", router)
+    if err := server.Listen(ctx); err != nil {
+        panic(err)
+    }
 }
 ```
 
@@ -327,7 +392,7 @@ curl http://localhost:8080/openapi.json
 
 ```go
 func main() {
-    router := mux.NewRouter()
+    router := mux.NewRouter().Safe()
     
     router.GET("/users/{id}", func(c mux.RouteContext) {
         id, ok := c.Param("id")
@@ -351,8 +416,18 @@ func main() {
         
         c.OK(user)
     })
+
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
     
-    http.ListenAndServe(":8080", router)
+    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer cancel()
+
+    server := mux.NewServer(":8080", router)
+    if err := server.Listen(ctx); err != nil {
+        panic(err)
+    }
 }
 
 var ErrNotFound = errors.New("user not found")
@@ -390,10 +465,11 @@ package main
 
 import (
     "context"
-    "net/http"
     "os"
     "os/signal"
+    "syscall"
     "time"
+
     "github.com/fgrzl/mux"
 )
 
@@ -403,18 +479,16 @@ func main() {
         mux.WithContextPooling(),     // Reduce allocations
         mux.WithHeadFallbackToGet(),  // Auto-handle HEAD requests
         mux.WithMaxBodyBytes(10<<20), // 10MB limit
-    )
+    ).Safe()
     
     // Production middleware stack
     mux.UseLogging(router)
     mux.UseCompression(router)
-    mux.UseCORS(router, &mux.CORSOptions{
-        AllowedOrigins: []string{"https://yourdomain.com"},
-        AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},
-    })
-    mux.UseRateLimit(router, &mux.RateLimitOptions{
-        RequestsPerMinute: 100,
-    })
+    mux.UseCORS(router,
+        mux.WithAllowedOrigins("https://yourdomain.com"),
+        mux.WithAllowedMethods("GET", "POST", "PUT", "DELETE"),
+    )
+    // Route-level rate limits are configured with .WithRateLimit(limit, interval).
     
     // Built-in Kubernetes-style health probes
     router.Healthz()  // GET /healthz
@@ -429,11 +503,15 @@ func main() {
     
     // Your API routes
     setupRoutes(router)
+
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
     
     // WebServer provides graceful shutdown out of the box
     server := mux.NewServer(":8080", router)
     
-    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
     defer cancel()
     
     // Listen blocks until shutdown
@@ -478,7 +556,7 @@ func main() {
     
     // Wait for interrupt
     quit := make(chan os.Signal, 1)
-    signal.Notify(quit, os.Interrupt)
+    signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
     <-quit
     
     // Graceful shutdown

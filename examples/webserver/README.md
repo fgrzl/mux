@@ -95,9 +95,13 @@ if err := server.Shutdown(ctx); err != nil {
 
 ```go
 // ✅ 7 lines - production ready
+router := mux.NewRouter().Safe()
+
+if err := router.Err(); err != nil { panic(err) }
+
 server := mux.NewServer(":8080", router)
 
-ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 defer cancel()
 
 if err := server.Listen(ctx); err != nil { panic(err) }

@@ -59,56 +59,65 @@ func (h *UserHandler) CreateUser(c mux.RouteContext) {
 ### Router Setup Best Practices
 
 ```go
-func NewRouter() *mux.Router {
+func NewRouter() (*mux.Router, error) {
     router := mux.NewRouter(
         mux.WithTitle("My API"),
-        mux.WithVersion("1.0.0"), 
+        mux.WithVersion("1.0.0"),
         mux.WithDescription("Production API built with Mux"),
         mux.WithContact("API Support", "https://example.com/support", "support@example.com"),
         mux.WithLicense("MIT", "https://opensource.org/licenses/MIT"),
-    )
-    
+    ).Safe()
+
+    // Register shared services before middleware/routes use them.
+    setupServices(router)
+
     // Add middleware in correct order
     setupMiddleware(router)
-    
+
     // Setup route groups
     setupRoutes(router)
-    
-    return router
+
+    if err := router.Err(); err != nil {
+        return nil, err
+    }
+
+    return router, nil
+}
+
+func setupServices(router *mux.Router) {
+    router.Services().
+        Register("auditWriter", auditWriter).
+        Register("clock", systemClock)
 }
 
 func setupMiddleware(router *mux.Router) {
     // 1. Infrastructure middleware
-        mux.UseForwardedHeaders(router)
-        mux.UseLogging(router)
-    
+    mux.UseForwardedHeaders(router)
+    mux.UseLogging(router)
+
     // 2. Security middleware
     if os.Getenv("ENFORCE_HTTPS") == "true" {
-            mux.UseEnforceHTTPS(router)
+        mux.UseEnforceHTTPS(router)
     }
-    
+
     // 3. Application middleware
-        mux.UseCompression(router)
-    
+    mux.UseCompression(router)
+
     if os.Getenv("ENABLE_TRACING") == "true" {
-            mux.UseOpenTelemetry(router)
+        mux.UseOpenTelemetry(router)
     }
-    
+
     // 4. Authentication (if needed globally)
     if authRequired() {
-        router.UseAuthentication(
+        mux.UseAuthentication(router,
             mux.WithValidator(validateToken),
             mux.WithTokenCreator(createToken),
         )
     }
-    
-    // 5. Services
-        mux.UseServices(
-        mux.WithService("userService", userService),
-        mux.WithService("authService", authService),
-    )
 }
 ```
+
+Prefer explicit constructor injection for core domain services. Use `Services()` when middleware and handlers both need the same collaborator, or when a router, group, or route needs a scoped override.
 
 ## Route Organization
 
@@ -646,43 +655,30 @@ func (s *CachedUserService) GetUser(ctx context.Context, userID uuid.UUID) (*Use
 
 ```go
 func main() {
-    router := setupRouter()
-    
-    server := &http.Server{
-        Addr:         ":8080",
-        Handler:      router,
-        ReadTimeout:  30 * time.Second,
-        WriteTimeout: 30 * time.Second,
-        IdleTimeout:  120 * time.Second,
+    router, err := NewRouter()
+    if err != nil {
+        log.Fatal(err)
     }
-    
-    // Start server in goroutine
-    go func() {
-        log.Println("Server starting on :8080")
-        if err := server.ListenAndServe(); err != http.ErrServerClosed {
-            log.Fatal("Server failed to start:", err)
-        }
-    }()
-    
-    // Wait for interrupt signal
-    sigChan := make(chan os.Signal, 1)
-    signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-    <-sigChan
-    
-    log.Println("Shutting down server...")
-    
-    // Create shutdown context with timeout
-    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-    defer cancel()
-    
-    // Shutdown server gracefully
-    if err := server.Shutdown(ctx); err != nil {
-        log.Printf("Server shutdown error: %v", err)
-    } else {
-        log.Println("Server shutdown completed")
+
+    server := mux.NewServer(
+        ":8080",
+        router,
+        mux.WithReadTimeout(30*time.Second),
+        mux.WithWriteTimeout(30*time.Second),
+        mux.WithIdleTimeout(120*time.Second),
+    )
+
+    ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer stop()
+
+    log.Println("Server starting on :8080")
+    if err := server.Listen(ctx); err != nil {
+        log.Fatal(err)
     }
 }
 ```
+
+Prefer `mux.NewServer(...)` unless you need lower-level control than the framework's server wrapper exposes.
 
 ### Health Checks
 

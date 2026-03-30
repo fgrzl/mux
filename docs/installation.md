@@ -65,18 +65,32 @@ Verify your installation by creating a simple "Hello World" application:
 package main
 
 import (
-    "net/http"
+    "context"
+    "os"
+    "os/signal"
+    "syscall"
+
     "github.com/fgrzl/mux"
 )
 
 func main() {
-    router := mux.NewRouter()
+    router := mux.NewRouter().Safe()
     
     router.GET("/", func(c mux.RouteContext) {
         c.OK("Mux is working!")
     })
+
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
     
-    http.ListenAndServe(":8080", router)
+    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer cancel()
+
+    server := mux.NewServer(":8080", router)
+    if err := server.Listen(ctx); err != nil {
+        panic(err)
+    }
 }
 ```
 
@@ -188,9 +202,8 @@ go version  # Should be 1.24.4+
 ```
 
 #### Permission Denied (Linux/macOS)
-```bash
-# Run with different port (> 1024)
-http.ListenAndServe(":8080", router)  # Instead of :80
+```text
+Use an unprivileged port such as :8080 instead of :80.
 ```
 
 ### Getting Help

@@ -219,6 +219,111 @@ func TestShouldSetRouteParamsInContext(t *testing.T) {
 	assert.Equal(t, "123", receivedID)
 }
 
+func TestShouldInheritRootScopedServicesWhenCreatingRouteGroup(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+	rtr.WithService(routing.ServiceKey("db"), "primary")
+
+	// Act
+	api := rtr.NewRouteGroup("/api")
+	route := api.GET("/users", func(c routing.RouteContext) {
+		c.OK("users")
+	})
+
+	// Assert
+	assert.Equal(t, "primary", route.Options.Services[routing.ServiceKey("db")])
+}
+
+func TestShouldExposeScopedServicesToRouterMiddlewareAndHandler(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+	serviceKey := routing.ServiceKey("db")
+	groupKey := routing.ServiceKey("cache")
+	var middlewareDB any
+	var middlewareCache any
+	var handlerDB any
+	var handlerCache any
+	rtr.Use(&testMiddleware{
+		invoke: func(c routing.RouteContext, next HandlerFunc) {
+			middlewareDB, _ = c.GetService(serviceKey)
+			middlewareCache, _ = c.GetService(groupKey)
+			next(c)
+		},
+	})
+	rtr.WithService(serviceKey, "root-db")
+	api := rtr.NewRouteGroup("/api")
+	api.WithService(groupKey, "redis")
+	api.GET("/users", func(c routing.RouteContext) {
+		handlerDB, _ = c.GetService(serviceKey)
+		handlerCache, _ = c.GetService(groupKey)
+		c.OK("users")
+	}).WithService(serviceKey, "route-db")
+
+	req, rec := testhelpers.NewRequestRecorder(http.MethodGet, "/api/users", nil)
+
+	// Act
+	rtr.ServeHTTP(rec, req)
+
+	// Assert
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "route-db", middlewareDB)
+	assert.Equal(t, "redis", middlewareCache)
+	assert.Equal(t, "route-db", handlerDB)
+	assert.Equal(t, "redis", handlerCache)
+}
+
+func TestShouldExposeServiceRegistryOnRouter(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+	registry := rtr.Services()
+
+	// Act
+	result := registry.Register(routing.ServiceKey("db"), "primary")
+	api := rtr.NewRouteGroup("/api")
+	route := api.GET("/users", func(c routing.RouteContext) {
+		c.OK("users")
+	})
+	retrieved, ok := registry.Get(routing.ServiceKey("db"))
+
+	// Assert
+	assert.Same(t, registry, result)
+	assert.True(t, ok)
+	assert.Equal(t, "primary", retrieved)
+	assert.Equal(t, "primary", route.Options.Services[routing.ServiceKey("db")])
+}
+
+func TestShouldReturnRouterWhenRegisteringRootScopedService(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+
+	// Act
+	result := rtr.WithService(routing.ServiceKey("db"), "primary")
+	api := rtr.NewRouteGroup("/api")
+	route := api.GET("/users", func(c routing.RouteContext) {
+		c.OK("users")
+	})
+
+	// Assert
+	assert.Same(t, rtr, result)
+	assert.Equal(t, "primary", route.Options.Services[routing.ServiceKey("db")])
+}
+
+func TestShouldAccumulateValidationErrorsOnRouterWithoutPanicking(t *testing.T) {
+	// Arrange
+	rtr := NewRouter().Safe()
+
+	// Act / Assert
+	assert.NotPanics(t, func() {
+		rtr.NewRouteGroup("/api").GET("/users", func(c routing.RouteContext) {
+			c.OK("users")
+		}).WithOperationID("invalid-id")
+	})
+
+	// Assert
+	require.Len(t, rtr.Errors(), 1)
+	assert.ErrorContains(t, rtr.Err(), "invalid OperationID")
+}
+
 func TestShouldExecuteMiddlewareInCorrectOrder(t *testing.T) {
 	// Arrange
 	rtr := NewRouter()

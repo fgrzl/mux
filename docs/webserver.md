@@ -23,22 +23,27 @@ import (
     "context"
     "os"
     "os/signal"
+    "syscall"
     
     "github.com/fgrzl/mux"
 )
 
 func main() {
-    router := mux.NewRouter()
+    router := mux.NewRouter().Safe()
     
     router.GET("/", func(c mux.RouteContext) {
         c.OK("Hello, World!")
     })
+
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
     
     // Create server with production defaults
     server := mux.NewServer(":8080", router)
     
     // Run with graceful shutdown
-    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
     defer cancel()
     
     if err := server.Listen(ctx); err != nil {
@@ -87,7 +92,7 @@ func (ws *WebServer) Listen(ctx context.Context) error
 
 **Usage**:
 ```go
-ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 defer cancel()
 
 if err := server.Listen(ctx); err != nil {
@@ -159,7 +164,7 @@ server := mux.NewServer(":8443", router,
     mux.WithTLS("server.crt", "server.key"),
 )
 
-ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 defer cancel()
 
 if err := server.Listen(ctx); err != nil { panic(err) }
@@ -212,7 +217,7 @@ import (
 
 func main() {
     // Configure router
-    router := mux.NewRouter()
+        if err := server.Start(context.Background()); err != nil { panic(err) }
     
     // Add health probes
     router.Healthz()
@@ -258,23 +263,28 @@ import (
     "context"
     "os"
     "os/signal"
+    "syscall"
     
     "github.com/fgrzl/mux"
 )
 
 func main() {
-    router := mux.NewRouter()
+    router := mux.NewRouter().Safe()
     
     router.GET("/", func(c mux.RouteContext) {
         c.OK("Secure Hello!")
     })
+
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
     
     // HTTPS server on port 8443
     server := mux.NewServer(":8443", router,
         mux.WithTLS("certs/server.crt", "certs/server.key"),
     )
     
-    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
     defer cancel()
     
     if err := server.Listen(ctx); err != nil { panic(err) }
@@ -291,15 +301,20 @@ import (
     "os"
     "os/signal"
     "sync"
+    "syscall"
     
     "github.com/fgrzl/mux"
 )
 
 func main() {
-    router := mux.NewRouter()
+    router := mux.NewRouter().Safe()
     router.GET("/", func(c mux.RouteContext) {
         c.OK("Hello from both HTTP and HTTPS!")
     })
+
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
     
     // Create both HTTP and HTTPS servers
     httpServer := mux.NewServer(":8080", router)
@@ -308,7 +323,7 @@ func main() {
     )
     
     // Setup graceful shutdown
-    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
     defer cancel()
     
     // Run both servers
@@ -344,10 +359,14 @@ import (
 )
 
 func main() {
-    router := mux.NewRouter()
+    router := mux.NewRouter().Safe()
     router.GET("/", func(c mux.RouteContext) {
         c.OK("Background server")
     })
+
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
     
     server := mux.NewServer(":8080", router)
     
@@ -423,10 +442,15 @@ func main() {
 ```go
 // ✅ Simple, safe, production-ready
 func main() {
-    router := mux.NewRouter()
+    router := mux.NewRouter().Safe()
+
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
+
     server := mux.NewServer(":8080", router)
     
-    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
     defer cancel()
     
     if err := server.Listen(ctx); err != nil { panic(err) }
@@ -441,7 +465,7 @@ func main() {
 
 ```go
 // ✅ Good: Context-based shutdown
-ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 defer cancel()
 if err := server.Listen(ctx); err != nil { panic(err) }
 
@@ -467,7 +491,7 @@ server.Listen(ctx)  // Silent failures
 // ✅ Good: Listen for primary server
 func main() {
     server := mux.NewServer(":8080", router)
-    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
     defer cancel()
     if err := server.Listen(ctx); err != nil { panic(err) }  // Blocks until shutdown
 }
@@ -476,7 +500,7 @@ func main() {
 func startMetricsServer() {
     metricsRouter := mux.NewRouter()
     server := mux.NewServer(":9090", metricsRouter)
-    server.Start(context.Background())  // Returns immediately
+    if err := server.Start(context.Background()); err != nil { panic(err) }
 }
 ```
 
@@ -587,11 +611,15 @@ import (
 )
 
 func main() {
-    router := mux.NewRouter()
+    router := mux.NewRouter().Safe()
     router.Healthz()
     router.GET("/", func(c mux.RouteContext) {
         c.OK("Hello from Docker!")
     })
+
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
     
     server := mux.NewServer(":8080", router)
     

@@ -371,21 +371,20 @@ func main() {
     otel.SetTracerProvider(tp)
     
     // Add OpenTelemetry middleware
-    router.UseOpenTelemetry()
+    mux.UseOpenTelemetry(router)
 }
 ```
 
-## Service Locator Middleware
+## Scoped Services
 
-Provides dependency injection for services, making them available to route handlers.
+Register services explicitly when middleware and handlers need shared collaborators.
 
 ### Setup
 ```go
-mux.UseServices(router,
-    mux.WithService("db", databaseConnection),
-    mux.WithService("cache", redisClient),
-    mux.WithService("logger", logger),
-)
+router.Services().
+    Register("db", databaseConnection).
+    Register("cache", redisClient).
+    Register("logger", logger)
 ```
 
 ### Using Services in Handlers
@@ -439,20 +438,20 @@ The order in which middleware is added matters. Here's the recommended order:
 mux.UseForwardedHeaders(router)    // Parse proxy headers
 mux.UseLogging(router)             // Log all requests
 
-// 2. Security middleware  
+// 2. Security middleware
 mux.UseEnforceHTTPS(router)        // Force HTTPS
-mux.UseExportControl(...)    // Geographic restrictions
+mux.UseExportControl(router, ...)  // Geographic restrictions
 
 // 3. Application middleware
 mux.UseCompression(router)         // Compress responses
 mux.UseOpenTelemetry(router)       // Tracing and metrics
 
 // 4. Authentication & Authorization
-mux.UseAuthentication(...)   // Authenticate users
+mux.UseAuthentication(router, ...) // Authenticate users
 mux.UseAuthorization(router, ...)    // Authorize access
 
 // 5. Application services
-router.UseServices(...)         // Dependency injection
+router.Services().Register(...) // Shared collaborators
 
 // 6. Rate limiting (per route)
 // Applied individually to routes as needed

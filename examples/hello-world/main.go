@@ -4,13 +4,14 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/fgrzl/mux"
 )
 
 func main() {
 	// Create a new router
-	router := mux.NewRouter()
+	router := mux.NewRouter().Safe()
 
 	// Add a simple hello endpoint
 	router.GET("/", func(c mux.RouteContext) {
@@ -31,10 +32,14 @@ func main() {
 		})
 	}).WithOperationID("helloName")
 
+	if err := router.Err(); err != nil {
+		panic(err)
+	}
+
 	// Start the server with graceful shutdown
 	server := mux.NewServer(":8080", router)
 
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	if err := server.Listen(ctx); err != nil {

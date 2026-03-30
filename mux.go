@@ -63,6 +63,10 @@ type RouteOptions = routing.RouteOptions
 // ServiceKey identifies named services stored on a RouteContext.
 type ServiceKey = routing.ServiceKey
 
+// ServiceRegistry provides a fluent API for configuring scoped services on
+// routers, route groups, and route builders.
+type ServiceRegistry = routing.ServiceRegistry
+
 // ServiceKeyTokenProvider is the service key used for the token provider.
 const ServiceKeyTokenProvider = tokenizer.ServiceKeyTokenProvider
 
@@ -492,17 +496,27 @@ var WithCleanupInterval = ratelimit.WithCleanupInterval
 // --- Service locator middleware ---
 // ServiceSetterOptions configures the service-locator middleware. Alias of
 // servicelocator.ServiceSetterOptions.
+//
+// Deprecated: use ServiceRegistry via Router.Services(), RouteGroup.Services(),
+// or RouteBuilder.Services() instead.
 type ServiceSetterOptions = servicelocator.ServiceSetterOptions
 
 // ServiceSetterOption is a single functional option for the service locator.
+//
+// Deprecated: use ServiceRegistry via Router.Services(), RouteGroup.Services(),
+// or RouteBuilder.Services() instead.
 type ServiceSetterOption = servicelocator.ServiceSetterOption
 
 // UseServices installs the service locator middleware on a router. Alias of
 // servicelocator.UseServices.
+//
+// Deprecated: use Router.Services().Register(...) instead.
 var UseServices = servicelocator.UseServices
 
 // WithService adds a service instance to be injected by the service
 // locator middleware. Alias of servicelocator.WithService.
+//
+// Deprecated: use Router.Services().Register(...) instead.
 var WithService = servicelocator.WithService
 
 // --- Builder helpers ---

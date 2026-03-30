@@ -80,6 +80,104 @@ func TestShouldMaintainIndependentDefaultsWhenModifyingNestedRouteGroup(t *testi
 	assert.Equal(t, []string{"API", "V1"}, v1.defaultTags)
 }
 
+func TestShouldKeepParentAndChildMiddlewareDefaultsIndependent(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+	api := rtr.NewRouteGroup("/api")
+	api.defaultMiddleware = make([]Middleware, 0, 4)
+	mwAPI := &testMiddleware{invoke: func(c routing.RouteContext, next HandlerFunc) { next(c) }}
+	mwV1 := &testMiddleware{invoke: func(c routing.RouteContext, next HandlerFunc) { next(c) }}
+	api.Use(mwAPI)
+
+	// Act
+	v1 := api.NewRouteGroup("/v1")
+	v1.Use(mwV1)
+
+	// Assert
+	require.Len(t, api.defaultMiddleware, 1)
+	assert.Same(t, mwAPI, api.defaultMiddleware[0])
+	assert.Equal(t, []Middleware{mwAPI, mwV1}, v1.defaultMiddleware)
+}
+
+func TestShouldCopyGroupMiddlewareIntoRegisteredRoutes(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+	api := rtr.NewRouteGroup("/api")
+	mwAPI := &testMiddleware{invoke: func(c routing.RouteContext, next HandlerFunc) { next(c) }}
+	mwV1 := &testMiddleware{invoke: func(c routing.RouteContext, next HandlerFunc) { next(c) }}
+	api.Use(mwAPI)
+	v1 := api.NewRouteGroup("/v1")
+	v1.Use(mwV1)
+
+	// Act
+	route := v1.GET("/users", func(c routing.RouteContext) {
+		c.OK("users")
+	})
+
+	// Assert
+	require.Len(t, route.Options.Middleware, 2)
+	assert.Same(t, mwAPI, route.Options.Middleware[0])
+	assert.Same(t, mwV1, route.Options.Middleware[1])
+}
+
+func TestShouldKeepParentAndChildServiceDefaultsIndependent(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+	api := rtr.NewRouteGroup("/api")
+	api.WithService(routing.ServiceKey("db"), "primary")
+
+	// Act
+	v1 := api.NewRouteGroup("/v1")
+	v1.WithService(routing.ServiceKey("cache"), "redis")
+
+	// Assert
+	assert.Equal(t, map[routing.ServiceKey]any{routing.ServiceKey("db"): "primary"}, api.defaultServices)
+	assert.Equal(t, map[routing.ServiceKey]any{
+		routing.ServiceKey("db"):    "primary",
+		routing.ServiceKey("cache"): "redis",
+	}, v1.defaultServices)
+}
+
+func TestShouldCopyGroupServicesIntoRegisteredRoutes(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+	api := rtr.NewRouteGroup("/api")
+	api.WithService(routing.ServiceKey("db"), "primary")
+	v1 := api.NewRouteGroup("/v1")
+	v1.WithService(routing.ServiceKey("cache"), "redis")
+
+	// Act
+	route := v1.GET("/users", func(c routing.RouteContext) {
+		c.OK("users")
+	})
+
+	// Assert
+	assert.Equal(t, map[routing.ServiceKey]any{
+		routing.ServiceKey("db"):    "primary",
+		routing.ServiceKey("cache"): "redis",
+	}, route.Options.Services)
+}
+
+func TestShouldExposeServiceRegistryOnRouteGroup(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+	api := rtr.NewRouteGroup("/api")
+	registry := api.Services()
+
+	// Act
+	result := registry.Register(routing.ServiceKey("db"), "primary").Register(routing.ServiceKey("cache"), "redis")
+	db, ok := registry.Get(routing.ServiceKey("db"))
+
+	// Assert
+	assert.Same(t, registry, result)
+	assert.True(t, ok)
+	assert.Equal(t, "primary", db)
+	assert.Equal(t, map[routing.ServiceKey]any{
+		routing.ServiceKey("db"):    "primary",
+		routing.ServiceKey("cache"): "redis",
+	}, api.defaultServices)
+}
+
 func TestShouldKeepParentAndChildDefaultsIndependentWithSharedCapacity(t *testing.T) {
 	// Arrange: force extra capacity so append reuse would leak across groups
 	rtr := NewRouter()

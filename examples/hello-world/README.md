@@ -53,9 +53,9 @@ This will return a 404 since the route requires a name parameter.
 
 ### Router Creation
 ```go
-router := mux.NewRouter()
+router := mux.NewRouter().Safe()
 ```
-Creates a new Mux router instance.
+Creates a new Mux router instance and enables startup validation collection.
 
 ### Basic Route
 ```go
@@ -69,36 +69,43 @@ router.GET("/", func(c mux.RouteContext) {
 ### Parameterized Route
 ```go
 router.GET("/hello/{name}", func(c mux.RouteContext) {
-  name, ok := c.Param("name")
-  if !ok {
-    c.BadRequest("Missing name", "name parameter is required")
-    return
-  }
-    // ...
+    name, ok := c.Param("name")
+    if !ok {
+        c.BadRequest("Missing name", "name parameter is required")
+        return
+    }
+
+    c.OK(map[string]string{
+        "message": "Hello, " + name + "!",
+        "status":  "success",
+    })
 })
+```
 - Returns a structured JSON response
+
+### Startup Validation
+```go
+if err := router.Err(); err != nil {
+    panic(err)
+}
+```
+Checks route configuration before the server starts accepting traffic.
 
 ### Server Startup
 ```go
 server := mux.NewServer(":8080", router)
 
-ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 defer cancel()
 
 if err := server.Listen(ctx); err != nil {
-  panic(err)
+    panic(err)
 }
 ```
 Uses `WebServer` for production-ready server with:
 - Automatic graceful shutdown (press Ctrl+C)
 - Production timeouts (10s read/write, 120s idle)
 - Context-based lifecycle management
-
-**Alternative (simple but not production-ready)**:
-```go
-http.ListenAndServe(":8080", router)
-```
-Starts the HTTP server on port 8080 using the Mux router.
 
 ## Key Concepts Demonstrated
 
@@ -112,6 +119,6 @@ Starts the HTTP server on port 8080 using the Mux router.
 ## Next Steps
 
 After understanding this example, try:
-- [REST API Example](../rest-api/) - Full CRUD operations
-- [Authentication Example](../auth-api/) - Adding security
-- [Middleware Demo](../middleware-demo/) - Using middleware
+- [Todo API Example](../todo-api/) - Full CRUD operations with OpenAPI
+- [CORS Wildcard Example](../cors-wildcard/) - Middleware configuration
+- [WebServer Example](../webserver/) - Server lifecycle and timeouts

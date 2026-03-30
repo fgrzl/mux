@@ -16,7 +16,7 @@ cd examples/cors-wildcard
 go run main.go
 ```
 
-The server will start on `http://localhost:8080`.
+The server will start on `http://localhost:8080`. The example uses `mux.NewServer(...)`, so Ctrl+C triggers graceful shutdown instead of abruptly terminating the process.
 
 ## Testing CORS
 

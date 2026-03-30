@@ -12,7 +12,7 @@ import (
 
 func main() {
 	// Create router
-	router := mux.NewRouter()
+	router := mux.NewRouter().Safe()
 
 	// Add health probes
 	router.Healthz()
@@ -33,6 +33,11 @@ func main() {
 			"status": "running",
 		})
 	})
+
+	if err := router.Err(); err != nil {
+		slog.Error("Invalid router configuration", "error", err)
+		os.Exit(1)
+	}
 
 	// Create WebServer with production defaults
 	// - ReadTimeout: 10s

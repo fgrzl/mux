@@ -1,15 +1,18 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/fgrzl/mux"
 )
 
 func main() {
 	// Create a new router
-	router := mux.NewRouter()
+	router := mux.NewRouter().Safe()
 
 	// Configure CORS with wildcard support
 	// This allows requests from any subdomain of example.com
@@ -29,17 +32,22 @@ func main() {
 
 	// Add a simple endpoint
 	router.GET("/api/users", func(c mux.RouteContext) {
-		c.Response().Header().Set("Content-Type", "application/json")
-		c.Response().WriteHeader(http.StatusOK)
-		fmt.Fprintln(c.Response(), `{"users": ["alice", "bob", "charlie"]}`)
+		c.OK(map[string]any{
+			"users": []string{"alice", "bob", "charlie"},
+		})
 	})
 
 	// Add another endpoint
 	router.POST("/api/users", func(c mux.RouteContext) {
-		c.Response().Header().Set("Content-Type", "application/json")
-		c.Response().WriteHeader(http.StatusCreated)
-		fmt.Fprintln(c.Response(), `{"id": 123, "message": "User created"}`)
+		c.Created(map[string]any{
+			"id":      123,
+			"message": "User created",
+		})
 	})
+
+	if err := router.Err(); err != nil {
+		panic(err)
+	}
 
 	// Start the server
 	fmt.Println("🚀 Server starting on http://localhost:8080")
@@ -57,7 +65,11 @@ func main() {
 	fmt.Println("   - https://notexample.com")
 	fmt.Println("")
 
-	if err := http.ListenAndServe(":8080", router); err != nil {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	server := mux.NewServer(":8080", router)
+	if err := server.Listen(ctx); err != nil {
 		panic(err)
 	}
 }

@@ -26,20 +26,36 @@ Create `main.go`:
 package main
 
 import (
-    "net/http"
+    "context"
+    "os"
+    "os/signal"
+    "syscall"
+
     "github.com/fgrzl/mux"
 )
 
 func main() {
-    router := mux.NewRouter()
-    
+    router := mux.NewRouter().Safe()
+
     router.GET("/hello", func(c mux.RouteContext) {
         c.OK("Hello, World!")
     })
-    
-    http.ListenAndServe(":8080", router)
+
+    if err := router.Err(); err != nil {
+        panic(err)
+    }
+
+    ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer stop()
+
+    server := mux.NewServer(":8080", router)
+    if err := server.Listen(ctx); err != nil {
+        panic(err)
+    }
 }
 ```
+
+`Safe()` lets startup configuration accumulate validation errors so `Err()` can fail before the server accepts traffic.
 
 ## Step 3: Run and Test
 
@@ -50,32 +66,6 @@ go run main.go
 # In another terminal, test it
 curl http://localhost:8080/hello
 ```
-
-**Output:** `"Hello, World!"`
-
-🎉 **Congratulations!** You have a working API!
-
-## What's Next?
-
-Choose your path:
-
-### Learn by Doing
-**→ [Interactive Tutorial](interactive-tutorial.md)** - Build a complete Todo API in 30 minutes with validation, error handling, and OpenAPI documentation.
-
-### Comprehensive Guide
-**→ [Getting Started](getting-started.md)** - Step-by-step guide covering all major features with examples.
-
-### Quick Reference
-**→ [Cheat Sheet](cheat-sheet.md)** - Copy-paste examples for common patterns.
-
-### Structured Learning
-**→ [Learning Path](learning-path.md)** - Progressive 8-level course from beginner to advanced.
-
-## See Also
-
-- [Installation](installation.md) - Detailed setup and requirements
-- [Router](router.md) - Routing fundamentals and configuration
-- [Middleware](middleware.md) - Built-in middleware guide
 
 **Output:** `"Hello, World!"`
 

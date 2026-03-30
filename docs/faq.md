@@ -38,11 +38,11 @@ go get github.com/fgrzl/mux
 
 ### Q: Can I use Mux with existing Go HTTP code?
 
-**A:** Yes! Mux implements the standard `http.Handler` interface, so it works seamlessly with existing HTTP servers, middleware, and tools:
+**A:** Yes. Mux implements the standard `http.Handler` interface, so it works with custom `http.Server` instances, middleware chains, and tooling. The recommended default is still `mux.NewServer(...)`:
 
 ```go
-// Works with standard library
-http.ListenAndServe(":8080", router)
+// Recommended default
+server := mux.NewServer(":8080", router)
 
 // Works with custom servers
 server := &http.Server{
@@ -94,7 +94,7 @@ router.DELETE("/users/{id}", deleteUser)
 
 ```go
 router.GET("/files/{path}", func(c mux.RouteContext) {
-    path, _ := c.ParamValue("path")
+    path, _ := c.Param("path")
     // Handle complex path logic here
     if matched, _ := regexp.MatchString(`\.jpg$`, path); matched {
         // Handle image files
@@ -152,7 +152,7 @@ func handler(c mux.RouteContext) {
 ```go
 // Router-level (applies to all routes)
 mux.UseLogging(router)
-mux.UseAuthentication(...)
+mux.UseAuthentication(router, ...)
 
 // Route-specific (applies only to this route)
 router.GET("/api/search", handler).
@@ -166,7 +166,7 @@ router.GET("/api/search", handler).
 2. **Security**: `UseEnforceHTTPS()`, `UseExportControl()`  
 3. **Application**: `UseCompression()`, `UseOpenTelemetry()`
 4. **Authentication**: `UseAuthentication()`, `UseAuthorization()`
-5. **Services**: `UseServices()`
+5. **Services**: `Router.Services()`, `RouteGroup.Services()`, `RouteBuilder.Services()`
 
 ### Q: Can I create custom middleware?
 
@@ -366,26 +366,20 @@ type User struct {
 **A:** Implement graceful shutdown with context cancellation:
 ```go
 func main() {
-    router := mux.NewRouter()
+    router := mux.NewRouter().Safe()
     // ... setup routes
-    
-    server := &http.Server{
-        Addr:    ":8080",
-        Handler: router,
+
+    if err := router.Err(); err != nil {
+        log.Fatal(err)
     }
-    
-    // Handle shutdown gracefully
-    sigChan := make(chan os.Signal, 1)
-    signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-    
-    go func() {
-        <-sigChan
-        ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-        defer cancel()
-        server.Shutdown(ctx)
-    }()
-    
-    server.ListenAndServe()
+
+    ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer stop()
+
+    server := mux.NewServer(":8080", router)
+    if err := server.Listen(ctx); err != nil {
+        log.Fatal(err)
+    }
 }
 ```
 
@@ -404,7 +398,7 @@ func TestCreateUser(t *testing.T) {
     req.Header.Set("Content-Type", "application/json")
     
     rec := httptest.NewRecorder()
-    rtr.ServeHTTP(rec, req)
+    router.ServeHTTP(rec, req)
     
     assert.Equal(t, http.StatusCreated, rec.Code)
 }

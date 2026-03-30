@@ -219,3 +219,58 @@ func TestShouldExecuteMiddlewareInOrderAndStopGivenShortCircuit(t *testing.T) {
 	// Registration order: A, S (stops), B. Execution enters A, then S (stops), so B never runs.
 	assert.Equal(t, []string{"before:A", "before:S", "after:S", "after:A"}, seen)
 }
+
+func TestShouldExecuteRouterGroupAndRouteMiddlewareInOrder(t *testing.T) {
+	// Arrange
+	r := NewRouter()
+	var seen []string
+	r.Use(&orderMW{id: "router", seen: &seen})
+	api := r.NewRouteGroup("/api")
+	api.Use(&orderMW{id: "group", seen: &seen})
+	api.GET("/users", func(c routing.RouteContext) {
+		seen = append(seen, "handler")
+		c.OK("ok")
+	}).Use(&orderMW{id: "route", seen: &seen})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/users", nil)
+	rr := httptest.NewRecorder()
+
+	// Act
+	r.ServeHTTP(rr, req)
+
+	// Assert
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, []string{
+		"before:router",
+		"before:group",
+		"before:route",
+		"handler",
+		"after:route",
+		"after:group",
+		"after:router",
+	}, seen)
+}
+
+func TestShouldExecuteScopedMiddlewareWithoutRouterMiddlewareOnFastPath(t *testing.T) {
+	// Arrange
+	r := NewRouter()
+	var seen []string
+	handlerExecuted := false
+	api := r.NewRouteGroup("/api")
+	api.Use(&orderMW{id: "group", seen: &seen})
+	api.GET("/users", func(c routing.RouteContext) {
+		handlerExecuted = true
+		c.OK("ok")
+	}).Use(&stopMW{id: "route", seen: &seen})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/users", nil)
+	rr := httptest.NewRecorder()
+
+	// Act
+	r.ServeHTTP(rr, req)
+
+	// Assert
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.False(t, handlerExecuted)
+	assert.Equal(t, []string{"before:group", "before:route", "after:route", "after:group"}, seen)
+}

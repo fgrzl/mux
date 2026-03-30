@@ -6,14 +6,16 @@ The Router is the core component of Mux that handles HTTP request routing and mi
 
 ```go
 // Basic router
-router := mux.NewRouter()
+router := mux.NewRouter().Safe()
 
 // Router with options
 router := mux.NewRouter(
     mux.WithTitle("My API"),
     mux.WithVersion("1.0.0"),
-)
+).Safe()
 ```
+
+When you use `Safe()`, call `router.Err()` before serving traffic so configuration errors fail at startup instead of panicking later.
 
 ## Router Options
 
@@ -98,11 +100,10 @@ mux.UseAuthorization(router,
     mux.WithPermissions("read", "write"),
 )
 
-// Service injection
-mux.UseServices(router,
-    mux.WithService("db", database),
-    mux.WithService("cache", redisClient),
-)
+// Scoped services
+router.Services().
+    Register("db", database).
+    Register("cache", redisClient)
 
 // Rate limiting (applied per route)
 router.GET("/api/data", handler).
@@ -216,16 +217,21 @@ func riskyHandler(c mux.RouteContext) {
 The Router implements `http.Handler`:
 
 ```go
-// Standard HTTP server
-http.ListenAndServe(":8080", router)
+// Recommended default
+if err := router.Err(); err != nil {
+    panic(err)
+}
 
-// With TLS
-http.ListenAndServeTLS(":8443", "cert.pem", "key.pem", router)
+ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+defer cancel()
 
-// Using Mux's built-in server
 server := mux.NewServer(":8080", router)
-server.Start()
+if err := server.Listen(ctx); err != nil {
+    panic(err)
+}
 ```
+
+The router still implements `http.Handler`, so you can pass it to a custom `http.Server` when you need lower-level control.
 
 ## OpenAPI Specification
 
