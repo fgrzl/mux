@@ -11,6 +11,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type routeGroupCloneNested struct {
+	Value string `json:"value"`
+}
+
+type routeGroupClonePayload struct {
+	Name   *string                `json:"name"`
+	Nested *routeGroupCloneNested `json:"nested"`
+	Tags   []string               `json:"tags"`
+}
+
 func TestShouldCreateNestedRouteGroupsWhenCallingNewRouteGroup(t *testing.T) {
 	// Arrange: Create a router and nested group structure
 	rtr := NewRouter()
@@ -302,4 +312,73 @@ func TestShouldKeepRegisteredRouteSecurityIndependentFromGroupDefaults(t *testin
 	assert.NotSame(t, api.defaultSecurity[0], usersSecurity)
 	assert.Equal(t, []string{"read"}, (*api.defaultSecurity[0])["oauth2"].([]string))
 	assert.Equal(t, []string{"read"}, (*adminsRoute.Options.Operation.Security[0])["oauth2"].([]string))
+}
+
+func TestShouldDeepCopyPointerBackedExamplesWhenCreatingNestedRouteGroups(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+	api := rtr.NewRouteGroup("/api")
+	name := "stable"
+	example := &routeGroupClonePayload{
+		Name:   &name,
+		Nested: &routeGroupCloneNested{Value: "root"},
+		Tags:   []string{"one"},
+	}
+	api.WithQueryParam("payload", "pointer-backed payload", example)
+
+	// Act
+	v1 := api.NewRouteGroup("/v1")
+	clonedExample := v1.defaultParams[0].Example.(*routeGroupClonePayload)
+	*clonedExample.Name = "beta"
+	clonedExample.Nested.Value = "child"
+	clonedExample.Tags[0] = "two"
+
+	// Assert
+	require.Len(t, api.defaultParams, 1)
+	assert.NotSame(t, example, clonedExample)
+	assert.NotSame(t, example.Name, clonedExample.Name)
+	assert.NotSame(t, example.Nested, clonedExample.Nested)
+	assert.Equal(t, "stable", *example.Name)
+	assert.Equal(t, "root", example.Nested.Value)
+	assert.Equal(t, []string{"one"}, example.Tags)
+	assert.Equal(t, "stable", *api.defaultParams[0].Example.(*routeGroupClonePayload).Name)
+}
+
+func TestShouldKeepRegisteredRoutePointerExamplesIndependentFromGroupDefaults(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+	api := rtr.NewRouteGroup("/api")
+	name := "stable"
+	example := &routeGroupClonePayload{
+		Name:   &name,
+		Nested: &routeGroupCloneNested{Value: "root"},
+		Tags:   []string{"one"},
+	}
+	api.WithQueryParam("payload", "pointer-backed payload", example)
+
+	// Act
+	usersRoute := api.GET("/users", func(c routing.RouteContext) {
+		c.OK("users")
+	})
+	usersExample := usersRoute.Options.Operation.Parameters[0].Example.(*routeGroupClonePayload)
+	*usersExample.Name = "beta"
+	usersExample.Nested.Value = "child"
+	usersExample.Tags[0] = "two"
+	adminsRoute := api.GET("/admins", func(c routing.RouteContext) {
+		c.OK("admins")
+	})
+	adminsExample := adminsRoute.Options.Operation.Parameters[0].Example.(*routeGroupClonePayload)
+
+	// Assert
+	require.Len(t, usersRoute.Options.Operation.Parameters, 1)
+	require.Len(t, adminsRoute.Options.Operation.Parameters, 1)
+	assert.NotSame(t, example, usersExample)
+	assert.NotSame(t, example.Name, usersExample.Name)
+	assert.NotSame(t, example.Nested, usersExample.Nested)
+	assert.Equal(t, "stable", *example.Name)
+	assert.Equal(t, "root", example.Nested.Value)
+	assert.Equal(t, []string{"one"}, example.Tags)
+	assert.Equal(t, "stable", *adminsExample.Name)
+	assert.Equal(t, "root", adminsExample.Nested.Value)
+	assert.Equal(t, []string{"one"}, adminsExample.Tags)
 }

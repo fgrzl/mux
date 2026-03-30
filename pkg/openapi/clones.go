@@ -296,12 +296,22 @@ func cloneStringAnyMap(input map[string]any) map[string]any {
 	return clone
 }
 
+type cloneState struct {
+	visited map[cloneVisit]reflect.Value
+}
+
+type cloneVisit struct {
+	typ reflect.Type
+	ptr uintptr
+}
+
 func cloneValue(value any) any {
 	if value == nil {
 		return nil
 	}
 
-	cloned := cloneReflectValue(reflect.ValueOf(value))
+	state := cloneState{visited: make(map[cloneVisit]reflect.Value)}
+	cloned := state.cloneReflectValue(reflect.ValueOf(value))
 	if !cloned.IsValid() {
 		return nil
 	}
@@ -309,9 +319,13 @@ func cloneValue(value any) any {
 	return cloned.Interface()
 }
 
-func cloneReflectValue(value reflect.Value) reflect.Value {
+func (state *cloneState) cloneReflectValue(value reflect.Value) reflect.Value {
 	if !value.IsValid() {
 		return value
+	}
+
+	if cloned, ok := state.lookupVisited(value); ok {
+		return cloned
 	}
 
 	switch value.Kind() {
@@ -319,18 +333,27 @@ func cloneReflectValue(value reflect.Value) reflect.Value {
 		if value.IsNil() {
 			return reflect.Zero(value.Type())
 		}
-		cloned := cloneReflectValue(value.Elem())
+		cloned := state.cloneReflectValue(value.Elem())
 		out := reflect.New(value.Type()).Elem()
 		out.Set(cloned)
 		return out
+	case reflect.Pointer:
+		if value.IsNil() {
+			return reflect.Zero(value.Type())
+		}
+		cloned := reflect.New(value.Type().Elem())
+		state.rememberVisit(value, cloned)
+		cloned.Elem().Set(state.cloneReflectValue(value.Elem()))
+		return cloned
 	case reflect.Map:
 		if value.IsNil() {
 			return reflect.Zero(value.Type())
 		}
 		cloned := reflect.MakeMapWithSize(value.Type(), value.Len())
+		state.rememberVisit(value, cloned)
 		iter := value.MapRange()
 		for iter.Next() {
-			cloned.SetMapIndex(cloneReflectValue(iter.Key()), cloneReflectValue(iter.Value()))
+			cloned.SetMapIndex(iter.Key(), state.cloneReflectValue(iter.Value()))
 		}
 		return cloned
 	case reflect.Slice:
@@ -338,17 +361,69 @@ func cloneReflectValue(value reflect.Value) reflect.Value {
 			return reflect.Zero(value.Type())
 		}
 		cloned := reflect.MakeSlice(value.Type(), value.Len(), value.Len())
+		state.rememberVisit(value, cloned)
 		for index := 0; index < value.Len(); index++ {
-			cloned.Index(index).Set(cloneReflectValue(value.Index(index)))
+			cloned.Index(index).Set(state.cloneReflectValue(value.Index(index)))
 		}
 		return cloned
 	case reflect.Array:
 		cloned := reflect.New(value.Type()).Elem()
 		for index := 0; index < value.Len(); index++ {
-			cloned.Index(index).Set(cloneReflectValue(value.Index(index)))
+			cloned.Index(index).Set(state.cloneReflectValue(value.Index(index)))
+		}
+		return cloned
+	case reflect.Struct:
+		cloned := reflect.New(value.Type()).Elem()
+		cloned.Set(value)
+		for index := 0; index < value.NumField(); index++ {
+			field := cloned.Field(index)
+			if !field.CanSet() {
+				continue
+			}
+			field.Set(state.cloneReflectValue(value.Field(index)))
 		}
 		return cloned
 	default:
 		return value
+	}
+}
+
+func (state *cloneState) lookupVisited(value reflect.Value) (reflect.Value, bool) {
+	key, ok := cloneVisitKey(value)
+	if !ok {
+		return reflect.Value{}, false
+	}
+
+	cloned, found := state.visited[key]
+	return cloned, found
+}
+
+func (state *cloneState) rememberVisit(value reflect.Value, clone reflect.Value) {
+	key, ok := cloneVisitKey(value)
+	if !ok {
+		return
+	}
+
+	state.visited[key] = clone
+}
+
+func cloneVisitKey(value reflect.Value) (cloneVisit, bool) {
+	switch value.Kind() {
+	case reflect.Pointer, reflect.Map:
+		if value.IsNil() {
+			return cloneVisit{}, false
+		}
+		return cloneVisit{typ: value.Type(), ptr: value.Pointer()}, true
+	case reflect.Slice:
+		if value.IsNil() {
+			return cloneVisit{}, false
+		}
+		ptr := value.Pointer()
+		if ptr == 0 {
+			return cloneVisit{}, false
+		}
+		return cloneVisit{typ: value.Type(), ptr: ptr}, true
+	default:
+		return cloneVisit{}, false
 	}
 }

@@ -513,6 +513,11 @@ type Cat struct {
 	Meow string `json:"meow"`
 }
 
+type PointerUserEnvelope struct {
+	Primary *User    `json:"primary"`
+	Labels  []string `json:"labels"`
+}
+
 func TestShouldNotMutateOperationInputsWhenGeneratingSpecWithoutExamples(t *testing.T) {
 	// Arrange
 	gen := NewGenerator()
@@ -643,4 +648,49 @@ func TestShouldNotMutateCompositeSubSchemasWhenGeneratingSpecWithoutExamples(t *
 	require.Len(t, oneOf, 2)
 	assert.Nil(t, oneOf[0].Example)
 	assert.Nil(t, oneOf[1].Example)
+}
+
+func TestShouldNotAliasPointerBackedExamplesWhenGeneratingSpecWithExamples(t *testing.T) {
+	// Arrange
+	gen := NewGenerator(WithExamples())
+	info := &InfoObject{Title: "API", Version: "1.0"}
+	payload := &PointerUserEnvelope{
+		Primary: &User{ID: 1, Name: "Alice"},
+		Labels:  []string{"alpha"},
+	}
+	requestSchema := &Schema{Ref: "#/components/schemas/PointerUserEnvelope"}
+
+	op := &Operation{
+		OperationID: "createPointerEnvelope",
+		RequestBody: &RequestBodyObject{
+			Content: map[string]*MediaType{
+				"application/json": {
+					Schema:  requestSchema,
+					Example: payload,
+				},
+			},
+		},
+		Responses: map[string]*ResponseObject{
+			"201": {Description: "Created"},
+		},
+	}
+
+	// Act
+	spec, err := gen.GenerateSpecFromRoutes(info, []RouteData{{Path: "/envelopes", Method: "POST", Options: op}})
+
+	// Assert
+	require.NoError(t, err)
+	require.NotNil(t, spec)
+	media := spec.Paths["/envelopes"].Post.RequestBody.Content["application/json"]
+	require.NotNil(t, media)
+	clonedPayload, ok := media.Schema.Example.(*PointerUserEnvelope)
+	require.True(t, ok)
+	require.NotNil(t, clonedPayload.Primary)
+	assert.NotSame(t, payload, clonedPayload)
+	assert.NotSame(t, payload.Primary, clonedPayload.Primary)
+	clonedPayload.Primary.Name = "Bob"
+	clonedPayload.Labels[0] = "beta"
+	assert.Equal(t, "Alice", payload.Primary.Name)
+	assert.Equal(t, []string{"alpha"}, payload.Labels)
+	assert.Equal(t, "#/components/schemas/PointerUserEnvelope", requestSchema.Ref)
 }
