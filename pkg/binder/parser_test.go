@@ -198,7 +198,7 @@ func TestShouldConvertExampleBoolSlice(t *testing.T) {
 	assert.Equal(t, false, arr[1])
 }
 
-func TestShouldUseSchemaConvertersAndHandleMultiAsNil(t *testing.T) {
+func TestShouldUseSchemaConvertersAndHandleMultiValuesAccordingToConverterSupport(t *testing.T) {
 	// integer schema single
 	iconv := makeConverter(nil, &openapi.Schema{Type: "integer"})
 	require.NotNil(t, iconv)
@@ -217,11 +217,11 @@ func TestShouldUseSchemaConvertersAndHandleMultiAsNil(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, mvn)
 
-	// boolean multi => nil
+	// boolean multi => []bool
 	bconv := makeConverter(nil, &openapi.Schema{Type: "boolean"})
 	mvb, err := bconv([]string{"true", "false"})
 	require.NoError(t, err)
-	assert.Nil(t, mvb)
+	assert.Equal(t, []bool{true, false}, mvb)
 
 	// string uuid multi => nil
 	uconv := makeConverter(nil, &openapi.Schema{Type: "string", Format: "uuid"})

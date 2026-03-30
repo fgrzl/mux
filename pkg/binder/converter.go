@@ -135,7 +135,7 @@ func converterForBoolean() func([]string) (any, error) {
 			}
 			return v, nil
 		}
-		return nil, nil
+		return singleOrSliceBool(vals)
 	}
 }
 

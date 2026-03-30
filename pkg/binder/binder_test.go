@@ -311,15 +311,15 @@ func TestShouldReturnBoolSliceFromSchemaArray(t *testing.T) {
 	assert.Equal(t, []bool{true, false}, arr)
 }
 
-func TestShouldReturnNilFromSchemaBooleanConverterMultiValue(t *testing.T) {
-	// Arrange: makeConverter schema boolean returns nil for multi value
+func TestShouldReturnBoolSliceFromSchemaBooleanConverterMultiValue(t *testing.T) {
+	// Arrange
 	conv := makeConverter(nil, &openapi.Schema{Type: "boolean"})
 	require.NotNil(t, conv)
 	// Act
 	v, err := conv([]string{"true", "false"})
 	// Assert
 	require.NoError(t, err)
-	assert.Nil(t, v)
+	assert.Equal(t, []bool{true, false}, v)
 }
 
 func TestShouldReturnNilFromSchemaNumberConverterMultiValue(t *testing.T) {

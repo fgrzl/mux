@@ -2,6 +2,7 @@ package mux
 
 import (
 	"context"
+	"net"
 	"os"
 	"path/filepath"
 	"testing"
@@ -197,6 +198,24 @@ func TestShouldReturnFromListenWhenContextIsCancelled(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("Listen did not return after context cancellation")
 	}
+}
+
+func TestShouldReturnErrorFromListenWhenPortIsAlreadyBound(t *testing.T) {
+	// Arrange
+	occupied, err := net.Listen("tcp", testAddrLocal)
+	require.NoError(t, err)
+	defer func() { require.NoError(t, occupied.Close()) }()
+
+	rtr := router.NewRouter()
+	server := NewServer(occupied.Addr().String(), rtr)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Act
+	err = server.Listen(ctx)
+
+	// Assert
+	assert.Error(t, err)
 }
 
 func TestShouldHandleMultipleOptions(t *testing.T) {

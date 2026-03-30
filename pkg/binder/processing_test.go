@@ -51,3 +51,20 @@ func TestShouldSplitQuotedCSVWhenProcessingExampleStringSliceParam(t *testing.T)
 	require.True(t, ok)
 	assert.Equal(t, []string{"a,b", "c"}, arr)
 }
+
+func TestShouldHandleBooleanSchemaSliceValuesWhenProcessingParam(t *testing.T) {
+	// Arrange
+	staging := make(map[string]any)
+	param := &openapi.ParameterObject{Schema: &openapi.Schema{Type: "boolean"}}
+	param.Converter = makeConverter(nil, param.Schema)
+	// Act
+	handled, err := ProcessParamAndSet(staging, "enabled", []string{"true", "false"}, "query", param)
+	// Assert
+	require.NoError(t, err)
+	assert.True(t, handled)
+	v, ok := staging["enabled"]
+	assert.True(t, ok)
+	bools, ok := v.([]bool)
+	require.True(t, ok)
+	assert.Equal(t, []bool{true, false}, bools)
+}
