@@ -37,5 +37,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	server.Listen(ctx)
+	if err := server.Listen(ctx); err != nil {
+		panic(err)
+	}
 }

@@ -69,7 +69,11 @@ router.GET("/", func(c mux.RouteContext) {
 ### Parameterized Route
 ```go
 router.GET("/hello/{name}", func(c mux.RouteContext) {
-    name := c.Param("name")
+  name, ok := c.Param("name")
+  if !ok {
+    c.BadRequest("Missing name", "name parameter is required")
+    return
+  }
     // ...
 })
 - Returns a structured JSON response
@@ -81,7 +85,9 @@ server := mux.NewServer(":8080", router)
 ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 defer cancel()
 
-server.Listen(ctx)
+if err := server.Listen(ctx); err != nil {
+  panic(err)
+}
 ```
 Uses `WebServer` for production-ready server with:
 - Automatic graceful shutdown (press Ctrl+C)

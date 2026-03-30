@@ -475,3 +475,143 @@ func TestShouldDisambiguateSanitizedComponentNameCollisions(t *testing.T) {
 	assert.Contains(t, barUserSchema.Properties, "bar")
 	assert.NotContains(t, barUserSchema.Properties, "foo")
 }
+
+type Dog struct {
+	Bark string `json:"bark"`
+}
+
+type Cat struct {
+	Meow string `json:"meow"`
+}
+
+func TestShouldNotMutateOperationInputsWhenGeneratingSpecWithoutExamples(t *testing.T) {
+	// Arrange
+	gen := NewGenerator()
+	info := &InfoObject{Title: "API", Version: "1.0"}
+	page := Page[User]{Items: []User{{ID: 1, Name: "Alice"}}, Total: 1}
+	requestRef := "#/components/schemas/Page[github.com/acme/project/pkg.User]"
+	responseRef := "#/components/schemas/Page[github.com/acme/project/pkg.User]"
+
+	op := &Operation{
+		OperationID: "createUsers",
+		RequestBody: &RequestBodyObject{
+			Content: map[string]*MediaType{
+				"application/json": {
+					Schema:   &Schema{Ref: requestRef},
+					Example:  page,
+					Examples: map[string]*ExampleObject{"default": {Value: page}},
+				},
+			},
+		},
+		Responses: map[string]*ResponseObject{
+			"200": {
+				Content: map[string]*MediaType{
+					"application/json": {
+						Schema:   &Schema{Ref: responseRef},
+						Example:  page,
+						Examples: map[string]*ExampleObject{"default": {Value: page}},
+					},
+				},
+			},
+		},
+	}
+
+	// Act
+	spec, err := gen.GenerateSpecFromRoutes(info, []RouteData{{Path: "/users", Method: "POST", Options: op}})
+
+	// Assert
+	require.NoError(t, err)
+	require.NotNil(t, spec)
+	assert.Equal(t, requestRef, op.RequestBody.Content["application/json"].Schema.Ref)
+	assert.Equal(t, page, op.RequestBody.Content["application/json"].Example)
+	assert.Contains(t, op.RequestBody.Content["application/json"].Examples, "default")
+	assert.Equal(t, "", op.Responses["200"].Description)
+	assert.Equal(t, responseRef, op.Responses["200"].Content["application/json"].Schema.Ref)
+	assert.Equal(t, page, op.Responses["200"].Content["application/json"].Example)
+	assert.Contains(t, op.Responses["200"].Content["application/json"].Examples, "default")
+
+	postOp := spec.Paths["/users"].Post
+	require.NotNil(t, postOp)
+	assert.Equal(t, "Success", postOp.Responses["200"].Description)
+	assert.Equal(t, "#/components/schemas/PageUser", postOp.RequestBody.Content["application/json"].Schema.Ref)
+	assert.Nil(t, postOp.RequestBody.Content["application/json"].Example)
+	assert.Nil(t, postOp.Responses["200"].Content["application/json"].Example)
+}
+
+func TestShouldNotMutateSchemaInputsWhenGeneratingSpecWithExamples(t *testing.T) {
+	// Arrange
+	gen := NewGenerator(WithExamples())
+	info := &InfoObject{Title: "API", Version: "1.0"}
+	page := Page[User]{Items: []User{{ID: 1, Name: "Alice"}}, Total: 1}
+	schemaRef := "#/components/schemas/Page[github.com/acme/project/pkg.User]"
+	requestSchema := &Schema{Ref: schemaRef}
+
+	op := &Operation{
+		OperationID: "createUsersWithExamples",
+		RequestBody: &RequestBodyObject{
+			Content: map[string]*MediaType{
+				"application/json": {
+					Schema:  requestSchema,
+					Example: page,
+				},
+			},
+		},
+		Responses: map[string]*ResponseObject{
+			"201": {Description: "Created"},
+		},
+	}
+
+	// Act
+	spec, err := gen.GenerateSpecFromRoutes(info, []RouteData{{Path: "/users", Method: "POST", Options: op}})
+
+	// Assert
+	require.NoError(t, err)
+	require.NotNil(t, spec)
+	assert.Equal(t, schemaRef, requestSchema.Ref)
+	assert.Nil(t, requestSchema.Example)
+
+	media := spec.Paths["/users"].Post.RequestBody.Content["application/json"]
+	require.NotNil(t, media)
+	assert.Equal(t, page, media.Schema.Example)
+	assert.Equal(t, "#/components/schemas/PageUser", media.Schema.Ref)
+}
+
+func TestShouldNotMutateCompositeSubSchemasWhenGeneratingSpecWithoutExamples(t *testing.T) {
+	// Arrange
+	gen := NewGenerator()
+	info := &InfoObject{Title: "API", Version: "1.0"}
+	dogExample := Dog{Bark: "woof"}
+	catExample := Cat{Meow: "meow"}
+	dogSchema := &Schema{Ref: "#/components/schemas/Dog", Example: dogExample}
+	catSchema := &Schema{Ref: "#/components/schemas/Cat", Example: catExample}
+
+	op := &Operation{
+		OperationID: "createPet",
+		RequestBody: &RequestBodyObject{
+			Content: map[string]*MediaType{
+				"application/json": {
+					Schema: &Schema{OneOf: []*Schema{dogSchema, catSchema}},
+				},
+			},
+		},
+		Responses: map[string]*ResponseObject{
+			"201": {Description: "Created"},
+		},
+	}
+
+	// Act
+	spec, err := gen.GenerateSpecFromRoutes(info, []RouteData{{Path: "/pets", Method: "POST", Options: op}})
+
+	// Assert
+	require.NoError(t, err)
+	require.NotNil(t, spec)
+	assert.Equal(t, dogExample, dogSchema.Example)
+	assert.Equal(t, catExample, catSchema.Example)
+	assert.Equal(t, "#/components/schemas/Dog", dogSchema.Ref)
+	assert.Equal(t, "#/components/schemas/Cat", catSchema.Ref)
+
+	oneOf := spec.Paths["/pets"].Post.RequestBody.Content["application/json"].Schema.OneOf
+	require.Len(t, oneOf, 2)
+	assert.Nil(t, oneOf[0].Example)
+	assert.Nil(t, oneOf[1].Example)
+}

@@ -170,3 +170,35 @@ func TestShouldWorkAsExpectedWhenUsingExampleFromIssue(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), "users endpoint")
 }
+
+func TestShouldMarkPathParameterRequiredWhenUsingLowLevelWithParam(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+	api := rtr.NewRouteGroup("/api")
+	api.WithParam("id", "path", "user identifier", "123", false)
+
+	// Act
+	api.GET("/users/{id}", func(c routing.RouteContext) {
+		c.OK("users")
+	})
+	options, _, found := rtr.routeRegistry.Load("/api/users/{id}", http.MethodGet)
+
+	// Assert
+	require.True(t, found, "Route should be registered")
+	require.Len(t, options.Operation.Parameters, 1)
+	assert.True(t, options.Operation.Parameters[0].Required)
+	assert.Equal(t, "123", options.Operation.Parameters[0].Example)
+	assert.NotNil(t, options.Operation.Parameters[0].Converter)
+	assert.Equal(t, "path", options.Operation.Parameters[0].In)
+}
+
+func TestShouldPanicWhenUsingInvalidParameterLocationOnRouteGroup(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+	api := rtr.NewRouteGroup("/api")
+
+	// Act / Assert
+	assert.PanicsWithValue(t, "invalid parameter 'in': \"matrix\"", func() {
+		api.WithParam("id", "matrix", "user identifier", "123", false)
+	})
+}

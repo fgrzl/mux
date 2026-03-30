@@ -144,8 +144,8 @@ func setupUserRoutes(group *mux.RouteGroup) {
     
     users.GET("/", listUsers).
         WithSummary("List all users").
-        WithParam("page", "query", 1, false).
-        WithParam("limit", "query", 10, false).
+        WithParam("page", "query", "Page number", 1, false).
+        WithParam("limit", "query", "Page size", 10, false).
         WithOKResponse([]User{})
         
     users.POST("/", createUser).

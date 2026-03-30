@@ -1,6 +1,7 @@
 package router
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/fgrzl/mux/pkg/binder"
 	"github.com/fgrzl/mux/pkg/builder"
 	openapi "github.com/fgrzl/mux/pkg/openapi"
 	"github.com/fgrzl/mux/pkg/registry"
@@ -137,18 +139,37 @@ func (rg *RouteGroup) WithCookieParam(name, description string, example any, req
 //   - required: If true, the parameter is marked as required in the OpenAPI spec;
 //     if false, it's marked as optional. Note: path parameters are always required regardless of this value.
 func (rg *RouteGroup) WithParam(name, in, description string, example any, required bool) *RouteGroup {
+	if name == "" || in == "" {
+		panic("parameter name and 'in' cannot be empty")
+	}
+	if !isValidGroupParameterIn(in) {
+		panic(fmt.Sprintf("invalid parameter 'in': %q", in))
+	}
+
 	schema, err := builder.QuickSchema(reflect.TypeOf(example))
 	if err != nil {
 		panic(err)
 	}
+	conv := binder.MakeConverter(reflect.TypeOf(example), schema)
 	rg.defaultParams = append(rg.defaultParams, &openapi.ParameterObject{
 		Name:        name,
 		In:          in,
 		Description: description,
-		Required:    required,
+		Required:    required || in == "path",
 		Schema:      schema,
+		Example:     example,
+		Converter:   conv,
 	})
 	return rg
+}
+
+func isValidGroupParameterIn(in string) bool {
+	switch in {
+	case "query", "header", "path", "cookie":
+		return true
+	default:
+		return false
+	}
 }
 
 // RequireRoles adds required roles to the group defaults.

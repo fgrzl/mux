@@ -61,7 +61,7 @@ func main() {
     router.POST("/user", func(c mux.RouteContext) {
         var user User
         if err := c.Bind(&user); err != nil {
-            c.BadRequest(err.Error())
+            c.BadRequest("Invalid request", err.Error())
             return
         }
         c.Created(user)
@@ -100,15 +100,15 @@ func main() {
     
     // Path parameters: /users/123
     router.GET("/users/{id}", func(c mux.RouteContext) {
-        id := c.Param("id")
+        id, _ := c.Param("id")
         c.OK(map[string]string{"userId": id})
     })
     
     // Query parameters: /search?q=golang
     router.GET("/search", func(c mux.RouteContext) {
-        query, ok := c.Query("q")
+        query, ok := c.QueryValue("q")
         if !ok {
-            c.BadRequest("Missing 'q' parameter")
+            c.BadRequest("Missing query", "q parameter is required")
             return
         }
         c.OK(map[string]string{"searching": query})
@@ -126,8 +126,8 @@ curl http://localhost:8080/search?q=golang
 
 **You just learned**:
 - ✅ Path parameters with `{name}` syntax
-- ✅ Reading parameters with `c.Param("name")`
-- ✅ Query parameters with `c.Query("name")`
+- ✅ Reading path parameters with `name, ok := c.Param("name")`
+- ✅ Query parameters with `query, ok := c.QueryValue("name")`
 
 **Next**: [Level 4 - Organizing Routes](#level-4-organizing-routes-15-minutes)
 
@@ -166,7 +166,7 @@ func listUsers(c mux.RouteContext) {
 func createUser(c mux.RouteContext) {
     var user User
     if err := c.Bind(&user); err != nil {
-        c.BadRequest(err.Error())
+        c.BadRequest("Invalid request", err.Error())
         return
     }
     c.Created(user)
@@ -330,11 +330,11 @@ func main() {
     router := mux.NewRouter()
     
     router.GET("/users/{id}", func(c mux.RouteContext) {
-        id := c.Param("id")
+        id, ok := c.Param("id")
         
         // Validate input
-        if id == "" {
-            c.BadRequest("User ID is required")
+        if !ok {
+            c.BadRequest("Missing user ID", "id parameter is required")
             return
         }
         
@@ -366,11 +366,11 @@ func getUserFromDB(id string) (*User, error) {
 ```
 
 **Available error responses**:
-- `c.BadRequest(message)` - 400
+- `c.BadRequest(title, detail)` - 400
 - `c.Unauthorized()` - 401
-- `c.Forbidden()` - 403
+- `c.Forbidden(message)` - 403
 - `c.NotFound()` - 404
-- `c.Conflict(message)` - 409
+- `c.Conflict(title, detail)` - 409
 - `c.ServerError(title, detail)` - 500
 
 **You just learned**:
@@ -547,12 +547,12 @@ func validateUser(user *User) error {
 func createUser(c mux.RouteContext) {
     var user User
     if err := c.Bind(&user); err != nil {
-        c.BadRequest(err.Error())
+        c.BadRequest("Invalid request", err.Error())
         return
     }
     
     if err := validateUser(&user); err != nil {
-        c.BadRequest(err.Error())
+        c.BadRequest("Validation failed", err.Error())
         return
     }
     
@@ -568,7 +568,11 @@ type Handler struct {
 }
 
 func (h *Handler) GetUser(c mux.RouteContext) {
-    id := c.Param("id")
+    id, ok := c.Param("id")
+    if !ok {
+        c.BadRequest("Missing user ID", "id parameter is required")
+        return
+    }
     
     var user User
     err := h.db.QueryRow("SELECT id, name, email FROM users WHERE id = ?", id).

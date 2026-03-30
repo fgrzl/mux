@@ -441,7 +441,7 @@ router.GET("/health/detailed", func(c mux.RouteContext) {
     if status.Status == "healthy" {
         c.OK(status)
     } else {
-        c.Status(http.StatusServiceUnavailable).JSON(status)
+        c.JSON(http.StatusServiceUnavailable, status)
     }
 })
 ```

@@ -116,7 +116,9 @@ func main() {
 	)
 	defer cancel()
 
-	server.Listen(ctx)
+	if err := server.Listen(ctx); err != nil {
+		panic(err)
+	}
 }
 
 func listTodos(c mux.RouteContext) {

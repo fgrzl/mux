@@ -100,7 +100,7 @@ server := mux.NewServer(":8080", router)
 ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 defer cancel()
 
-server.Listen(ctx)
+if err := server.Listen(ctx); err != nil { panic(err) }
 ```
 
 **Lines of code**: 30+ → **7**

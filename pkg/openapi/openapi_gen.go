@@ -217,38 +217,58 @@ func (g *Generator) appendRoute(rd RouteData) error {
 		item = new(PathItem)
 	}
 
-	// Work on a copy of the Operation so we don't leak runtime-only state
-	// (like Parameter.Converter) into the generated spec.
-	op := opt
-	newOp := *op
+	// Work on a detached copy so spec generation never mutates caller-owned
+	// route metadata or the router's stored operation tree.
+	newOp := cloneOperationForSpec(opt)
 	if len(newOp.Responses) == 0 {
 		code := getDefaultResponseCode(method)
 		newOp.Responses = map[string]*ResponseObject{code: {Description: getDefaultResponseDescription(code)}}
 	}
 
-	// Clone parameters and clear runtime-only fields
-	if newOp.Parameters != nil {
-		cloned := make([]*ParameterObject, 0, len(newOp.Parameters))
-		for _, param := range newOp.Parameters {
-			if err := g.ensureComponentSchema(param.Example, param.Schema); err != nil {
-				return err
-			}
-			// shallow copy and clear Example/Examples per withExamples flag
-			pcopy := *param
-			if !g.withExamples {
-				pcopy.Example = nil
-				pcopy.Examples = nil
-			}
-			// Remove runtime-only converter from spec copy
-			pcopy.Converter = nil
-			cloned = append(cloned, &pcopy)
+	if err := g.prepareOperationForSpec(newOp); err != nil {
+		return err
+	}
+
+	switch method {
+	case "get":
+		item.Get = newOp
+	case "post":
+		item.Post = newOp
+	case "put":
+		item.Put = newOp
+	case "delete":
+		item.Delete = newOp
+	case "patch":
+		item.Patch = newOp
+	}
+	g.spec.Paths[path] = item
+	return nil
+}
+
+func (g *Generator) prepareOperationForSpec(op *Operation) error {
+	if op == nil {
+		return nil
+	}
+
+	for _, param := range op.Parameters {
+		if param == nil {
+			continue
 		}
-		newOp.Parameters = cloned
+		if err := g.ensureComponentSchema(param.Example, param.Schema); err != nil {
+			return err
+		}
+		if !g.withExamples {
+			param.Example = nil
+			param.Examples = nil
+		}
+		param.Converter = nil
 	}
 
 	if op.RequestBody != nil {
-		newContent := map[string]*MediaType{}
-		for ctype, media := range op.RequestBody.Content {
+		for _, media := range op.RequestBody.Content {
+			if media == nil {
+				continue
+			}
 			if err := g.ensureComponentSchema(media.Example, media.Schema); err != nil {
 				return err
 			}
@@ -256,48 +276,160 @@ func (g *Generator) appendRoute(rd RouteData) error {
 				media.Example = nil
 				media.Examples = nil
 			}
-			newContent[ctype] = media
 		}
-		op.RequestBody.Content = newContent
 	}
 
-	newResponses := map[string]*ResponseObject{}
 	for code, resp := range op.Responses {
-		if resp.Content != nil {
-			newContent := map[string]*MediaType{}
-			for ctype, media := range resp.Content {
-				if err := g.ensureComponentSchema(media.Example, media.Schema); err != nil {
-					return err
-				}
-				if !g.withExamples {
-					media.Example = nil
-					media.Examples = nil
-				}
-				newContent[ctype] = media
+		if resp == nil {
+			continue
+		}
+		for _, media := range resp.Content {
+			if media == nil {
+				continue
 			}
-			resp.Content = newContent
+			if err := g.ensureComponentSchema(media.Example, media.Schema); err != nil {
+				return err
+			}
+			if !g.withExamples {
+				media.Example = nil
+				media.Examples = nil
+			}
 		}
 		if resp.Description == "" {
 			resp.Description = getDefaultResponseDescription(code)
 		}
-		newResponses[code] = resp
 	}
-	op.Responses = newResponses
 
-	switch method {
-	case "get":
-		item.Get = &newOp
-	case "post":
-		item.Post = &newOp
-	case "put":
-		item.Put = &newOp
-	case "delete":
-		item.Delete = &newOp
-	case "patch":
-		item.Patch = &newOp
-	}
-	g.spec.Paths[path] = item
 	return nil
+}
+
+func cloneOperationForSpec(op *Operation) *Operation {
+	if op == nil {
+		return nil
+	}
+
+	clone := *op
+	if len(op.Parameters) > 0 {
+		clone.Parameters = make([]*ParameterObject, 0, len(op.Parameters))
+		for _, param := range op.Parameters {
+			clone.Parameters = append(clone.Parameters, cloneParameterForSpec(param))
+		}
+	}
+	if op.RequestBody != nil {
+		clone.RequestBody = cloneRequestBodyForSpec(op.RequestBody)
+	}
+	if len(op.Responses) > 0 {
+		clone.Responses = make(map[string]*ResponseObject, len(op.Responses))
+		for code, resp := range op.Responses {
+			clone.Responses[code] = cloneResponseForSpec(resp)
+		}
+	}
+
+	return &clone
+}
+
+func cloneParameterForSpec(param *ParameterObject) *ParameterObject {
+	if param == nil {
+		return nil
+	}
+
+	clone := *param
+	clone.Schema = cloneSchemaForSpec(param.Schema)
+	return &clone
+}
+
+func cloneRequestBodyForSpec(body *RequestBodyObject) *RequestBodyObject {
+	if body == nil {
+		return nil
+	}
+
+	clone := *body
+	if len(body.Content) > 0 {
+		clone.Content = make(map[string]*MediaType, len(body.Content))
+		for ctype, media := range body.Content {
+			clone.Content[ctype] = cloneMediaTypeForSpec(media)
+		}
+	}
+
+	return &clone
+}
+
+func cloneResponseForSpec(resp *ResponseObject) *ResponseObject {
+	if resp == nil {
+		return nil
+	}
+
+	clone := *resp
+	if len(resp.Content) > 0 {
+		clone.Content = make(map[string]*MediaType, len(resp.Content))
+		for ctype, media := range resp.Content {
+			clone.Content[ctype] = cloneMediaTypeForSpec(media)
+		}
+	}
+
+	return &clone
+}
+
+func cloneMediaTypeForSpec(media *MediaType) *MediaType {
+	if media == nil {
+		return nil
+	}
+
+	clone := *media
+	clone.Schema = cloneSchemaForSpec(media.Schema)
+	return &clone
+}
+
+func cloneSchemaForSpec(schema *Schema) *Schema {
+	if schema == nil {
+		return nil
+	}
+
+	clone := *schema
+	if len(schema.Properties) > 0 {
+		clone.Properties = make(map[string]*Schema, len(schema.Properties))
+		for name, prop := range schema.Properties {
+			clone.Properties[name] = cloneSchemaForSpec(prop)
+		}
+	}
+	clone.Items = cloneSchemaForSpec(schema.Items)
+	clone.AdditionalProperties = cloneSchemaForSpec(schema.AdditionalProperties)
+	if len(schema.Required) > 0 {
+		clone.Required = append([]string(nil), schema.Required...)
+	}
+	if len(schema.Enum) > 0 {
+		clone.Enum = append([]any(nil), schema.Enum...)
+	}
+	if len(schema.OneOf) > 0 {
+		clone.OneOf = make([]*Schema, 0, len(schema.OneOf))
+		for _, item := range schema.OneOf {
+			clone.OneOf = append(clone.OneOf, cloneSchemaForSpec(item))
+		}
+	}
+	if len(schema.AnyOf) > 0 {
+		clone.AnyOf = make([]*Schema, 0, len(schema.AnyOf))
+		for _, item := range schema.AnyOf {
+			clone.AnyOf = append(clone.AnyOf, cloneSchemaForSpec(item))
+		}
+	}
+	if len(schema.AllOf) > 0 {
+		clone.AllOf = make([]*Schema, 0, len(schema.AllOf))
+		for _, item := range schema.AllOf {
+			clone.AllOf = append(clone.AllOf, cloneSchemaForSpec(item))
+		}
+	}
+	if schema.Discriminator != nil {
+		discriminator := *schema.Discriminator
+		if len(schema.Discriminator.Mapping) > 0 {
+			discriminator.Mapping = make(map[string]string, len(schema.Discriminator.Mapping))
+			for key, value := range schema.Discriminator.Mapping {
+				discriminator.Mapping[key] = value
+			}
+		}
+		clone.Discriminator = &discriminator
+	}
+
+	return &clone
 }
 
 func (g *Generator) ensureComponentSchema(example any, schema *Schema) error {

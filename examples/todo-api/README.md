@@ -154,7 +154,9 @@ ctx, cancel := signal.NotifyContext(
 )
 defer cancel()
 
-server.Listen(ctx)  // Blocks until Ctrl+C or SIGTERM
+if err := server.Listen(ctx); err != nil {
+  panic(err)
+}
 ```
 
 ### Production Features

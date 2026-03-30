@@ -162,7 +162,7 @@ server := mux.NewServer(":8443", router,
 ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 defer cancel()
 
-server.Listen(ctx)
+if err := server.Listen(ctx); err != nil { panic(err) }
 ```
 
 ### TLS Certificate Discovery
@@ -277,7 +277,7 @@ func main() {
     ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
     defer cancel()
     
-    server.Listen(ctx)
+    if err := server.Listen(ctx); err != nil { panic(err) }
 }
 ```
 
@@ -317,13 +317,13 @@ func main() {
     wg.Add(1)
     go func() {
         defer wg.Done()
-        httpServer.Listen(ctx)
+        if err := httpServer.Listen(ctx); err != nil { panic(err) }
     }()
     
     wg.Add(1)
     go func() {
         defer wg.Done()
-        httpsServer.Listen(ctx)
+        if err := httpsServer.Listen(ctx); err != nil { panic(err) }
     }()
     
     wg.Wait()
@@ -429,7 +429,7 @@ func main() {
     ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
     defer cancel()
     
-    server.Listen(ctx)
+    if err := server.Listen(ctx); err != nil { panic(err) }
 }
 ```
 
@@ -443,7 +443,7 @@ func main() {
 // ✅ Good: Context-based shutdown
 ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 defer cancel()
-server.Listen(ctx)
+if err := server.Listen(ctx); err != nil { panic(err) }
 
 // ❌ Bad: No shutdown mechanism
 server.Listen(context.Background())  // Runs forever, no way to stop
@@ -469,7 +469,7 @@ func main() {
     server := mux.NewServer(":8080", router)
     ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
     defer cancel()
-    server.Listen(ctx)  // Blocks until shutdown
+    if err := server.Listen(ctx); err != nil { panic(err) }  // Blocks until shutdown
 }
 
 // ✅ Good: Start for background servers
@@ -602,7 +602,7 @@ func main() {
     )
     defer cancel()
     
-    server.Listen(ctx)
+    if err := server.Listen(ctx); err != nil { panic(err) }
 }
 ```
 
@@ -661,7 +661,7 @@ ctx, cancel := signal.NotifyContext(
 defer cancel()
 
 // Give server time to finish requests
-server.Listen(ctx)
+if err := server.Listen(ctx); err != nil { panic(err) }
 ```
 
 ## See Also

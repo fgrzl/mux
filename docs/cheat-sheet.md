@@ -34,7 +34,7 @@ server := mux.NewServer(":8080", router)
 ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 defer cancel()
 
-server.Listen(ctx)  // Graceful shutdown included!
+if err := server.Listen(ctx); err != nil { panic(err) }  // Graceful shutdown included!
 ```
 
 ### With HTTPS
@@ -42,7 +42,7 @@ server.Listen(ctx)  // Graceful shutdown included!
 server := mux.NewServer(":8443", router,
     mux.WithTLS("server.crt", "server.key"),
 )
-server.Listen(ctx)
+if err := server.Listen(ctx); err != nil { panic(err) }
 ```
 
 ---
@@ -61,7 +61,7 @@ router.PATCH("/path", handler)
 ### Path Parameters
 ```go
 router.GET("/users/{id}", func(c mux.RouteContext) {
-    id := c.Param("id")
+    id, _ := c.Param("id")
     c.OK(map[string]string{"userId": id})
 })
 ```
@@ -69,8 +69,13 @@ router.GET("/users/{id}", func(c mux.RouteContext) {
 ### Query Parameters
 ```go
 router.GET("/search", func(c mux.RouteContext) {
-    query, ok := c.Query("q")          // Single value
-    values := c.QueryValues("tags")    // Multiple values
+    query, ok := c.QueryValue("q")         // Single value
+    values, _ := c.QueryValues("tags")     // Multiple values
+    if !ok {
+        c.BadRequest("Missing query", "q parameter is required")
+        return
+    }
+    c.OK(map[string]any{"q": query, "tags": values})
 })
 ```
 
@@ -96,7 +101,7 @@ users.POST("/", createUsers)
 ```go
 var data MyStruct
 if err := c.Bind(&data); err != nil {
-    c.BadRequest(err.Error())
+    c.BadRequest("Invalid request", err.Error())
     return
 }
 ```
@@ -131,18 +136,18 @@ c.NoContent()                              // 204 No Content
 
 ### Error Responses
 ```go
-c.BadRequest("Invalid input")              // 400
+c.BadRequest("Invalid input", "describe the validation error") // 400
 c.Unauthorized()                           // 401
-c.Forbidden()                              // 403
+c.Forbidden("Access denied")              // 403
 c.NotFound()                               // 404
-c.Conflict("Resource already exists")      // 409
+c.Conflict("Resource already exists", "describe the conflict")  // 409
 c.ServerError("Error occurred", detail)    // 500
 ```
 
 ### Custom Status
 ```go
-c.Status(http.StatusTeapot)
 c.JSON(http.StatusCreated, data)
+c.Plain(http.StatusTeapot, []byte("short and stout"))
 ```
 
 ### Set Headers
@@ -395,12 +400,12 @@ users.DELETE("/{id}", deleteUser)   // Delete
 func createUser(c mux.RouteContext) {
     var user User
     if err := c.Bind(&user); err != nil {
-        c.BadRequest(err.Error())
+        c.BadRequest("Invalid request", err.Error())
         return
     }
     
     if err := validate(user); err != nil {
-        c.BadRequest(err.Error())
+        c.BadRequest("Validation failed", err.Error())
         return
     }
     
@@ -411,8 +416,14 @@ func createUser(c mux.RouteContext) {
 ### Pagination
 ```go
 func listUsers(c mux.RouteContext) {
-    page := c.QueryDefault("page", "1")
-    limit := c.QueryDefault("limit", "10")
+    page, ok := c.QueryValue("page")
+    if !ok {
+        page = "1"
+    }
+    limit, ok := c.QueryValue("limit")
+    if !ok {
+        limit = "10"
+    }
     
     // Fetch paginated data
     users, total := getUsers(page, limit)
@@ -430,7 +441,7 @@ func listUsers(c mux.RouteContext) {
 router.POST("/upload", func(c mux.RouteContext) {
     file, header, err := c.Request().FormFile("file")
     if err != nil {
-        c.BadRequest("No file uploaded")
+        c.BadRequest("Missing file", "no file uploaded")
         return
     }
     defer file.Close()

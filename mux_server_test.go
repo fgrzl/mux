@@ -173,6 +173,32 @@ func TestShouldStopServerGracefully(t *testing.T) {
 	cancel()
 }
 
+func TestShouldReturnFromListenWhenContextIsCancelled(t *testing.T) {
+	// Arrange
+	rtr := router.NewRouter()
+	server := NewServer(testAddrLocal, rtr)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errCh := make(chan error, 1)
+
+	// Act
+	go func() {
+		errCh <- server.Listen(ctx)
+	}()
+
+	time.Sleep(100 * time.Millisecond)
+	cancel()
+
+	// Assert
+	select {
+	case err := <-errCh:
+		assert.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Listen did not return after context cancellation")
+	}
+}
+
 func TestShouldHandleMultipleOptions(t *testing.T) {
 	// Arrange
 	rtr := router.NewRouter()

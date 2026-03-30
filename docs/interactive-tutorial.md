@@ -167,13 +167,13 @@ func createTodo(c mux.RouteContext) {
     
     // Parse JSON body
     if err := c.Bind(&req); err != nil {
-        c.BadRequest("Invalid JSON: " + err.Error())
+        c.BadRequest("Invalid JSON", err.Error())
         return
     }
     
     // Validate input
     if req.Title == "" {
-        c.BadRequest("Title is required")
+        c.BadRequest("Invalid todo", "title is required")
         return
     }
     
@@ -229,7 +229,11 @@ Add the get handler:
 
 ```go
 func getTodo(c mux.RouteContext) {
-    id := c.Param("id")
+    id, ok := c.Param("id")
+    if !ok {
+        c.BadRequest("Missing todo ID", "id parameter is required")
+        return
+    }
     
     todosMu.RLock()
     todo, exists := todos[id]
@@ -281,11 +285,15 @@ type UpdateTodoRequest struct {
 }
 
 func updateTodo(c mux.RouteContext) {
-    id := c.Param("id")
+    id, ok := c.Param("id")
+    if !ok {
+        c.BadRequest("Missing todo ID", "id parameter is required")
+        return
+    }
     
     var req UpdateTodoRequest
     if err := c.Bind(&req); err != nil {
-        c.BadRequest("Invalid JSON: " + err.Error())
+        c.BadRequest("Invalid JSON", err.Error())
         return
     }
     
@@ -344,7 +352,11 @@ Add the delete handler:
 
 ```go
 func deleteTodo(c mux.RouteContext) {
-    id := c.Param("id")
+    id, ok := c.Param("id")
+    if !ok {
+        c.BadRequest("Missing todo ID", "id parameter is required")
+        return
+    }
     
     todosMu.Lock()
     defer todosMu.Unlock()
@@ -514,7 +526,7 @@ Add a query parameter to filter by completion status:
 
 ```go
 func listTodos(c mux.RouteContext) {
-    completed, ok := c.Query("completed")
+    completed, ok := c.QueryValue("completed")
     
     todosMu.RLock()
     defer todosMu.RUnlock()
