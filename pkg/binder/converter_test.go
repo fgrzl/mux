@@ -91,6 +91,19 @@ func TestShouldPreferExampleOverSchemaWhenParsing(t *testing.T) {
 	assert.Equal(t, 7, v.(int))
 }
 
+func TestShouldParseUUIDByExample(t *testing.T) {
+	// Arrange
+	want := uuid.New()
+	param := &openapi.ParameterObject{Example: uuid.UUID{}}
+
+	// Act
+	v, ok := ParseByExample(want.String(), param)
+
+	// Assert
+	assert.True(t, ok)
+	assert.Equal(t, want, v)
+}
+
 func TestShouldParseSliceValuesAsInt64GivenIntegerItemsSchema(t *testing.T) {
 	// Arrange
 	param := &openapi.ParameterObject{Schema: &openapi.Schema{Items: &openapi.Schema{Type: "integer"}}}

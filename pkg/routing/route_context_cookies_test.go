@@ -49,18 +49,32 @@ func TestShouldPanicGivenNoTokenProviderWhenAuthenticating(t *testing.T) {
 
 	mockUser := newMockPrincipal(testUserSubject)
 
-	// Act & Assert
-	defer func() {
-		r := recover()
-		require.NotNil(t, r, "Expected panic but none occurred")
-
-		panicMsg := r.(string)
-		assert.Contains(t, panicMsg, "DEVELOPMENT ERROR")
-		assert.Contains(t, panicMsg, "UseAuthentication()")
-		assert.Contains(t, panicMsg, "c.Authenticate()")
-	}()
-
+	// Act
 	ctx.Authenticate(testCookieName, mockUser)
+
+	// Assert
+	assert.Equal(t, http.StatusInternalServerError, res.Code)
+	assert.Contains(t, res.Body.String(), "Authentication Misconfigured")
+}
+
+func TestShouldReturnServerErrorGivenNoTokenProviderWhenSigningIn(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	res := httptest.NewRecorder()
+	ctx := &DefaultRouteContext{
+		request:  req,
+		response: res,
+		services: make(map[ServiceKey]any),
+	}
+
+	mockUser := newMockPrincipal(testUserSubject)
+
+	// Act
+	ctx.SignIn(mockUser, "/")
+
+	// Assert
+	assert.Equal(t, http.StatusInternalServerError, res.Code)
+	assert.Contains(t, res.Body.String(), "Authentication Misconfigured")
 }
 
 // testPrincipal is a minimal claims.Principal implementation used by routing tests.

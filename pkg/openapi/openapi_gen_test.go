@@ -214,6 +214,29 @@ func TestShouldRegisterNestedModelFromMapValueExample(t *testing.T) {
 	assert.Contains(t, gen.spec.Components.Schemas, "UserMap")
 }
 
+func TestShouldReturnErrorWhenRouteMissingOperationID(t *testing.T) {
+	// Arrange
+	gen := NewGenerator()
+	info := &InfoObject{Title: "API", Version: "1.0"}
+	routes := []RouteData{{
+		Path:   "/users",
+		Method: "GET",
+		Options: &Operation{
+			Responses: map[string]*ResponseObject{
+				"200": {Description: "ok"},
+			},
+		},
+	}}
+
+	// Act
+	spec, err := gen.GenerateSpecFromRoutes(info, routes)
+
+	// Assert
+	require.Error(t, err)
+	assert.Nil(t, spec)
+	assert.Contains(t, err.Error(), "missing OperationID")
+}
+
 func TestShouldRegisterNestedModelFromPointerToSliceExample(t *testing.T) {
 	// Arrange
 	gen := NewGenerator()

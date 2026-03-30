@@ -103,7 +103,8 @@ func NewGenerator(opts ...GeneratorOption) *Generator {
 // GenerateSpec builds an OpenAPI specification for the provided Router.
 //
 // The Generator's options control behavior: examples inclusion and path
-// prefix filtering. Only routes with a non-empty OperationID are emitted.
+// prefix filtering. Routes that carry OpenAPI metadata must define a non-empty
+// OperationID or generation returns an error.
 //
 // The returned *OpenAPISpec is validated before being returned; callers
 // may marshal it to disk with MarshalToFile or inspect it programmatically.
@@ -144,7 +145,13 @@ func (g *Generator) GenerateSpecFromRoutes(info *InfoObject, routes []RouteData)
 	}
 
 	for _, rd := range routes {
-		if rd.Options == nil || rd.Options.OperationID == "" {
+		if rd.Options == nil {
+			continue
+		}
+		if rd.Options.OperationID == "" {
+			if operationRequiresOperationID(rd.Options) {
+				return nil, fmt.Errorf("route %s %s missing OperationID", rd.Method, rd.Path)
+			}
 			continue
 		}
 		if err := g.appendRoute(rd); err != nil {
@@ -152,6 +159,25 @@ func (g *Generator) GenerateSpecFromRoutes(info *InfoObject, routes []RouteData)
 		}
 	}
 	return g.spec, g.spec.Validate()
+}
+
+func operationRequiresOperationID(op *Operation) bool {
+	if op == nil {
+		return false
+	}
+
+	return len(op.Tags) > 0 ||
+		op.Summary != "" ||
+		op.Description != "" ||
+		op.ExternalDocs != nil ||
+		len(op.Parameters) > 0 ||
+		op.RequestBody != nil ||
+		len(op.Responses) > 0 ||
+		len(op.Callbacks) > 0 ||
+		op.Deprecated ||
+		len(op.Security) > 0 ||
+		len(op.Servers) > 0 ||
+		len(op.Extensions) > 0
 }
 
 // GenerateAndSave generates an OpenAPI spec for the router and writes it

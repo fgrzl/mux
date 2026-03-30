@@ -46,6 +46,10 @@ The `Bind()` method automatically collects data according to the HTTP method:
 - `POST`, `PUT`, and `PATCH`: query params, path params, headers, and supported request bodies
 - `GET`, `HEAD`, `DELETE`, and other methods without body binding: query params, path params, and headers only
 
+Top-level JSON arrays bind directly into slice targets. That bind is body-only: if the same request also carries query params, path params, or declared header params that you need, read them from the context separately instead of mixing them into the same `Bind()` call.
+
+Declared object query parameters also support dot notation and bracket notation for nested fields, such as `user.address.city=Paris` or `user[address][city]=Paris`. When a JSON body and query binding populate different nested fields on the same object, `Bind()` merges those subtrees; when both sources set the same leaf, the later body value wins.
+
 ```go
 type User struct {
     ID    uuid.UUID `json:"id"`

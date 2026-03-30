@@ -4,10 +4,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
+	"github.com/fgrzl/mux/pkg/common"
 	"github.com/fgrzl/mux/pkg/openapi"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type address struct {
@@ -53,7 +56,7 @@ func TestShouldCoerceShallowDeepObjectBySchema(t *testing.T) {
 	assert.EqualValues(t, []int64{1, 2}, tags)
 }
 
-func TestShouldLeaveNestedDeepObjectLeavesRaw(t *testing.T) {
+func TestShouldCoerceNestedDeepObjectLeavesBySchema(t *testing.T) {
 	// Arrange: user.address.city=Paris and user[address][tags]=1,2 (nested under first-level object property)
 	vals := url.Values{}
 	vals.Set("user.address.city", "Paris")
@@ -85,12 +88,14 @@ func TestShouldLeaveNestedDeepObjectLeavesRaw(t *testing.T) {
 	assert.True(t, ok)
 	addr, ok := userMap["address"].(map[string]any)
 	assert.True(t, ok)
-	assert.Equal(t, "Paris", addr["city"]) // schema for first-level property "address" is object; leaf stays raw
-	assert.Equal(t, "1,2", addr["tags"])   // not parsed into []int64 at nested level
+	assert.Equal(t, "Paris", addr["city"])
+	tags, ok := addr["tags"].([]int64)
+	assert.True(t, ok)
+	assert.EqualValues(t, []int64{1, 2}, tags)
 }
 
-func TestShouldNotCoerceNestedLeavesWithExampleOnly(t *testing.T) {
-	// Arrange: With Example (no schema), nested leaves are detected but example-based parsing may not coerce leaf types
+func TestShouldCoerceNestedLeavesWithExampleOnly(t *testing.T) {
+	// Arrange
 	vals := url.Values{}
 	vals.Set("user.address.city", "Berlin")
 	vals.Add("user.address.tags", "3")
@@ -117,7 +122,46 @@ func TestShouldNotCoerceNestedLeavesWithExampleOnly(t *testing.T) {
 	assert.True(t, ok)
 	addr, ok := userMap["address"].(map[string]any)
 	assert.True(t, ok)
-	// Current behavior: example-based deep parsing doesn't coerce nested leaves
-	assert.Nil(t, addr["city"]) // value present but not parsed
-	assert.Nil(t, addr["tags"]) // value present but not parsed
+	assert.Equal(t, "Berlin", addr["city"])
+	tags, ok := addr["tags"].([]int)
+	assert.True(t, ok)
+	assert.Equal(t, []int{3, 4}, tags)
+}
+
+func TestShouldMergeNestedObjectAcrossQueryAndJSONBody(t *testing.T) {
+	// Arrange
+	vals := url.Values{}
+	vals.Set("user.address.city", "Paris")
+	req := httptest.NewRequest(http.MethodPost, "/?"+vals.Encode(), strings.NewReader(`{"user":{"address":{"postal":"75001"}}}`))
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
+	rr := httptest.NewRecorder()
+
+	c := NewRouteContext(rr, req)
+	ex := struct {
+		User struct {
+			Address struct {
+				City   string `json:"city"`
+				Postal string `json:"postal"`
+			} `json:"address"`
+		} `json:"user"`
+	}{}
+	opts := Route(http.MethodPost, "/").WithQueryParam("user", ex.User)
+	c.SetOptions(opts)
+
+	var out struct {
+		User struct {
+			Address struct {
+				City   string `json:"city"`
+				Postal string `json:"postal"`
+			} `json:"address"`
+		} `json:"user"`
+	}
+
+	// Act
+	err := c.Bind(&out)
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, "Paris", out.User.Address.City)
+	assert.Equal(t, "75001", out.User.Address.Postal)
 }

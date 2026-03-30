@@ -25,6 +25,29 @@ type ProblemDetails struct {
 
 const ProblemTypeAboutBlank = "about:blank"
 
+func (c *DefaultRouteContext) startResponse(status int) bool {
+	if c == nil || c.Response() == nil {
+		return false
+	}
+	if c.responseCommitted {
+		return false
+	}
+	c.responseCommitted = true
+	c.responseStatus = status
+	return true
+}
+
+func (c *DefaultRouteContext) writeHeaderOnce(status int, contentType string) bool {
+	if !c.startResponse(status) {
+		return false
+	}
+	if contentType != "" {
+		c.Response().Header().Set(common.HeaderContentType, contentType)
+	}
+	c.Response().WriteHeader(status)
+	return true
+}
+
 // ServerError writes a 500 Internal Server Error with problem details.
 func (c *DefaultRouteContext) ServerError(title, detail string) {
 	if title == "" {
@@ -66,17 +89,24 @@ func (c *DefaultRouteContext) Conflict(title, detail string) {
 
 // Problem writes a problem+json response using RFC 7807.
 func (c *DefaultRouteContext) Problem(problem *ProblemDetails) {
+	if problem == nil {
+		problem = &ProblemDetails{}
+	}
 	if problem.Status == 0 {
 		problem.Status = http.StatusInternalServerError
 	}
-	c.Response().Header().Set(common.HeaderContentType, common.MimeProblemJSON)
 	b, err := json.Marshal(problem)
 	if err != nil {
 		slog.ErrorContext(c, "failed to marshal problem response", responseLogArgs(c, problem.Status, "problem")...)
+		if !c.startResponse(http.StatusInternalServerError) {
+			return
+		}
 		http.Error(c.Response(), http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
-	c.Response().WriteHeader(problem.Status)
+	if !c.writeHeaderOnce(problem.Status, common.MimeProblemJSON) {
+		return
+	}
 	if _, err := c.Response().Write(b); err != nil {
 		slog.ErrorContext(c, "failed to write problem response", responseLogArgs(c, problem.Status, "problem", "error", err)...)
 	}
@@ -89,15 +119,18 @@ func (c *DefaultRouteContext) OK(model any) {
 
 // JSON writes a JSON response with custom status code.
 func (c *DefaultRouteContext) JSON(status int, model any) {
-	c.Response().Header().Set(common.HeaderContentType, common.MimeJSON)
-
 	b, err := json.Marshal(model)
 	if err != nil {
 		slog.ErrorContext(c, "failed to marshal json response", responseLogArgs(c, status, "json", "error", err)...)
+		if !c.startResponse(http.StatusInternalServerError) {
+			return
+		}
 		http.Error(c.Response(), http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
-	c.Response().WriteHeader(status)
+	if !c.writeHeaderOnce(status, common.MimeJSON) {
+		return
+	}
 	if _, err := c.Response().Write(b); err != nil {
 		slog.ErrorContext(c, "failed to write json response", responseLogArgs(c, status, "json", "error", err)...)
 	}
@@ -105,8 +138,9 @@ func (c *DefaultRouteContext) JSON(status int, model any) {
 
 // Plain writes a plain text response.
 func (c *DefaultRouteContext) Plain(status int, data []byte) {
-	c.Response().Header().Set(common.HeaderContentType, common.MimeTextPlain)
-	c.Response().WriteHeader(status)
+	if !c.writeHeaderOnce(status, common.MimeTextPlain) {
+		return
+	}
 	if len(data) > 0 {
 		if _, err := c.Response().Write(data); err != nil {
 			slog.ErrorContext(c, "failed to write plain response", responseLogArgs(c, status, "plain", "error", err)...)
@@ -116,8 +150,9 @@ func (c *DefaultRouteContext) Plain(status int, data []byte) {
 
 // HTML writes an HTML response.
 func (c *DefaultRouteContext) HTML(status int, html string) {
-	c.Response().Header().Set(common.HeaderContentType, common.MimeTextHTML)
-	c.Response().WriteHeader(status)
+	if !c.writeHeaderOnce(status, common.MimeTextHTML) {
+		return
+	}
 	if _, err := c.Response().Write([]byte(html)); err != nil {
 		slog.ErrorContext(c, "failed to write html response", responseLogArgs(c, status, "html", "error", err)...)
 	}
@@ -135,7 +170,7 @@ func (c *DefaultRouteContext) Accept(model any) {
 
 // NoContent writes a 204 No Content response.
 func (c *DefaultRouteContext) NoContent() {
-	c.Response().WriteHeader(http.StatusNoContent)
+	c.writeHeaderOnce(http.StatusNoContent, "")
 }
 
 // NotFound writes a 404 Not Found response.
@@ -154,16 +189,25 @@ func (c *DefaultRouteContext) NotFound() {
 
 // Unauthorized writes a 401 Unauthorized response.
 func (c *DefaultRouteContext) Unauthorized() {
+	if !c.startResponse(http.StatusUnauthorized) {
+		return
+	}
 	http.Error(c.Response(), http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 }
 
 // Forbidden writes a 403 Forbidden response with a custom message.
 func (c *DefaultRouteContext) Forbidden(message string) {
+	if !c.startResponse(http.StatusForbidden) {
+		return
+	}
 	http.Error(c.Response(), message, http.StatusForbidden)
 }
 
 // File serves a static file.
 func (c *DefaultRouteContext) File(filePath string) {
+	if !c.startResponse(http.StatusOK) {
+		return
+	}
 	http.ServeFile(c.Response(), c.Request(), filePath)
 }
 
@@ -177,8 +221,9 @@ func (c *DefaultRouteContext) Download(filePath, filename string) {
 	defer f.Close()
 
 	c.Response().Header().Set(common.HeaderContentDisposition, buildContentDisposition(filename))
-	c.Response().Header().Set(common.HeaderContentType, common.MimeOctetStream)
-	c.Response().WriteHeader(http.StatusOK)
+	if !c.writeHeaderOnce(http.StatusOK, common.MimeOctetStream) {
+		return
+	}
 	if _, err := io.Copy(c.Response(), f); err != nil {
 		// Log copy errors; response headers/body were already sent so best-effort logging is appropriate
 		slog.ErrorContext(c, "failed to copy file to response", responseLogArgs(c, http.StatusOK, "file", "error", err, "file", filePath)...)
@@ -224,6 +269,9 @@ func buildContentDisposition(filename string) string {
 // Redirect issues a redirect with custom status code.
 func (c *DefaultRouteContext) Redirect(status int, url string) {
 	target := c.ensureAbsoluteURL(url)
+	if !c.startResponse(status) {
+		return
+	}
 	http.Redirect(c.Response(), c.Request(), target, status)
 }
 

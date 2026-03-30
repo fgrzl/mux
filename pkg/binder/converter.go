@@ -1,6 +1,7 @@
 package binder
 
 import (
+	"encoding"
 	"math"
 	"reflect"
 	"strconv"
@@ -20,6 +21,9 @@ func makeConverter(t reflect.Type, schema *openapi.Schema) func([]string) (any, 
 		if c := scalarConverterForType(t); c != nil {
 			return c
 		}
+		if c := textUnmarshalerConverterForType(t); c != nil {
+			return c
+		}
 		if conv := makeSliceElementConverter(t); conv != nil {
 			return conv
 		}
@@ -30,6 +34,27 @@ func makeConverter(t reflect.Type, schema *openapi.Schema) func([]string) (any, 
 	}
 
 	return nil
+}
+
+var textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+
+func textUnmarshalerConverterForType(typ reflect.Type) func([]string) (any, error) {
+	if typ == nil || !reflect.PointerTo(typ).Implements(textUnmarshalerType) {
+		return nil
+	}
+
+	return func(vals []string) (any, error) {
+		if len(vals) != 1 {
+			return nil, nil
+		}
+
+		value := reflect.New(typ)
+		unmarshaler := value.Interface().(encoding.TextUnmarshaler)
+		if err := unmarshaler.UnmarshalText([]byte(vals[0])); err != nil {
+			return nil, err
+		}
+		return value.Elem().Interface(), nil
+	}
 }
 
 // makeSliceElementConverter returns a converter that parses each element
@@ -496,32 +521,34 @@ func parseSliceFromExample(values []string, example any) (any, bool) {
 		return nil, false
 	}
 	t := reflect.TypeOf(example)
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
 	if t.Kind() != reflect.Slice {
 		return nil, false
 	}
-	exVal := reflect.ValueOf(example)
-	if exVal.Len() == 0 {
+	elemType := t.Elem()
+	conv := makeConverter(elemType, nil)
+	if conv == nil {
 		return nil, false
 	}
-	elem := exVal.Index(0).Interface()
-	switch elem.(type) {
-	case int:
-		if parsed, ok := parseSlice(values, func(s string) (int, error) {
-			v64, err := strconv.ParseInt(s, 10, 64)
-			if err != nil {
-				return 0, err
-			}
-			if v64 < int64(math.MinInt) || v64 > int64(math.MaxInt) {
-				return 0, strconv.ErrRange
-			}
-			return int(v64), nil
-		}); ok {
-			return parsed, true
+	out := reflect.MakeSlice(t, 0, len(values))
+	for _, value := range values {
+		parsed, err := conv([]string{value})
+		if err != nil || parsed == nil {
+			return nil, false
 		}
-	case string:
-		return values, true
+
+		parsedValue := reflect.ValueOf(parsed)
+		if !parsedValue.Type().AssignableTo(elemType) {
+			if !parsedValue.Type().ConvertibleTo(elemType) {
+				return nil, false
+			}
+			parsedValue = parsedValue.Convert(elemType)
+		}
+		out = reflect.Append(out, parsedValue)
 	}
-	return nil, false
+	return out.Interface(), true
 }
 
 // parseSliceFromSchema parses slice values based on Schema->Items type.

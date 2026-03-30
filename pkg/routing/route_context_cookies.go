@@ -2,6 +2,7 @@ package routing
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -106,14 +107,20 @@ func ClearCookieWithOptions(c RouteContext, name string, opts ...cookiekit.Cooki
 // Authenticate creates a JWT token for the user and stores it in a secure cookie.
 // This method requires that authentication middleware has been added to the router using UseAuthentication().
 func (c *DefaultRouteContext) Authenticate(cookieName string, user claims.Principal, opts ...cookiekit.CookieOption) {
+	if err := c.authenticate(cookieName, user, opts...); err != nil {
+		c.ServerError("Authentication Misconfigured", err.Error())
+	}
+}
+
+func (c *DefaultRouteContext) authenticate(cookieName string, user claims.Principal, opts ...cookiekit.CookieOption) error {
 	service, ok := c.GetService(tokenizer.ServiceKeyTokenProvider)
 	if !ok {
-		panic("DEVELOPMENT ERROR: No token provider available. Did you forget to call router.UseAuthentication() before using c.Authenticate()?")
+		return fmt.Errorf("no token provider available; register authentication middleware before calling Authenticate")
 	}
 
 	provider, ok := service.(tokenizer.TokenProvider)
 	if !ok {
-		panic("DEVELOPMENT ERROR: Invalid token provider service. This indicates a bug in the authentication middleware.")
+		return fmt.Errorf("invalid token provider service in route context")
 	}
 
 	token, err := provider.CreateToken(c, user)
@@ -126,7 +133,7 @@ func (c *DefaultRouteContext) Authenticate(cookieName string, user claims.Princi
 			logCtx = c.Request().Context()
 		}
 		slog.ErrorContext(logCtx, "failed to create token", "error", err)
-		return
+		return fmt.Errorf("could not create session token")
 	}
 
 	// Use the provider's TTL for the cookie if available
@@ -145,11 +152,15 @@ func (c *DefaultRouteContext) Authenticate(cookieName string, user claims.Princi
 	}
 
 	c.SetCookie(cookieName, token, finalMaxAge, path, domain, secure, httpOnly, sameSite)
+	return nil
 }
 
 // SignIn authenticates the user and redirects to the given URL (or "/" by default).
 func (c *DefaultRouteContext) SignIn(user claims.Principal, redirectUrl string, opts ...cookiekit.CookieOption) {
 	c.Authenticate(cookiekit.GetUserCookieName(), user, opts...)
+	if c.responseCommitted {
+		return
+	}
 	if redirectUrl == "" {
 		redirectUrl = "/"
 	}

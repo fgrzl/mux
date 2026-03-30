@@ -46,3 +46,21 @@ func TestShouldReturnExplicitErrorForJSONPrimitiveRoot(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unsupported JSON root type")
 }
+
+func TestShouldReturnErrorForJSONArrayBodyWithAdditionalInputs(t *testing.T) {
+	// Arrange
+	body := []byte(`[{"name":"a"}]`)
+	req := httptest.NewRequest(http.MethodPost, "/?limit=1", bytes.NewReader(body))
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
+	rr := httptest.NewRecorder()
+
+	c := NewRouteContext(rr, req)
+	var out []smallBody
+
+	// Act
+	err := c.Bind(&out)
+
+	// Assert
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot combine JSON array body")
+}

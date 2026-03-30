@@ -258,9 +258,11 @@ type RouteContext interface {
 // NewRouteContext creates a new RouteContext from an HTTP request and response writer.
 func NewRouteContext(w http.ResponseWriter, r *http.Request) *DefaultRouteContext {
 	return &DefaultRouteContext{
-		Context:  r.Context(),
-		response: w,
-		request:  r,
+		Context:           r.Context(),
+		response:          w,
+		request:           r,
+		responseCommitted: false,
+		responseStatus:    0,
 		// paramsSlice is nil by default, lazily initialized when needed
 		// New contexts created directly are not pooled
 		wasPooled: false,
@@ -293,6 +295,8 @@ func AcquireContext(w http.ResponseWriter, r *http.Request) *DefaultRouteContext
 	c.paramIndex = nil
 	c.maxBodyBytes = 0
 	c.bodyLimitApplied = false
+	c.responseCommitted = false
+	c.responseStatus = 0
 	// Acquire paramsSlice from pool for optimized parameter storage
 	c.paramsSlice = AcquireParams()
 	// Mark as pooled so ReleaseContext knows to return it
@@ -322,6 +326,8 @@ func ReleaseContext(c *DefaultRouteContext) {
 	c.paramIndex = nil
 	c.maxBodyBytes = 0
 	c.bodyLimitApplied = false
+	c.responseCommitted = false
+	c.responseStatus = 0
 	// Only return to the pool if this instance was obtained from it.
 	if c.wasPooled {
 		// reset the flag to avoid double-put if ReleaseContext is called
@@ -358,15 +364,17 @@ func Detach(c RouteContext) *DefaultRouteContext {
 		baseCtx = reqClone.Context()
 	}
 	clone := &DefaultRouteContext{
-		Context:      baseCtx,
-		response:     &detachedResponseWriter{},
-		request:      reqClone,
-		clientURL:    d.clientURL,
-		user:         d.user,
-		options:      d.options,
-		formsParsed:  d.formsParsed,
-		wasPooled:    false,
-		maxBodyBytes: d.maxBodyBytes,
+		Context:           baseCtx,
+		response:          &detachedResponseWriter{},
+		request:           reqClone,
+		clientURL:         d.clientURL,
+		user:              d.user,
+		options:           d.options,
+		formsParsed:       d.formsParsed,
+		wasPooled:         false,
+		maxBodyBytes:      d.maxBodyBytes,
+		responseCommitted: false,
+		responseStatus:    0,
 	}
 	if d.paramsSlice != nil && d.paramsSlice.Len() > 0 {
 		// Clone paramsSlice to avoid sharing references
@@ -409,6 +417,9 @@ type DefaultRouteContext struct {
 	maxBodyBytes int64
 	// bodyLimitApplied tracks whether MaxBytesReader has been applied to prevent double-wrapping.
 	bodyLimitApplied bool
+	// responseCommitted tracks whether a framework response helper has already committed headers.
+	responseCommitted bool
+	responseStatus    int
 }
 
 type detachedResponseWriter struct{ header http.Header }
@@ -430,6 +441,8 @@ func (c *DefaultRouteContext) Response() http.ResponseWriter {
 
 func (c *DefaultRouteContext) SetResponse(w http.ResponseWriter) {
 	c.response = w
+	c.responseCommitted = false
+	c.responseStatus = 0
 }
 
 func (c *DefaultRouteContext) Request() *http.Request {
@@ -536,24 +549,12 @@ func (c *DefaultRouteContext) GetService(key ServiceKey) (any, bool) {
 // such as GET, HEAD, and DELETE do not bind request bodies.
 //
 // If a request declares RequestBody.Required=true but sends an empty body, Bind returns ErrMissingBody.
-// Callers can check for this using errors.Is(err, ErrMissingBody) and map it to a custom response,
-// or let it propagate to a central error handler that converts it to a 400 Problem Details response.
+// Bind does not write an error response itself; callers or higher-level middleware
+// are responsible for translating binding failures into HTTP responses.
 func (c *DefaultRouteContext) Bind(model any) error {
 	staging := make(map[string]any)
 
 	if err := c.collectRequestData(staging); err != nil {
-		// Automatically map ErrMissingBody to a 400 Problem Details response
-		// so handlers don't need to check for it explicitly. This provides
-		// consistent error handling across the framework.
-		if IsMissingBodyError(err) {
-			c.Problem(&ProblemDetails{
-				Type:   "request-body-required",
-				Title:  "Bad Request",
-				Status: http.StatusBadRequest,
-				Detail: "Request body is required",
-			})
-			return err
-		}
 		return err
 	}
 	if err := c.collectHeaderData(staging); err != nil {
@@ -568,6 +569,9 @@ func (c *DefaultRouteContext) Bind(model any) error {
 	// array value directly instead of the staging map so the target model can
 	// be an array/slice type.
 	if root, ok := staging["__root_json_array"]; ok {
+		if c.hasAdditionalArrayBindInputs() {
+			return errors.New("cannot combine JSON array body with query, path, or declared header parameters")
+		}
 		marshaledData, err := json.Marshal(root)
 		if err != nil {
 			return err
@@ -575,11 +579,81 @@ func (c *DefaultRouteContext) Bind(model any) error {
 		return json.Unmarshal(marshaledData, model)
 	}
 
+	if handled, err := bindDirectModel(model, staging); handled {
+		return err
+	}
+
 	marshaledData, err := json.Marshal(staging)
 	if err != nil {
 		return err
 	}
 	return json.Unmarshal(marshaledData, model)
+}
+
+func (c *DefaultRouteContext) hasAdditionalArrayBindInputs() bool {
+	if len(c.request.URL.Query()) > 0 {
+		return true
+	}
+	if c.paramsSlice != nil && c.paramsSlice.Len() > 0 {
+		return true
+	}
+	if c.options == nil {
+		return false
+	}
+	for _, param := range c.options.Parameters {
+		if param == nil || !strings.EqualFold(param.In, "header") || param.Name == "" {
+			continue
+		}
+		if _, ok := c.request.Header[http.CanonicalHeaderKey(param.Name)]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func bindDirectModel(model any, staging map[string]any) (bool, error) {
+	if model == nil {
+		return false, nil
+	}
+
+	rv := reflect.ValueOf(model)
+	if !rv.IsValid() || rv.Kind() != reflect.Pointer || rv.IsNil() {
+		return false, nil
+	}
+
+	target := rv.Elem()
+	switch target.Kind() {
+	case reflect.Map:
+		if target.Type().Key().Kind() != reflect.String || !isEmptyInterfaceType(target.Type().Elem()) {
+			return false, nil
+		}
+		if target.IsNil() {
+			target.Set(reflect.MakeMapWithSize(target.Type(), len(staging)))
+		}
+		for key, value := range staging {
+			target.SetMapIndex(reflect.ValueOf(key), reflectValueForMapElement(target.Type().Elem(), value))
+		}
+		return true, nil
+	case reflect.Interface:
+		if !isEmptyInterfaceType(target.Type()) {
+			return false, nil
+		}
+		target.Set(reflect.ValueOf(staging))
+		return true, nil
+	default:
+		return false, nil
+	}
+}
+
+func isEmptyInterfaceType(t reflect.Type) bool {
+	return t.Kind() == reflect.Interface && t.NumMethod() == 0
+}
+
+func reflectValueForMapElement(elemType reflect.Type, value any) reflect.Value {
+	if value == nil {
+		return reflect.Zero(elemType)
+	}
+	return reflect.ValueOf(value)
 }
 
 func (c *DefaultRouteContext) collectRequestData(staging map[string]any) error {
@@ -607,79 +681,11 @@ func (c *DefaultRouteContext) collectQueryParams(staging map[string]any) error {
 		if root, path := parseDeepKey(rawKey); len(path) > 0 {
 			// only handle deep objects when root parameter is declared as object
 			if param := c.lookupParameter(root, "query"); param != nil {
-				isObject := false
-				if param.Schema != nil && param.Schema.Type == "object" {
-					isObject = true
-				}
-				if !isObject && param.Example != nil {
-					exT := reflect.TypeOf(param.Example)
-					if exT.Kind() == reflect.Ptr {
-						exT = exT.Elem()
-					}
-					if exT.Kind() == reflect.Struct {
-						isObject = true
-					}
-				}
-				if isObject {
-					// ensure values is split for CSV if schema for property indicates array
-					// for dot/bracket keys path[0] is property name
-					propName := path[0]
-					propSchema := (func() *openapi.Schema {
-						if param.Schema != nil {
-							return param.Schema.Properties[propName]
-						}
-						return nil
-					})()
-					// if property expects array and single CSV string provided, split
-					if propSchema != nil && propSchema.Type == "array" && len(values) == 1 && strings.Contains(values[0], ",") {
-						values = splitAndTrim(values[0])
-					}
-					var parsed any
-					var err error
-					// prefer schema-based parsing
-					if propSchema != nil {
-						parsed, err = binder.ParseValueBySchema(values, propSchema)
-					} else if param.Example != nil {
-						// try to locate the example field within the Example struct and parse by that example
-						exVal := reflect.ValueOf(param.Example)
-						if exVal.Kind() == reflect.Ptr {
-							exVal = exVal.Elem()
-						}
-						if exVal.IsValid() && exVal.Kind() == reflect.Struct {
-							// find field by json tag or name
-							exType := exVal.Type()
-							var fieldExample any
-							for i := 0; i < exType.NumField(); i++ {
-								f := exType.Field(i)
-								tag := f.Tag.Get("json")
-								name := f.Name
-								if tag != "" {
-									// tag may contain options like `json:"name,omitempty"`
-									parts := strings.Split(tag, ",")
-									if parts[0] == propName {
-										fieldExample = exVal.Field(i).Interface()
-										break
-									}
-								}
-								if strings.EqualFold(name, propName) {
-									fieldExample = exVal.Field(i).Interface()
-									break
-								}
-							}
-							if fieldExample != nil {
-								p := &openapi.ParameterObject{Example: fieldExample}
-								if parsedVal, ok := binder.ParseByExample(values[0], p); ok {
-									parsed = parsedVal
-								}
-							}
-						}
-					} else {
-						parsed, err = binder.ParseValueBySchema(values, propSchema)
-					}
+				if isDeepObjectParameter(param) {
+					parsed, err := parseDeepQueryValue(param, path, values)
 					if err != nil {
-						return fmt.Errorf("query param %q.%s: %w", root, propName, err)
+						return fmt.Errorf("query param %q: %w", rawKey, err)
 					}
-					// set nested map structure
 					setNestedMap(staging, root, path, parsed)
 					continue
 				}
@@ -787,7 +793,7 @@ func (c *DefaultRouteContext) collectJSONBody(staging map[string]any) error {
 	switch v := bodyAny.(type) {
 	case map[string]any:
 		for key, val := range v {
-			staging[key] = val
+			mergeStagingValue(staging, key, val)
 		}
 		return nil
 	case []any:
@@ -867,6 +873,177 @@ func addToStaging(staging map[string]any, key string, values []string) {
 	} else {
 		staging[key] = values
 	}
+}
+
+func isDeepObjectParameter(param *openapi.ParameterObject) bool {
+	if param == nil {
+		return false
+	}
+	if param.Schema != nil && param.Schema.Type == "object" {
+		return true
+	}
+	if param.Example == nil {
+		return false
+	}
+	exampleType := reflect.TypeOf(param.Example)
+	for exampleType != nil && exampleType.Kind() == reflect.Pointer {
+		exampleType = exampleType.Elem()
+	}
+	if exampleType == nil {
+		return false
+	}
+	return exampleType.Kind() == reflect.Struct || exampleType.Kind() == reflect.Map
+}
+
+func parseDeepQueryValue(param *openapi.ParameterObject, path, values []string) (any, error) {
+	leafSchema := lookupDeepSchema(param.Schema, path)
+	leafExample, hasExample := lookupDeepExample(param.Example, path)
+	leafParam := &openapi.ParameterObject{Schema: leafSchema}
+	if hasExample {
+		leafParam.Example = leafExample
+	}
+
+	key := path[len(path)-1]
+	typed := make(map[string]any, 1)
+	handled, err := binder.ProcessParamAndSet(typed, key, values, "query", leafParam)
+	if err != nil {
+		return nil, err
+	}
+	if handled {
+		return typed[key], nil
+	}
+	if len(values) == 1 {
+		return values[0], nil
+	}
+	return values, nil
+}
+
+func lookupDeepSchema(schema *openapi.Schema, path []string) *openapi.Schema {
+	current := schema
+	for _, segment := range path {
+		if current == nil || current.Properties == nil {
+			return nil
+		}
+		current = current.Properties[segment]
+	}
+	return current
+}
+
+func lookupDeepExample(example any, path []string) (any, bool) {
+	if example == nil {
+		return nil, false
+	}
+
+	currentType := reflect.TypeOf(example)
+	currentValue := reflect.ValueOf(example)
+	currentType, currentValue = derefExampleTypeAndValue(currentType, currentValue)
+	if currentType == nil {
+		return nil, false
+	}
+
+	for _, segment := range path {
+		switch currentType.Kind() {
+		case reflect.Struct:
+			fieldIndex, fieldType, ok := findStructField(currentType, segment)
+			if !ok {
+				return nil, false
+			}
+			currentType = fieldType
+			if currentValue.IsValid() && currentValue.Kind() == reflect.Struct {
+				currentValue = currentValue.Field(fieldIndex)
+			} else {
+				currentValue = reflect.Zero(fieldType)
+			}
+		case reflect.Map:
+			if currentType.Key().Kind() != reflect.String {
+				return nil, false
+			}
+			currentType = currentType.Elem()
+			if currentValue.IsValid() && currentValue.Kind() == reflect.Map {
+				mapValue := currentValue.MapIndex(reflect.ValueOf(segment))
+				if mapValue.IsValid() {
+					currentValue = mapValue
+					currentType = mapValue.Type()
+				} else {
+					currentValue = reflect.Zero(currentType)
+				}
+			} else {
+				currentValue = reflect.Zero(currentType)
+			}
+		default:
+			return nil, false
+		}
+		currentType, currentValue = derefExampleTypeAndValue(currentType, currentValue)
+		if currentType == nil {
+			return nil, false
+		}
+	}
+
+	if currentValue.IsValid() && currentValue.CanInterface() {
+		return currentValue.Interface(), true
+	}
+	return reflect.Zero(currentType).Interface(), true
+}
+
+func derefExampleTypeAndValue(exampleType reflect.Type, exampleValue reflect.Value) (reflect.Type, reflect.Value) {
+	currentType := exampleType
+	currentValue := exampleValue
+	for currentType != nil && currentType.Kind() == reflect.Pointer {
+		currentType = currentType.Elem()
+		if currentValue.IsValid() && currentValue.Kind() == reflect.Pointer {
+			if currentValue.IsNil() {
+				currentValue = reflect.Zero(currentType)
+			} else {
+				currentValue = currentValue.Elem()
+			}
+		} else {
+			currentValue = reflect.Zero(currentType)
+		}
+	}
+	return currentType, currentValue
+}
+
+func findStructField(structType reflect.Type, segment string) (int, reflect.Type, bool) {
+	for i := 0; i < structType.NumField(); i++ {
+		field := structType.Field(i)
+		if field.PkgPath != "" {
+			continue
+		}
+		if tag := field.Tag.Get("json"); tag != "" {
+			parts := strings.Split(tag, ",")
+			if parts[0] == segment {
+				return i, field.Type, true
+			}
+		}
+		if strings.EqualFold(field.Name, segment) {
+			return i, field.Type, true
+		}
+	}
+	return 0, nil, false
+}
+
+func mergeStagingValue(staging map[string]any, key string, incoming any) {
+	if existing, ok := staging[key]; ok {
+		staging[key] = mergeBindingValue(existing, incoming)
+		return
+	}
+	staging[key] = incoming
+}
+
+func mergeBindingValue(existing, incoming any) any {
+	existingMap, existingOK := existing.(map[string]any)
+	incomingMap, incomingOK := incoming.(map[string]any)
+	if !existingOK || !incomingOK {
+		return incoming
+	}
+	for key, value := range incomingMap {
+		if current, ok := existingMap[key]; ok {
+			existingMap[key] = mergeBindingValue(current, value)
+			continue
+		}
+		existingMap[key] = value
+	}
+	return existingMap
 }
 
 func getInstanceURI(r *http.Request) *string {

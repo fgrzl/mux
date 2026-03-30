@@ -1,9 +1,12 @@
 package routing
 
 import (
+	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"github.com/fgrzl/mux/pkg/common"
 	openapi "github.com/fgrzl/mux/pkg/openapi"
 
 	"github.com/google/uuid"
@@ -112,6 +115,38 @@ func TestShouldBindParsePathParamAsUUID(t *testing.T) {
 	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, uuid.MustParse("550e8400-e29b-41d4-a716-446655440000"), model.ID)
+}
+
+func TestShouldPreserveTypedValuesGivenMapTarget(t *testing.T) {
+	// Arrange
+	id := uuid.New()
+	req := httptest.NewRequest(http.MethodPost, "/items/"+id.String()+"?limit=10", strings.NewReader(`{"name":"alice"}`))
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
+	req.Header.Set("X-Enabled", "true")
+	rec := httptest.NewRecorder()
+	ctx := NewRouteContext(rec, req)
+	params := &Params{}
+	params.Set("id", id.String())
+	ctx.paramsSlice = params
+	ctx.options = Route(http.MethodPost, "/items/{id}").
+		WithQueryParam("limit", 0).
+		WithHeaderParam("X-Enabled", true, false).
+		WithPathParam("id", uuid.Nil)
+
+	var out map[string]any
+
+	// Act
+	err := ctx.Bind(&out)
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, "alice", out["name"])
+	assert.IsType(t, 0, out["limit"])
+	assert.Equal(t, 10, out["limit"])
+	assert.IsType(t, true, out["X-Enabled"])
+	assert.Equal(t, true, out["X-Enabled"])
+	assert.IsType(t, uuid.Nil, out["id"])
+	assert.Equal(t, id, out["id"])
 }
 
 // Numeric type tests

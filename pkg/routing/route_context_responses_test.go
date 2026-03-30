@@ -10,7 +10,33 @@ import (
 
 	"github.com/fgrzl/mux/pkg/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+type countingResponseWriter struct {
+	header           http.Header
+	statusCodes      []int
+	body             bytes.Buffer
+	implicitStatusOK bool
+}
+
+func (w *countingResponseWriter) Header() http.Header {
+	if w.header == nil {
+		w.header = make(http.Header)
+	}
+	return w.header
+}
+
+func (w *countingResponseWriter) WriteHeader(statusCode int) {
+	w.statusCodes = append(w.statusCodes, statusCode)
+}
+
+func (w *countingResponseWriter) Write(p []byte) (int, error) {
+	if len(w.statusCodes) == 0 {
+		w.implicitStatusOK = true
+	}
+	return w.body.Write(p)
+}
 
 func newRoutingTestLogger(minLevel slog.Level) (*bytes.Buffer, *slog.Logger) {
 	var logBuffer bytes.Buffer
@@ -232,6 +258,39 @@ func TestShouldReturnNoContent(t *testing.T) {
 	// Assert
 	assert.Equal(t, http.StatusNoContent, recorder.Code)
 	assert.Empty(t, recorder.Body.String())
+}
+
+func TestShouldWriteHeaderOnlyOnceAcrossMultipleResponses(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	writer := &countingResponseWriter{}
+	ctx := NewRouteContext(writer, req)
+
+	// Act
+	ctx.OK(map[string]string{"message": "first"})
+	ctx.ServerError("boom", "second")
+
+	// Assert
+	require.Len(t, writer.statusCodes, 1)
+	assert.Equal(t, http.StatusOK, writer.statusCodes[0])
+	assert.Contains(t, writer.body.String(), "first")
+	assert.NotContains(t, writer.body.String(), "second")
+}
+
+func TestShouldWriteHeaderOnlyOnceAcrossNoContentAndJSON(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	writer := &countingResponseWriter{}
+	ctx := NewRouteContext(writer, req)
+
+	// Act
+	ctx.NoContent()
+	ctx.OK(map[string]string{"message": "ignored"})
+
+	// Assert
+	require.Len(t, writer.statusCodes, 1)
+	assert.Equal(t, http.StatusNoContent, writer.statusCodes[0])
+	assert.Empty(t, writer.body.String())
 }
 
 func TestShouldReturnAcceptWithData(t *testing.T) {

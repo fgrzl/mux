@@ -160,18 +160,17 @@ func TestShouldSplitAndTrimCSVValues(t *testing.T) {
 	assert.Equal(t, []string{"a", "b", "c"}, parts)
 }
 
-func TestShouldNotHandlePointerSliceExampleCSVSplitDueToParseSliceValuesPointerLimitation(t *testing.T) {
-	// Arrange: Example is pointer to slice; isArray detection sets true, CSV splits, but parseSliceValues fails because Example.Kind()==Ptr.
+func TestShouldHandlePointerSliceExampleCSVSplit(t *testing.T) {
+	// Arrange
 	ex := &[]string{"sample"}
 	param := &openapi.ParameterObject{Example: ex}
 	staging := make(map[string]any)
 	// Act
 	handled, err := ProcessParamAndSet(staging, "k", []string{"a, b , c"}, "query", param)
-	// Assert: parseSliceValues returns false so handled should be false and staging untouched
+	// Assert
 	require.NoError(t, err)
-	assert.False(t, handled)
-	_, present := staging["k"]
-	assert.False(t, present)
+	assert.True(t, handled)
+	assert.Equal(t, []string{"a", "b", "c"}, staging["k"])
 }
 
 func TestShouldIncludeLocationAndKeyInConverterError(t *testing.T) {
@@ -186,14 +185,14 @@ func TestShouldIncludeLocationAndKeyInConverterError(t *testing.T) {
 	assert.Contains(t, err.Error(), "query \"age\": boom")
 }
 
-func TestShouldReturnFalseWhenParseSliceValuesExampleEmpty(t *testing.T) {
+func TestShouldParseSliceValuesGivenEmptyExampleSlice(t *testing.T) {
 	// Arrange
 	param := &openapi.ParameterObject{Example: []string{}}
 	// Act
 	v, ok := parseSliceValues([]string{"a", "b"}, param)
 	// Assert
-	assert.False(t, ok)
-	assert.Nil(t, v)
+	assert.True(t, ok)
+	assert.Equal(t, []string{"a", "b"}, v)
 }
 
 func TestShouldReturnFalseWhenParseSliceValuesUnsupportedExampleElemType(t *testing.T) {

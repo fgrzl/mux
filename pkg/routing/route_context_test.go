@@ -691,6 +691,29 @@ func TestBind_ReturnsErrMissingBody_ForEmptyForm_WhenRequestBodyRequired(t *test
 	assert.True(t, errors.Is(err, ErrMissingBody))
 }
 
+func TestBind_ShouldNotWriteResponseWhenBodyMissing(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(""))
+	req.Header.Set(common.HeaderContentType, common.MimeJSON)
+	rec := httptest.NewRecorder()
+	ctx := NewRouteContext(rec, req)
+	opts := &RouteOptions{}
+	opts.RequestBody = &openapi.RequestBodyObject{Required: true}
+	ctx.SetOptions(opts)
+
+	var result struct{}
+
+	// Act
+	err := ctx.Bind(&result)
+
+	// Assert
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrMissingBody))
+	assert.Equal(t, 200, rec.Code)
+	assert.Empty(t, rec.Body.String())
+	assert.Empty(t, rec.Header().Get(common.HeaderContentType))
+}
+
 func TestBind_DoesNotReturnErrMissingBody_WhenRequestBodyNotRequired_JSON(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(""))
@@ -711,8 +734,7 @@ func TestBind_DoesNotReturnErrMissingBody_WhenRequestBodyNotRequired_JSON(t *tes
 }
 
 func TestBind_WritesToResponseWriter_WhenRequestBodyRequired_And_EmptyBody(t *testing.T) {
-	// Arrange - Verify that the framework automatically writes a Problem Details response
-	// when ErrMissingBody is returned and RequestBody.Required is true.
+	// Arrange - Verify caller-owned error handling can safely decide the response.
 	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(""))
 	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rec := httptest.NewRecorder()
@@ -725,18 +747,19 @@ func TestBind_WritesToResponseWriter_WhenRequestBodyRequired_And_EmptyBody(t *te
 
 	// Act
 	err := ctx.Bind(&result)
+	if err != nil {
+		ctx.BadRequest("Bad Request", "Request body is required")
+	}
 
 	// Assert
-	// Bind returns ErrMissingBody but also writes a Problem Details response
 	require.Error(t, err)
 	require.True(t, errors.Is(err, ErrMissingBody))
 
-	// Verify response was written with 400 status and Problem Details format
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 	var problemDetail ProblemDetails
 	err = json.NewDecoder(rec.Body).Decode(&problemDetail)
 	require.NoError(t, err)
-	assert.Equal(t, "request-body-required", problemDetail.Type)
+	assert.Equal(t, ProblemTypeAboutBlank, problemDetail.Type)
 	assert.Equal(t, "Bad Request", problemDetail.Title)
 	assert.Equal(t, http.StatusBadRequest, problemDetail.Status)
 	assert.Equal(t, "Request body is required", problemDetail.Detail)
