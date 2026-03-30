@@ -1,6 +1,7 @@
 package binder
 
 import (
+	"encoding/csv"
 	"fmt"
 	"reflect"
 	"strings"
@@ -41,6 +42,23 @@ func ProcessParamAndSet(staging map[string]any, key string, values []string, loc
 }
 
 func splitAndTrim(s string) []string {
+	reader := csv.NewReader(strings.NewReader(s))
+	reader.FieldsPerRecord = -1
+	reader.TrimLeadingSpace = true
+
+	parts, err := reader.Read()
+	if err != nil {
+		return splitAndTrimFallback(s)
+	}
+
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		out = append(out, strings.TrimSpace(p))
+	}
+	return out
+}
+
+func splitAndTrimFallback(s string) []string {
 	parts := strings.Split(s, ",")
 	out := make([]string, 0, len(parts))
 	for _, p := range parts {

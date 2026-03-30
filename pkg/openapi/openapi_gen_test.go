@@ -237,6 +237,35 @@ func TestShouldReturnErrorWhenRouteMissingOperationID(t *testing.T) {
 	assert.Contains(t, err.Error(), "missing OperationID")
 }
 
+func TestShouldReturnErrorWhenPathParameterDoesNotDeclareInPath(t *testing.T) {
+	// Arrange
+	gen := NewGenerator()
+	info := &InfoObject{Title: "API", Version: "1.0"}
+	routes := []RouteData{{
+		Path:   "/users/{id}",
+		Method: "GET",
+		Options: &Operation{
+			OperationID: "getUser",
+			Parameters: []*ParameterObject{{
+				Name:     "id",
+				Schema:   &Schema{Type: "string"},
+				Required: true,
+			}},
+			Responses: map[string]*ResponseObject{
+				"200": {Description: "ok"},
+			},
+		},
+	}}
+
+	// Act
+	spec, err := gen.GenerateSpecFromRoutes(info, routes)
+
+	// Assert
+	require.Error(t, err)
+	assert.Nil(t, spec)
+	assert.Contains(t, err.Error(), "must declare in=\"path\"")
+}
+
 func TestShouldRegisterNestedModelFromPointerToSliceExample(t *testing.T) {
 	// Arrange
 	gen := NewGenerator()

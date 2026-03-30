@@ -35,3 +35,19 @@ func TestShouldSplitCSVWhenProcessingExampleStringSliceParam(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, []string{"a", "b", "c"}, arr)
 }
+
+func TestShouldSplitQuotedCSVWhenProcessingExampleStringSliceParam(t *testing.T) {
+	// Arrange
+	staging := make(map[string]any)
+	param := &openapi.ParameterObject{Example: []string{"x"}}
+	// Act
+	handled, err := ProcessParamAndSet(staging, "k", []string{`"a,b",c`}, "query", param)
+	// Assert
+	require.NoError(t, err)
+	assert.True(t, handled)
+	v, ok := staging["k"]
+	assert.True(t, ok)
+	arr, ok := v.([]string)
+	require.True(t, ok)
+	assert.Equal(t, []string{"a,b", "c"}, arr)
+}

@@ -687,11 +687,18 @@ func validatePathParameters(path string, params []*ParameterObject) error {
 		pathParams[match[1]] = true
 	}
 	for _, p := range params {
-		if p.In == "" || p.In == "path" {
+		if p == nil {
+			continue
+		}
+		if p.In == "path" {
 			if !pathParams[p.Name] {
 				return fmt.Errorf("path parameter %q not found in path %q", p.Name, path)
 			}
 			delete(pathParams, p.Name)
+			continue
+		}
+		if p.In == "" && pathParams[p.Name] {
+			return fmt.Errorf("path parameter %q in path %q must declare in=\"path\"", p.Name, path)
 		}
 	}
 	if len(pathParams) > 0 {

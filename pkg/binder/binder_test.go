@@ -160,6 +160,24 @@ func TestShouldSplitAndTrimCSVValues(t *testing.T) {
 	assert.Equal(t, []string{"a", "b", "c"}, parts)
 }
 
+func TestShouldSplitQuotedCSVValues(t *testing.T) {
+	// Arrange
+	input := `"a,b", c , "d,e"`
+	// Act
+	parts := splitAndTrim(input)
+	// Assert
+	assert.Equal(t, []string{"a,b", "c", "d,e"}, parts)
+}
+
+func TestShouldFallBackToNaiveCSVSplitForMalformedQuotedInput(t *testing.T) {
+	// Arrange
+	input := `"a,b,c`
+	// Act
+	parts := splitAndTrim(input)
+	// Assert
+	assert.Equal(t, []string{`"a`, "b", "c"}, parts)
+}
+
 func TestShouldHandlePointerSliceExampleCSVSplit(t *testing.T) {
 	// Arrange
 	ex := &[]string{"sample"}

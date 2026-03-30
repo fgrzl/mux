@@ -495,6 +495,26 @@ func TestShouldSplitCommaSeparatedQueryIntoSlice(t *testing.T) {
 	assert.Equal(t, []string{"a", "b", "c"}, model.Tags)
 }
 
+func TestShouldSplitQuotedCommaSeparatedQueryIntoSlice(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest("GET", "/?tags=%22a,b%22,c", nil)
+	rec := httptest.NewRecorder()
+	ctx := NewRouteContext(rec, req)
+	rb := Route("GET", "/").WithQueryParam("tags", []string{"x"})
+	ctx.options = rb
+
+	var model struct {
+		Tags []string `json:"tags"`
+	}
+
+	// Act
+	err := ctx.Bind(&model)
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, []string{"a,b", "c"}, model.Tags)
+}
+
 func TestShouldBindDotNotationToNestedStruct(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest("GET", "/?user.name=alice&user.age=30", nil)
