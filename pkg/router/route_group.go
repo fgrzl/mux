@@ -184,7 +184,7 @@ func (rg *RouteGroup) WithParamErr(name, in, description string, example any, re
 		return rg, err
 	}
 	conv := binder.MakeConverter(reflect.TypeOf(example), schema)
-	rg.defaultParams = append(rg.defaultParams, &openapi.ParameterObject{
+	rg.defaultParams = append(rg.defaultParams, openapi.CloneParameterObject(&openapi.ParameterObject{
 		Name:        name,
 		In:          in,
 		Description: description,
@@ -192,7 +192,7 @@ func (rg *RouteGroup) WithParamErr(name, in, description string, example any, re
 		Schema:      schema,
 		Example:     example,
 		Converter:   conv,
-	})
+	}))
 	return rg, nil
 }
 
@@ -243,7 +243,7 @@ func (rg *RouteGroup) WithDescription(desc string) *RouteGroup {
 
 // WithSecurity adds a security requirement to the group defaults.
 func (rg *RouteGroup) WithSecurity(sec *openapi.SecurityRequirement) *RouteGroup {
-	rg.defaultSecurity = append(rg.defaultSecurity, sec)
+	rg.defaultSecurity = append(rg.defaultSecurity, openapi.CloneSecurityRequirement(sec))
 	return rg
 }
 

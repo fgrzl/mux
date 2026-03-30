@@ -430,6 +430,56 @@ func TestShouldNotLeakSpecStateWhenReusingGenerator(t *testing.T) {
 	assert.Equal(t, "Orders API", secondSpec.Info.Title)
 }
 
+func TestGenerateSpecFromRoutesShouldOwnInfoObject(t *testing.T) {
+	// Arrange
+	gen := NewGenerator()
+	info := &InfoObject{
+		Title:   "API",
+		Version: "1.0",
+		Contact: &ContactObject{Name: "Support"},
+		License: &LicenseObject{Name: "MIT"},
+		Extensions: map[string]any{
+			"x-meta": map[string]any{"env": "prod"},
+		},
+	}
+	routes := []RouteData{{
+		Path:   "/health",
+		Method: "GET",
+		Options: &Operation{
+			OperationID: "getHealth",
+			Responses:   map[string]*ResponseObject{"200": {Description: "OK"}},
+		},
+	}}
+
+	// Act
+	spec, err := gen.GenerateSpecFromRoutes(info, routes)
+
+	// Assert
+	require.NoError(t, err)
+	require.NotNil(t, spec)
+	require.NotNil(t, spec.Info)
+	info.Title = "Changed caller"
+	info.Contact.Name = "Changed caller contact"
+	info.License.Name = "Changed caller license"
+	info.Extensions["x-meta"].(map[string]any)["env"] = "dev"
+	assert.Equal(t, "API", spec.Info.Title)
+	assert.Equal(t, "Support", spec.Info.Contact.Name)
+	assert.Equal(t, "MIT", spec.Info.License.Name)
+	assert.Equal(t, "prod", spec.Info.Extensions["x-meta"].(map[string]any)["env"])
+
+	spec.Info.Title = "Changed spec"
+	spec.Info.Contact.Name = "Changed spec contact"
+	spec.Info.License.Name = "Changed spec license"
+	spec.Info.Extensions["x-meta"].(map[string]any)["env"] = "staging"
+	assert.Equal(t, "Changed caller", info.Title)
+	assert.Equal(t, "Changed caller contact", info.Contact.Name)
+	assert.Equal(t, "Changed caller license", info.License.Name)
+	assert.Equal(t, "dev", info.Extensions["x-meta"].(map[string]any)["env"])
+	assert.NotSame(t, info, spec.Info)
+	assert.NotSame(t, info.Contact, spec.Info.Contact)
+	assert.NotSame(t, info.License, spec.Info.License)
+}
+
 func TestShouldDisambiguateSanitizedComponentNameCollisions(t *testing.T) {
 	// Arrange
 	gen := NewGenerator()

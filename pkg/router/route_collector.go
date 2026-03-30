@@ -23,13 +23,10 @@ func collectRoutesFromNode(node *routing.RouteNode) ([]openapi.RouteData, error)
 			if method == "" {
 				return fmt.Errorf("empty method in route options at path %q", prefix)
 			}
-			// copy the embedded Operation from routing.RouteOptions into
-			// an openapi.Operation pointer for the generator
-			op := opt
 			routes = append(routes, openapi.RouteData{
 				Path:    cleanPath(prefix),
 				Method:  strings.ToUpper(method),
-				Options: &op.Operation,
+				Options: openapi.CloneOperation(&opt.Operation),
 			})
 		}
 		for seg, child := range n.Children {

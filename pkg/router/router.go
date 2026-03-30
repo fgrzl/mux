@@ -443,7 +443,10 @@ func (rtr *Router) buildPipeline(mw []Middleware) HandlerFunc {
 }
 
 func (rtr *Router) InfoObject() (*openapi.InfoObject, error) {
-	return rtr.options.openapi, nil
+	if rtr.options == nil {
+		return nil, nil
+	}
+	return openapi.CloneInfoObject(rtr.options.openapi), nil
 }
 
 // Routes returns a list of OpenAPI route metadata collected from the registry.

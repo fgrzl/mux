@@ -121,7 +121,7 @@ func (g *Generator) GenerateSpecFromRoutes(info *InfoObject, routes []RouteData)
 	g.componentNames = make(map[string]string)
 	g.componentKeys = make(map[string]string)
 	g.componentHashes = make(map[string]string)
-	g.spec.Info = info
+	g.spec.Info = CloneInfoObject(info)
 	g.ensureComponentInit()
 	// If includePrefixes is set, filter routes to those starting with any prefix.
 	if len(g.includePrefixes) > 0 {
@@ -304,28 +304,7 @@ func (g *Generator) prepareOperationForSpec(op *Operation) error {
 }
 
 func cloneOperationForSpec(op *Operation) *Operation {
-	if op == nil {
-		return nil
-	}
-
-	clone := *op
-	if len(op.Parameters) > 0 {
-		clone.Parameters = make([]*ParameterObject, 0, len(op.Parameters))
-		for _, param := range op.Parameters {
-			clone.Parameters = append(clone.Parameters, cloneParameterForSpec(param))
-		}
-	}
-	if op.RequestBody != nil {
-		clone.RequestBody = cloneRequestBodyForSpec(op.RequestBody)
-	}
-	if len(op.Responses) > 0 {
-		clone.Responses = make(map[string]*ResponseObject, len(op.Responses))
-		for code, resp := range op.Responses {
-			clone.Responses[code] = cloneResponseForSpec(resp)
-		}
-	}
-
-	return &clone
+	return CloneOperation(op)
 }
 
 func cloneParameterForSpec(param *ParameterObject) *ParameterObject {

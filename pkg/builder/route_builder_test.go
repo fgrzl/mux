@@ -26,6 +26,16 @@ const (
 	scopeAPIWrite   = "api:write"
 )
 
+type builderCloneNested struct {
+	Value string `json:"value"`
+}
+
+type builderClonePayload struct {
+	Name   *string             `json:"name"`
+	Nested *builderCloneNested `json:"nested"`
+	Tags   []string            `json:"tags"`
+}
+
 func TestShouldCreateRouteBuilder(t *testing.T) {
 	// Arrange & Act
 	builder := Route(http.MethodGet, pathUsers)
@@ -273,6 +283,33 @@ func TestShouldAddResponse(t *testing.T) {
 	assert.Equal(t, example, mediaType.Example)
 }
 
+func TestShouldOwnPointerBackedResponseExamplesOnRegistration(t *testing.T) {
+	// Arrange
+	builder := Route(http.MethodGet, pathUsers)
+	name := "stable"
+	example := &builderClonePayload{
+		Name:   &name,
+		Nested: &builderCloneNested{Value: "root"},
+		Tags:   []string{"one"},
+	}
+
+	// Act
+	result := builder.WithResponse(http.StatusOK, example)
+	stored := builder.Options.Responses["200"].Content[common.MimeJSON].Example.(*builderClonePayload)
+	*example.Name = "changed"
+	example.Nested.Value = "mutated"
+	example.Tags[0] = "two"
+
+	// Assert
+	assert.Equal(t, builder, result)
+	assert.NotSame(t, example, stored)
+	assert.NotSame(t, example.Name, stored.Name)
+	assert.NotSame(t, example.Nested, stored.Nested)
+	assert.Equal(t, "stable", *stored.Name)
+	assert.Equal(t, "root", stored.Nested.Value)
+	assert.Equal(t, []string{"one"}, stored.Tags)
+}
+
 func TestShouldAddStandardResponses(t *testing.T) {
 	// Arrange
 	builder := Route(http.MethodGet, pathUsers)
@@ -349,6 +386,62 @@ func TestShouldAddJsonBody(t *testing.T) {
 	mediaType := builder.Options.RequestBody.Content[common.MimeJSON]
 	assert.NotNil(t, mediaType)
 	assert.Equal(t, example, mediaType.Example)
+}
+
+func TestShouldOwnPointerBackedRequestBodyExamplesOnRegistration(t *testing.T) {
+	// Arrange
+	builder := Route(http.MethodPost, pathUsers)
+	name := "stable"
+	example := &builderClonePayload{
+		Name:   &name,
+		Nested: &builderCloneNested{Value: "root"},
+		Tags:   []string{"one"},
+	}
+
+	// Act
+	result := builder.WithJsonBody(example)
+	stored := builder.Options.RequestBody.Content[common.MimeJSON].Example.(*builderClonePayload)
+	*example.Name = "changed"
+	example.Nested.Value = "mutated"
+	example.Tags[0] = "two"
+
+	// Assert
+	assert.Equal(t, builder, result)
+	assert.NotSame(t, example, stored)
+	assert.NotSame(t, example.Name, stored.Name)
+	assert.NotSame(t, example.Nested, stored.Nested)
+	assert.Equal(t, "stable", *stored.Name)
+	assert.Equal(t, "root", stored.Nested.Value)
+	assert.Equal(t, []string{"one"}, stored.Tags)
+}
+
+func TestShouldOwnPointerBackedParameterExamplesOnRegistration(t *testing.T) {
+	// Arrange
+	builder := Route(http.MethodGet, pathUsers)
+	name := "stable"
+	example := &builderClonePayload{
+		Name:   &name,
+		Nested: &builderCloneNested{Value: "root"},
+		Tags:   []string{"one"},
+	}
+
+	// Act
+	result := builder.WithQueryParam("payload", "pointer-backed payload", example)
+	stored := builder.Options.Parameters[0].Example.(*builderClonePayload)
+	*example.Name = "changed"
+	example.Nested.Value = "mutated"
+	example.Tags[0] = "two"
+
+	// Assert
+	assert.Equal(t, builder, result)
+	require.Len(t, builder.Options.Parameters, 1)
+	assert.NotSame(t, example, stored)
+	assert.NotSame(t, example.Name, stored.Name)
+	assert.NotSame(t, example.Nested, stored.Nested)
+	assert.Equal(t, "stable", *stored.Name)
+	assert.Equal(t, "root", stored.Nested.Value)
+	assert.Equal(t, []string{"one"}, stored.Tags)
+	assert.NotNil(t, builder.Options.ParamIndex["query:payload"])
 }
 
 func TestShouldAddFormBody(t *testing.T) {
@@ -446,14 +539,17 @@ func TestShouldSetExternalDocs(t *testing.T) {
 func TestShouldAddSecurity(t *testing.T) {
 	// Arrange
 	builder := Route(http.MethodGet, pathUsers)
-	security := &openapi.SecurityRequirement{}
+	security := &openapi.SecurityRequirement{"oauth2": []string{"read"}}
 
 	// Act
 	result := builder.WithSecurity(security)
+	stored := builder.Options.Security[0]
+	(*security)["oauth2"].([]string)[0] = "write"
 
 	// Assert
 	require.Len(t, builder.Options.Security, 1)
-	assert.Equal(t, security, builder.Options.Security[0])
+	assert.NotSame(t, security, stored)
+	assert.Equal(t, []string{"read"}, (*stored)["oauth2"].([]string))
 	assert.Equal(t, builder, result)
 }
 
@@ -591,6 +687,67 @@ func TestRegisterSchemaShouldAddCustomSchema(t *testing.T) {
 	schema, err := QuickSchema(typ)
 	require.NoError(t, err)
 	assert.Equal(t, customSchema, schema)
+	assert.NotSame(t, customSchema, schema)
+}
+
+func TestRegisterSchemaShouldOwnProvidedSchema(t *testing.T) {
+	// Arrange
+	type CustomType struct{}
+	typ := reflect.TypeOf(CustomType{})
+	customSchema := &openapi.Schema{Type: "object", Properties: map[string]*openapi.Schema{"name": {Type: "string"}}}
+	RegisterSchema(typ, customSchema)
+	t.Cleanup(func() {
+		RemoveSchema(typ)
+	})
+
+	// Act
+	customSchema.Properties["name"].Type = "integer"
+	schema, err := QuickSchema(typ)
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, "string", schema.Properties["name"].Type)
+}
+
+func TestQuickSchemaShouldReturnIndependentCopiesForKnownSchemas(t *testing.T) {
+	// Act
+	first, err := QuickSchema(reflect.TypeOf(uuid.UUID{}))
+	require.NoError(t, err)
+	first.Format = "changed"
+	second, err := QuickSchema(reflect.TypeOf(uuid.UUID{}))
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, "uuid", second.Format)
+	assert.NotSame(t, first, second)
+}
+
+func TestWithOneOfJsonBodyShouldNotMutateRegisteredSchemas(t *testing.T) {
+	// Arrange
+	type CustomType struct {
+		Name string `json:"name"`
+	}
+	typ := reflect.TypeOf(CustomType{})
+	registered := &openapi.Schema{Ref: "#/components/schemas/CustomType"}
+	RegisterSchema(typ, registered)
+	t.Cleanup(func() {
+		RemoveSchema(typ)
+	})
+
+	// Act
+	rb := Route(http.MethodPost, "/customs").WithOneOfJsonBody(CustomType{Name: "alpha"})
+	storedSchema := rb.Options.RequestBody.Content[common.MimeJSON].Schema.OneOf[0]
+	fresh, err := QuickSchema(typ)
+
+	// Assert
+	require.NoError(t, err)
+	require.NotNil(t, storedSchema)
+	assert.Equal(t, "#/components/schemas/CustomType", storedSchema.Ref)
+	assert.Equal(t, CustomType{Name: "alpha"}, storedSchema.Example)
+	assert.Nil(t, registered.Example)
+	assert.Nil(t, fresh.Example)
+	assert.NotSame(t, registered, storedSchema)
+	assert.NotSame(t, storedSchema, fresh)
 }
 
 func TestShouldChainFluentMethods(t *testing.T) {

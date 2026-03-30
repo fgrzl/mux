@@ -2,6 +2,24 @@ package openapi
 
 import "reflect"
 
+func CloneInfoObject(info *InfoObject) *InfoObject {
+	if info == nil {
+		return nil
+	}
+
+	cloned, _ := cloneValue(info).(*InfoObject)
+	return cloned
+}
+
+func CloneOperation(op *Operation) *Operation {
+	if op == nil {
+		return nil
+	}
+
+	cloned, _ := cloneValue(op).(*Operation)
+	return cloned
+}
+
 func CloneParameterObject(param *ParameterObject) *ParameterObject {
 	if param == nil {
 		return nil

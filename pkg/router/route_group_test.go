@@ -268,6 +268,51 @@ func TestShouldKeepRegisteredRouteParametersIndependentFromGroupDefaults(t *test
 	assert.Equal(t, "string", adminsRoute.Options.Operation.Parameters[0].Schema.Items.Type)
 }
 
+func TestShouldOwnPointerBackedExamplesWhenAddingGroupDefaults(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+	api := rtr.NewRouteGroup("/api")
+	name := "stable"
+	example := &routeGroupClonePayload{
+		Name:   &name,
+		Nested: &routeGroupCloneNested{Value: "root"},
+		Tags:   []string{"one"},
+	}
+
+	// Act
+	api.WithQueryParam("payload", "pointer-backed payload", example)
+	stored := api.defaultParams[0].Example.(*routeGroupClonePayload)
+	*example.Name = "changed"
+	example.Nested.Value = "mutated"
+	example.Tags[0] = "two"
+
+	// Assert
+	require.Len(t, api.defaultParams, 1)
+	assert.NotSame(t, example, stored)
+	assert.NotSame(t, example.Name, stored.Name)
+	assert.NotSame(t, example.Nested, stored.Nested)
+	assert.Equal(t, "stable", *stored.Name)
+	assert.Equal(t, "root", stored.Nested.Value)
+	assert.Equal(t, []string{"one"}, stored.Tags)
+}
+
+func TestShouldOwnSecurityRequirementsWhenAddingGroupDefaults(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+	api := rtr.NewRouteGroup("/api")
+	security := &openapi.SecurityRequirement{"oauth2": []string{"read"}}
+
+	// Act
+	api.WithSecurity(security)
+	stored := api.defaultSecurity[0]
+	(*security)["oauth2"].([]string)[0] = "write"
+
+	// Assert
+	require.Len(t, api.defaultSecurity, 1)
+	assert.NotSame(t, security, stored)
+	assert.Equal(t, []string{"read"}, (*stored)["oauth2"].([]string))
+}
+
 func TestShouldDeepCopySecurityRequirementsWhenCreatingNestedRouteGroups(t *testing.T) {
 	// Arrange
 	rtr := NewRouter()

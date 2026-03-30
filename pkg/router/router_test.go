@@ -4,10 +4,22 @@ import (
 	"net/http"
 	"testing"
 
+	openapi "github.com/fgrzl/mux/pkg/openapi"
 	"github.com/fgrzl/mux/pkg/routing"
 	"github.com/fgrzl/mux/test/testhelpers"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+type routerCloneNested struct {
+	Value string `json:"value"`
+}
+
+type routerClonePayload struct {
+	Name   *string            `json:"name"`
+	Nested *routerCloneNested `json:"nested"`
+	Tags   []string           `json:"tags"`
+}
 
 func TestShouldCreateNewRouterWithDefaultOptions(t *testing.T) {
 	// Arrange & Act
@@ -34,6 +46,33 @@ func TestShouldCreateNewRouterWithOptions(t *testing.T) {
 	assert.NotNil(t, rtr.options.openapi)
 	assert.Equal(t, title, rtr.options.openapi.Title)
 	assert.Equal(t, version, rtr.options.openapi.Version)
+}
+
+func TestInfoObjectShouldReturnIndependentCopy(t *testing.T) {
+	// Arrange
+	rtr := NewRouter(
+		WithTitle("Test API"),
+		WithVersion("1.0.0"),
+		WithContact("Support", "https://example.com", "support@example.com"),
+		WithLicense("MIT", "https://example.com/license"),
+	)
+
+	// Act
+	info, err := rtr.InfoObject()
+	require.NoError(t, err)
+	info.Title = "Changed"
+	info.Contact.Name = "Changed Contact"
+	info.License.Name = "Changed License"
+	fresh, err := rtr.InfoObject()
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, "Test API", fresh.Title)
+	assert.Equal(t, "Support", fresh.Contact.Name)
+	assert.Equal(t, "MIT", fresh.License.Name)
+	assert.NotSame(t, info, fresh)
+	assert.NotSame(t, info.Contact, fresh.Contact)
+	assert.NotSame(t, info.License, fresh.License)
 }
 
 func TestShouldCreateNewRouteGroupWithPrefix(t *testing.T) {
@@ -79,6 +118,56 @@ func TestShouldServeHTTPAndCallRegisteredHandler(t *testing.T) {
 	// Assert
 	assert.True(t, called)
 	assert.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestRoutesShouldReturnIndependentOperationCopies(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+	name := "stable"
+	example := &routerClonePayload{
+		Name:   &name,
+		Nested: &routerCloneNested{Value: "root"},
+		Tags:   []string{"one"},
+	}
+	security := &openapi.SecurityRequirement{"oauth2": []string{"read"}}
+	rtr.GET("/users", func(c routing.RouteContext) {
+		c.OK("users")
+	}).
+		WithTags("users").
+		WithExternalDocs("https://example.com/docs", "User docs").
+		WithSecurity(security).
+		WithQueryParam("payload", "pointer-backed payload", example)
+
+	// Act
+	routes, err := rtr.Routes()
+	require.NoError(t, err)
+	require.Len(t, routes, 1)
+	returned := routes[0].Options
+	returned.Tags[0] = "admins"
+	returned.ExternalDocs.Description = "Changed docs"
+	returned.Security[0] = &openapi.SecurityRequirement{"oauth2": []string{"write"}}
+	returnedExample := returned.Parameters[0].Example.(*routerClonePayload)
+	*returnedExample.Name = "changed"
+	returnedExample.Nested.Value = "mutated"
+	returnedExample.Tags[0] = "two"
+	freshRoutes, err := rtr.Routes()
+
+	// Assert
+	require.NoError(t, err)
+	require.Len(t, freshRoutes, 1)
+	fresh := freshRoutes[0].Options
+	assert.Equal(t, []string{"users"}, fresh.Tags)
+	assert.Equal(t, "User docs", fresh.ExternalDocs.Description)
+	assert.Equal(t, []string{"read"}, (*fresh.Security[0])["oauth2"].([]string))
+	freshExample := fresh.Parameters[0].Example.(*routerClonePayload)
+	assert.Equal(t, "stable", *freshExample.Name)
+	assert.Equal(t, "root", freshExample.Nested.Value)
+	assert.Equal(t, []string{"one"}, freshExample.Tags)
+	assert.NotSame(t, returned, fresh)
+	assert.NotSame(t, returned.ExternalDocs, fresh.ExternalDocs)
+	assert.NotSame(t, returned.Parameters[0], fresh.Parameters[0])
+	assert.NotSame(t, returnedExample, freshExample)
+	assert.NotSame(t, returned.Security[0], fresh.Security[0])
 }
 
 func TestShouldServeHTTPWithMiddleware(t *testing.T) {

@@ -215,7 +215,7 @@ func (rb *RouteBuilder) WithParamErr(name, in, description string, example any, 
 	}
 
 	conv := binder.MakeConverter(reflect.TypeOf(example), schema)
-	rb.Options.Parameters = append(rb.Options.Parameters, &openapi.ParameterObject{
+	rb.Options.Parameters = append(rb.Options.Parameters, openapi.CloneParameterObject(&openapi.ParameterObject{
 		Name:        name,
 		In:          in,
 		Description: description,
@@ -223,7 +223,7 @@ func (rb *RouteBuilder) WithParamErr(name, in, description string, example any, 
 		Schema:      schema,
 		Example:     example,
 		Converter:   conv,
-	})
+	}))
 	rb.Options.ParamIndex = routing.BuildParamIndex(rb.Options.Parameters)
 	return rb, nil
 }
@@ -253,7 +253,7 @@ func (rb *RouteBuilder) WithResponseErr(code int, example any) (*RouteBuilder, e
 			common.MimeJSON: {Schema: schema, Example: example},
 		}
 	}
-	rb.Options.Responses[fmt.Sprintf("%d", code)] = resp
+	rb.Options.Responses[fmt.Sprintf("%d", code)] = openapi.CloneResponseObject(resp)
 	return rb, nil
 }
 
@@ -507,10 +507,10 @@ func (rb *RouteBuilder) withBodyErr(example any, ctype string) (*RouteBuilder, e
 	if err != nil {
 		return rb, err
 	}
-	rb.Options.RequestBody = &openapi.RequestBodyObject{
+	rb.Options.RequestBody = openapi.CloneRequestBodyObject(&openapi.RequestBodyObject{
 		Content:  map[string]*openapi.MediaType{ctype: {Schema: schema, Example: example}},
 		Required: true,
-	}
+	})
 	return rb, nil
 }
 
@@ -571,10 +571,10 @@ func (rb *RouteBuilder) withCompositeBodyErr(examples []any, ctype string, compo
 		}
 	}
 
-	rb.Options.RequestBody = &openapi.RequestBodyObject{
+	rb.Options.RequestBody = openapi.CloneRequestBodyObject(&openapi.RequestBodyObject{
 		Content:  map[string]*openapi.MediaType{ctype: {Schema: compositeSchema, Example: exampleValue}},
 		Required: true,
-	}
+	})
 	return rb, nil
 }
 
@@ -610,7 +610,7 @@ func (rb *RouteBuilder) WithSecurity(sec *openapi.SecurityRequirement) *RouteBui
 	if rb.Options.Security == nil {
 		rb.Options.Security = []*openapi.SecurityRequirement{}
 	}
-	rb.Options.Security = append(rb.Options.Security, sec)
+	rb.Options.Security = append(rb.Options.Security, openapi.CloneSecurityRequirement(sec))
 	return rb
 }
 
@@ -715,7 +715,7 @@ func RegisterSchema(t reflect.Type, schema *openapi.Schema) {
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
-	knownSchemas[t] = schema
+	knownSchemas[t] = openapi.CloneSchema(schema)
 }
 
 // RemoveSchema removes a schema from the knownSchemas registry (for test cleanup).
@@ -731,7 +731,10 @@ func lookupKnownSchema(t reflect.Type) (*openapi.Schema, bool) {
 		t = t.Elem()
 	}
 	schema, ok := knownSchemas[t]
-	return schema, ok
+	if !ok {
+		return nil, false
+	}
+	return openapi.CloneSchema(schema), true
 }
 
 // generateInlineStructSchema creates an inline schema for anonymous structs
