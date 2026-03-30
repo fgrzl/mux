@@ -53,6 +53,21 @@ func main() {
 }
 ```
 
+If you want to keep standard-library handlers while adopting Mux incrementally, use `Handle` or `HandleFunc`:
+
+```go
+router.HandleFunc(http.MethodGet, "/healthz", func(w http.ResponseWriter, r *http.Request) {
+    routeCtx, ok := mux.RouteContextFromRequest(r)
+    if ok {
+        if traceID := r.Context().Value("traceID"); traceID != nil {
+            _ = traceID
+        }
+        _, _ = routeCtx.GetService("db")
+    }
+    w.WriteHeader(http.StatusNoContent)
+})
+```
+
 ## What you get
 
 - **One model** for routing, binding, validation, and OpenAPI generation

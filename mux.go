@@ -49,6 +49,15 @@ type HandlerFunc = routing.HandlerFunc
 // RouteContext is the request-scoped context passed to handlers.
 type RouteContext = routing.RouteContext
 
+// HTTPHandler adapts a standard-library http.Handler into a mux handler.
+var HTTPHandler = routing.HTTPHandler
+
+// HTTPHandlerFunc adapts a standard-library http.HandlerFunc into a mux handler.
+var HTTPHandlerFunc = routing.HTTPHandlerFunc
+
+// RouteContextFromRequest extracts the active RouteContext from an HTTP request.
+var RouteContextFromRequest = routing.RouteContextFromRequest
+
 // ClearCookieWithOptions deletes a cookie using explicit path/domain options.
 // Alias of routing.ClearCookieWithOptions.
 var ClearCookieWithOptions = routing.ClearCookieWithOptions

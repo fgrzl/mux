@@ -404,6 +404,7 @@ func (rg *RouteGroup) NewRouteGroup(prefix string) *RouteGroup {
 
 // registerRoute registers a route with all group-level defaults applied.
 func (rg *RouteGroup) registerRoute(method, pattern string, handler routing.HandlerFunc) *builder.RouteBuilder {
+	method = strings.ToUpper(method)
 	pattern = normalizeRoute(pattern, rg.prefix)
 
 	op := openapi.Operation{
@@ -453,6 +454,16 @@ func (rg *RouteGroup) registerRoute(method, pattern string, handler routing.Hand
 }
 
 // ---- Route Methods ----
+
+// Handle registers a route using a standard-library http.Handler.
+func (rg *RouteGroup) Handle(method, pattern string, handler http.Handler) *builder.RouteBuilder {
+	return rg.registerRoute(method, pattern, routing.HTTPHandler(handler))
+}
+
+// HandleFunc registers a route using a standard-library http.HandlerFunc.
+func (rg *RouteGroup) HandleFunc(method, pattern string, handler http.HandlerFunc) *builder.RouteBuilder {
+	return rg.registerRoute(method, pattern, routing.HTTPHandlerFunc(handler))
+}
 
 // GET registers a GET route with group defaults.
 func (rg *RouteGroup) GET(pattern string, handler routing.HandlerFunc) *builder.RouteBuilder {

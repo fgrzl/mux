@@ -57,6 +57,8 @@ func main() {
 
 `Safe()` lets startup configuration accumulate validation errors so `Err()` can fail before the server accepts traffic.
 
+If you are migrating existing `net/http` code, `Handle` and `HandleFunc` let you keep standard-library handlers and only opt into `mux.RouteContextFromRequest(r)` when you need route params, scoped services, or other framework features.
+
 ## Step 3: Run and Test
 
 ```bash

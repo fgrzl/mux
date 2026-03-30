@@ -45,6 +45,21 @@ func TestShouldCreateNewRouteContext(t *testing.T) {
 	assert.Nil(t, ctx.services)
 }
 
+func TestShouldReturnRouteContextFromRequest(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	rec := httptest.NewRecorder()
+	ctx := NewRouteContext(rec, req)
+	ctx.SetRequest(ctx.Request())
+
+	// Act
+	routeCtx, ok := RouteContextFromRequest(ctx.Request())
+
+	// Assert
+	assert.True(t, ok)
+	assert.Same(t, ctx, routeCtx)
+}
+
 func TestShouldSetAndGetService(t *testing.T) {
 	// Arrange
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)

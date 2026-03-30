@@ -361,7 +361,6 @@ func Detach(c RouteContext) *DefaultRouteContext {
 		if reqClone.Body != nil {
 			reqClone.Body = http.NoBody
 		}
-		baseCtx = reqClone.Context()
 	}
 	clone := &DefaultRouteContext{
 		Context:           baseCtx,
@@ -451,10 +450,7 @@ func (c *DefaultRouteContext) Request() *http.Request {
 
 // SetRequest replaces the current request and updates the embedded context.
 func (c *DefaultRouteContext) SetRequest(r *http.Request) {
-	c.request = r
-	if r != nil {
-		c.Context = r.Context()
-	}
+	c.request, c.Context = bindRouteContextToRequest(r, c)
 }
 
 func (c *DefaultRouteContext) Options() *RouteOptions {

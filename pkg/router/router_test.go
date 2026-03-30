@@ -120,6 +120,42 @@ func TestShouldServeHTTPAndCallRegisteredHandler(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
+func TestShouldServeHTTPAndCallRegisteredStdlibHandlerFunc(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+	called := false
+	api := rtr.NewRouteGroup("/api")
+	api.WithService(routing.ServiceKey("db"), "primary")
+	api.Use(&testMiddleware{
+		invoke: func(c routing.RouteContext, next HandlerFunc) {
+			c.SetContextValue("middleware", "hit")
+			next(c)
+		},
+	})
+	api.HandleFunc(http.MethodGet, "/users/{id}", func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		routeCtx, ok := routing.RouteContextFromRequest(r)
+		require.True(t, ok)
+		id, ok := routeCtx.Param("id")
+		require.True(t, ok)
+		assert.Equal(t, "42", id)
+		service, ok := routeCtx.GetService(routing.ServiceKey("db"))
+		require.True(t, ok)
+		assert.Equal(t, "primary", service)
+		assert.Equal(t, "hit", r.Context().Value("middleware"))
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	req, rec := testhelpers.NewRequestRecorder(http.MethodGet, "/api/users/42", nil)
+
+	// Act
+	rtr.ServeHTTP(rec, req)
+
+	// Assert
+	assert.True(t, called)
+	assert.Equal(t, http.StatusNoContent, rec.Code)
+}
+
 func TestRoutesShouldReturnIndependentOperationCopies(t *testing.T) {
 	// Arrange
 	rtr := NewRouter()
