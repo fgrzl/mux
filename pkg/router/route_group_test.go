@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	openapi "github.com/fgrzl/mux/pkg/openapi"
 	"github.com/fgrzl/mux/pkg/routing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -201,4 +202,104 @@ func TestShouldPanicWhenUsingInvalidParameterLocationOnRouteGroup(t *testing.T) 
 	assert.PanicsWithValue(t, "invalid parameter 'in': \"matrix\"", func() {
 		api.WithParam("id", "matrix", "user identifier", "123", false)
 	})
+}
+
+func TestShouldDeepCopyParametersWhenCreatingNestedRouteGroups(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+	api := rtr.NewRouteGroup("/api")
+	api.WithQueryParam("versions", "supported versions", []string{"v1"})
+
+	// Act
+	v1 := api.NewRouteGroup("/v1")
+	childParam := v1.defaultParams[0]
+	childParam.Schema.Items.Type = "integer"
+	childExample := childParam.Example.([]string)
+	childExample[0] = "v2"
+
+	// Assert
+	require.Len(t, api.defaultParams, 1)
+	require.Len(t, v1.defaultParams, 1)
+	assert.NotSame(t, api.defaultParams[0], childParam)
+	assert.NotSame(t, api.defaultParams[0].Schema, childParam.Schema)
+	assert.NotSame(t, api.defaultParams[0].Schema.Items, childParam.Schema.Items)
+	assert.Equal(t, []string{"v1"}, api.defaultParams[0].Example.([]string))
+	assert.Equal(t, "string", api.defaultParams[0].Schema.Items.Type)
+	assert.Equal(t, []string{"v2"}, childParam.Example.([]string))
+	assert.Equal(t, "integer", childParam.Schema.Items.Type)
+}
+
+func TestShouldKeepRegisteredRouteParametersIndependentFromGroupDefaults(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+	api := rtr.NewRouteGroup("/api")
+	api.WithQueryParam("versions", "supported versions", []string{"v1"})
+
+	// Act
+	usersRoute := api.GET("/users", func(c routing.RouteContext) {
+		c.OK("users")
+	})
+	usersParam := usersRoute.Options.Operation.Parameters[0]
+	usersParam.Schema.Items.Type = "integer"
+	usersExample := usersParam.Example.([]string)
+	usersExample[0] = "v2"
+	adminsRoute := api.GET("/admins", func(c routing.RouteContext) {
+		c.OK("admins")
+	})
+
+	// Assert
+	require.Len(t, api.defaultParams, 1)
+	require.Len(t, usersRoute.Options.Operation.Parameters, 1)
+	require.Len(t, adminsRoute.Options.Operation.Parameters, 1)
+	assert.NotSame(t, api.defaultParams[0], usersParam)
+	assert.Equal(t, []string{"v1"}, api.defaultParams[0].Example.([]string))
+	assert.Equal(t, "string", api.defaultParams[0].Schema.Items.Type)
+	assert.Equal(t, []string{"v1"}, adminsRoute.Options.Operation.Parameters[0].Example.([]string))
+	assert.Equal(t, "string", adminsRoute.Options.Operation.Parameters[0].Schema.Items.Type)
+}
+
+func TestShouldDeepCopySecurityRequirementsWhenCreatingNestedRouteGroups(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+	api := rtr.NewRouteGroup("/api")
+	api.WithSecurity(&openapi.SecurityRequirement{"oauth2": []string{"read"}})
+
+	// Act
+	v1 := api.NewRouteGroup("/v1")
+	childSecurity := v1.defaultSecurity[0]
+	childScopes := (*childSecurity)["oauth2"].([]string)
+	childScopes[0] = "write"
+
+	// Assert
+	require.Len(t, api.defaultSecurity, 1)
+	require.Len(t, v1.defaultSecurity, 1)
+	assert.NotSame(t, api.defaultSecurity[0], childSecurity)
+	assert.Equal(t, []string{"read"}, (*api.defaultSecurity[0])["oauth2"].([]string))
+	assert.Equal(t, []string{"write"}, (*childSecurity)["oauth2"].([]string))
+}
+
+func TestShouldKeepRegisteredRouteSecurityIndependentFromGroupDefaults(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+	api := rtr.NewRouteGroup("/api")
+	api.WithSecurity(&openapi.SecurityRequirement{"oauth2": []string{"read"}})
+
+	// Act
+	usersRoute := api.GET("/users", func(c routing.RouteContext) {
+		c.OK("users")
+	})
+	usersSecurity := usersRoute.Options.Operation.Security[0]
+	usersScopes := (*usersSecurity)["oauth2"].([]string)
+	usersScopes[0] = "write"
+	adminsRoute := api.GET("/admins", func(c routing.RouteContext) {
+		c.OK("admins")
+	})
+
+	// Assert
+	require.Len(t, api.defaultSecurity, 1)
+	require.Len(t, usersRoute.Options.Operation.Security, 1)
+	require.Len(t, adminsRoute.Options.Operation.Security, 1)
+	assert.NotSame(t, api.defaultSecurity[0], usersSecurity)
+	assert.Equal(t, []string{"read"}, (*api.defaultSecurity[0])["oauth2"].([]string))
+	assert.Equal(t, []string{"read"}, (*adminsRoute.Options.Operation.Security[0])["oauth2"].([]string))
 }

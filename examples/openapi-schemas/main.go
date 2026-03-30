@@ -33,29 +33,9 @@ type Product struct {
 func main() {
 	router := mux.NewRouter()
 
-	// Define the API routes
-	router.POST("/users", createUser).
-		WithOperationID("createUser").
-		WithSummary("Create a new user").
-		WithDescription("Creates a new user account with the provided information").
-		WithJsonBody(User{}).
-		WithCreatedResponse(User{}).
-		WithTags("Users")
-
-	router.GET("/users/{id}", getUser).
-		WithOperationID("getUser").
-		WithSummary("Get user by ID").
-		WithPathParam("id", "The unique identifier of the user", "user-123").
-		WithOKResponse(User{}).
-		WithNotFoundResponse().
-		WithTags("Users")
-
-	router.POST("/products", createProduct).
-		WithOperationID("createProduct").
-		WithSummary("Create a new product").
-		WithJsonBody(Product{}).
-		WithCreatedResponse(Product{}).
-		WithTags("Products")
+	if err := registerRoutes(router); err != nil {
+		log.Fatalf("Failed to configure routes: %v", err)
+	}
 
 	// Generate OpenAPI specification
 	info := &openapi.InfoObject{
@@ -93,6 +73,56 @@ func main() {
 
 	// Display a sample of the generated schema
 	displaySchemaExample(spec)
+}
+
+func registerRoutes(router *mux.Router) error {
+	createUserRoute := router.POST("/users", createUser)
+	if _, err := createUserRoute.WithOperationIDErr("createUser"); err != nil {
+		return err
+	}
+	createUserRoute.
+		WithSummary("Create a new user").
+		WithDescription("Creates a new user account with the provided information").
+		WithTags("Users")
+	if _, err := createUserRoute.WithJsonBodyErr(User{}); err != nil {
+		return err
+	}
+	if _, err := createUserRoute.WithCreatedResponseErr(User{}); err != nil {
+		return err
+	}
+
+	getUserRoute := router.GET("/users/{id}", getUser)
+	if _, err := getUserRoute.WithOperationIDErr("getUser"); err != nil {
+		return err
+	}
+	getUserRoute.
+		WithSummary("Get user by ID").
+		WithTags("Users")
+	if _, err := getUserRoute.WithPathParamErr("id", "The unique identifier of the user", "user-123"); err != nil {
+		return err
+	}
+	if _, err := getUserRoute.WithOKResponseErr(User{}); err != nil {
+		return err
+	}
+	if _, err := getUserRoute.WithNotFoundResponseErr(); err != nil {
+		return err
+	}
+
+	createProductRoute := router.POST("/products", createProduct)
+	if _, err := createProductRoute.WithOperationIDErr("createProduct"); err != nil {
+		return err
+	}
+	createProductRoute.
+		WithSummary("Create a new product").
+		WithTags("Products")
+	if _, err := createProductRoute.WithJsonBodyErr(Product{}); err != nil {
+		return err
+	}
+	if _, err := createProductRoute.WithCreatedResponseErr(Product{}); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // enhanceUserSchema adds detailed descriptions to the User schema properties

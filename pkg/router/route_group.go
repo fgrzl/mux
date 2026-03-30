@@ -70,6 +70,11 @@ func (rg *RouteGroup) WithPathParam(name, description string, example any) *Rout
 	return rg.WithParam(name, "path", description, example, true)
 }
 
+// WithPathParamErr adds a required path parameter without panicking on validation failures.
+func (rg *RouteGroup) WithPathParamErr(name, description string, example any) (*RouteGroup, error) {
+	return rg.WithParamErr(name, "path", description, example, true)
+}
+
 // WithQueryParam adds an optional query parameter to all routes in this group.
 //
 // Parameters:
@@ -82,6 +87,11 @@ func (rg *RouteGroup) WithPathParam(name, description string, example any) *Rout
 // Query parameters added via this method are marked as optional in the OpenAPI spec.
 func (rg *RouteGroup) WithQueryParam(name, description string, example any) *RouteGroup {
 	return rg.WithParam(name, "query", description, example, false)
+}
+
+// WithQueryParamErr adds an optional query parameter without panicking on validation failures.
+func (rg *RouteGroup) WithQueryParamErr(name, description string, example any) (*RouteGroup, error) {
+	return rg.WithParamErr(name, "query", description, example, false)
 }
 
 // WithRequiredQueryParam adds a required query parameter to all routes in this group.
@@ -98,6 +108,11 @@ func (rg *RouteGroup) WithRequiredQueryParam(name, description string, example a
 	return rg.WithParam(name, "query", description, example, true)
 }
 
+// WithRequiredQueryParamErr adds a required query parameter without panicking on validation failures.
+func (rg *RouteGroup) WithRequiredQueryParamErr(name, description string, example any) (*RouteGroup, error) {
+	return rg.WithParamErr(name, "query", description, example, true)
+}
+
 // WithHeaderParam adds a header parameter to all routes in this group.
 //
 // Parameters:
@@ -110,6 +125,11 @@ func (rg *RouteGroup) WithRequiredQueryParam(name, description string, example a
 //     if false, it's marked as optional.
 func (rg *RouteGroup) WithHeaderParam(name, description string, example any, required bool) *RouteGroup {
 	return rg.WithParam(name, "header", description, example, required)
+}
+
+// WithHeaderParamErr adds a header parameter without panicking on validation failures.
+func (rg *RouteGroup) WithHeaderParamErr(name, description string, example any, required bool) (*RouteGroup, error) {
+	return rg.WithParamErr(name, "header", description, example, required)
 }
 
 // WithCookieParam adds a cookie parameter to all routes in this group.
@@ -126,6 +146,11 @@ func (rg *RouteGroup) WithCookieParam(name, description string, example any, req
 	return rg.WithParam(name, "cookie", description, example, required)
 }
 
+// WithCookieParamErr adds a cookie parameter without panicking on validation failures.
+func (rg *RouteGroup) WithCookieParamErr(name, description string, example any, required bool) (*RouteGroup, error) {
+	return rg.WithParamErr(name, "cookie", description, example, required)
+}
+
 // WithParam adds a parameter of any type/location to all routes in this group.
 // This is a low-level method; prefer using WithPathParam, WithQueryParam, etc. for better type safety.
 //
@@ -139,16 +164,24 @@ func (rg *RouteGroup) WithCookieParam(name, description string, example any, req
 //   - required: If true, the parameter is marked as required in the OpenAPI spec;
 //     if false, it's marked as optional. Note: path parameters are always required regardless of this value.
 func (rg *RouteGroup) WithParam(name, in, description string, example any, required bool) *RouteGroup {
+	if _, err := rg.WithParamErr(name, in, description, example, required); err != nil {
+		panic(err.Error())
+	}
+	return rg
+}
+
+// WithParamErr adds a parameter without panicking on validation failures.
+func (rg *RouteGroup) WithParamErr(name, in, description string, example any, required bool) (*RouteGroup, error) {
 	if name == "" || in == "" {
-		panic("parameter name and 'in' cannot be empty")
+		return rg, fmt.Errorf("parameter name and 'in' cannot be empty")
 	}
 	if !isValidGroupParameterIn(in) {
-		panic(fmt.Sprintf("invalid parameter 'in': %q", in))
+		return rg, fmt.Errorf("invalid parameter 'in': %q", in)
 	}
 
 	schema, err := builder.QuickSchema(reflect.TypeOf(example))
 	if err != nil {
-		panic(err)
+		return rg, err
 	}
 	conv := binder.MakeConverter(reflect.TypeOf(example), schema)
 	rg.defaultParams = append(rg.defaultParams, &openapi.ParameterObject{
@@ -160,7 +193,7 @@ func (rg *RouteGroup) WithParam(name, in, description string, example any, requi
 		Example:     example,
 		Converter:   conv,
 	})
-	return rg
+	return rg, nil
 }
 
 func isValidGroupParameterIn(in string) bool {
@@ -230,12 +263,22 @@ func (rg *RouteGroup) Deprecated() *RouteGroup {
 
 // copyDefaults copies all default settings from source to target RouteGroup.
 func (target *RouteGroup) copyDefaults(source *RouteGroup) {
-	target.defaultParams = slices.Clone(source.defaultParams)
+	if len(source.defaultParams) > 0 {
+		target.defaultParams = make([]*openapi.ParameterObject, len(source.defaultParams))
+		for index, param := range source.defaultParams {
+			target.defaultParams[index] = openapi.CloneParameterObject(param)
+		}
+	}
 	target.defaultRoles = slices.Clone(source.defaultRoles)
 	target.defaultScopes = slices.Clone(source.defaultScopes)
 	target.defaultPermissions = slices.Clone(source.defaultPermissions)
 	target.defaultTags = slices.Clone(source.defaultTags)
-	target.defaultSecurity = slices.Clone(source.defaultSecurity)
+	if len(source.defaultSecurity) > 0 {
+		target.defaultSecurity = make([]*openapi.SecurityRequirement, len(source.defaultSecurity))
+		for index, sec := range source.defaultSecurity {
+			target.defaultSecurity[index] = openapi.CloneSecurityRequirement(sec)
+		}
+	}
 	target.defaultSummary = source.defaultSummary
 	target.defaultDescription = source.defaultDescription
 	target.defaultAllowAnon = source.defaultAllowAnon
@@ -282,10 +325,16 @@ func (rg *RouteGroup) registerRoute(method, pattern string, handler routing.Hand
 		op.Tags = slices.Clone(rg.defaultTags)
 	}
 	if len(rg.defaultSecurity) > 0 {
-		op.Security = slices.Clone(rg.defaultSecurity)
+		op.Security = make([]*openapi.SecurityRequirement, len(rg.defaultSecurity))
+		for index, sec := range rg.defaultSecurity {
+			op.Security[index] = openapi.CloneSecurityRequirement(sec)
+		}
 	}
 	if len(rg.defaultParams) > 0 {
-		op.Parameters = slices.Clone(rg.defaultParams)
+		op.Parameters = make([]*openapi.ParameterObject, len(rg.defaultParams))
+		for index, param := range rg.defaultParams {
+			op.Parameters[index] = openapi.CloneParameterObject(param)
+		}
 	}
 
 	options := &routing.RouteOptions{

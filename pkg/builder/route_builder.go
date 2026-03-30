@@ -98,6 +98,11 @@ func (rb *RouteBuilder) WithPathParam(name, description string, example any) *Ro
 	return rb.WithParam(name, "path", description, example, true)
 }
 
+// WithPathParamErr adds a required path parameter without panicking on validation failures.
+func (rb *RouteBuilder) WithPathParamErr(name, description string, example any) (*RouteBuilder, error) {
+	return rb.WithParamErr(name, "path", description, example, true)
+}
+
 // WithQueryParam adds an optional query parameter to this route.
 //
 // Parameters:
@@ -110,6 +115,11 @@ func (rb *RouteBuilder) WithPathParam(name, description string, example any) *Ro
 // Query parameters added via this method are marked as optional in the OpenAPI spec.
 func (rb *RouteBuilder) WithQueryParam(name, description string, example any) *RouteBuilder {
 	return rb.WithParam(name, "query", description, example, false)
+}
+
+// WithQueryParamErr adds an optional query parameter without panicking on validation failures.
+func (rb *RouteBuilder) WithQueryParamErr(name, description string, example any) (*RouteBuilder, error) {
+	return rb.WithParamErr(name, "query", description, example, false)
 }
 
 // WithRequiredQueryParam adds a required query parameter to this route.
@@ -126,6 +136,11 @@ func (rb *RouteBuilder) WithRequiredQueryParam(name, description string, example
 	return rb.WithParam(name, "query", description, example, true)
 }
 
+// WithRequiredQueryParamErr adds a required query parameter without panicking on validation failures.
+func (rb *RouteBuilder) WithRequiredQueryParamErr(name, description string, example any) (*RouteBuilder, error) {
+	return rb.WithParamErr(name, "query", description, example, true)
+}
+
 // WithHeaderParam adds a header parameter to this route.
 //
 // Parameters:
@@ -140,6 +155,11 @@ func (rb *RouteBuilder) WithHeaderParam(name, description string, example any, r
 	return rb.WithParam(name, "header", description, example, required)
 }
 
+// WithHeaderParamErr adds a header parameter without panicking on validation failures.
+func (rb *RouteBuilder) WithHeaderParamErr(name, description string, example any, required bool) (*RouteBuilder, error) {
+	return rb.WithParamErr(name, "header", description, example, required)
+}
+
 // WithCookieParam adds a cookie parameter to this route.
 //
 // Parameters:
@@ -152,6 +172,11 @@ func (rb *RouteBuilder) WithHeaderParam(name, description string, example any, r
 //     if false, it's marked as optional.
 func (rb *RouteBuilder) WithCookieParam(name, description string, example any, required bool) *RouteBuilder {
 	return rb.WithParam(name, "cookie", description, example, required)
+}
+
+// WithCookieParamErr adds a cookie parameter without panicking on validation failures.
+func (rb *RouteBuilder) WithCookieParamErr(name, description string, example any, required bool) (*RouteBuilder, error) {
+	return rb.WithParamErr(name, "cookie", description, example, required)
 }
 
 // WithParam adds a parameter of any type/location to this route.
@@ -236,32 +261,67 @@ func (rb *RouteBuilder) WithOKResponse(example any) *RouteBuilder {
 	return rb.WithResponse(http.StatusOK, example)
 }
 
+func (rb *RouteBuilder) WithOKResponseErr(example any) (*RouteBuilder, error) {
+	return rb.WithResponseErr(http.StatusOK, example)
+}
+
 func (rb *RouteBuilder) WithCreatedResponse(example any) *RouteBuilder {
 	return rb.WithResponse(http.StatusCreated, example)
+}
+
+func (rb *RouteBuilder) WithCreatedResponseErr(example any) (*RouteBuilder, error) {
+	return rb.WithResponseErr(http.StatusCreated, example)
 }
 
 func (rb *RouteBuilder) WithAcceptedResponse(example any) *RouteBuilder {
 	return rb.WithResponse(http.StatusAccepted, example)
 }
 
+func (rb *RouteBuilder) WithAcceptedResponseErr(example any) (*RouteBuilder, error) {
+	return rb.WithResponseErr(http.StatusAccepted, example)
+}
+
 func (rb *RouteBuilder) WithNoContentResponse() *RouteBuilder {
 	return rb.WithResponse(http.StatusNoContent, nil)
+}
+
+func (rb *RouteBuilder) WithNoContentResponseErr() (*RouteBuilder, error) {
+	return rb.WithResponseErr(http.StatusNoContent, nil)
 }
 
 func (rb *RouteBuilder) WithNotFoundResponse() *RouteBuilder {
 	return rb.WithResponse(http.StatusNotFound, nil)
 }
 
+func (rb *RouteBuilder) WithNotFoundResponseErr() (*RouteBuilder, error) {
+	return rb.WithResponseErr(http.StatusNotFound, nil)
+}
+
 func (rb *RouteBuilder) WithConflictResponse() *RouteBuilder {
 	return rb.WithResponse(http.StatusConflict, common.DefaultProblem)
+}
+
+func (rb *RouteBuilder) WithConflictResponseErr() (*RouteBuilder, error) {
+	return rb.WithResponseErr(http.StatusConflict, common.DefaultProblem)
 }
 
 func (rb *RouteBuilder) WithBadRequestResponse() *RouteBuilder {
 	return rb.WithResponse(http.StatusBadRequest, common.DefaultProblem)
 }
 
+func (rb *RouteBuilder) WithBadRequestResponseErr() (*RouteBuilder, error) {
+	return rb.WithResponseErr(http.StatusBadRequest, common.DefaultProblem)
+}
+
 func (rb *RouteBuilder) WithStandardErrors() *RouteBuilder {
 	return rb.WithBadRequestResponse().WithNotFoundResponse()
+}
+
+func (rb *RouteBuilder) WithStandardErrorsErr() (*RouteBuilder, error) {
+	if _, err := rb.WithBadRequestResponseErr(); err != nil {
+		return rb, err
+	}
+	return rb.WithNotFoundResponseErr()
 }
 
 // Redirect response methods
@@ -269,40 +329,80 @@ func (rb *RouteBuilder) With301Response() *RouteBuilder {
 	return rb.WithResponse(http.StatusMovedPermanently, nil)
 }
 
+func (rb *RouteBuilder) With301ResponseErr() (*RouteBuilder, error) {
+	return rb.WithResponseErr(http.StatusMovedPermanently, nil)
+}
+
 func (rb *RouteBuilder) WithMovedPermanentlyResponse() *RouteBuilder {
 	return rb.WithResponse(http.StatusMovedPermanently, nil)
+}
+
+func (rb *RouteBuilder) WithMovedPermanentlyResponseErr() (*RouteBuilder, error) {
+	return rb.WithResponseErr(http.StatusMovedPermanently, nil)
 }
 
 func (rb *RouteBuilder) With302Response() *RouteBuilder {
 	return rb.WithResponse(http.StatusFound, nil)
 }
 
+func (rb *RouteBuilder) With302ResponseErr() (*RouteBuilder, error) {
+	return rb.WithResponseErr(http.StatusFound, nil)
+}
+
 func (rb *RouteBuilder) WithFoundResponse() *RouteBuilder {
 	return rb.WithResponse(http.StatusFound, nil)
+}
+
+func (rb *RouteBuilder) WithFoundResponseErr() (*RouteBuilder, error) {
+	return rb.WithResponseErr(http.StatusFound, nil)
 }
 
 func (rb *RouteBuilder) With303Response() *RouteBuilder {
 	return rb.WithResponse(http.StatusSeeOther, nil)
 }
 
+func (rb *RouteBuilder) With303ResponseErr() (*RouteBuilder, error) {
+	return rb.WithResponseErr(http.StatusSeeOther, nil)
+}
+
 func (rb *RouteBuilder) WithSeeOtherResponse() *RouteBuilder {
 	return rb.WithResponse(http.StatusSeeOther, nil)
+}
+
+func (rb *RouteBuilder) WithSeeOtherResponseErr() (*RouteBuilder, error) {
+	return rb.WithResponseErr(http.StatusSeeOther, nil)
 }
 
 func (rb *RouteBuilder) With307Response() *RouteBuilder {
 	return rb.WithResponse(http.StatusTemporaryRedirect, nil)
 }
 
+func (rb *RouteBuilder) With307ResponseErr() (*RouteBuilder, error) {
+	return rb.WithResponseErr(http.StatusTemporaryRedirect, nil)
+}
+
 func (rb *RouteBuilder) WithTemporaryRedirectResponse() *RouteBuilder {
 	return rb.WithResponse(http.StatusTemporaryRedirect, nil)
+}
+
+func (rb *RouteBuilder) WithTemporaryRedirectResponseErr() (*RouteBuilder, error) {
+	return rb.WithResponseErr(http.StatusTemporaryRedirect, nil)
 }
 
 func (rb *RouteBuilder) With308Response() *RouteBuilder {
 	return rb.WithResponse(http.StatusPermanentRedirect, nil)
 }
 
+func (rb *RouteBuilder) With308ResponseErr() (*RouteBuilder, error) {
+	return rb.WithResponseErr(http.StatusPermanentRedirect, nil)
+}
+
 func (rb *RouteBuilder) WithPermanentRedirectResponse() *RouteBuilder {
 	return rb.WithResponse(http.StatusPermanentRedirect, nil)
+}
+
+func (rb *RouteBuilder) WithPermanentRedirectResponseErr() (*RouteBuilder, error) {
+	return rb.WithResponseErr(http.StatusPermanentRedirect, nil)
 }
 
 // WithJsonBody describes a JSON request body (required=true).

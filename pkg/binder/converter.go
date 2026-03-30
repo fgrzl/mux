@@ -64,20 +64,12 @@ func makeSliceElementConverter(t reflect.Type) func([]string) (any, error) {
 		return nil
 	}
 	et := t.Elem()
-	c := scalarConverterForType(et)
+	c := makeConverter(et, nil)
 	if c == nil {
 		return nil
 	}
 	return func(vals []string) (any, error) {
-		out := make([]any, 0, len(vals))
-		for _, s := range vals {
-			parsed, err := c([]string{s})
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, parsed)
-		}
-		return out, nil
+		return buildTypedSliceValue(t, et, vals, c)
 	}
 }
 
@@ -109,7 +101,7 @@ func converterForInteger() func([]string) (any, error) {
 			}
 			return v, nil
 		}
-		return nil, nil
+		return singleOrSliceInt64(vals)
 	}
 }
 
@@ -122,7 +114,7 @@ func converterForNumber() func([]string) (any, error) {
 			}
 			return v, nil
 		}
-		return nil, nil
+		return singleOrSliceFloat64(vals)
 	}
 }
 
@@ -149,7 +141,7 @@ func converterForString(schema *openapi.Schema) func([]string) (any, error) {
 				}
 				return u, nil
 			}
-			return nil, nil
+			return singleOrSliceUUID(vals)
 		}
 	}
 	return makeStringConverter()
@@ -532,23 +524,34 @@ func parseSliceFromExample(values []string, example any) (any, bool) {
 	if conv == nil {
 		return nil, false
 	}
-	out := reflect.MakeSlice(t, 0, len(values))
+	out, err := buildTypedSliceValue(t, elemType, values, conv)
+	if err != nil || out == nil {
+		return nil, false
+	}
+	return out, true
+}
+
+func buildTypedSliceValue(sliceType, elemType reflect.Type, values []string, conv func([]string) (any, error)) (any, error) {
+	out := reflect.MakeSlice(sliceType, 0, len(values))
 	for _, value := range values {
 		parsed, err := conv([]string{value})
-		if err != nil || parsed == nil {
-			return nil, false
+		if err != nil {
+			return nil, err
+		}
+		if parsed == nil {
+			return nil, nil
 		}
 
 		parsedValue := reflect.ValueOf(parsed)
 		if !parsedValue.Type().AssignableTo(elemType) {
 			if !parsedValue.Type().ConvertibleTo(elemType) {
-				return nil, false
+				return nil, nil
 			}
 			parsedValue = parsedValue.Convert(elemType)
 		}
 		out = reflect.Append(out, parsedValue)
 	}
-	return out.Interface(), true
+	return out.Interface(), nil
 }
 
 // parseSliceFromSchema parses slice values based on Schema->Items type.

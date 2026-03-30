@@ -192,13 +192,13 @@ func TestShouldConvertExampleBoolSlice(t *testing.T) {
 	require.NotNil(t, conv)
 	out, err := conv([]string{"true", "false"})
 	assert.NoError(t, err)
-	arr := out.([]any)
+	arr := out.([]bool)
 	require.Len(t, arr, 2)
 	assert.Equal(t, true, arr[0])
 	assert.Equal(t, false, arr[1])
 }
 
-func TestShouldUseSchemaConvertersAndHandleMultiValuesAccordingToConverterSupport(t *testing.T) {
+func TestShouldUseSchemaConvertersAndHandleSingleAndMultiValues(t *testing.T) {
 	// integer schema single
 	iconv := makeConverter(nil, &openapi.Schema{Type: "integer"})
 	require.NotNil(t, iconv)
@@ -206,16 +206,16 @@ func TestShouldUseSchemaConvertersAndHandleMultiValuesAccordingToConverterSuppor
 	require.NoError(t, err)
 	assert.Equal(t, int64(10), v)
 
-	// multi => nil
+	// multi => []int64
 	mv, err := iconv([]string{"1", "2"})
 	require.NoError(t, err)
-	assert.Nil(t, mv)
+	assert.Equal(t, []int64{1, 2}, mv)
 
-	// number multi => nil
+	// number multi => []float64
 	nconv := makeConverter(nil, &openapi.Schema{Type: "number"})
 	mvn, err := nconv([]string{"1.0", "2.0"})
 	require.NoError(t, err)
-	assert.Nil(t, mvn)
+	assert.Equal(t, []float64{1, 2}, mvn)
 
 	// boolean multi => []bool
 	bconv := makeConverter(nil, &openapi.Schema{Type: "boolean"})
@@ -223,11 +223,12 @@ func TestShouldUseSchemaConvertersAndHandleMultiValuesAccordingToConverterSuppor
 	require.NoError(t, err)
 	assert.Equal(t, []bool{true, false}, mvb)
 
-	// string uuid multi => nil
+	// string uuid multi => []uuid.UUID
 	uconv := makeConverter(nil, &openapi.Schema{Type: "string", Format: "uuid"})
-	mvu, err := uconv([]string{uuid.New().String(), uuid.New().String()})
+	ids := []uuid.UUID{uuid.New(), uuid.New()}
+	mvu, err := uconv([]string{ids[0].String(), ids[1].String()})
 	require.NoError(t, err)
-	assert.Nil(t, mvu)
+	assert.Equal(t, ids, mvu)
 }
 
 func TestShouldParseValueBySchemaStringVariantsAndDefaults(t *testing.T) {

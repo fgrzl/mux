@@ -58,15 +58,14 @@ func TestShouldConvertSliceElementTypesUsingExampleSlice(t *testing.T) {
 	v, err := conv([]string{"1", "2"})
 	// Assert
 	require.NoError(t, err)
-	// Expect slice of interface{} with parsed ints
-	arr := v.([]any)
+	arr := v.([]int)
 	require.Len(t, arr, 2)
 	assert.Equal(t, 1, arr[0])
 	assert.Equal(t, 2, arr[1])
 }
 
-func TestShouldReturnNilFromSchemaScalarConverterForMultiValues(t *testing.T) {
-	// Arrange: schema-backed integer converter should return nil for multi-values per implementation
+func TestShouldReturnTypedSliceFromSchemaScalarConverterForMultiValues(t *testing.T) {
+	// Arrange: schema-backed integer converter should parse multi-values directly.
 	schema := &openapi.Schema{Type: "integer"}
 	conv := makeConverter(nil, schema)
 	require.NotNil(t, conv)
@@ -74,7 +73,7 @@ func TestShouldReturnNilFromSchemaScalarConverterForMultiValues(t *testing.T) {
 	v, err := conv([]string{"1", "2"})
 	// Assert
 	require.NoError(t, err)
-	assert.Nil(t, v)
+	assert.Equal(t, []int64{1, 2}, v)
 }
 
 func TestShouldParseMultipleUUIDsBySchema(t *testing.T) {
@@ -322,7 +321,7 @@ func TestShouldReturnBoolSliceFromSchemaBooleanConverterMultiValue(t *testing.T)
 	assert.Equal(t, []bool{true, false}, v)
 }
 
-func TestShouldReturnNilFromSchemaNumberConverterMultiValue(t *testing.T) {
+func TestShouldReturnFloatSliceFromSchemaNumberConverterMultiValue(t *testing.T) {
 	// Arrange
 	conv := makeConverter(nil, &openapi.Schema{Type: "number"})
 	require.NotNil(t, conv)
@@ -330,7 +329,7 @@ func TestShouldReturnNilFromSchemaNumberConverterMultiValue(t *testing.T) {
 	v, err := conv([]string{"1", "2"})
 	// Assert
 	require.NoError(t, err)
-	assert.Nil(t, v)
+	assert.Equal(t, []float64{1, 2}, v)
 }
 
 func TestShouldErrorMidUnsignedSliceParse(t *testing.T) {
@@ -404,15 +403,16 @@ func TestShouldDefaultToValuesWhenUnknownSchemaTypeSingleValue(t *testing.T) {
 	assert.Equal(t, "solo", v)
 }
 
-func TestShouldReturnNilFromSchemaStringUUIDConverterMultiValue(t *testing.T) {
+func TestShouldReturnUUIDSliceFromSchemaStringUUIDConverterMultiValue(t *testing.T) {
 	// Arrange
 	conv := makeConverter(nil, &openapi.Schema{Type: "string", Format: "uuid"})
 	require.NotNil(t, conv)
+	ids := []uuid.UUID{uuid.New(), uuid.New()}
 	// Act
-	v, err := conv([]string{uuid.New().String(), uuid.New().String()})
+	v, err := conv([]string{ids[0].String(), ids[1].String()})
 	// Assert
 	require.NoError(t, err)
-	assert.Nil(t, v)
+	assert.Equal(t, ids, v)
 }
 
 func TestShouldNotHandleWhenMultipleValuesAndParseSliceValuesFails(t *testing.T) {

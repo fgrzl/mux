@@ -265,11 +265,12 @@ router.GET("/custom", handler).
     WithParam("filter", "query", "Filter criteria", "active", false)
 ```
 
-### Non-Panicking Builder Variants
-Use the `Err` variants when routes are assembled from config, generators, or other dynamic inputs and you want explicit error handling instead of panics.
+### Non-Panicking Builder and Group Variants
+Use the `Err` variants when routes or route groups are assembled from config, generators, or other dynamic inputs and you want explicit error handling instead of panics.
 
 ```go
 route := mux.Route("POST", "/users")
+router := mux.NewRouter()
 
 if _, err := route.WithOperationIDErr("createUser"); err != nil {
     return err
@@ -277,7 +278,15 @@ if _, err := route.WithOperationIDErr("createUser"); err != nil {
 if _, err := route.WithJsonBodyErr(CreateUserRequest{}); err != nil {
     return err
 }
-if _, err := route.WithResponseErr(201, User{}); err != nil {
+if _, err := route.WithCreatedResponseErr(User{}); err != nil {
+    return err
+}
+
+group := router.NewRouteGroup("/admin")
+if _, err := group.WithRequiredQueryParamErr("apiKey", "Admin API key", "secret"); err != nil {
+    return err
+}
+if _, err := group.WithPathParamErr("tenantId", "Tenant identifier", "tenant-123"); err != nil {
     return err
 }
 ```

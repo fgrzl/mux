@@ -329,107 +329,23 @@ func cloneOperationForSpec(op *Operation) *Operation {
 }
 
 func cloneParameterForSpec(param *ParameterObject) *ParameterObject {
-	if param == nil {
-		return nil
-	}
-
-	clone := *param
-	clone.Schema = cloneSchemaForSpec(param.Schema)
-	return &clone
+	return CloneParameterObject(param)
 }
 
 func cloneRequestBodyForSpec(body *RequestBodyObject) *RequestBodyObject {
-	if body == nil {
-		return nil
-	}
-
-	clone := *body
-	if len(body.Content) > 0 {
-		clone.Content = make(map[string]*MediaType, len(body.Content))
-		for ctype, media := range body.Content {
-			clone.Content[ctype] = cloneMediaTypeForSpec(media)
-		}
-	}
-
-	return &clone
+	return CloneRequestBodyObject(body)
 }
 
 func cloneResponseForSpec(resp *ResponseObject) *ResponseObject {
-	if resp == nil {
-		return nil
-	}
-
-	clone := *resp
-	if len(resp.Content) > 0 {
-		clone.Content = make(map[string]*MediaType, len(resp.Content))
-		for ctype, media := range resp.Content {
-			clone.Content[ctype] = cloneMediaTypeForSpec(media)
-		}
-	}
-
-	return &clone
+	return CloneResponseObject(resp)
 }
 
 func cloneMediaTypeForSpec(media *MediaType) *MediaType {
-	if media == nil {
-		return nil
-	}
-
-	clone := *media
-	clone.Schema = cloneSchemaForSpec(media.Schema)
-	return &clone
+	return CloneMediaType(media)
 }
 
 func cloneSchemaForSpec(schema *Schema) *Schema {
-	if schema == nil {
-		return nil
-	}
-
-	clone := *schema
-	if len(schema.Properties) > 0 {
-		clone.Properties = make(map[string]*Schema, len(schema.Properties))
-		for name, prop := range schema.Properties {
-			clone.Properties[name] = cloneSchemaForSpec(prop)
-		}
-	}
-	clone.Items = cloneSchemaForSpec(schema.Items)
-	clone.AdditionalProperties = cloneSchemaForSpec(schema.AdditionalProperties)
-	if len(schema.Required) > 0 {
-		clone.Required = append([]string(nil), schema.Required...)
-	}
-	if len(schema.Enum) > 0 {
-		clone.Enum = append([]any(nil), schema.Enum...)
-	}
-	if len(schema.OneOf) > 0 {
-		clone.OneOf = make([]*Schema, 0, len(schema.OneOf))
-		for _, item := range schema.OneOf {
-			clone.OneOf = append(clone.OneOf, cloneSchemaForSpec(item))
-		}
-	}
-	if len(schema.AnyOf) > 0 {
-		clone.AnyOf = make([]*Schema, 0, len(schema.AnyOf))
-		for _, item := range schema.AnyOf {
-			clone.AnyOf = append(clone.AnyOf, cloneSchemaForSpec(item))
-		}
-	}
-	if len(schema.AllOf) > 0 {
-		clone.AllOf = make([]*Schema, 0, len(schema.AllOf))
-		for _, item := range schema.AllOf {
-			clone.AllOf = append(clone.AllOf, cloneSchemaForSpec(item))
-		}
-	}
-	if schema.Discriminator != nil {
-		discriminator := *schema.Discriminator
-		if len(schema.Discriminator.Mapping) > 0 {
-			discriminator.Mapping = make(map[string]string, len(schema.Discriminator.Mapping))
-			for key, value := range schema.Discriminator.Mapping {
-				discriminator.Mapping[key] = value
-			}
-		}
-		clone.Discriminator = &discriminator
-	}
-
-	return &clone
+	return CloneSchema(schema)
 }
 
 func (g *Generator) ensureComponentSchema(example any, schema *Schema) error {

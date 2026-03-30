@@ -175,6 +175,8 @@ func setupUserRoutes(group *mux.RouteGroup) {
 }
 ```
 
+When route groups are built from dynamic inputs such as config files or generators, prefer the `Err` variants like `WithParamErr`, `WithPathParamErr`, and `WithRequiredQueryParamErr` so startup validation can return actionable errors instead of panicking immediately.
+
 ## Handler Implementation
 
 ### Handler Best Practices
