@@ -241,3 +241,27 @@ func TestCloneOperationShouldDeepCopyCallbacksServersAndExtensions(t *testing.T)
 	assert.Equal(t, true, op.Servers[0].Extensions["x-host"].(map[string]any)["edge"])
 	assert.Equal(t, true, op.Extensions["x-op"].(map[string]any)["trace"])
 }
+
+func TestCloneOperationShouldPreserveCallbackCycles(t *testing.T) {
+	// Arrange
+	op := &Operation{
+		OperationID: "root",
+		Responses:   map[string]*ResponseObject{"200": {Description: "OK"}},
+	}
+	callback := &PathItem{}
+	op.Callbacks = map[string]*PathItem{"self": callback}
+	callback.Post = op
+
+	// Act
+	clone := CloneOperation(op)
+	clone.OperationID = "cloned"
+
+	// Assert
+	require.NotNil(t, clone)
+	assert.NotSame(t, op, clone)
+	require.Contains(t, clone.Callbacks, "self")
+	assert.NotSame(t, callback, clone.Callbacks["self"])
+	assert.Same(t, clone, clone.Callbacks["self"].Post)
+	assert.Equal(t, "root", op.OperationID)
+	assert.Equal(t, "cloned", clone.OperationID)
+}

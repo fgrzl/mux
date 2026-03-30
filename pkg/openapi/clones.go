@@ -7,8 +7,12 @@ func CloneInfoObject(info *InfoObject) *InfoObject {
 		return nil
 	}
 
-	cloned, _ := cloneValue(info).(*InfoObject)
-	return cloned
+	clone := *info
+	clone.Contact = cloneContactObject(info.Contact)
+	clone.License = cloneLicenseObject(info.License)
+	clone.Extensions = cloneStringAnyMap(info.Extensions)
+
+	return &clone
 }
 
 func CloneOperation(op *Operation) *Operation {
@@ -16,8 +20,141 @@ func CloneOperation(op *Operation) *Operation {
 		return nil
 	}
 
-	cloned, _ := cloneValue(op).(*Operation)
-	return cloned
+	state := cloneOpenAPIState{
+		operations: make(map[*Operation]*Operation),
+		pathItems:  make(map[*PathItem]*PathItem),
+	}
+
+	return state.cloneOperation(op)
+}
+
+type cloneOpenAPIState struct {
+	operations map[*Operation]*Operation
+	pathItems  map[*PathItem]*PathItem
+}
+
+func (state *cloneOpenAPIState) cloneOperation(op *Operation) *Operation {
+	if op == nil {
+		return nil
+	}
+	if cloned, ok := state.operations[op]; ok {
+		return cloned
+	}
+
+	clone := *op
+	state.operations[op] = &clone
+	clone.Tags = cloneStringSlice(op.Tags)
+	clone.ExternalDocs = cloneExternalDocumentation(op.ExternalDocs)
+	if len(op.Parameters) > 0 {
+		clone.Parameters = make([]*ParameterObject, len(op.Parameters))
+		for index, param := range op.Parameters {
+			clone.Parameters[index] = CloneParameterObject(param)
+		}
+	}
+	clone.RequestBody = CloneRequestBodyObject(op.RequestBody)
+	if len(op.Responses) > 0 {
+		clone.Responses = make(map[string]*ResponseObject, len(op.Responses))
+		for key, resp := range op.Responses {
+			clone.Responses[key] = CloneResponseObject(resp)
+		}
+	}
+	if len(op.Callbacks) > 0 {
+		clone.Callbacks = make(map[string]*PathItem, len(op.Callbacks))
+		for key, item := range op.Callbacks {
+			clone.Callbacks[key] = state.clonePathItem(item)
+		}
+	}
+	if len(op.Security) > 0 {
+		clone.Security = make([]*SecurityRequirement, len(op.Security))
+		for index, sec := range op.Security {
+			clone.Security[index] = CloneSecurityRequirement(sec)
+		}
+	}
+	if len(op.Servers) > 0 {
+		clone.Servers = make([]*ServerObject, len(op.Servers))
+		for index, server := range op.Servers {
+			clone.Servers[index] = cloneServerObject(server)
+		}
+	}
+	clone.Extensions = cloneStringAnyMap(op.Extensions)
+
+	return &clone
+}
+
+func (state *cloneOpenAPIState) clonePathItem(item *PathItem) *PathItem {
+	if item == nil {
+		return nil
+	}
+	if cloned, ok := state.pathItems[item]; ok {
+		return cloned
+	}
+
+	clone := *item
+	state.pathItems[item] = &clone
+	clone.Get = state.cloneOperation(item.Get)
+	clone.Put = state.cloneOperation(item.Put)
+	clone.Post = state.cloneOperation(item.Post)
+	clone.Delete = state.cloneOperation(item.Delete)
+	clone.Options = state.cloneOperation(item.Options)
+	clone.Head = state.cloneOperation(item.Head)
+	clone.Patch = state.cloneOperation(item.Patch)
+	clone.Trace = state.cloneOperation(item.Trace)
+	if len(item.Parameters) > 0 {
+		clone.Parameters = make([]*ParameterObject, len(item.Parameters))
+		for index, param := range item.Parameters {
+			clone.Parameters[index] = CloneParameterObject(param)
+		}
+	}
+	if len(item.Servers) > 0 {
+		clone.Servers = make([]*ServerObject, len(item.Servers))
+		for index, server := range item.Servers {
+			clone.Servers[index] = cloneServerObject(server)
+		}
+	}
+	clone.Extensions = cloneStringAnyMap(item.Extensions)
+
+	return &clone
+}
+
+func cloneExternalDocumentation(doc *ExternalDocumentation) *ExternalDocumentation {
+	if doc == nil {
+		return nil
+	}
+
+	clone := *doc
+	clone.Extensions = cloneStringAnyMap(doc.Extensions)
+
+	return &clone
+}
+
+func cloneContactObject(contact *ContactObject) *ContactObject {
+	if contact == nil {
+		return nil
+	}
+
+	clone := *contact
+	clone.Extensions = cloneStringAnyMap(contact.Extensions)
+
+	return &clone
+}
+
+func cloneLicenseObject(license *LicenseObject) *LicenseObject {
+	if license == nil {
+		return nil
+	}
+
+	clone := *license
+	clone.Extensions = cloneStringAnyMap(license.Extensions)
+
+	return &clone
+}
+
+func cloneStringSlice(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+
+	return append([]string(nil), values...)
 }
 
 func CloneParameterObject(param *ParameterObject) *ParameterObject {
