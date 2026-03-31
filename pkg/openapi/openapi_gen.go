@@ -238,8 +238,16 @@ func (g *Generator) appendRoute(rd RouteData) error {
 		item.Put = newOp
 	case "delete":
 		item.Delete = newOp
+	case "options":
+		item.Options = newOp
+	case "head":
+		item.Head = newOp
 	case "patch":
 		item.Patch = newOp
+	case "trace":
+		item.Trace = newOp
+	default:
+		return fmt.Errorf("unsupported HTTP method %q for OpenAPI generation", rd.Method)
 	}
 	g.spec.Paths[path] = item
 	return nil

@@ -430,6 +430,76 @@ func TestShouldNotLeakSpecStateWhenReusingGenerator(t *testing.T) {
 	assert.Equal(t, "Orders API", secondSpec.Info.Title)
 }
 
+func TestShouldGenerateSupportedNonCrudOperations(t *testing.T) {
+	// Arrange
+	gen := NewGenerator()
+	info := &InfoObject{Title: "API", Version: "1.0"}
+	routes := []RouteData{
+		{
+			Path:   "/system",
+			Method: "HEAD",
+			Options: &Operation{
+				OperationID: "headSystem",
+				Responses:   map[string]*ResponseObject{"200": {Description: "OK"}},
+			},
+		},
+		{
+			Path:   "/system",
+			Method: "OPTIONS",
+			Options: &Operation{
+				OperationID: "optionsSystem",
+				Responses:   map[string]*ResponseObject{"200": {Description: "OK"}},
+			},
+		},
+		{
+			Path:   "/system",
+			Method: "TRACE",
+			Options: &Operation{
+				OperationID: "traceSystem",
+				Responses:   map[string]*ResponseObject{"200": {Description: "OK"}},
+			},
+		},
+	}
+
+	// Act
+	spec, err := gen.GenerateSpecFromRoutes(info, routes)
+
+	// Assert
+	require.NoError(t, err)
+	require.NotNil(t, spec)
+	pathItem := spec.Paths["/system"]
+	require.NotNil(t, pathItem)
+	require.NotNil(t, pathItem.Head)
+	require.NotNil(t, pathItem.Options)
+	require.NotNil(t, pathItem.Trace)
+	assert.Equal(t, "headSystem", pathItem.Head.OperationID)
+	assert.Equal(t, "optionsSystem", pathItem.Options.OperationID)
+	assert.Equal(t, "traceSystem", pathItem.Trace.OperationID)
+}
+
+func TestShouldReturnErrorForUnsupportedMethodInOpenAPIGeneration(t *testing.T) {
+	// Arrange
+	gen := NewGenerator()
+	info := &InfoObject{Title: "API", Version: "1.0"}
+	routes := []RouteData{{
+		Path:   "/tunnel",
+		Method: "CONNECT",
+		Options: &Operation{
+			OperationID: "connectTunnel",
+			Responses:   map[string]*ResponseObject{"200": {Description: "OK"}},
+		},
+	}}
+
+	// Act
+	spec, err := gen.GenerateSpecFromRoutes(info, routes)
+
+	// Assert
+	require.Error(t, err)
+	assert.Nil(t, spec)
+	assert.Contains(t, err.Error(), "unsupported HTTP method")
+	assert.Contains(t, err.Error(), "CONNECT")
+}
+
 func TestGenerateSpecFromRoutesShouldOwnInfoObject(t *testing.T) {
 	// Arrange
 	gen := NewGenerator()
