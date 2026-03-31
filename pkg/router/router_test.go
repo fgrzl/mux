@@ -360,6 +360,66 @@ func TestShouldAccumulateValidationErrorsOnRouterWithoutPanicking(t *testing.T) 
 	assert.ErrorContains(t, rtr.Err(), "invalid OperationID")
 }
 
+func TestConfigureShouldReturnValidationErrorsWithoutChangingDefaultPanicBehavior(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+
+	// Act
+	err := rtr.Configure(func(router *Router) {
+		router.NewRouteGroup("/api").GET("/users", func(c routing.RouteContext) {
+			c.OK("users")
+		}).WithOperationID("invalid-id")
+	})
+
+	// Assert
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "invalid OperationID")
+	require.Len(t, rtr.Errors(), 1)
+	assert.Panics(t, func() {
+		rtr.GET("/panic", func(c routing.RouteContext) {
+			c.OK("panic")
+		}).WithOperationID("still-invalid")
+	})
+}
+
+func TestShouldRegisterPatchOptionsAndTraceRoutesViaRouterHelpers(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+	rtr.PATCH("/resource", func(c routing.RouteContext) {
+		c.Response().Header().Set("X-Method", http.MethodPatch)
+		c.NoContent()
+	})
+	rtr.OPTIONS("/resource", func(c routing.RouteContext) {
+		c.Response().Header().Set("X-Method", http.MethodOptions)
+		c.NoContent()
+	})
+	rtr.TRACE("/resource", func(c routing.RouteContext) {
+		c.Response().Header().Set("X-Method", http.MethodTrace)
+		c.NoContent()
+	})
+
+	tests := []struct {
+		method string
+	}{
+		{method: http.MethodPatch},
+		{method: http.MethodOptions},
+		{method: http.MethodTrace},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.method, func(t *testing.T) {
+			req, rec := testhelpers.NewRequestRecorder(tt.method, "/resource", nil)
+
+			// Act
+			rtr.ServeHTTP(rec, req)
+
+			// Assert
+			assert.Equal(t, http.StatusNoContent, rec.Code)
+			assert.Equal(t, tt.method, rec.Header().Get("X-Method"))
+		})
+	}
+}
+
 func TestShouldExecuteMiddlewareInCorrectOrder(t *testing.T) {
 	// Arrange
 	rtr := NewRouter()

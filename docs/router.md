@@ -5,17 +5,19 @@ The Router is the core component of Mux that handles HTTP request routing and mi
 ## Creating a Router
 
 ```go
-// Basic router
-router := mux.NewRouter().Safe()
-
-// Router with options
 router := mux.NewRouter(
     mux.WithTitle("My API"),
     mux.WithVersion("1.0.0"),
-).Safe()
+)
+
+if err := router.Configure(func(router *mux.Router) {
+    router.GET("/health", healthCheck)
+}); err != nil {
+    panic(err)
+}
 ```
 
-When you use `Safe()`, call `router.Err()` before serving traffic so configuration errors fail at startup instead of panicking later.
+`Configure` is the recommended startup path because it returns configuration errors directly. `Safe()` and `Err()` remain available when configuration is assembled across multiple phases.
 
 ## Router Options
 
@@ -173,8 +175,11 @@ All standard HTTP methods are supported:
 router.GET("/resource", getResource)
 router.POST("/resource", createResource)  
 router.PUT("/resource/{id}", updateResource)
+router.PATCH("/resource/{id}", patchResource)
 router.DELETE("/resource/{id}", deleteResource)
 router.HEAD("/resource/{id}", headResource)
+router.OPTIONS("/resource", optionsResource)
+router.TRACE("/resource", traceResource)
 ```
 
 Notes:
@@ -218,7 +223,9 @@ The Router implements `http.Handler`:
 
 ```go
 // Recommended default
-if err := router.Err(); err != nil {
+if err := router.Configure(func(router *mux.Router) {
+    // Register routes and groups here.
+}); err != nil {
     panic(err)
 }
 

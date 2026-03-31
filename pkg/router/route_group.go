@@ -58,9 +58,30 @@ func (rg *RouteGroup) RouteRegistry() *registry.RouteRegistry {
 }
 
 // Safe switches this RouteGroup into non-panicking validation mode and returns it.
+// Prefer Configure in new application code when you want a single error return
+// for group-level setup.
 func (rg *RouteGroup) Safe() *RouteGroup {
 	rg.validation = rg.validationState().WithPanicOnError(false)
 	return rg
+}
+
+// Configure runs startup configuration for this RouteGroup with validation
+// errors returned instead of panicking. Nested groups and route builders
+// created within the callback share the same validation sink.
+func (rg *RouteGroup) Configure(configure func(*RouteGroup)) error {
+	if configure == nil {
+		return nil
+	}
+
+	original := rg.validationState()
+	configured := original.WithPanicOnError(false)
+	rg.validation = configured
+	defer func() {
+		rg.validation = original
+	}()
+
+	configure(rg)
+	return configured.Err()
 }
 
 // Errors returns accumulated configuration errors for this RouteGroup tree.
@@ -376,34 +397,125 @@ func cloneGroupServices(services map[routing.ServiceKey]any) map[routing.Service
 	return cloned
 }
 
-// newRouteGroupBase creates a new RouteGroup with basic initialization.
-func newRouteGroupBase(prefix string, registry *registry.RouteRegistry) *RouteGroup {
-	return &RouteGroup{
-		prefix:        prefix,
-		routeRegistry: registry,
-		validation:    routing.NewValidationState(),
+func routeBuilderValidationState(rb *builder.RouteBuilder) *routing.ValidationState {
+	if rb.Validation == nil {
+		rb.Validation = routing.NewValidationState()
 	}
+	return rb.Validation
 }
 
-// NewRouteGroup creates a new RouteGroup with an extended prefix and inherited defaults.
-// The new group inherits all defaults from the parent and uses the same registry and auth provider.
-func (rg *RouteGroup) NewRouteGroup(prefix string) *RouteGroup {
-	// Use the existing normalizeRoute function to properly join the prefixes
-	extendedPrefix := normalizeRoute(prefix, rg.prefix)
+func cloneDetachedRouteOptions(source *routing.RouteOptions) *routing.RouteOptions {
+	if source == nil {
+		return nil
+	}
 
-	// Create new group with basic initialization
-	newGroup := newRouteGroupBase(extendedPrefix, rg.routeRegistry)
+	operation := openapi.CloneOperation(&source.Operation)
+	if operation == nil {
+		operation = &openapi.Operation{Responses: map[string]*openapi.ResponseObject{}}
+	}
 
-	// Copy all defaults from parent
-	newGroup.copyDefaults(rg)
-
-	return newGroup
+	cloned := &routing.RouteOptions{
+		Method:         strings.ToUpper(source.Method),
+		Pattern:        source.Pattern,
+		Handler:        source.Handler,
+		AllowAnonymous: source.AllowAnonymous,
+		Roles:          slices.Clone(source.Roles),
+		Scopes:         slices.Clone(source.Scopes),
+		Permissions:    slices.Clone(source.Permissions),
+		RateLimit:      source.RateLimit,
+		RateInterval:   source.RateInterval,
+		Operation:      *operation,
+	}
+	cloned.SetMiddleware(slices.Clone(source.Middleware))
+	cloned.SetServices(source.Services)
+	cloned.ParamIndex = routing.BuildParamIndex(cloned.Parameters)
+	if cloned.Responses == nil {
+		cloned.Responses = map[string]*openapi.ResponseObject{}
+	}
+	return cloned
 }
 
-// ---- Route Registration (Apply Defaults) ----
+func mergeRouteOptions(target, source *routing.RouteOptions) {
+	if target == nil || source == nil {
+		return
+	}
 
-// registerRoute registers a route with all group-level defaults applied.
-func (rg *RouteGroup) registerRoute(method, pattern string, handler routing.HandlerFunc) *builder.RouteBuilder {
+	target.AllowAnonymous = target.AllowAnonymous || source.AllowAnonymous
+	target.Roles = append(target.Roles, slices.Clone(source.Roles)...)
+	target.Scopes = append(target.Scopes, slices.Clone(source.Scopes)...)
+	target.Permissions = append(target.Permissions, slices.Clone(source.Permissions)...)
+	if source.RateLimit > 0 {
+		target.RateLimit = source.RateLimit
+	}
+	if source.RateInterval > 0 {
+		target.RateInterval = source.RateInterval
+	}
+	target.AppendMiddleware(slices.Clone(source.Middleware)...)
+	for key, service := range source.Services {
+		target.SetService(key, service)
+	}
+
+	operation := openapi.CloneOperation(&source.Operation)
+	if operation == nil {
+		return
+	}
+
+	if operation.OperationID != "" {
+		target.OperationID = operation.OperationID
+	}
+	if operation.Summary != "" {
+		target.Summary = operation.Summary
+	}
+	if operation.Description != "" {
+		target.Description = operation.Description
+	}
+	if len(operation.Tags) > 0 {
+		target.Tags = append(target.Tags, operation.Tags...)
+	}
+	if operation.ExternalDocs != nil {
+		target.ExternalDocs = operation.ExternalDocs
+	}
+	if len(operation.Parameters) > 0 {
+		target.Parameters = append(target.Parameters, operation.Parameters...)
+	}
+	if operation.RequestBody != nil {
+		target.RequestBody = operation.RequestBody
+	}
+	if len(operation.Responses) > 0 {
+		if target.Responses == nil {
+			target.Responses = make(map[string]*openapi.ResponseObject, len(operation.Responses))
+		}
+		for code, response := range operation.Responses {
+			target.Responses[code] = response
+		}
+	}
+	if len(operation.Callbacks) > 0 {
+		if target.Callbacks == nil {
+			target.Callbacks = make(map[string]*openapi.PathItem, len(operation.Callbacks))
+		}
+		for key, callback := range operation.Callbacks {
+			target.Callbacks[key] = callback
+		}
+	}
+	target.Deprecated = target.Deprecated || operation.Deprecated
+	if len(operation.Security) > 0 {
+		target.Security = append(target.Security, operation.Security...)
+	}
+	if len(operation.Servers) > 0 {
+		target.Servers = operation.Servers
+	}
+	if len(operation.Extensions) > 0 {
+		if target.Extensions == nil {
+			target.Extensions = make(map[string]any, len(operation.Extensions))
+		}
+		for key, value := range operation.Extensions {
+			target.Extensions[key] = value
+		}
+	}
+	target.ParamIndex = routing.BuildParamIndex(target.Parameters)
+}
+
+func (rg *RouteGroup) newRouteOptions(method, pattern string, handler routing.HandlerFunc) *routing.RouteOptions {
 	method = strings.ToUpper(method)
 	pattern = normalizeRoute(pattern, rg.prefix)
 
@@ -442,31 +554,117 @@ func (rg *RouteGroup) registerRoute(method, pattern string, handler routing.Hand
 		RateInterval:   0,
 		Operation:      op,
 	}
-	// Build an initial ParamIndex from group defaults if any are present
 	if len(op.Parameters) > 0 {
 		options.ParamIndex = routing.BuildParamIndex(op.Parameters)
 	}
 	options.SetMiddleware(slices.Clone(rg.defaultMiddleware))
 	options.SetServices(cloneGroupServices(rg.defaultServices))
+	return options
+}
 
-	rb := &builder.RouteBuilder{Options: options, Validation: rg.validationState().Clone()}
-	if rg.routeRegistry.HasRoute(pattern, method) {
-		rb.Validation.Handle(fmt.Errorf("route %s %s is already registered", method, pattern))
+func (rg *RouteGroup) registerBuiltRoute(rb *builder.RouteBuilder) *builder.RouteBuilder {
+	if rb == nil {
+		rb = &builder.RouteBuilder{}
+	}
+	validation := routeBuilderValidationState(rb)
+	if rb.Options == nil {
+		rb.Options = &routing.RouteOptions{Operation: openapi.Operation{Responses: map[string]*openapi.ResponseObject{}}}
+	}
+	rb.Options.Method = strings.ToUpper(rb.Options.Method)
+	if rb.Options.Responses == nil {
+		rb.Options.Responses = map[string]*openapi.ResponseObject{}
+	}
+	rb.Options.ParamIndex = routing.BuildParamIndex(rb.Options.Parameters)
+	if validation.Err() != nil {
+		return rb
+	}
+	if rb.Options.Method == "" || rb.Options.Pattern == "" {
+		validation.Handle(fmt.Errorf("route method and pattern cannot be empty"))
+		return rb
+	}
+	if rg.routeRegistry.HasRoute(rb.Options.Pattern, rb.Options.Method) {
+		validation.Handle(fmt.Errorf("route %s %s is already registered", rb.Options.Method, rb.Options.Pattern))
 		return rb
 	}
 
 	registered := false
-	rb.Validation = rb.Validation.WithErrorHook(func(error) {
+	rb.Validation = validation.WithErrorHook(func(error) {
 		if !registered {
 			return
 		}
-		rg.routeRegistry.Unregister(pattern, method)
+		rg.routeRegistry.Unregister(rb.Options.Pattern, rb.Options.Method)
 		registered = false
 	})
 
-	rg.routeRegistry.Register(pattern, method, options)
+	rg.routeRegistry.Register(rb.Options.Pattern, rb.Options.Method, rb.Options)
 	registered = true
 	return rb
+}
+
+// newRouteGroupBase creates a new RouteGroup with basic initialization.
+func newRouteGroupBase(prefix string, registry *registry.RouteRegistry) *RouteGroup {
+	return &RouteGroup{
+		prefix:        prefix,
+		routeRegistry: registry,
+		validation:    routing.NewValidationState(),
+	}
+}
+
+// NewRouteGroup creates a new RouteGroup with an extended prefix and inherited defaults.
+// The new group inherits all defaults from the parent and uses the same registry and auth provider.
+func (rg *RouteGroup) NewRouteGroup(prefix string) *RouteGroup {
+	// Use the existing normalizeRoute function to properly join the prefixes
+	extendedPrefix := normalizeRoute(prefix, rg.prefix)
+
+	// Create new group with basic initialization
+	newGroup := newRouteGroupBase(extendedPrefix, rg.routeRegistry)
+
+	// Copy all defaults from parent
+	newGroup.copyDefaults(rg)
+
+	return newGroup
+}
+
+// ---- Route Registration (Apply Defaults) ----
+
+// registerRoute registers a route with all group-level defaults applied.
+func (rg *RouteGroup) registerRoute(method, pattern string, handler routing.HandlerFunc) *builder.RouteBuilder {
+	rb := &builder.RouteBuilder{
+		Options:    rg.newRouteOptions(method, pattern, handler),
+		Validation: rg.validationState().Clone(),
+	}
+	return rg.registerBuiltRoute(rb)
+}
+
+// HandleRoute attaches a preconfigured detached RouteBuilder to this group.
+// Prefer GET, POST, and related helpers for normal application code.
+func (rg *RouteGroup) HandleRoute(route *builder.RouteBuilder, handler routing.HandlerFunc) *builder.RouteBuilder {
+	rb := &builder.RouteBuilder{Validation: rg.validationState().Clone()}
+	if route == nil {
+		rb.Options = &routing.RouteOptions{Operation: openapi.Operation{Responses: map[string]*openapi.ResponseObject{}}}
+		routeBuilderValidationState(rb).Handle(fmt.Errorf("route builder cannot be nil"))
+		return rb
+	}
+
+	source := cloneDetachedRouteOptions(route.Options)
+	if source == nil {
+		rb.Options = &routing.RouteOptions{Operation: openapi.Operation{Responses: map[string]*openapi.ResponseObject{}}}
+		routeBuilderValidationState(rb).Handle(fmt.Errorf("route options cannot be nil"))
+		return rb
+	}
+	if handler != nil {
+		source.Handler = handler
+	}
+
+	rb.Options = rg.newRouteOptions(source.Method, source.Pattern, source.Handler)
+	mergeRouteOptions(rb.Options, source)
+	for _, err := range route.Errors() {
+		routeBuilderValidationState(rb).Handle(err)
+	}
+	if rb.Err() != nil {
+		return rb
+	}
+	return rg.registerBuiltRoute(rb)
 }
 
 // ---- Route Methods ----
@@ -496,6 +694,11 @@ func (rg *RouteGroup) PUT(pattern string, handler routing.HandlerFunc) *builder.
 	return rg.registerRoute(http.MethodPut, pattern, handler)
 }
 
+// PATCH registers a PATCH route with group defaults.
+func (rg *RouteGroup) PATCH(pattern string, handler routing.HandlerFunc) *builder.RouteBuilder {
+	return rg.registerRoute(http.MethodPatch, pattern, handler)
+}
+
 // DELETE registers a DELETE route with group defaults.
 func (rg *RouteGroup) DELETE(pattern string, handler routing.HandlerFunc) *builder.RouteBuilder {
 	return rg.registerRoute(http.MethodDelete, pattern, handler)
@@ -504,6 +707,16 @@ func (rg *RouteGroup) DELETE(pattern string, handler routing.HandlerFunc) *build
 // HEAD registers a HEAD route with group defaults.
 func (rg *RouteGroup) HEAD(pattern string, handler routing.HandlerFunc) *builder.RouteBuilder {
 	return rg.registerRoute(http.MethodHead, pattern, handler)
+}
+
+// OPTIONS registers an OPTIONS route with group defaults.
+func (rg *RouteGroup) OPTIONS(pattern string, handler routing.HandlerFunc) *builder.RouteBuilder {
+	return rg.registerRoute(http.MethodOptions, pattern, handler)
+}
+
+// TRACE registers a TRACE route with group defaults.
+func (rg *RouteGroup) TRACE(pattern string, handler routing.HandlerFunc) *builder.RouteBuilder {
+	return rg.registerRoute(http.MethodTrace, pattern, handler)
 }
 
 // Healthz registers a /healthz endpoint that always returns ready.

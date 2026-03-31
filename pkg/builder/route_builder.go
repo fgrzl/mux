@@ -19,6 +19,8 @@ import (
 )
 
 // RouteBuilder provides a fluent interface for configuring HTTP routes with OpenAPI documentation.
+// Builders returned from Router or RouteGroup route methods are already attached.
+// DetachedRoute creates a metadata-only builder that can be attached later.
 type RouteBuilder struct {
 	Options    *routing.RouteOptions
 	Validation *routing.ValidationState
@@ -26,8 +28,10 @@ type RouteBuilder struct {
 
 var opIDValidator = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
 
-// Route bootstraps a new builder for the given HTTP method and path pattern.
-func Route(method, pattern string) *RouteBuilder {
+// DetachedRoute bootstraps a metadata-only builder for the given HTTP method
+// and path pattern. Use Router or RouteGroup GET, POST, and related helpers
+// for normal route registration.
+func DetachedRoute(method, pattern string) *RouteBuilder {
 	return &RouteBuilder{
 		Options: &routing.RouteOptions{
 			Method:    strings.ToUpper(method),

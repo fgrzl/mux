@@ -120,35 +120,32 @@ Or paste the JSON into [Swagger Editor](https://editor.swagger.io/) for an inter
 ## Code Structure
 
 ```go
-router := mux.NewRouter().Safe()
+router := mux.NewRouter()
 
-// Data model
-type Todo struct {
-    ID          string
-    Title       string
-    Description string
-    Completed   bool
-    CreatedAt   time.Time
-    UpdatedAt   time.Time
-}
+if err := router.Configure(func(router *mux.Router) {
+    // Route group with OpenAPI metadata
+    api := router.NewRouteGroup("/todos")
+    api.WithTags("Todos")
+    
+    api.GET("/", listTodos).
+        WithOperationID("listTodos").
+        WithSummary("List all todos").
+        WithQueryParam("completed", "Filter todos by completion state", true).
+        WithOKResponse([]Todo{})
+    
+    api.POST("/", createTodo).
+        WithOperationID("createTodo").
+        WithSummary("Create a new todo").
+        WithJsonBody(CreateTodoRequest{}).
+        WithCreatedResponse(Todo{})
 
-// Route group with OpenAPI metadata
-api := router.NewRouteGroup("/todos")
-api.WithTags("Todos")
-
-api.GET("/", listTodos).
-    WithOperationID("listTodos").
-    WithSummary("List all todos").
-    WithQueryParam("completed", "Filter todos by completion state", true).
-    WithOKResponse([]Todo{})
-
-api.POST("/", createTodo).
-    WithOperationID("createTodo").
-    WithSummary("Create a new todo").
-    WithJsonBody(CreateTodoRequest{}).
-    WithCreatedResponse(Todo{})
-
-if err := router.Err(); err != nil {
+    router.GET("/openapi.json", func(c mux.RouteContext) {
+        // Generate and return the OpenAPI document.
+    })
+    router.GET("/", func(c mux.RouteContext) {
+        c.OK(map[string]string{"docs": "/openapi.json"})
+    })
+}); err != nil {
     panic(err)
 }
 

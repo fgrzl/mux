@@ -11,28 +11,28 @@ import (
 
 func main() {
 	// Create a new router
-	router := mux.NewRouter().Safe()
+	router := mux.NewRouter()
 
-	// Add a simple hello endpoint
-	router.GET("/", func(c mux.RouteContext) {
-		c.OK("Hello, World!")
-	}).WithOperationID("helloRoot")
+	if err := router.Configure(func(router *mux.Router) {
+		// Add a simple hello endpoint
+		router.GET("/", func(c mux.RouteContext) {
+			c.OK("Hello, World!")
+		}).WithOperationID("helloRoot")
 
-	// Add a greeting endpoint with path parameter
-	router.GET("/hello/{name}", func(c mux.RouteContext) {
-		name, ok := c.Param("name")
-		if !ok {
-			c.BadRequest("Missing name", "name parameter is required")
-			return
-		}
+		// Add a greeting endpoint with path parameter
+		router.GET("/hello/{name}", func(c mux.RouteContext) {
+			name, ok := c.Param("name")
+			if !ok {
+				c.BadRequest("Missing name", "name parameter is required")
+				return
+			}
 
-		c.OK(map[string]string{
-			"message": "Hello, " + name + "!",
-			"status":  "success",
-		})
-	}).WithOperationID("helloName")
-
-	if err := router.Err(); err != nil {
+			c.OK(map[string]string{
+				"message": "Hello, " + name + "!",
+				"status":  "success",
+			})
+		}).WithOperationID("helloName")
+	}); err != nil {
 		panic(err)
 	}
 

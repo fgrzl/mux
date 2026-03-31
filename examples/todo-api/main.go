@@ -49,77 +49,77 @@ const (
 )
 
 func main() {
-	router := mux.NewRouter().Safe()
+	router := mux.NewRouter()
 
-	// Create API group
-	api := router.NewRouteGroup("/todos")
-	api.WithTags("Todos")
+	if err := router.Configure(func(router *mux.Router) {
+		// Create API group
+		api := router.NewRouteGroup("/todos")
+		api.WithTags("Todos")
 
-	// Document each endpoint
-	api.GET("/", listTodos).
-		WithOperationID("listTodos").
-		WithSummary("List all todos").
-		WithQueryParam("completed", "Filter todos by completion state", true).
-		WithOKResponse([]Todo{})
+		// Document each endpoint
+		api.GET("/", listTodos).
+			WithOperationID("listTodos").
+			WithSummary("List all todos").
+			WithQueryParam("completed", "Filter todos by completion state", true).
+			WithOKResponse([]Todo{})
 
-	api.POST("/", createTodo).
-		WithOperationID("createTodo").
-		WithSummary("Create a new todo").
-		WithJsonBody(CreateTodoRequest{}).
-		WithCreatedResponse(Todo{})
+		api.POST("/", createTodo).
+			WithOperationID("createTodo").
+			WithSummary("Create a new todo").
+			WithJsonBody(CreateTodoRequest{}).
+			WithCreatedResponse(Todo{})
 
-	api.GET("/{id}", getTodo).
-		WithOperationID("getTodo").
-		WithSummary("Get a todo by ID").
-		WithPathParam("id", "The unique identifier of the todo item", todoIDParam).
-		WithOKResponse(Todo{}).
-		WithNotFoundResponse()
+		api.GET("/{id}", getTodo).
+			WithOperationID("getTodo").
+			WithSummary("Get a todo by ID").
+			WithPathParam("id", "The unique identifier of the todo item", todoIDParam).
+			WithOKResponse(Todo{}).
+			WithNotFoundResponse()
 
-	api.PUT("/{id}", updateTodo).
-		WithOperationID("updateTodo").
-		WithSummary("Update a todo").
-		WithPathParam("id", "The unique identifier of the todo item", todoIDParam).
-		WithJsonBody(UpdateTodoRequest{}).
-		WithOKResponse(Todo{})
+		api.PUT("/{id}", updateTodo).
+			WithOperationID("updateTodo").
+			WithSummary("Update a todo").
+			WithPathParam("id", "The unique identifier of the todo item", todoIDParam).
+			WithJsonBody(UpdateTodoRequest{}).
+			WithOKResponse(Todo{})
 
-	api.DELETE("/{id}", deleteTodo).
-		WithOperationID("deleteTodo").
-		WithSummary("Delete a todo").
-		WithPathParam("id", "The unique identifier of the todo item", todoIDParam).
-		WithNoContentResponse()
+		api.DELETE("/{id}", deleteTodo).
+			WithOperationID("deleteTodo").
+			WithSummary("Delete a todo").
+			WithPathParam("id", "The unique identifier of the todo item", todoIDParam).
+			WithNoContentResponse()
 
-	// Serve OpenAPI spec
-	router.GET("/openapi.json", func(c mux.RouteContext) {
-		info, err := router.InfoObject()
-		if err != nil {
-			c.ServerError("OpenAPI generation failed", err.Error())
-			return
-		}
-		routes, err := router.Routes()
-		if err != nil {
-			c.ServerError("OpenAPI generation failed", err.Error())
-			return
-		}
+		// Serve OpenAPI spec
+		router.GET("/openapi.json", func(c mux.RouteContext) {
+			info, err := router.InfoObject()
+			if err != nil {
+				c.ServerError("OpenAPI generation failed", err.Error())
+				return
+			}
+			routes, err := router.Routes()
+			if err != nil {
+				c.ServerError("OpenAPI generation failed", err.Error())
+				return
+			}
 
-		gen := openapi.NewGenerator()
-		spec, err := gen.GenerateSpecFromRoutes(info, routes)
-		if err != nil {
-			c.ServerError("OpenAPI generation failed", err.Error())
-			return
-		}
-		c.OK(spec)
-	})
-
-	// Root endpoint
-	router.GET("/", func(c mux.RouteContext) {
-		c.OK(map[string]string{
-			"message": "Todo API",
-			"version": "1.0.0",
-			"docs":    "/openapi.json",
+			gen := openapi.NewGenerator()
+			spec, err := gen.GenerateSpecFromRoutes(info, routes)
+			if err != nil {
+				c.ServerError("OpenAPI generation failed", err.Error())
+				return
+			}
+			c.OK(spec)
 		})
-	})
 
-	if err := router.Err(); err != nil {
+		// Root endpoint
+		router.GET("/", func(c mux.RouteContext) {
+			c.OK(map[string]string{
+				"message": "Todo API",
+				"version": "1.0.0",
+				"docs":    "/openapi.json",
+			})
+		})
+	}); err != nil {
 		panic(err)
 	}
 

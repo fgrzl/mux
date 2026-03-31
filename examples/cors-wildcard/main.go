@@ -12,7 +12,7 @@ import (
 
 func main() {
 	// Create a new router
-	router := mux.NewRouter().Safe()
+	router := mux.NewRouter()
 
 	// Configure CORS with wildcard support
 	// This allows requests from any subdomain of example.com
@@ -30,22 +30,22 @@ func main() {
 		mux.WithMaxAge(3600), // Cache preflight for 1 hour
 	)
 
-	// Add a simple endpoint
-	router.GET("/api/users", func(c mux.RouteContext) {
-		c.OK(map[string]any{
-			"users": []string{"alice", "bob", "charlie"},
+	if err := router.Configure(func(router *mux.Router) {
+		// Add a simple endpoint
+		router.GET("/api/users", func(c mux.RouteContext) {
+			c.OK(map[string]any{
+				"users": []string{"alice", "bob", "charlie"},
+			})
 		})
-	})
 
-	// Add another endpoint
-	router.POST("/api/users", func(c mux.RouteContext) {
-		c.Created(map[string]any{
-			"id":      123,
-			"message": "User created",
+		// Add another endpoint
+		router.POST("/api/users", func(c mux.RouteContext) {
+			c.Created(map[string]any{
+				"id":      123,
+				"message": "User created",
+			})
 		})
-	})
-
-	if err := router.Err(); err != nil {
+	}); err != nil {
 		panic(err)
 	}
 

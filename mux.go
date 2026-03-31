@@ -16,7 +16,6 @@ import (
 	"github.com/fgrzl/mux/pkg/middleware/logging"
 	"github.com/fgrzl/mux/pkg/middleware/opentelemetry"
 	"github.com/fgrzl/mux/pkg/middleware/ratelimit"
-	"github.com/fgrzl/mux/pkg/middleware/servicelocator"
 	"github.com/fgrzl/mux/pkg/openapi"
 	"github.com/fgrzl/mux/pkg/router"
 	"github.com/fgrzl/mux/pkg/routing"
@@ -502,39 +501,15 @@ var UseRateLimiter = ratelimit.UseRateLimiter
 // rate-limiter middleware. Alias of ratelimit.WithCleanupInterval.
 var WithCleanupInterval = ratelimit.WithCleanupInterval
 
-// --- Service locator middleware ---
-// ServiceSetterOptions configures the service-locator middleware. Alias of
-// servicelocator.ServiceSetterOptions.
-//
-// Deprecated: use ServiceRegistry via Router.Services(), RouteGroup.Services(),
-// or RouteBuilder.Services() instead.
-type ServiceSetterOptions = servicelocator.ServiceSetterOptions
-
-// ServiceSetterOption is a single functional option for the service locator.
-//
-// Deprecated: use ServiceRegistry via Router.Services(), RouteGroup.Services(),
-// or RouteBuilder.Services() instead.
-type ServiceSetterOption = servicelocator.ServiceSetterOption
-
-// UseServices installs the service locator middleware on a router. Alias of
-// servicelocator.UseServices.
-//
-// Deprecated: use Router.Services().Register(...) instead.
-var UseServices = servicelocator.UseServices
-
-// WithService adds a service instance to be injected by the service
-// locator middleware. Alias of servicelocator.WithService.
-//
-// Deprecated: use Router.Services().Register(...) instead.
-var WithService = servicelocator.WithService
-
 // --- Builder helpers ---
 // RouteBuilder provides a fluent interface for configuring routes. Alias of
 // builder.RouteBuilder.
 type RouteBuilder = builder.RouteBuilder
 
-// Route bootstraps a new RouteBuilder. Alias of builder.Route.
-var Route = builder.Route
+// DetachedRoute bootstraps a metadata-only RouteBuilder that can later be
+// attached with Router.HandleRoute or RouteGroup.HandleRoute. Alias of
+// builder.DetachedRoute.
+var DetachedRoute = builder.DetachedRoute
 
 // --- Router options and helpers ---
 // RouterOptions configures the top-level router. Alias of

@@ -10,7 +10,7 @@ import (
 
 func TestWithOperationIDErrShouldReturnErrorForInvalidID(t *testing.T) {
 	// Arrange
-	rb := Route(http.MethodGet, "/x")
+	rb := DetachedRoute(http.MethodGet, "/x")
 
 	// Act
 	result, err := rb.WithOperationIDErr("invalid-id")
@@ -24,7 +24,7 @@ func TestWithOperationIDErrShouldReturnErrorForInvalidID(t *testing.T) {
 
 func TestWithParamErrShouldReturnErrorForInvalidLocation(t *testing.T) {
 	// Arrange
-	rb := Route(http.MethodGet, "/x")
+	rb := DetachedRoute(http.MethodGet, "/x")
 
 	// Act
 	result, err := rb.WithParamErr("p", "invalid", "", 1, true)
@@ -38,7 +38,7 @@ func TestWithParamErrShouldReturnErrorForInvalidLocation(t *testing.T) {
 
 func TestWithPathParamErrShouldMarkRouteParameterRequired(t *testing.T) {
 	// Arrange
-	rb := Route(http.MethodGet, "/x/{id}")
+	rb := DetachedRoute(http.MethodGet, "/x/{id}")
 
 	// Act
 	result, err := rb.WithPathParamErr("id", "route identifier", "123")
@@ -55,7 +55,7 @@ func TestWithPathParamErrShouldMarkRouteParameterRequired(t *testing.T) {
 
 func TestWithQueryParamErrShouldAddOptionalRouteParameter(t *testing.T) {
 	// Arrange
-	rb := Route(http.MethodGet, "/x")
+	rb := DetachedRoute(http.MethodGet, "/x")
 
 	// Act
 	result, err := rb.WithQueryParamErr("limit", "page size", 10)
@@ -73,7 +73,7 @@ func TestWithQueryParamErrShouldAddOptionalRouteParameter(t *testing.T) {
 
 func TestWithCreatedResponseErrShouldAddCreatedResponse(t *testing.T) {
 	// Arrange
-	rb := Route(http.MethodPost, "/x")
+	rb := DetachedRoute(http.MethodPost, "/x")
 
 	// Act
 	result, err := rb.WithCreatedResponseErr(struct{ ID string }{ID: "123"})
@@ -88,7 +88,7 @@ func TestWithCreatedResponseErrShouldAddCreatedResponse(t *testing.T) {
 
 func TestWithStandardErrorsErrShouldAddCommonErrorResponses(t *testing.T) {
 	// Arrange
-	rb := Route(http.MethodGet, "/x")
+	rb := DetachedRoute(http.MethodGet, "/x")
 
 	// Act
 	result, err := rb.WithStandardErrorsErr()
@@ -104,7 +104,7 @@ func TestWithStandardErrorsErrShouldAddCommonErrorResponses(t *testing.T) {
 
 func TestWithJsonBodyErrShouldReturnErrorForGet(t *testing.T) {
 	// Arrange
-	rb := Route(http.MethodGet, "/x")
+	rb := DetachedRoute(http.MethodGet, "/x")
 
 	// Act
 	result, err := rb.WithJsonBodyErr(struct{ A int }{A: 1})

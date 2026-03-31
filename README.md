@@ -34,12 +34,12 @@ import (
 )
 
 func main() {
-    router := mux.NewRouter().Safe()
-    router.GET("/hello", func(c mux.RouteContext) {
-        c.OK("Hello, World!")
-    })
-
-    if err := router.Err(); err != nil {
+    router := mux.NewRouter()
+    if err := router.Configure(func(router *mux.Router) {
+        router.GET("/hello", func(c mux.RouteContext) {
+            c.OK("Hello, World!")
+        })
+    }); err != nil {
         panic(err)
     }
 
@@ -52,6 +52,8 @@ func main() {
     }
 }
 ```
+
+`Configure` runs startup registration in non-panicking validation mode and returns configuration errors directly. `Safe()` and `Err()` remain available when configuration is assembled across multiple phases.
 
 If you want to keep standard-library handlers while adopting Mux incrementally, use `Handle` or `HandleFunc`:
 
@@ -98,33 +100,32 @@ type User struct {
 }
 
 func main() {
-    router := mux.NewRouter().Safe()
+    router := mux.NewRouter()
+    if err := router.Configure(func(router *mux.Router) {
+        // Route groups help keep versioned paths and tags consistent.
+        api := router.NewRouteGroup("/api/v1")
+        api.WithTags("API v1")
 
-    // Route groups help keep versioned paths and tags consistent.
-    api := router.NewRouteGroup("/api/v1")
-    api.WithTags("API v1")
+        users := api.NewRouteGroup("/users")
+        users.WithTags("Users")
 
-    users := api.NewRouteGroup("/users")
-    users.WithTags("Users")
+        users.GET("/", listUsers).
+            WithOperationID("listUsers").
+            WithSummary("List all users").
+            WithOKResponse([]User{})
 
-    users.GET("/", listUsers).
-        WithOperationID("listUsers").
-        WithSummary("List all users").
-        WithOKResponse([]User{})
+        users.POST("/", createUser).
+            WithOperationID("createUser").
+            WithSummary("Create a new user").
+            WithJsonBody(User{}).
+            WithCreatedResponse(User{})
 
-    users.POST("/", createUser).
-        WithOperationID("createUser").
-        WithSummary("Create a new user").
-        WithJsonBody(User{}).
-        WithCreatedResponse(User{})
-
-    users.GET("/{id}", getUser).
-        WithOperationID("getUser").
-        WithSummary("Get a user by ID").
-        WithPathParam("id", "The unique user identifier", uuid.Nil).
-        WithOKResponse(User{})
-
-    if err := router.Err(); err != nil {
+        users.GET("/{id}", getUser).
+            WithOperationID("getUser").
+            WithSummary("Get a user by ID").
+            WithPathParam("id", "The unique user identifier", uuid.Nil).
+            WithOKResponse(User{})
+    }); err != nil {
         panic(err)
     }
 

@@ -107,17 +107,13 @@ curl -i -X POST http://localhost:8080/old-webhook \
 You can also document redirects in your route builders:
 
 ```go
-import "github.com/fgrzl/mux/pkg/builder"
+route := mux.DetachedRoute(http.MethodGet, "/old-page").
+    WithSummary("Old page endpoint").
+    With302Response() // Document the redirect
 
-router.Handle(
-    builder.Route(http.MethodGet, "/old-page").
-        WithSummary("Old page endpoint").
-        With302Response().  // Document the redirect
-        Options(),
-    func(c mux.RouteContext) {
-        c.Found("/new-page")
-    },
-)
+router.HandleRoute(route, func(c mux.RouteContext) {
+    c.Found("/new-page")
+})
 ```
 
 Available builder methods:

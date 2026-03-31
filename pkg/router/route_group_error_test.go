@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/fgrzl/mux/pkg/builder"
 	"github.com/fgrzl/mux/pkg/routing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -92,6 +93,26 @@ func TestShouldAccumulateValidationErrorsWithoutPanickingWhenRouteGroupSafe(t *t
 	require.Len(t, rtr.Errors(), 2)
 }
 
+func TestConfigureShouldReturnValidationErrorsOnRouteGroupWithoutChangingDefaultPanicBehavior(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+	api := rtr.NewRouteGroup("/api")
+
+	// Act
+	err := api.Configure(func(group *RouteGroup) {
+		group.WithParam("id", "matrix", "user identifier", "123", false)
+	})
+
+	// Assert
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "invalid parameter 'in'")
+	require.Len(t, api.Errors(), 1)
+	require.Len(t, rtr.Errors(), 1)
+	assert.Panics(t, func() {
+		api.WithParam("id", "matrix", "user identifier", "123", false)
+	})
+}
+
 func TestShouldRejectDuplicateRouteRegistrationWithoutOverwritingExistingHandler(t *testing.T) {
 	// Arrange
 	rtr := NewRouter().Safe()
@@ -134,6 +155,28 @@ func TestShouldNotServeRouteAfterBuilderValidationFailsInSafeMode(t *testing.T) 
 	// Assert
 	require.Error(t, route.Err())
 	assert.ErrorContains(t, route.Err(), "invalid OperationID")
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+	require.Len(t, rtr.Errors(), 1)
+}
+
+func TestShouldNotAttachDetachedRouteBuilderWithExistingValidationErrors(t *testing.T) {
+	// Arrange
+	rtr := NewRouter().Safe()
+	api := rtr.NewRouteGroup("/api")
+	detached := builder.DetachedRoute(http.MethodGet, "/users").Safe()
+	detached.WithOperationID("invalid-id")
+
+	// Act
+	attached := api.HandleRoute(detached, func(c routing.RouteContext) {
+		c.OK("users")
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/users", nil)
+	rr := httptest.NewRecorder()
+	rtr.ServeHTTP(rr, req)
+
+	// Assert
+	require.Error(t, attached.Err())
+	assert.ErrorContains(t, attached.Err(), "invalid OperationID")
 	assert.Equal(t, http.StatusNotFound, rr.Code)
 	require.Len(t, rtr.Errors(), 1)
 }

@@ -39,16 +39,16 @@ import (
 )
 
 func main() {
-    router := mux.NewRouter().Safe()
+    router := mux.NewRouter()
 
-    router.GET("/", func(c mux.RouteContext) {
-        c.OK(map[string]string{
-            "message": "Welcome to my API!",
-            "status":  "running",
+    if err := router.Configure(func(router *mux.Router) {
+        router.GET("/", func(c mux.RouteContext) {
+            c.OK(map[string]string{
+                "message": "Welcome to my API!",
+                "status":  "running",
+            })
         })
-    })
-
-    if err := router.Err(); err != nil {
+    }); err != nil {
         panic(err)
     }
 
@@ -205,9 +205,11 @@ import (
     "github.com/fgrzl/mux"
 )
 
-router := mux.NewRouter().Safe()
+router := mux.NewRouter()
 
-if err := router.Err(); err != nil { panic(err) }
+if err := router.Configure(func(router *mux.Router) {
+    // Register routes and groups here.
+}); err != nil { panic(err) }
 
 server := mux.NewServer(":8080", router)
 
@@ -266,8 +268,8 @@ router.GET("/users/{id}", func(c mux.RouteContext) {
 
 ```go
 router.GET("/search", func(c mux.RouteContext) {
-    query := c.Params()["q"]
-    limit, _ := c.ParamInt("limit")
+    query, _ := c.QueryValue("q")
+    limit, _ := c.QueryInt("limit")
     
     results := search(query, limit)
     c.OK(results)
@@ -286,7 +288,7 @@ router.GET("/users/{id}", func(c mux.RouteContext) {
         return
     }
     if err != nil {
-        c.InternalServerError("Database error", err.Error())
+        c.ServerError("Database error", err.Error())
         return
     }
     

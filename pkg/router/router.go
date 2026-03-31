@@ -83,9 +83,30 @@ type Router struct {
 
 // Safe switches the router's configuration tree into non-panicking validation
 // mode and returns the router for fluent startup configuration.
+// Prefer Configure in new application code when you want a single error return
+// for startup validation.
 func (rtr *Router) Safe() *Router {
 	rtr.RouteGroup.Safe()
 	return rtr
+}
+
+// Configure runs startup configuration with validation errors returned instead
+// of panicking. This is the recommended entry point for application setup that
+// wants one explicit error check after route registration.
+func (rtr *Router) Configure(configure func(*Router)) error {
+	if configure == nil {
+		return nil
+	}
+
+	original := rtr.RouteGroup.validationState()
+	configured := original.WithPanicOnError(false)
+	rtr.RouteGroup.validation = configured
+	defer func() {
+		rtr.RouteGroup.validation = original
+	}()
+
+	configure(rtr)
+	return configured.Err()
 }
 
 // Errors returns accumulated configuration errors for the router tree.

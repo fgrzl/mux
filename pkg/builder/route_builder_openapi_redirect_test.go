@@ -11,7 +11,7 @@ import (
 // properly add redirect responses to the route options
 func TestRedirectResponsesInRouteBuilder(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, "/redirect-test").
+	builder := DetachedRoute(http.MethodGet, "/redirect-test").
 		WithSummary("Test endpoint with all redirect types").
 		WithDescription("This endpoint demonstrates all HTTP redirect status codes").
 		With301Response().
@@ -60,7 +60,7 @@ func TestIndividualRedirectResponseBuilders(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange & Act
-			builder := Route(http.MethodGet, "/test")
+			builder := DetachedRoute(http.MethodGet, "/test")
 			builder = tt.method(builder)
 
 			// Assert
@@ -75,7 +75,7 @@ func TestIndividualRedirectResponseBuilders(t *testing.T) {
 // Test302ResponseForLoginEndpoint tests a realistic login redirect scenario
 func Test302ResponseForLoginEndpoint(t *testing.T) {
 	// Arrange & Act - A realistic login redirect scenario
-	builder := Route(http.MethodGet, "/login").
+	builder := DetachedRoute(http.MethodGet, "/login").
 		WithSummary("Login page").
 		WithDescription("Redirects to authentication provider").
 		With302Response().
@@ -98,7 +98,7 @@ func Test302ResponseForLoginEndpoint(t *testing.T) {
 // TestPostRedirectGet303Pattern tests the POST-Redirect-GET pattern with 303
 func TestPostRedirectGet303Pattern(t *testing.T) {
 	// Arrange & Act - POST with 303 redirect (POST-Redirect-GET pattern)
-	builder := Route(http.MethodPost, "/submit-form").
+	builder := DetachedRoute(http.MethodPost, "/submit-form").
 		WithSummary("Submit form data").
 		WithDescription("Processes form submission and redirects to result page").
 		WithJsonBody(map[string]string{"data": "example"}).
@@ -121,7 +121,7 @@ func TestPostRedirectGet303Pattern(t *testing.T) {
 // TestAPIVersionRedirect307And308 tests API versioning with method-preserving redirects
 func TestAPIVersionRedirect307And308(t *testing.T) {
 	// Test 307 - Temporary redirect, preserves method
-	builderV1 := Route(http.MethodPost, "/api/v1/users").
+	builderV1 := DetachedRoute(http.MethodPost, "/api/v1/users").
 		WithSummary("Create user (v1 - deprecated)").
 		WithDescription("Redirects to v2 endpoint, preserving POST method").
 		WithJsonBody(map[string]string{"name": "example"}).
@@ -133,7 +133,7 @@ func TestAPIVersionRedirect307And308(t *testing.T) {
 	assert.Nil(t, response307.Content, "307 should have no content")
 
 	// Test 308 - Permanent redirect, preserves method
-	builderV0 := Route(http.MethodPost, "/api/v0/users").
+	builderV0 := DetachedRoute(http.MethodPost, "/api/v0/users").
 		WithSummary("Create user (v0 - obsolete)").
 		WithDescription("Permanently redirects to v2 endpoint").
 		WithJsonBody(map[string]string{"name": "example"}).
@@ -148,7 +148,7 @@ func TestAPIVersionRedirect307And308(t *testing.T) {
 // TestRedirectResponseChaining verifies that redirect responses can be chained with other builder methods
 func TestRedirectResponseChaining(t *testing.T) {
 	// Test that all methods return *RouteBuilder for chaining
-	builder := Route(http.MethodGet, "/chain-test").
+	builder := DetachedRoute(http.MethodGet, "/chain-test").
 		WithSummary("Chain test").
 		With301Response().
 		With302Response().
@@ -182,7 +182,7 @@ func TestNamedRedirectResponseBuilders(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange & Act
-			builder := Route(http.MethodGet, "/test")
+			builder := DetachedRoute(http.MethodGet, "/test")
 			builder = tt.method(builder)
 
 			// Assert
@@ -231,11 +231,11 @@ func TestNumericAndNamedRedirectMethodsEquivalent(t *testing.T) {
 	for _, tt := range tests {
 		t.Run("Status_"+tt.statusCode, func(t *testing.T) {
 			// Build with numeric method
-			numericBuilder := Route(http.MethodGet, "/test1")
+			numericBuilder := DetachedRoute(http.MethodGet, "/test1")
 			numericBuilder = tt.numericMethod(numericBuilder)
 
 			// Build with named method
-			namedBuilder := Route(http.MethodGet, "/test2")
+			namedBuilder := DetachedRoute(http.MethodGet, "/test2")
 			namedBuilder = tt.namedMethod(namedBuilder)
 
 			// Both should have the same response
@@ -254,14 +254,14 @@ func TestNumericAndNamedRedirectMethodsEquivalent(t *testing.T) {
 // TestNamedRedirectMethodsInRealisticScenario tests using named methods in realistic scenarios
 func TestNamedRedirectMethodsInRealisticScenario(t *testing.T) {
 	// Use WithFoundResponse for a login redirect (most common case)
-	loginBuilder := Route(http.MethodGet, "/login").
+	loginBuilder := DetachedRoute(http.MethodGet, "/login").
 		WithSummary("Login redirect").
 		WithFoundResponse()
 
 	assert.NotNil(t, loginBuilder.Options.Responses["302"])
 
 	// Use WithSeeOtherResponse for POST-Redirect-GET pattern
-	submitBuilder := Route(http.MethodPost, "/form").
+	submitBuilder := DetachedRoute(http.MethodPost, "/form").
 		WithSummary("Form submission").
 		WithJsonBody(map[string]string{"data": "example"}).
 		WithSeeOtherResponse().
@@ -271,14 +271,14 @@ func TestNamedRedirectMethodsInRealisticScenario(t *testing.T) {
 	assert.NotNil(t, submitBuilder.Options.Responses["400"])
 
 	// Use WithMovedPermanentlyResponse for SEO-friendly permanent redirects
-	oldPageBuilder := Route(http.MethodGet, "/old-page").
+	oldPageBuilder := DetachedRoute(http.MethodGet, "/old-page").
 		WithSummary("Old page (moved)").
 		WithMovedPermanentlyResponse()
 
 	assert.NotNil(t, oldPageBuilder.Options.Responses["301"])
 
 	// Use WithTemporaryRedirectResponse for API versioning
-	apiV1Builder := Route(http.MethodPost, "/api/v1/resource").
+	apiV1Builder := DetachedRoute(http.MethodPost, "/api/v1/resource").
 		WithSummary("API v1 (deprecated)").
 		WithJsonBody(map[string]string{"id": "123"}).
 		WithTemporaryRedirectResponse()
@@ -286,7 +286,7 @@ func TestNamedRedirectMethodsInRealisticScenario(t *testing.T) {
 	assert.NotNil(t, apiV1Builder.Options.Responses["307"])
 
 	// Use WithPermanentRedirectResponse for permanently moved API endpoints
-	apiV0Builder := Route(http.MethodPost, "/api/v0/resource").
+	apiV0Builder := DetachedRoute(http.MethodPost, "/api/v0/resource").
 		WithSummary("API v0 (obsolete)").
 		WithJsonBody(map[string]string{"id": "123"}).
 		WithPermanentRedirectResponse()

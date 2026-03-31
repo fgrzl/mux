@@ -23,7 +23,7 @@ type Bird struct {
 }
 
 func TestWithOneOfJsonBodyShouldCreateOneOfSchema(t *testing.T) {
-	rb := Route(http.MethodPost, "/pets").
+	rb := DetachedRoute(http.MethodPost, "/pets").
 		WithOneOfJsonBody(
 			Dog{Type: "dog", Bark: "woof"},
 			Cat{Type: "cat", Meow: "meow"},
@@ -58,7 +58,7 @@ func TestWithOneOfJsonBodyShouldCreateOneOfSchema(t *testing.T) {
 }
 
 func TestWithAnyOfJsonBodyShouldCreateAnyOfSchema(t *testing.T) {
-	rb := Route(http.MethodPost, "/animals").
+	rb := DetachedRoute(http.MethodPost, "/animals").
 		WithAnyOfJsonBody(
 			Dog{Type: "dog", Bark: "woof"},
 			Cat{Type: "cat", Meow: "meow"},
@@ -106,7 +106,7 @@ func TestWithAllOfJsonBodyShouldCreateAllOfSchema(t *testing.T) {
 		UpdatedAt string `json:"updated_at"`
 	}
 
-	rb := Route(http.MethodPost, "/entities").
+	rb := DetachedRoute(http.MethodPost, "/entities").
 		WithAllOfJsonBody(
 			BaseEntity{ID: "123", Name: "Test"},
 			Metadata{CreatedAt: "2024-01-01", UpdatedAt: "2024-01-02"},
@@ -140,7 +140,7 @@ func TestWithAllOfJsonBodyShouldCreateAllOfSchema(t *testing.T) {
 }
 
 func TestWithOneOfJsonBodyShouldHandleEmptySlice(t *testing.T) {
-	rb := Route(http.MethodPost, "/pets").
+	rb := DetachedRoute(http.MethodPost, "/pets").
 		WithOneOfJsonBody().
 		WithOperationID("createPet")
 
@@ -150,7 +150,7 @@ func TestWithOneOfJsonBodyShouldHandleEmptySlice(t *testing.T) {
 }
 
 func TestWithOneOfJsonBodyShouldSkipNilExamples(t *testing.T) {
-	rb := Route(http.MethodPost, "/pets").
+	rb := DetachedRoute(http.MethodPost, "/pets").
 		WithOneOfJsonBody(
 			Dog{Type: "dog", Bark: "woof"},
 			nil,
@@ -184,7 +184,7 @@ func TestWithOneOfJsonBodyShouldPanicForInvalidMethods(t *testing.T) {
 					t.Errorf("expected panic for method %s", tt.method)
 				}
 			}()
-			Route(tt.method, "/test").WithOneOfJsonBody(Dog{Type: "dog", Bark: "woof"})
+			DetachedRoute(tt.method, "/test").WithOneOfJsonBody(Dog{Type: "dog", Bark: "woof"})
 		})
 	}
 }
@@ -193,7 +193,7 @@ func TestWithAnyOfJsonBodyShouldSetExample(t *testing.T) {
 	dog := Dog{Type: "dog", Bark: "woof"}
 	cat := Cat{Type: "cat", Meow: "meow"}
 
-	rb := Route(http.MethodPost, "/animals").
+	rb := DetachedRoute(http.MethodPost, "/animals").
 		WithAnyOfJsonBody(dog, cat).
 		WithOperationID("createAnimal")
 
@@ -213,7 +213,7 @@ func TestWithAllOfJsonBodyShouldRequireBody(t *testing.T) {
 		ID string `json:"id"`
 	}
 
-	rb := Route(http.MethodPost, "/test").
+	rb := DetachedRoute(http.MethodPost, "/test").
 		WithAllOfJsonBody(Base{ID: "123"}).
 		WithOperationID("test")
 

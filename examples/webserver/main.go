@@ -12,29 +12,29 @@ import (
 
 func main() {
 	// Create router
-	router := mux.NewRouter().Safe()
+	router := mux.NewRouter()
 
-	// Add health probes
-	router.Healthz()
-	router.Livez()
-	router.Readyz()
+	if err := router.Configure(func(router *mux.Router) {
+		// Add health probes
+		router.Healthz()
+		router.Livez()
+		router.Readyz()
 
-	// Add routes
-	router.GET("/", func(c mux.RouteContext) {
-		c.OK(map[string]string{
-			"message": "Hello from WebServer!",
-			"version": "1.0.0",
+		// Add routes
+		router.GET("/", func(c mux.RouteContext) {
+			c.OK(map[string]string{
+				"message": "Hello from WebServer!",
+				"version": "1.0.0",
+			})
 		})
-	})
 
-	api := router.NewRouteGroup("/api/v1")
-	api.GET("/status", func(c mux.RouteContext) {
-		c.OK(map[string]string{
-			"status": "running",
+		api := router.NewRouteGroup("/api/v1")
+		api.GET("/status", func(c mux.RouteContext) {
+			c.OK(map[string]string{
+				"status": "running",
+			})
 		})
-	})
-
-	if err := router.Err(); err != nil {
+	}); err != nil {
 		slog.Error("Invalid router configuration", "error", err)
 		os.Exit(1)
 	}

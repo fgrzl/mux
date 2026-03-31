@@ -34,7 +34,7 @@ func TestOneOfJsonBodyShouldProduceValidOpenAPIYAML(t *testing.T) {
 	gen := openapi.NewGenerator()
 
 	// Create a route with oneOf
-	op := Route(http.MethodPost, "/pets").
+	op := DetachedRoute(http.MethodPost, "/pets").
 		WithOneOfJsonBody(DogAnimal{}, CatAnimal{}).
 		WithOperationID("createPet").
 		Options.Operation
@@ -98,7 +98,7 @@ func TestAnyOfJsonBodyShouldProduceValidOpenAPIYAML(t *testing.T) {
 	// Arrange
 	gen := openapi.NewGenerator()
 
-	op := Route(http.MethodPost, "/animals").
+	op := DetachedRoute(http.MethodPost, "/animals").
 		WithAnyOfJsonBody(DogAnimal{}, CatAnimal{}, BirdAnimal{}).
 		WithOperationID("createAnimal").
 		Options.Operation
@@ -160,7 +160,7 @@ func TestAllOfJsonBodyShouldProduceValidOpenAPIYAML(t *testing.T) {
 
 	gen := openapi.NewGenerator()
 
-	op := Route(http.MethodPost, "/entities").
+	op := DetachedRoute(http.MethodPost, "/entities").
 		WithAllOfJsonBody(BaseEntity{}, Timestamps{}).
 		WithOperationID("createEntity").
 		Options.Operation
@@ -214,7 +214,7 @@ func TestCompositeSchemasShouldReferenceComponentSchemas(t *testing.T) {
 	// Arrange
 	gen := openapi.NewGenerator()
 
-	op := Route(http.MethodPost, "/pets").
+	op := DetachedRoute(http.MethodPost, "/pets").
 		WithOneOfJsonBody(DogAnimal{}, CatAnimal{}).
 		WithOperationID("createPet").
 		Options.Operation
@@ -252,7 +252,7 @@ func TestCompositeJSONBodyShouldMarshalToValidJSON(t *testing.T) {
 	// Arrange
 	gen := openapi.NewGenerator()
 
-	op := Route(http.MethodPost, "/pets").
+	op := DetachedRoute(http.MethodPost, "/pets").
 		WithOneOfJsonBody(DogAnimal{Type: "dog"}, CatAnimal{Type: "cat"}).
 		WithOperationID("createPet").
 		Options.Operation
@@ -283,7 +283,7 @@ func TestParameterDescriptionsShouldAppearInOpenAPISpec(t *testing.T) {
 	gen := openapi.NewGenerator()
 
 	// Create a route with parameters that have descriptions
-	op := Route(http.MethodGet, "/users/{id}").
+	op := DetachedRoute(http.MethodGet, "/users/{id}").
 		WithPathParam("id", "The unique user identifier (UUID format)", "550e8400-e29b-41d4-a716-446655440000").
 		WithQueryParam("include", "Comma-separated list of related resources to include", "profile,settings").
 		WithRequiredQueryParam("apiVersion", "The API version to use for this request", "v1").
@@ -362,7 +362,7 @@ func TestParameterDescriptionsWithExamplesShouldAppearInOpenAPISpec(t *testing.T
 	gen := openapi.NewGenerator(openapi.WithExamples())
 
 	// Create a route with parameters that have descriptions and examples
-	op := Route(http.MethodGet, "/users/{id}").
+	op := DetachedRoute(http.MethodGet, "/users/{id}").
 		WithPathParam("id", "The unique user identifier (UUID format)", "550e8400-e29b-41d4-a716-446655440000").
 		WithQueryParam("include", "Comma-separated list of related resources to include", "profile,settings").
 		WithOperationID("getUserWithExamples").
@@ -445,7 +445,7 @@ func TestAnyOfWithNestedTypesShouldRegisterAllComponents(t *testing.T) {
 
 	gen := openapi.NewGenerator()
 
-	op := Route(http.MethodPost, "/entities").
+	op := DetachedRoute(http.MethodPost, "/entities").
 		WithAnyOfJsonBody(PersonWithAddress{}, CompanyWithAddress{}).
 		WithOperationID("createEntity").
 		Options.Operation

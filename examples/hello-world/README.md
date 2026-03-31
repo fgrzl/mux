@@ -53,9 +53,9 @@ This will return a 404 since the route requires a name parameter.
 
 ### Router Creation
 ```go
-router := mux.NewRouter().Safe()
+router := mux.NewRouter()
 ```
-Creates a new Mux router instance and enables startup validation collection.
+Creates a new Mux router instance.
 
 ### Basic Route
 ```go
@@ -85,7 +85,9 @@ router.GET("/hello/{name}", func(c mux.RouteContext) {
 
 ### Startup Validation
 ```go
-if err := router.Err(); err != nil {
+if err := router.Configure(func(router *mux.Router) {
+    // Register routes and groups here.
+}); err != nil {
     panic(err)
 }
 ```

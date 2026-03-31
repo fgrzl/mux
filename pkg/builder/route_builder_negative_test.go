@@ -11,7 +11,7 @@ import (
 
 func TestShouldPanicOnInvalidParamIn(t *testing.T) {
 	// Arrange
-	rb := Route(http.MethodGet, "/x")
+	rb := DetachedRoute(http.MethodGet, "/x")
 
 	// Act & Assert
 	require.Panics(t, func() { rb.WithParam("p", "invalid", "", 1, true) })
@@ -19,7 +19,7 @@ func TestShouldPanicOnInvalidParamIn(t *testing.T) {
 
 func TestShouldPanicOnBodyForGet(t *testing.T) {
 	// Arrange
-	rb := Route(http.MethodGet, "/x")
+	rb := DetachedRoute(http.MethodGet, "/x")
 
 	// Act & Assert
 	require.PanicsWithValue(t,

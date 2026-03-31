@@ -107,21 +107,21 @@ router.GET("/files/{path}", func(c mux.RouteContext) {
 **A:** Use the type-safe query parameter helpers:
 ```go
 func handler(c mux.RouteContext) {
-    // String values
-    search, _ := c.QueryValue("q")
-    
-    // Numeric values
-    page, _ := c.QueryInt("page")
-    limit, _ := c.QueryInt("limit")
-    
-    // Boolean values
-    includeDeleted, _ := c.QueryBool("include_deleted")
-    
-    // UUID values
-    userID, ok := c.QueryUUID("user_id")
-    
-    // Multiple values
-    tags, _ := c.QueryValues("tags")
+	// String values
+	search, _ := c.QueryValue("q")
+
+	// Numeric values
+	page, _ := c.QueryInt("page")
+	limit, _ := c.QueryInt("limit")
+
+	// Boolean values
+	includeDeleted, _ := c.QueryBool("include_deleted")
+
+	// UUID values
+	userID, ok := c.QueryUUID("user_id")
+
+	// Multiple values
+	tags, _ := c.QueryValues("tags")
 }
 ```
 
@@ -130,16 +130,16 @@ func handler(c mux.RouteContext) {
 **A:** Use form value helpers or automatic binding:
 ```go
 func handler(c mux.RouteContext) {
-    // Individual form fields
-    name, _ := c.FormValue("name")
-    age, _ := c.FormInt("age")
-    
-    // Automatic binding to struct
-    var user User
-    if err := c.Bind(&user); err != nil {
-        c.BadRequest("Invalid data", err.Error())
-        return
-    }
+	// Individual form fields
+	name, _ := c.FormValue("name")
+	age, _ := c.FormInt("age")
+
+	// Automatic binding to struct
+	var user User
+	if err := c.Bind(&user); err != nil {
+		c.BadRequest("Invalid data", err.Error())
+		return
+	}
 }
 ```
 
@@ -196,15 +196,15 @@ router.Use(&CustomMiddleware{})
 **A:** Mux provides automatic JSON handling:
 ```go
 func createUser(c mux.RouteContext) {
-    // Automatic JSON binding
-    var user User
-    if err := c.Bind(&user); err != nil {
-        c.BadRequest("Invalid JSON", err.Error())
-        return
-    }
-    
-    // Automatic JSON response
-    c.Created(user)
+	// Automatic JSON binding
+	var user User
+	if err := c.Bind(&user); err != nil {
+		c.BadRequest("Invalid JSON", err.Error())
+		return
+	}
+
+	// Automatic JSON response
+	c.Created(user)
 }
 ```
 
@@ -213,18 +213,18 @@ func createUser(c mux.RouteContext) {
 **A:** Access multipart form data through the standard request:
 ```go
 func uploadFile(c mux.RouteContext) {
-    file, header, err := c.Request().FormFile("file")
-    if err != nil {
-        c.BadRequest("No file provided", err.Error())
-        return
-    }
-    defer file.Close()
-    
-    // Process file...
-    c.OK(map[string]string{
-        "filename": header.Filename,
-        "size":     fmt.Sprintf("%d", header.Size),
-    })
+	file, header, err := c.Request().FormFile("file")
+	if err != nil {
+		c.BadRequest("No file provided", err.Error())
+		return
+	}
+	defer file.Close()
+
+	// Process file...
+	c.OK(map[string]string{
+		"filename": header.Filename,
+		"size":     fmt.Sprintf("%d", header.Size),
+	})
 }
 ```
 
@@ -233,18 +233,18 @@ func uploadFile(c mux.RouteContext) {
 **A:** Use appropriate response helpers or set headers manually:
 ```go
 func handler(c mux.RouteContext) {
-    accept := c.Request().Header.Get("Accept")
-    
-    switch {
-    case strings.Contains(accept, "application/xml"):
-    c.Response().Header().Set("Content-Type", "application/xml")
-    c.Response().Write([]byte("<message>Hello</message>"))
-    case strings.Contains(accept, "text/plain"):
-    c.Response().Header().Set("Content-Type", "text/plain")
-    c.Response().Write([]byte("Hello"))
-    default:
-        c.OK("Hello")
-    }
+	accept := c.Request().Header.Get("Accept")
+
+	switch {
+	case strings.Contains(accept, "application/xml"):
+		c.Response().Header().Set("Content-Type", "application/xml")
+		c.Response().Write([]byte("<message>Hello</message>"))
+	case strings.Contains(accept, "text/plain"):
+		c.Response().Header().Set("Content-Type", "text/plain")
+		c.Response().Write([]byte("Hello"))
+	default:
+		c.OK("Hello")
+	}
 }
 ```
 
@@ -281,16 +281,16 @@ router.POST("/users", createUser).RequirePermission("write")
 type CORSMiddleware struct{}
 
 func (m *CORSMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
-    c.Response().Header().Set("Access-Control-Allow-Origin", "*")
-    c.Response().Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
-    c.Response().Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-    
-    if c.Request().Method == "OPTIONS" {
-    c.Response().WriteHeader(http.StatusOK)
-        return
-    }
-    
-    next(c)
+	c.Response().Header().Set("Access-Control-Allow-Origin", "*")
+	c.Response().Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
+	c.Response().Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+	if c.Request().Method == "OPTIONS" {
+		c.Response().WriteHeader(http.StatusOK)
+		return
+	}
+
+	next(c)
 }
 ```
 
@@ -335,9 +335,9 @@ router := mux.NewRouter(
 **A:** Use struct tags and provide examples:
 ```go
 type User struct {
-    ID    uuid.UUID `json:"id" example:"123e4567-e89b-12d3-a456-426614174000"`
-    Name  string    `json:"name" example:"John Doe"`
-    Email string    `json:"email" example:"john@example.com"`
+	ID    uuid.UUID `json:"id" example:"123e4567-e89b-12d3-a456-426614174000"`
+	Name  string    `json:"name" example:"John Doe"`
+	Email string    `json:"email" example:"john@example.com"`
 }
 ```
 
@@ -366,20 +366,21 @@ type User struct {
 **A:** Implement graceful shutdown with context cancellation:
 ```go
 func main() {
-    router := mux.NewRouter().Safe()
-    // ... setup routes
+	router := mux.NewRouter()
 
-    if err := router.Err(); err != nil {
-        log.Fatal(err)
-    }
+	if err := router.Configure(func(router *mux.Router) {
+		// ... setup routes
+	}); err != nil {
+		log.Fatal(err)
+	}
 
-    ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-    defer stop()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
-    server := mux.NewServer(":8080", router)
-    if err := server.Listen(ctx); err != nil {
-        log.Fatal(err)
-    }
+	server := mux.NewServer(":8080", router)
+	if err := server.Listen(ctx); err != nil {
+		log.Fatal(err)
+	}
 }
 ```
 
@@ -390,17 +391,17 @@ func main() {
 **A:** Create test handlers and use HTTP testing tools:
 ```go
 func TestCreateUser(t *testing.T) {
-    router := mux.NewRouter()
-    router.POST("/users", createUser)
-    
-    body := `{"name": "John", "email": "john@example.com"}`
-    req := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(body))
-    req.Header.Set("Content-Type", "application/json")
-    
-    rec := httptest.NewRecorder()
-    router.ServeHTTP(rec, req)
-    
-    assert.Equal(t, http.StatusCreated, rec.Code)
+	router := mux.NewRouter()
+	router.POST("/users", createUser)
+
+	body := `{"name": "John", "email": "john@example.com"}`
+	req := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusCreated, rec.Code)
 }
 ```
 
@@ -409,18 +410,18 @@ func TestCreateUser(t *testing.T) {
 **A:** Test middleware independently:
 ```go
 func TestAuthenticationMiddleware(t *testing.T) {
-    router := mux.NewRouter()
-    router.UseAuthentication(mux.WithValidator(mockValidator))
-    router.GET("/protected", protectedHandler)
-    
-    // Test with valid token
-    req := httptest.NewRequest(http.MethodGet, "/protected", nil)
-    req.Header.Set("Authorization", "Bearer valid-token")
-    
-    rec := httptest.NewRecorder()
-    rtr.ServeHTTP(rec, req)
-    
-    assert.Equal(t, http.StatusOK, rec.Code)
+	router := mux.NewRouter()
+	router.UseAuthentication(mux.WithValidator(mockValidator))
+	router.GET("/protected", protectedHandler)
+
+	// Test with valid token
+	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req.Header.Set("Authorization", "Bearer valid-token")
+
+	rec := httptest.NewRecorder()
+	rtr.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
 }
 ```
 

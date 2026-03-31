@@ -51,7 +51,7 @@ func (m *builderTestMiddleware) Invoke(c routing.RouteContext, next routing.Hand
 
 func TestShouldCreateRouteBuilder(t *testing.T) {
 	// Arrange & Act
-	builder := Route(http.MethodGet, pathUsers)
+	builder := DetachedRoute(http.MethodGet, pathUsers)
 
 	// Assert
 	assert.NotNil(t, builder)
@@ -63,7 +63,7 @@ func TestShouldCreateRouteBuilder(t *testing.T) {
 
 func TestShouldSetAllowAnonymous(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, pathPublic)
+	builder := DetachedRoute(http.MethodGet, pathPublic)
 
 	// Act
 	result := builder.AllowAnonymous()
@@ -75,7 +75,7 @@ func TestShouldSetAllowAnonymous(t *testing.T) {
 
 func TestShouldComposeRouteScopedMiddlewareOnBuilder(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, pathUsers)
+	builder := DetachedRoute(http.MethodGet, pathUsers)
 	var seen []string
 
 	// Act
@@ -103,7 +103,7 @@ func TestShouldComposeRouteScopedMiddlewareOnBuilder(t *testing.T) {
 
 func TestShouldRegisterScopedServiceOnBuilder(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, pathUsers)
+	builder := DetachedRoute(http.MethodGet, pathUsers)
 	serviceKey := routing.ServiceKey("svc")
 	service := struct{ Name string }{Name: "primary"}
 
@@ -118,7 +118,7 @@ func TestShouldRegisterScopedServiceOnBuilder(t *testing.T) {
 
 func TestShouldExposeServiceRegistryOnBuilder(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, pathUsers)
+	builder := DetachedRoute(http.MethodGet, pathUsers)
 	registry := builder.Services()
 	serviceKey := routing.ServiceKey("svc")
 
@@ -135,7 +135,7 @@ func TestShouldExposeServiceRegistryOnBuilder(t *testing.T) {
 
 func TestShouldSetRequiredPermissions(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, pathSecure)
+	builder := DetachedRoute(http.MethodGet, pathSecure)
 	perms := []string{"read", "write"}
 
 	// Act
@@ -148,7 +148,7 @@ func TestShouldSetRequiredPermissions(t *testing.T) {
 
 func TestShouldSetRequiredRoles(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, "/admin")
+	builder := DetachedRoute(http.MethodGet, "/admin")
 	roles := []string{"admin", "moderator"}
 
 	// Act
@@ -161,7 +161,7 @@ func TestShouldSetRequiredRoles(t *testing.T) {
 
 func TestShouldSetRequiredScopes(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, "/api")
+	builder := DetachedRoute(http.MethodGet, "/api")
 	scopes := []string{scopeAPIRead, scopeAPIWrite}
 
 	// Act
@@ -174,7 +174,7 @@ func TestShouldSetRequiredScopes(t *testing.T) {
 
 func TestShouldSetRateLimit(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, "/limited")
+	builder := DetachedRoute(http.MethodGet, "/limited")
 	limit := 100
 	interval := time.Minute
 
@@ -189,7 +189,7 @@ func TestShouldSetRateLimit(t *testing.T) {
 
 func TestShouldSetOperationID(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, pathUsers)
+	builder := DetachedRoute(http.MethodGet, pathUsers)
 	opID := "getUsers"
 
 	// Act
@@ -202,7 +202,7 @@ func TestShouldSetOperationID(t *testing.T) {
 
 func TestShouldPanicOnInvalidOperationID(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, pathUsers)
+	builder := DetachedRoute(http.MethodGet, pathUsers)
 
 	// Act & Assert
 	assert.Panics(t, func() {
@@ -212,7 +212,7 @@ func TestShouldPanicOnInvalidOperationID(t *testing.T) {
 
 func TestShouldAccumulateValidationErrorsWithoutPanickingWhenBuilderSafe(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, pathUsers).Safe()
+	builder := DetachedRoute(http.MethodGet, pathUsers).Safe()
 
 	// Act / Assert
 	assert.NotPanics(t, func() {
@@ -229,7 +229,7 @@ func TestShouldAccumulateValidationErrorsWithoutPanickingWhenBuilderSafe(t *test
 
 func TestShouldAddPathParameter(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, pathUsersWithID)
+	builder := DetachedRoute(http.MethodGet, pathUsersWithID)
 	example := "123"
 
 	// Act
@@ -247,7 +247,7 @@ func TestShouldAddPathParameter(t *testing.T) {
 
 func TestShouldAddQueryParameter(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, pathUsers)
+	builder := DetachedRoute(http.MethodGet, pathUsers)
 	example := "10"
 
 	// Act
@@ -264,7 +264,7 @@ func TestShouldAddQueryParameter(t *testing.T) {
 
 func TestShouldAddRequiredQueryParameter(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, pathUsers)
+	builder := DetachedRoute(http.MethodGet, pathUsers)
 	example := "active"
 
 	// Act
@@ -281,7 +281,7 @@ func TestShouldAddRequiredQueryParameter(t *testing.T) {
 
 func TestShouldAddHeaderParameter(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, pathUsers)
+	builder := DetachedRoute(http.MethodGet, pathUsers)
 	example := common.MimeJSON
 
 	// Act
@@ -298,7 +298,7 @@ func TestShouldAddHeaderParameter(t *testing.T) {
 
 func TestShouldAddCookieParameter(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, pathUsers)
+	builder := DetachedRoute(http.MethodGet, pathUsers)
 	example := "session123"
 
 	// Act
@@ -315,7 +315,7 @@ func TestShouldAddCookieParameter(t *testing.T) {
 
 func TestShouldAddParameterWithDescription(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, pathUsers)
+	builder := DetachedRoute(http.MethodGet, pathUsers)
 	description := "The maximum number of results to return"
 	example := 10
 
@@ -334,7 +334,7 @@ func TestShouldAddParameterWithDescription(t *testing.T) {
 
 func TestShouldPanicOnInvalidParameterIn(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, pathUsers)
+	builder := DetachedRoute(http.MethodGet, pathUsers)
 
 	// Act & Assert
 	assert.Panics(t, func() {
@@ -344,7 +344,7 @@ func TestShouldPanicOnInvalidParameterIn(t *testing.T) {
 
 func TestShouldPanicOnEmptyParameterName(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, pathUsers)
+	builder := DetachedRoute(http.MethodGet, pathUsers)
 
 	// Act & Assert
 	assert.Panics(t, func() {
@@ -354,7 +354,7 @@ func TestShouldPanicOnEmptyParameterName(t *testing.T) {
 
 func TestShouldAddResponse(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, pathUsers)
+	builder := DetachedRoute(http.MethodGet, pathUsers)
 	example := struct {
 		Name string `json:"name"`
 	}{Name: "John"}
@@ -375,7 +375,7 @@ func TestShouldAddResponse(t *testing.T) {
 
 func TestShouldOwnPointerBackedResponseExamplesOnRegistration(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, pathUsers)
+	builder := DetachedRoute(http.MethodGet, pathUsers)
 	name := "stable"
 	example := &builderClonePayload{
 		Name:   &name,
@@ -402,7 +402,7 @@ func TestShouldOwnPointerBackedResponseExamplesOnRegistration(t *testing.T) {
 
 func TestShouldAddStandardResponses(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, pathUsers)
+	builder := DetachedRoute(http.MethodGet, pathUsers)
 	example := []string{"user1", "user2"}
 
 	// Act
@@ -427,7 +427,7 @@ func TestShouldAddStandardResponses(t *testing.T) {
 
 func TestShouldAddRedirectResponses(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, pathUsers)
+	builder := DetachedRoute(http.MethodGet, pathUsers)
 
 	// Act
 	builder.With301Response().
@@ -449,7 +449,7 @@ func TestShouldAddRedirectResponses(t *testing.T) {
 
 func TestShouldAdd302ResponseForLoginRedirect(t *testing.T) {
 	// Arrange & Act
-	builder := Route(http.MethodGet, "/login").
+	builder := DetachedRoute(http.MethodGet, "/login").
 		WithSummary("Login page").
 		With302Response()
 
@@ -460,7 +460,7 @@ func TestShouldAdd302ResponseForLoginRedirect(t *testing.T) {
 
 func TestShouldAddJsonBody(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodPost, pathUsers)
+	builder := DetachedRoute(http.MethodPost, pathUsers)
 	example := struct {
 		Name  string `json:"name"`
 		Email string `json:"email"`
@@ -480,7 +480,7 @@ func TestShouldAddJsonBody(t *testing.T) {
 
 func TestShouldOwnPointerBackedRequestBodyExamplesOnRegistration(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodPost, pathUsers)
+	builder := DetachedRoute(http.MethodPost, pathUsers)
 	name := "stable"
 	example := &builderClonePayload{
 		Name:   &name,
@@ -507,7 +507,7 @@ func TestShouldOwnPointerBackedRequestBodyExamplesOnRegistration(t *testing.T) {
 
 func TestShouldOwnPointerBackedParameterExamplesOnRegistration(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, pathUsers)
+	builder := DetachedRoute(http.MethodGet, pathUsers)
 	name := "stable"
 	example := &builderClonePayload{
 		Name:   &name,
@@ -536,7 +536,7 @@ func TestShouldOwnPointerBackedParameterExamplesOnRegistration(t *testing.T) {
 
 func TestShouldAddFormBody(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodPost, pathUsers)
+	builder := DetachedRoute(http.MethodPost, pathUsers)
 	example := struct {
 		Name  string `json:"name"`
 		Email string `json:"email"`
@@ -555,7 +555,7 @@ func TestShouldAddFormBody(t *testing.T) {
 
 func TestShouldAddMultipartBody(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodPost, "/upload")
+	builder := DetachedRoute(http.MethodPost, "/upload")
 	example := struct {
 		File string `json:"file"`
 	}{File: "test.txt"}
@@ -573,7 +573,7 @@ func TestShouldAddMultipartBody(t *testing.T) {
 
 func TestShouldSetSummary(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, pathUsers)
+	builder := DetachedRoute(http.MethodGet, pathUsers)
 	summary := "Get all users"
 
 	// Act
@@ -586,7 +586,7 @@ func TestShouldSetSummary(t *testing.T) {
 
 func TestShouldSetDescription(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, pathUsers)
+	builder := DetachedRoute(http.MethodGet, pathUsers)
 	description := "Retrieves a list of all users in the system"
 
 	// Act
@@ -599,7 +599,7 @@ func TestShouldSetDescription(t *testing.T) {
 
 func TestShouldAddTags(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, pathUsers)
+	builder := DetachedRoute(http.MethodGet, pathUsers)
 	tags := []string{"users", "admin"}
 
 	// Act
@@ -612,7 +612,7 @@ func TestShouldAddTags(t *testing.T) {
 
 func TestShouldSetExternalDocs(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, pathUsers)
+	builder := DetachedRoute(http.MethodGet, pathUsers)
 	url := "https://api.example.com/docs"
 	desc := "User API Documentation"
 
@@ -628,7 +628,7 @@ func TestShouldSetExternalDocs(t *testing.T) {
 
 func TestShouldAddSecurity(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, pathUsers)
+	builder := DetachedRoute(http.MethodGet, pathUsers)
 	security := &openapi.SecurityRequirement{"oauth2": []string{"read"}}
 
 	// Act
@@ -645,7 +645,7 @@ func TestShouldAddSecurity(t *testing.T) {
 
 func TestShouldSetDeprecated(t *testing.T) {
 	// Arrange
-	builder := Route(http.MethodGet, "/old-endpoint")
+	builder := DetachedRoute(http.MethodGet, "/old-endpoint")
 
 	// Act
 	result := builder.WithDeprecated()
@@ -825,7 +825,7 @@ func TestWithOneOfJsonBodyShouldNotMutateRegisteredSchemas(t *testing.T) {
 	})
 
 	// Act
-	rb := Route(http.MethodPost, "/customs").WithOneOfJsonBody(CustomType{Name: "alpha"})
+	rb := DetachedRoute(http.MethodPost, "/customs").WithOneOfJsonBody(CustomType{Name: "alpha"})
 	storedSchema := rb.Options.RequestBody.Content[common.MimeJSON].Schema.OneOf[0]
 	fresh, err := QuickSchema(typ)
 
@@ -842,7 +842,7 @@ func TestWithOneOfJsonBodyShouldNotMutateRegisteredSchemas(t *testing.T) {
 
 func TestShouldChainFluentMethods(t *testing.T) {
 	// Arrange & Act
-	builder := Route(http.MethodGet, pathUsersWithID).
+	builder := DetachedRoute(http.MethodGet, pathUsersWithID).
 		AllowAnonymous().
 		RequirePermission("read").
 		RequireRoles("user").

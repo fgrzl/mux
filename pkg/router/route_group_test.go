@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/fgrzl/mux/pkg/builder"
 	openapi "github.com/fgrzl/mux/pkg/openapi"
 	"github.com/fgrzl/mux/pkg/routing"
 	"github.com/stretchr/testify/assert"
@@ -258,6 +259,53 @@ func TestShouldNotDoublePrefixAbsoluteRoutePatternsWithinGroup(t *testing.T) {
 	// Assert
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), "users")
+}
+
+func TestShouldAttachDetachedRouteBuilderWithGroupDefaultsWithoutMutatingSource(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+	api := rtr.NewRouteGroup("/api")
+	api.WithTags("API").RequireRoles("user").WithQueryParam("tenant", "tenant identifier", "tenant-a")
+
+	type createUserRequest struct {
+		Name string `json:"name"`
+	}
+	type createUserResponse struct {
+		ID string `json:"id"`
+	}
+
+	detached := builder.DetachedRoute(http.MethodPost, "/users").
+		WithOperationID("createUser").
+		WithSummary("Create user").
+		WithJsonBody(createUserRequest{Name: "Jane"}).
+		WithCreatedResponse(createUserResponse{ID: "u-1"})
+
+	// Act
+	attached := api.HandleRoute(detached, func(c routing.RouteContext) {
+		c.NoContent()
+	})
+	request := httptest.NewRequest(http.MethodPost, "/api/users", nil)
+	recorder := httptest.NewRecorder()
+	rtr.ServeHTTP(recorder, request)
+
+	// Assert
+	require.NotNil(t, attached)
+	assert.Equal(t, http.MethodPost, attached.Options.Method)
+	assert.Equal(t, "/api/users", attached.Options.Pattern)
+	assert.Equal(t, "createUser", attached.Options.OperationID)
+	assert.Equal(t, "Create user", attached.Options.Summary)
+	assert.Equal(t, []string{"API"}, attached.Options.Tags)
+	assert.Equal(t, []string{"user"}, attached.Options.Roles)
+	require.Len(t, attached.Options.Parameters, 1)
+	assert.Equal(t, "tenant", attached.Options.Parameters[0].Name)
+	assert.Equal(t, http.StatusNoContent, recorder.Code)
+	require.NotNil(t, attached.Options.RequestBody)
+	assert.Contains(t, attached.Options.Responses, "201")
+
+	assert.Equal(t, "/users", detached.Options.Pattern)
+	assert.Empty(t, detached.Options.Tags)
+	assert.Empty(t, detached.Options.Roles)
+	assert.Len(t, detached.Options.Parameters, 0)
 }
 
 func TestShouldInheritParametersWhenCreatingNestedRouteGroup(t *testing.T) {

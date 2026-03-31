@@ -35,13 +35,13 @@ import (
 )
 
 func main() {
-    router := mux.NewRouter().Safe()
+    router := mux.NewRouter()
 
-    router.GET("/hello", func(c mux.RouteContext) {
-        c.OK("Hello, World!")
-    })
-
-    if err := router.Err(); err != nil {
+    if err := router.Configure(func(router *mux.Router) {
+        router.GET("/hello", func(c mux.RouteContext) {
+            c.OK("Hello, World!")
+        })
+    }); err != nil {
         panic(err)
     }
 
@@ -55,7 +55,7 @@ func main() {
 }
 ```
 
-`Safe()` lets startup configuration accumulate validation errors so `Err()` can fail before the server accepts traffic.
+`Configure` is the recommended startup path: it runs route registration in non-panicking validation mode and returns configuration errors directly.
 
 If you are migrating existing `net/http` code, `Handle` and `HandleFunc` let you keep standard-library handlers and only opt into `mux.RouteContextFromRequest(r)` when you need route params, scoped services, or other framework features.
 

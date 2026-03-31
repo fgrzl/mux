@@ -94,10 +94,12 @@ if err := server.Shutdown(ctx); err != nil {
 ### After (WebServer)
 
 ```go
-// ✅ 7 lines - production ready
-router := mux.NewRouter().Safe()
+// ✅ Compact startup path with validation
+router := mux.NewRouter()
 
-if err := router.Err(); err != nil { panic(err) }
+if err := router.Configure(func(router *mux.Router) {
+    router.GET("/", helloHandler)
+}); err != nil { panic(err) }
 
 server := mux.NewServer(":8080", router)
 
@@ -107,7 +109,7 @@ defer cancel()
 if err := server.Listen(ctx); err != nil { panic(err) }
 ```
 
-**Lines of code**: 30+ → **7**
+**Lines of code**: 30+ → **8**
 
 ## HTTPS/TLS Example
 

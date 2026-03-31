@@ -25,10 +25,10 @@ import (
     "github.com/fgrzl/mux"
 )
 
-router := mux.NewRouter().Safe()
-router.GET("/health", healthHandler)
-
-if err := router.Err(); err != nil { panic(err) }
+router := mux.NewRouter()
+if err := router.Configure(func(router *mux.Router) {
+    router.GET("/health", healthHandler)
+}); err != nil { panic(err) }
 
 server := mux.NewServer(":8080", router)
 
@@ -126,7 +126,11 @@ contentType, ok := c.Header("Content-Type")
 
 ### Read Cookies
 ```go
-sessionID, ok := c.Cookie("session_id")
+sessionID, err := c.GetCookie("session_id")
+if err != nil {
+    c.BadRequest("Missing cookie", err.Error())
+    return
+}
 ```
 
 ### Get Request Info
@@ -169,11 +173,7 @@ c.Response().Header().Set("X-Custom", "value")
 
 ### Set Cookies
 ```go
-c.SetCookie(&http.Cookie{
-    Name:  "session",
-    Value: "abc123",
-    Path:  "/",
-})
+c.SetCookie("session", "abc123", 3600, "/", "", true, true)
 ```
 
 ---
@@ -184,8 +184,8 @@ c.SetCookie(&http.Cookie{
 ```go
 mux.UseLogging(router)
 mux.UseCompression(router)
-mux.UseCORS(router, &mux.CORSOptions{...})
-mux.UseRateLimit(router, &mux.RateLimitOptions{...})
+mux.UseCORS(router, mux.WithAllowedOrigins("*"))
+mux.UseRateLimiter(router)
 ```
 
 ### Route Group Defaults
@@ -278,11 +278,11 @@ router.GET("/custom", handler).
 ```
 
 ### Non-Panicking Builder and Group Variants
-Use the `Err` variants when routes or route groups are assembled from config, generators, or other dynamic inputs and you want explicit error handling instead of panics.
+Prefer `router.Configure(...)` for normal application startup. Use detached builders only for generated or config-driven routes that need to be assembled before they are attached with `router.HandleRoute(...)`.
 
 ```go
-route := mux.Route("POST", "/users")
 router := mux.NewRouter()
+route := mux.DetachedRoute("POST", "/users")
 
 if _, err := route.WithOperationIDErr("createUser"); err != nil {
     return err
@@ -291,6 +291,12 @@ if _, err := route.WithJsonBodyErr(CreateUserRequest{}); err != nil {
     return err
 }
 if _, err := route.WithCreatedResponseErr(User{}); err != nil {
+    return err
+}
+
+if err := router.Configure(func(router *mux.Router) {
+    router.HandleRoute(route, createUser)
+}); err != nil {
     return err
 }
 
@@ -338,11 +344,11 @@ The framework automatically infers OpenAPI schemas from example values:
 ### Generate Spec
 ```go
 router.GET("/openapi.json", func(c mux.RouteContext) {
-    spec := router.OpenAPI(&mux.OpenAPIOptions{
-        Title:       "My API",
-        Version:     "1.0.0",
-        Description: "API description",
-    })
+    spec, err := mux.GenerateSpecWithGenerator(mux.NewGenerator(), router)
+    if err != nil {
+        c.ServerError("Failed to generate OpenAPI spec", err.Error())
+        return
+    }
     c.OK(spec)
 })
 ```
