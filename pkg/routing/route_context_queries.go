@@ -1,6 +1,9 @@
 package routing
 
 import (
+	"net/url"
+	"strings"
+
 	"github.com/fgrzl/mux/pkg/binder"
 	"github.com/google/uuid"
 )
@@ -176,9 +179,71 @@ func (c *DefaultRouteContext) GetRedirectURL(defaultRedirect string) string {
 		"return",
 	}
 	for _, key := range candidates {
-		if url, ok := c.QueryValue(key); ok {
-			return url
+		if redirectURL, ok := c.QueryValue(key); ok {
+			if safeRedirect, ok := c.safeRedirectTarget(redirectURL); ok {
+				return safeRedirect
+			}
 		}
 	}
 	return defaultRedirect
+}
+
+func (c *DefaultRouteContext) safeRedirectTarget(raw string) (string, bool) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", false
+	}
+	if strings.HasPrefix(raw, "//") || strings.HasPrefix(raw, `\\`) {
+		return "", false
+	}
+
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return "", false
+	}
+
+	if parsed.Scheme != "" || parsed.Host != "" {
+		if !c.isSameOriginRedirect(parsed) {
+			return "", false
+		}
+		return redirectPathFromURL(parsed), true
+	}
+
+	if !strings.HasPrefix(raw, "/") {
+		raw = "/" + raw
+	}
+	if len(raw) > 1 && (raw[1] == '/' || raw[1] == '\\') {
+		return "", false
+	}
+	return raw, true
+}
+
+func (c *DefaultRouteContext) isSameOriginRedirect(target *url.URL) bool {
+	if target == nil {
+		return false
+	}
+	expectedHost := ""
+	if clientURL := c.ClientURL(); clientURL != nil {
+		expectedHost = clientURL.Host
+	}
+	if expectedHost == "" && c.Request() != nil {
+		expectedHost = c.Request().Host
+	}
+	return expectedHost != "" && strings.EqualFold(target.Host, expectedHost)
+}
+
+func redirectPathFromURL(target *url.URL) string {
+	path := target.EscapedPath()
+	if path == "" {
+		path = "/"
+	} else if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	if target.RawQuery != "" {
+		path += "?" + target.RawQuery
+	}
+	if target.Fragment != "" {
+		path += "#" + target.Fragment
+	}
+	return path
 }

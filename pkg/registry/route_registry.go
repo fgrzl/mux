@@ -118,6 +118,74 @@ func (r *RouteRegistry) registerRootRoute(pattern, method string, options *routi
 	}
 }
 
+// HasRoute reports whether the given registered pattern already has a handler
+// for method.
+func (r *RouteRegistry) HasRoute(pattern, method string) bool {
+	node := r.findRegisteredNode(pattern)
+	if node == nil || node.RouteOptions == nil {
+		return false
+	}
+	_, ok := node.RouteOptions[method]
+	return ok
+}
+
+// Unregister removes the handler for the given registered pattern and method.
+// It returns true when a route was removed.
+func (r *RouteRegistry) Unregister(pattern, method string) bool {
+	node := r.findRegisteredNode(pattern)
+	if node == nil || node.RouteOptions == nil {
+		return false
+	}
+	if _, ok := node.RouteOptions[method]; !ok {
+		return false
+	}
+
+	delete(node.RouteOptions, method)
+	if len(node.RouteOptions) == 0 {
+		node.RouteOptions = nil
+		node.MethodsMask = 0
+		node.AllowHeader = ""
+	} else {
+		node.MethodsMask = methodsMaskFromMap(node.RouteOptions)
+		node.AllowHeader = allowHeaderFromMap(node.RouteOptions)
+	}
+
+	if m, ok := r.exactRoutes[pattern]; ok {
+		delete(m, method)
+		if len(m) == 0 {
+			delete(r.exactRoutes, pattern)
+		}
+	}
+
+	return true
+}
+
+func (r *RouteRegistry) findRegisteredNode(pattern string) *routing.RouteNode {
+	trimmed := strings.Trim(pattern, "/")
+	if trimmed == "" {
+		return r.root
+	}
+
+	node := r.root
+	for _, seg := range splitSegments(trimmed) {
+		switch {
+		case seg == "**":
+			node = node.CatchAll
+		case seg == "*":
+			node = node.Wildcard
+		case isParamSegment(seg):
+			node = node.ParamChild
+		default:
+			node = node.Children[seg]
+		}
+		if node == nil {
+			return nil
+		}
+	}
+
+	return node
+}
+
 func (r *RouteRegistry) walkOrCreateNodes(segments []string) (*routing.RouteNode, bool, int) {
 	node := r.root
 	hasParams := false

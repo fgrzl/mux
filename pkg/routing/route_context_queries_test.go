@@ -259,3 +259,55 @@ func TestShouldReturnZeroForMissingQueryParameters(t *testing.T) {
 	assert.False(t, ok)
 	assert.Equal(t, uuid.Nil, uuidVal)
 }
+
+func TestShouldReturnRelativeRedirectURLFromQuery(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodGet, "/login?return_to=dashboard", nil)
+	recorder := httptest.NewRecorder()
+	ctx := NewRouteContext(recorder, req)
+
+	// Act
+	redirectURL := ctx.GetRedirectURL("/fallback")
+
+	// Assert
+	assert.Equal(t, "/dashboard", redirectURL)
+}
+
+func TestShouldReturnDefaultRedirectWhenQueryTargetsDifferentHost(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodGet, "/login?redirect_uri=https%3A%2F%2Fevil.example%2Fphish", nil)
+	recorder := httptest.NewRecorder()
+	ctx := NewRouteContext(recorder, req)
+
+	// Act
+	redirectURL := ctx.GetRedirectURL("/fallback")
+
+	// Assert
+	assert.Equal(t, "/fallback", redirectURL)
+}
+
+func TestShouldNormalizeSameOriginAbsoluteRedirectURLFromQuery(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodGet, "https://example.com/login?redirect_uri=https%3A%2F%2Fexample.com%2Fdashboard%3Ftab%3Dprofile", nil)
+	recorder := httptest.NewRecorder()
+	ctx := NewRouteContext(recorder, req)
+
+	// Act
+	redirectURL := ctx.GetRedirectURL("/fallback")
+
+	// Assert
+	assert.Equal(t, "/dashboard?tab=profile", redirectURL)
+}
+
+func TestShouldReturnDefaultRedirectWhenQueryUsesProtocolRelativeTarget(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodGet, "/login?return_url=%2F%2Fevil.example%2Fphish", nil)
+	recorder := httptest.NewRecorder()
+	ctx := NewRouteContext(recorder, req)
+
+	// Act
+	redirectURL := ctx.GetRedirectURL("/fallback")
+
+	// Assert
+	assert.Equal(t, "/fallback", redirectURL)
+}

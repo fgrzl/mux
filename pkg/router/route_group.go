@@ -449,8 +449,24 @@ func (rg *RouteGroup) registerRoute(method, pattern string, handler routing.Hand
 	options.SetMiddleware(slices.Clone(rg.defaultMiddleware))
 	options.SetServices(cloneGroupServices(rg.defaultServices))
 
+	rb := &builder.RouteBuilder{Options: options, Validation: rg.validationState().Clone()}
+	if rg.routeRegistry.HasRoute(pattern, method) {
+		rb.Validation.Handle(fmt.Errorf("route %s %s is already registered", method, pattern))
+		return rb
+	}
+
+	registered := false
+	rb.Validation = rb.Validation.WithErrorHook(func(error) {
+		if !registered {
+			return
+		}
+		rg.routeRegistry.Unregister(pattern, method)
+		registered = false
+	})
+
 	rg.routeRegistry.Register(pattern, method, options)
-	return &builder.RouteBuilder{Options: options, Validation: rg.validationState().Clone()}
+	registered = true
+	return rb
 }
 
 // ---- Route Methods ----
@@ -606,16 +622,51 @@ func (rg *RouteGroup) StaticFallback(pattern, dir, fallback string) *builder.Rou
 
 // normalizeRoute joins and cleans up the route and prefix.
 func normalizeRoute(route, prefix string) string {
-	prefix = strings.TrimRight(prefix, "/")
+	normalizedPrefix := normalizeRoutePrefix(prefix)
+	normalizedRoute := normalizeRoutePath(route)
+
+	if normalizedRoute == "" {
+		if normalizedPrefix == "" {
+			return "/"
+		}
+		return normalizedPrefix + "/"
+	}
+	if normalizedPrefix == "" {
+		return normalizedRoute
+	}
+	if hasRoutePrefix(normalizedRoute, normalizedPrefix) {
+		return normalizedRoute
+	}
+
+	joined := normalizedPrefix + "/" + strings.TrimLeft(normalizedRoute, "/")
+	return strings.ReplaceAll(joined, "//", "/")
+}
+
+func normalizeRoutePrefix(prefix string) string {
+	prefix = normalizeRoutePath(prefix)
+	return strings.TrimRight(prefix, "/")
+}
+
+func normalizeRoutePath(route string) string {
+	if route == "" {
+		return ""
+	}
+	keepTrailingSlash := strings.HasSuffix(route, "/")
 	route = strings.TrimLeft(route, "/")
-	if !strings.HasPrefix(route, prefix) {
-		route = prefix + "/" + route
+	if route == "" {
+		return "/"
 	}
-	if !strings.HasPrefix(route, "/") {
-		route = "/" + route
+	route = "/" + strings.ReplaceAll(route, "//", "/")
+	if keepTrailingSlash && !strings.HasSuffix(route, "/") {
+		route += "/"
 	}
-	route = strings.ReplaceAll(route, "//", "/")
 	return route
+}
+
+func hasRoutePrefix(route, prefix string) bool {
+	route = strings.TrimRight(route, "/")
+	prefix = strings.TrimRight(prefix, "/")
+	return route == prefix || strings.HasPrefix(route, prefix+"/")
 }
 
 func resolveStaticFallbackPath(absDir, dir, fallback string) string {

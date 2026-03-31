@@ -349,7 +349,7 @@ func invokeRouteHandler(c routing.RouteContext) {
 
 func (rtr *Router) resolveRoute(r *http.Request, c *routing.DefaultRouteContext) (routeResolution, routeOutcome) {
 	res, outcome := rtr.resolveInitialRoute(r, c)
-	if r.Method == http.MethodHead && rtr.shouldFallbackToGet() {
+	if r.Method == http.MethodHead && rtr.shouldFallbackToGet() && outcome == routeOutcomeMethodNotAllowed {
 		originalOutcome := outcome
 		rtr.applyHeadFallback(r, &res)
 		if res.details.Found && res.details.MethodOK {

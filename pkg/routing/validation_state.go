@@ -7,6 +7,7 @@ import "errors"
 type ValidationState struct {
 	panicOnError bool
 	errSink      *[]error
+	onError      func(error)
 }
 
 // NewValidationState constructs a validation state that panics on invalid
@@ -22,13 +23,20 @@ func (s *ValidationState) Clone() *ValidationState {
 	if s == nil {
 		return NewValidationState()
 	}
-	return &ValidationState{panicOnError: s.panicOnError, errSink: s.errSink}
+	return &ValidationState{panicOnError: s.panicOnError, errSink: s.errSink, onError: s.onError}
 }
 
 // WithPanicOnError returns a clone with the provided panic behavior.
 func (s *ValidationState) WithPanicOnError(enabled bool) *ValidationState {
 	clone := s.Clone()
 	clone.panicOnError = enabled
+	return clone
+}
+
+// WithErrorHook returns a clone that invokes hook whenever Handle receives a non-nil error.
+func (s *ValidationState) WithErrorHook(hook func(error)) *ValidationState {
+	clone := s.Clone()
+	clone.onError = hook
 	return clone
 }
 
@@ -45,6 +53,9 @@ func (s *ValidationState) PanicOnError() bool {
 func (s *ValidationState) Handle(err error) {
 	if err == nil {
 		return
+	}
+	if s != nil && s.onError != nil {
+		s.onError(err)
 	}
 	if s == nil || s.panicOnError {
 		panic(err.Error())

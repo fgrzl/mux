@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -195,6 +196,39 @@ func TestShouldReturnFromListenWhenContextIsCancelled(t *testing.T) {
 	select {
 	case err := <-errCh:
 		assert.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Listen did not return after context cancellation")
+	}
+}
+
+func TestShouldShutdownServerOnlyOnceWhenListenContextIsCancelled(t *testing.T) {
+	// Arrange
+	rtr := router.NewRouter()
+	server := NewServer(testAddrLocal, rtr)
+	var shutdownCalls atomic.Int32
+	server.srv.RegisterOnShutdown(func() {
+		shutdownCalls.Add(1)
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errCh := make(chan error, 1)
+
+	// Act
+	go func() {
+		errCh <- server.Listen(ctx)
+	}()
+
+	time.Sleep(100 * time.Millisecond)
+	cancel()
+
+	// Assert
+	select {
+	case err := <-errCh:
+		assert.NoError(t, err)
+		assert.Eventually(t, func() bool {
+			return shutdownCalls.Load() == 1
+		}, time.Second, 10*time.Millisecond)
 	case <-time.After(2 * time.Second):
 		t.Fatal("Listen did not return after context cancellation")
 	}

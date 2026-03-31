@@ -227,6 +227,8 @@ func TestShouldNormalizePrefixesWhenCreatingNestedRouteGroups(t *testing.T) {
 		{"/api/", "v1", "/api/v1"},
 		{"api", "/v1", "/api/v1"},
 		{"api/", "v1/", "/api/v1/"}, // Fixed: trailing slash should be preserved
+		{"/api", "/api/v1", "/api/v1"},
+		{"/api", "/api/v1/", "/api/v1/"},
 	}
 
 	// Act & Assert: Test each case
@@ -238,6 +240,24 @@ func TestShouldNormalizePrefixesWhenCreatingNestedRouteGroups(t *testing.T) {
 			"Parent: %s, Child: %s should result in: %s",
 			tc.parentPrefix, tc.childPrefix, tc.expectedPath)
 	}
+}
+
+func TestShouldNotDoublePrefixAbsoluteRoutePatternsWithinGroup(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+	api := rtr.NewRouteGroup("/api")
+	api.GET("/api/users", func(c routing.RouteContext) {
+		c.OK("users")
+	})
+
+	// Act
+	req := httptest.NewRequest(http.MethodGet, "/api/users", nil)
+	w := httptest.NewRecorder()
+	rtr.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "users")
 }
 
 func TestShouldInheritParametersWhenCreatingNestedRouteGroup(t *testing.T) {

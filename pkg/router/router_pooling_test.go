@@ -59,6 +59,31 @@ func TestShouldServeHeadViaGetWithoutBodyGivenFallbackEnabled(t *testing.T) {
 	assert.Equal(t, 0, rr.Body.Len(), "HEAD fallback must suppress body")
 }
 
+func TestShouldPreferExplicitHeadRouteOverGetFallback(t *testing.T) {
+	// Arrange
+	r := NewRouter(WithHeadFallbackToGet())
+	rg := r.NewRouteGroup("")
+	rg.GET("/resource", func(c routing.RouteContext) {
+		c.Response().Header().Set("X-From", "GET")
+		c.OK("body")
+	})
+	rg.HEAD("/resource", func(c routing.RouteContext) {
+		c.Response().Header().Set("X-From", "HEAD")
+		c.Response().WriteHeader(http.StatusNoContent)
+	})
+
+	req := httptest.NewRequest(http.MethodHead, "/resource", nil)
+	rr := httptest.NewRecorder()
+
+	// Act
+	r.ServeHTTP(rr, req)
+
+	// Assert
+	assert.Equal(t, http.StatusNoContent, rr.Code)
+	assert.Equal(t, "HEAD", rr.Header().Get("X-From"))
+	assert.Equal(t, 0, rr.Body.Len())
+}
+
 func TestShouldReturn405WithAllowHeaderGivenHeadWithoutFallback(t *testing.T) {
 	// Arrange
 	r := NewRouter() // no fallback

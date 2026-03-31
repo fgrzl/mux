@@ -1,8 +1,11 @@
 package router
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/fgrzl/mux/pkg/routing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -87,4 +90,50 @@ func TestShouldAccumulateValidationErrorsWithoutPanickingWhenRouteGroupSafe(t *t
 	assert.ErrorContains(t, api.Err(), "invalid parameter 'in'")
 	assert.ErrorContains(t, api.Err(), "cannot be empty")
 	require.Len(t, rtr.Errors(), 2)
+}
+
+func TestShouldRejectDuplicateRouteRegistrationWithoutOverwritingExistingHandler(t *testing.T) {
+	// Arrange
+	rtr := NewRouter().Safe()
+	api := rtr.NewRouteGroup("/api")
+	api.GET("/users", func(c routing.RouteContext) {
+		c.Response().Header().Set("X-Handler", "first")
+		c.OK("first")
+	})
+
+	// Act
+	duplicate := api.GET("/users", func(c routing.RouteContext) {
+		c.Response().Header().Set("X-Handler", "second")
+		c.OK("second")
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/users", nil)
+	rr := httptest.NewRecorder()
+	rtr.ServeHTTP(rr, req)
+
+	// Assert
+	require.Error(t, duplicate.Err())
+	assert.ErrorContains(t, duplicate.Err(), "already registered")
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, "first", rr.Header().Get("X-Handler"))
+	require.Len(t, rtr.Errors(), 1)
+}
+
+func TestShouldNotServeRouteAfterBuilderValidationFailsInSafeMode(t *testing.T) {
+	// Arrange
+	rtr := NewRouter().Safe()
+	api := rtr.NewRouteGroup("/api")
+
+	// Act
+	route := api.GET("/users", func(c routing.RouteContext) {
+		c.OK("users")
+	}).WithOperationID("invalid-id")
+	req := httptest.NewRequest(http.MethodGet, "/api/users", nil)
+	rr := httptest.NewRecorder()
+	rtr.ServeHTTP(rr, req)
+
+	// Assert
+	require.Error(t, route.Err())
+	assert.ErrorContains(t, route.Err(), "invalid OperationID")
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+	require.Len(t, rtr.Errors(), 1)
 }
