@@ -65,7 +65,7 @@ Focus on production-ready features:
 ## 🔍 Quick Links
 
 - **Installation**: `go get github.com/fgrzl/mux`
-- **Minimum Go Version**: 1.24.4
+- **Minimum Go Version**: 1.25.6
 - **GitHub Repository**: [github.com/fgrzl/mux](https://github.com/fgrzl/mux)
 - **Examples**: See the [examples/](../examples/) directory
 

@@ -6,7 +6,7 @@ Get up and running with Mux in under 5 minutes. This guide shows you the absolut
 
 ## Prerequisites
 
-- Go 1.24.4 or later installed ([Download](https://go.lang.org/dl/))
+- Go 1.25.6 or later installed ([Download](https://go.lang.org/dl/))
 - Basic familiarity with Go
 
 ## Step 1: Create a New Project

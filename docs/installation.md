@@ -1,126 +1,146 @@
-# Hello World Example
+# Installation
 
-The simplest possible Mux application demonstrating basic routing and response handling.
+This guide covers prerequisites, module setup, verification, and local development for Mux.
 
-## Features
+## Requirements
 
-- Basic GET endpoints
-- Path parameters
-- JSON responses
-- Error handling
+- Go 1.25.6 or later
+- Linux, macOS, or Windows
+- Go modules enabled
 
-## Running the Example
+Check your Go version:
 
 ```bash
-# From the hello-world directory
-go mod init hello-world-example
+go version
+```
+
+## Add Mux to an Existing Project
+
+```bash
 go get github.com/fgrzl/mux
+go mod tidy
+```
+
+## Create a New Project
+
+```bash
+mkdir my-api
+cd my-api
+go mod init my-api
+go get github.com/fgrzl/mux
+```
+
+## Verify Your Installation
+
+Create `main.go`:
+
+```go
+package main
+
+import (
+    "context"
+    "os"
+    "os/signal"
+    "syscall"
+
+    "github.com/fgrzl/mux"
+)
+
+func main() {
+    router := mux.NewRouter()
+
+    if err := router.Configure(func(router *mux.Router) {
+        router.GET("/", func(c mux.RouteContext) {
+            c.OK("Mux is working!")
+        })
+    }); err != nil {
+        panic(err)
+    }
+
+    ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer stop()
+
+    server := mux.NewServer(":8080", router)
+    if err := server.Listen(ctx); err != nil {
+        panic(err)
+    }
+}
+```
+
+Run the application:
+
+```bash
 go run main.go
 ```
 
-The server will start on `http://localhost:8080`
+Verify the endpoint:
 
-## Testing the Endpoints
-
-### Simple Hello World
 ```bash
 curl http://localhost:8080/
 ```
-**Expected Response:**
+
+Expected response:
+
 ```json
-"Hello, World!"
+"Mux is working!"
 ```
 
-### Personalized Greeting
+`Configure` is the recommended startup path for application setup. It collects route-registration validation errors and returns them explicitly before the server begins serving traffic.
+
+## Development Setup
+
+If you are working on the Mux repository itself:
+
 ```bash
-curl http://localhost:8080/hello/John
-```
-**Expected Response:**
-```json
-{
-  "message": "Hello, John!",
-  "status": "success"
-}
+git clone https://github.com/fgrzl/mux.git
+cd mux
+go mod download
+go test ./...
 ```
 
-### Test Error Handling
+Useful validation commands while developing:
+
 ```bash
-curl http://localhost:8080/hello/
+go test ./...
+go build ./examples/hello-world ./examples/cors-wildcard
 ```
-This will return a 404 since the route requires a name parameter.
 
-## Code Explanation
+Nested example modules can be built from their own directories:
 
-### Router Creation
-```go
-router := mux.NewRouter()
+```bash
+cd examples/todo-api
+go build ./...
 ```
-Creates a new Mux router instance.
 
-### Basic Route
-```go
-router.GET("/", func(c mux.RouteContext) {
-    c.OK("Hello, World!")
-})
+## Troubleshooting
+
+### Go version is too old
+
+Mux follows the Go version declared in `go.mod`. If `go version` reports an older version than `1.25.6`, upgrade Go before building.
+
+### Module download fails
+
+Run:
+
+```bash
+go env GOPROXY
+go mod tidy
 ```
-- Defines a GET endpoint at the root path
-- Returns a simple string response with 200 OK status
 
-### Parameterized Route
-```go
-router.GET("/hello/{name}", func(c mux.RouteContext) {
-    name, ok := c.Param("name")
-    if !ok {
-        c.BadRequest("Missing name", "name parameter is required")
-        return
-    }
+If you are behind a corporate proxy, ensure your Go proxy settings are configured correctly.
 
-    c.OK(map[string]string{
-        "message": "Hello, " + name + "!",
-        "status":  "success",
-    })
-})
-```
-- Returns a structured JSON response
+### Port 8080 is already in use
 
-### Startup Validation
-```go
-if err := router.Configure(func(router *mux.Router) {
-    // Register routes and groups here.
-}); err != nil {
-    panic(err)
-}
-```
-Checks route configuration before the server starts accepting traffic.
+Use a different port in `mux.NewServer`, for example `:8081`, or stop the process that is already listening on `:8080`.
 
-### Server Startup
-```go
-server := mux.NewServer(":8080", router)
+### TLS files are not found
 
-ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-defer cancel()
-
-if err := server.Listen(ctx); err != nil {
-    panic(err)
-}
-```
-Uses `WebServer` for production-ready server with:
-- Automatic graceful shutdown (press Ctrl+C)
-- Production timeouts (10s read/write, 120s idle)
-- Context-based lifecycle management
-
-## Key Concepts Demonstrated
-
-1. **Router Creation**: How to create and configure a Mux router
-2. **Route Definition**: Defining HTTP endpoints with handlers
-3. **Path Parameters**: Capturing dynamic values from URLs
-4. **Response Handling**: Using Mux response helpers (`c.OK`, `c.BadRequest`)
-5. **Parameter Extraction**: Safely extracting path parameters
-6. **Error Handling**: Basic error responses for invalid requests
+If you use `mux.WithTLS(...)` or `mux.WithTLSDiscovery(...)`, make sure the certificate and key files exist before startup. `NewServer(...).Listen(ctx)` will fail early if the configured TLS files are invalid.
 
 ## Next Steps
 
-After understanding this example, try:
-- [Todo API Example](../todo-api/) - Full CRUD operations with OpenAPI
-- [CORS Wildcard Example](../cors-wildcard/) - Middleware configuration
-- [WebServer Example](../webserver/) - Server lifecycle and timeouts
+- [Quick Start](quick-start.md) for the smallest working API
+- [Getting Started](getting-started.md) for a broader introduction
+- [Router](router.md) for routing and configuration details
+- [WebServer](webserver.md) for production server lifecycle guidance
+- [Examples](../examples/) for runnable applications

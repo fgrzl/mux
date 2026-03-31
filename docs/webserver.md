@@ -1,126 +1,196 @@
-# Hello World Example
+# WebServer
 
-The simplest possible Mux application demonstrating basic routing and response handling.
+`WebServer` is the production-oriented HTTP server wrapper exposed by Mux. It wraps `http.Server` with sensible defaults, graceful shutdown, and TLS helpers.
 
-## Features
+## Why Use It?
 
-- Basic GET endpoints
-- Path parameters
-- JSON responses
-- Error handling
+- Production defaults out of the box: 10 second read timeout, 10 second write timeout, 120 second idle timeout
+- Graceful shutdown when the provided context is canceled
+- Built-in TLS helpers for explicit cert paths or discovery-based lookup
+- A simple blocking `Listen` path and a background `Start` path
 
-## Running the Example
+## Quick Start
 
-```bash
-# From the hello-world directory
-go mod init hello-world-example
-go get github.com/fgrzl/mux
-go run main.go
-```
+```go
+package main
 
-The server will start on `http://localhost:8080`
+import (
+    "context"
+    "os"
+    "os/signal"
+    "syscall"
 
-## Testing the Endpoints
+    "github.com/fgrzl/mux"
+)
 
-### Simple Hello World
-```bash
-curl http://localhost:8080/
-```
-**Expected Response:**
-```json
-"Hello, World!"
-```
+func main() {
+    router := mux.NewRouter()
 
-### Personalized Greeting
-```bash
-curl http://localhost:8080/hello/John
-```
-**Expected Response:**
-```json
-{
-  "message": "Hello, John!",
-  "status": "success"
+    if err := router.Configure(func(router *mux.Router) {
+        router.GET("/", func(c mux.RouteContext) {
+            c.OK("Hello, World!")
+        })
+    }); err != nil {
+        panic(err)
+    }
+
+    ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer stop()
+
+    server := mux.NewServer(":8080", router)
+    if err := server.Listen(ctx); err != nil {
+        panic(err)
+    }
 }
 ```
 
-### Test Error Handling
-```bash
-curl http://localhost:8080/hello/
-```
-This will return a 404 since the route requires a name parameter.
+`Listen` blocks until the server exits or the context is canceled. On cancellation, `WebServer` performs a graceful shutdown using a 10 second shutdown timeout.
 
-## Code Explanation
+## Core API
 
-### Router Creation
+### `mux.NewServer`
+
 ```go
-router := mux.NewRouter()
+server := mux.NewServer(":8080", router)
 ```
-Creates a new Mux router instance.
 
-### Basic Route
+Constructs a `WebServer` with production defaults and optional configuration.
+
+### `server.Listen(ctx)`
+
+- Binds the listener
+- Starts serving immediately
+- Blocks until shutdown or an unexpected server error
+- Gracefully shuts down when `ctx` is canceled
+
+Use `Listen` for your main application server.
+
+### `server.Start(ctx)`
+
+Starts serving in the background and returns immediately.
+
 ```go
-router.GET("/", func(c mux.RouteContext) {
-    c.OK("Hello, World!")
-})
+ctx, cancel := context.WithCancel(context.Background())
+defer cancel()
+
+server := mux.NewServer(":8080", router)
+if err := server.Start(ctx); err != nil {
+    panic(err)
+}
+
+// Do other work here.
 ```
-- Defines a GET endpoint at the root path
-- Returns a simple string response with 200 OK status
 
-### Parameterized Route
+Use `Start` when your process needs to keep doing work after the HTTP server begins accepting traffic.
+
+### `server.Stop(ctx)`
+
+Triggers graceful shutdown explicitly.
+
 ```go
-router.GET("/hello/{name}", func(c mux.RouteContext) {
-    name, ok := c.Param("name")
-    if !ok {
-        c.BadRequest("Missing name", "name parameter is required")
-        return
-    }
+shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+defer cancel()
 
-    c.OK(map[string]string{
-        "message": "Hello, " + name + "!",
-        "status":  "success",
-    })
-})
-```
-- Returns a structured JSON response
-
-### Startup Validation
-```go
-if err := router.Configure(func(router *mux.Router) {
-    // Register routes and groups here.
-}); err != nil {
+if err := server.Stop(shutdownCtx); err != nil {
     panic(err)
 }
 ```
-Checks route configuration before the server starts accepting traffic.
 
-### Server Startup
+## WebServer Options
+
+### Timeout Options
+
+- `mux.WithReadTimeout(d time.Duration)`
+- `mux.WithWriteTimeout(d time.Duration)`
+- `mux.WithIdleTimeout(d time.Duration)`
+
+Example:
+
 ```go
+server := mux.NewServer(":8080", router,
+    mux.WithReadTimeout(30*time.Second),
+    mux.WithWriteTimeout(30*time.Second),
+    mux.WithIdleTimeout(2*time.Minute),
+)
+```
+
+### TLS Options
+
+- `mux.WithTLS(certFile, keyFile)`
+- `mux.WithTLSDiscovery(certsDir, certFile, keyFile)`
+
+Use explicit TLS paths when you know where the certs live:
+
+```go
+server := mux.NewServer(":8443", router,
+    mux.WithTLS("certs/server.crt", "certs/server.key"),
+)
+```
+
+Use discovery when the executable may start from different working directories:
+
+```go
+server := mux.NewServer(":8443", router,
+    mux.WithTLSDiscovery("certs", "server.crt", "server.key"),
+)
+```
+
+`WithTLSDiscovery` searches upward for a `certs` directory, up to 10 parent directories.
+
+## Health Probe Integration
+
+`WebServer` pairs naturally with the router's built-in health probe helpers:
+
+```go
+router := mux.NewRouter()
+
+if err := router.Configure(func(router *mux.Router) {
+    router.Healthz()
+    router.Livez()
+    router.Readyz()
+}); err != nil {
+    panic(err)
+}
+
+ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+defer stop()
+
 server := mux.NewServer(":8080", router)
-
-ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-defer cancel()
-
 if err := server.Listen(ctx); err != nil {
     panic(err)
 }
 ```
-Uses `WebServer` for production-ready server with:
-- Automatic graceful shutdown (press Ctrl+C)
-- Production timeouts (10s read/write, 120s idle)
-- Context-based lifecycle management
 
-## Key Concepts Demonstrated
+For a full walkthrough, see [health-probes.md](health-probes.md).
 
-1. **Router Creation**: How to create and configure a Mux router
-2. **Route Definition**: Defining HTTP endpoints with handlers
-3. **Path Parameters**: Capturing dynamic values from URLs
-4. **Response Handling**: Using Mux response helpers (`c.OK`, `c.BadRequest`)
-5. **Parameter Extraction**: Safely extracting path parameters
-6. **Error Handling**: Basic error responses for invalid requests
+## When to Use `http.Server` Directly
 
-## Next Steps
+Use `WebServer` by default. Drop down to raw `http.Server` only when you need server features that Mux does not surface directly, such as advanced HTTP/2 or transport-level customization beyond the provided timeout and TLS helpers.
 
-After understanding this example, try:
-- [Todo API Example](../todo-api/) - Full CRUD operations with OpenAPI
-- [CORS Wildcard Example](../cors-wildcard/) - Middleware configuration
-- [WebServer Example](../webserver/) - Server lifecycle and timeouts
+Even in that case, the router still implements `http.Handler`, so it can be used directly:
+
+```go
+srv := &http.Server{
+    Addr:    ":8080",
+    Handler: router,
+}
+```
+
+## Recommended Pattern
+
+The common production pattern in this repository is:
+
+1. Create the router with `mux.NewRouter(...)`
+2. Register routes inside `router.Configure(...)`
+3. Add middleware during startup
+4. Run the service with `mux.NewServer(...).Listen(ctx)`
+
+That keeps route validation explicit and server lifecycle management predictable.
+
+## See Also
+
+- [Quick Start](quick-start.md)
+- [Getting Started](getting-started.md)
+- [Health Probes](health-probes.md)
+- [Best Practices](best-practices.md)
+- [WebServer example](../examples/webserver/)

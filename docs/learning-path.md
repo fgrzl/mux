@@ -1,126 +1,233 @@
-# Hello World Example
+# Learning Path for Mux
 
-The simplest possible Mux application demonstrating basic routing and response handling.
+This guide gives you a deliberate path from your first route to production-ready services without making you learn every part of the framework at once.
 
-## Features
+## Stage 1: First Route
 
-- Basic GET endpoints
-- Path parameters
-- JSON responses
-- Error handling
+Start here if you just want a working endpoint.
 
-## Running the Example
+Read:
 
-```bash
-# From the hello-world directory
-go mod init hello-world-example
-go get github.com/fgrzl/mux
-go run main.go
-```
+- [Installation](installation.md)
+- [Quick Start](quick-start.md)
 
-The server will start on `http://localhost:8080`
+Goal:
 
-## Testing the Endpoints
+- Start a service with `mux.NewRouter()`, `router.Configure(...)`, and `mux.NewServer(...).Listen(ctx)`
 
-### Simple Hello World
-```bash
-curl http://localhost:8080/
-```
-**Expected Response:**
-```json
-"Hello, World!"
-```
+Example:
 
-### Personalized Greeting
-```bash
-curl http://localhost:8080/hello/John
-```
-**Expected Response:**
-```json
-{
-  "message": "Hello, John!",
-  "status": "success"
-}
-```
-
-### Test Error Handling
-```bash
-curl http://localhost:8080/hello/
-```
-This will return a 404 since the route requires a name parameter.
-
-## Code Explanation
-
-### Router Creation
 ```go
 router := mux.NewRouter()
-```
-Creates a new Mux router instance.
 
-### Basic Route
-```go
-router.GET("/", func(c mux.RouteContext) {
-    c.OK("Hello, World!")
-})
-```
-- Defines a GET endpoint at the root path
-- Returns a simple string response with 200 OK status
-
-### Parameterized Route
-```go
-router.GET("/hello/{name}", func(c mux.RouteContext) {
-    name, ok := c.Param("name")
-    if !ok {
-        c.BadRequest("Missing name", "name parameter is required")
-        return
-    }
-
-    c.OK(map[string]string{
-        "message": "Hello, " + name + "!",
-        "status":  "success",
-    })
-})
-```
-- Returns a structured JSON response
-
-### Startup Validation
-```go
 if err := router.Configure(func(router *mux.Router) {
-    // Register routes and groups here.
+    router.GET("/hello", func(c mux.RouteContext) {
+        c.OK("Hello, World!")
+    })
 }); err != nil {
     panic(err)
 }
 ```
-Checks route configuration before the server starts accepting traffic.
 
-### Server Startup
+## Stage 2: Request Data
+
+Once you can serve one route, learn how to read path parameters, query values, and request bodies.
+
+Read:
+
+- [Getting Started](getting-started.md)
+- [Cheat Sheet](cheat-sheet.md)
+
+Focus on:
+
+- `c.Param("name")`
+- `c.QueryValue("name")`, `c.QueryInt("limit")`, `c.QueryBool("completed")`
+- `c.Bind(&value)`
+- `c.BadRequest(title, detail)`
+
+Example:
+
 ```go
+router.GET("/users/{id}", func(c mux.RouteContext) {
+    id, ok := c.Param("id")
+    if !ok {
+        c.BadRequest("Missing user ID", "id parameter is required")
+        return
+    }
+
+    limit, _ := c.QueryInt("limit")
+    c.OK(map[string]any{"id": id, "limit": limit})
+})
+```
+
+## Stage 3: Structure Your API
+
+Learn how to group routes, share tags, and apply middleware at startup.
+
+Read:
+
+- [Router](router.md)
+- [Middleware](middleware.md)
+
+Focus on:
+
+- `router.NewRouteGroup(...)`
+- `mux.UseLogging(router)` and other startup middleware
+- `router.Services().Register(...)` for shared collaborators
+
+Example:
+
+```go
+router := mux.NewRouter()
+
+mux.UseLogging(router)
+router.Services().Register("clock", time.Now)
+
+if err := router.Configure(func(router *mux.Router) {
+    api := router.NewRouteGroup("/api/v1")
+    api.WithTags("API v1")
+
+    users := api.NewRouteGroup("/users")
+    users.GET("/", listUsers)
+    users.POST("/", createUser)
+}); err != nil {
+    panic(err)
+}
+```
+
+## Stage 4: Add OpenAPI Metadata
+
+Once the routes feel stable, add documentation directly to the route builders.
+
+Read:
+
+- [Cheat Sheet](cheat-sheet.md)
+- [Overview](overview.md)
+
+Focus on:
+
+- `WithOperationID(...)`
+- `WithSummary(...)`
+- `WithJsonBody(...)`
+- `WithOKResponse(...)`, `WithCreatedResponse(...)`, `WithNotFoundResponse()`
+- `mux.GenerateSpecWithGenerator(...)`
+
+Example:
+
+```go
+users.POST("/", createUser).
+    WithOperationID("createUser").
+    WithSummary("Create a new user").
+    WithJsonBody(CreateUserRequest{}).
+    WithCreatedResponse(User{})
+
+router.GET("/openapi.json", func(c mux.RouteContext) {
+    spec, err := mux.GenerateSpecWithGenerator(mux.NewGenerator(), router)
+    if err != nil {
+        c.ServerError("OpenAPI generation failed", err.Error())
+        return
+    }
+    c.OK(spec)
+})
+```
+
+## Stage 5: Incremental Adoption and Interop
+
+You do not need to rewrite all existing handlers at once. Mux supports standard-library handlers and lets you recover the active route context when needed.
+
+Read:
+
+- [Overview](overview.md)
+- [Router](router.md)
+
+Focus on:
+
+- `router.Handle(...)`
+- `router.HandleFunc(...)`
+- `mux.RouteContextFromRequest(r)`
+
+Example:
+
+```go
+router.HandleFunc("/legacy/users/{id}", func(w http.ResponseWriter, r *http.Request) {
+    routeCtx, ok := mux.RouteContextFromRequest(r)
+    if !ok {
+        http.Error(w, "route context not available", http.StatusInternalServerError)
+        return
+    }
+
+    id, _ := routeCtx.Param("id")
+    routeCtx.OK(map[string]string{"id": id})
+})
+```
+
+## Stage 6: Production Readiness
+
+Finish with server lifecycle, health probes, and router options.
+
+Read:
+
+- [WebServer](webserver.md)
+- [Health Probes](health-probes.md)
+- [Best Practices](best-practices.md)
+
+Focus on:
+
+- `mux.NewServer(...).Listen(ctx)`
+- `router.Healthz()`, `router.Livez()`, `router.Readyz()`
+- `mux.WithContextPooling()`
+- `mux.WithHeadFallbackToGet()`
+- `mux.WithMaxBodyBytes(...)`
+
+Example:
+
+```go
+router := mux.NewRouter(
+    mux.WithContextPooling(),
+    mux.WithHeadFallbackToGet(),
+    mux.WithMaxBodyBytes(10<<20),
+)
+
+if err := router.Configure(func(router *mux.Router) {
+    router.Healthz()
+    router.Readyz()
+    setupRoutes(router)
+}); err != nil {
+    panic(err)
+}
+
+ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+defer stop()
+
 server := mux.NewServer(":8080", router)
-
-ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-defer cancel()
-
 if err := server.Listen(ctx); err != nil {
     panic(err)
 }
 ```
-Uses `WebServer` for production-ready server with:
-- Automatic graceful shutdown (press Ctrl+C)
-- Production timeouts (10s read/write, 120s idle)
-- Context-based lifecycle management
 
-## Key Concepts Demonstrated
+## Suggested Order
 
-1. **Router Creation**: How to create and configure a Mux router
-2. **Route Definition**: Defining HTTP endpoints with handlers
-3. **Path Parameters**: Capturing dynamic values from URLs
-4. **Response Handling**: Using Mux response helpers (`c.OK`, `c.BadRequest`)
-5. **Parameter Extraction**: Safely extracting path parameters
-6. **Error Handling**: Basic error responses for invalid requests
+1. [Installation](installation.md)
+2. [Quick Start](quick-start.md)
+3. [Getting Started](getting-started.md)
+4. [Interactive Tutorial](interactive-tutorial.md)
+5. [Middleware](middleware.md)
+6. [WebServer](webserver.md)
+7. [Examples](../examples/)
 
-## Next Steps
+## When You Are Ready for Production
 
-After understanding this example, try:
-- [Todo API Example](../todo-api/) - Full CRUD operations with OpenAPI
-- [CORS Wildcard Example](../cors-wildcard/) - Middleware configuration
-- [WebServer Example](../webserver/) - Server lifecycle and timeouts
+You are in good shape when you can do all of the following comfortably:
+
+- Start a service with `Configure(...)` and fail fast on startup validation errors
+- Read params, query values, and request bodies without touching raw `http.Request` unnecessarily
+- Organize routes with groups and shared middleware
+- Publish an OpenAPI document from the registered routes
+- Run the service through `WebServer` with graceful shutdown and health probes
+
+## Recommended Example Apps
+
+- [Hello World](../examples/hello-world/)
+- [Todo API](../examples/todo-api/)
+- [WebServer](../examples/webserver/)
+- [Redirects](../examples/redirects/)

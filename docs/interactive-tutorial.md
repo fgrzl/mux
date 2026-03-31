@@ -1,126 +1,340 @@
-# Hello World Example
+# Interactive Tutorial
 
-The simplest possible Mux application demonstrating basic routing and response handling.
+Build a Todo API in about 30 minutes using the current safe public APIs.
 
-## Features
+## What You Will Build
 
-- Basic GET endpoints
-- Path parameters
-- JSON responses
-- Error handling
+By the end of this tutorial you will have:
 
-## Running the Example
+- `GET /todos`
+- `POST /todos`
+- `GET /todos/{id}`
+- `PUT /todos/{id}`
+- `DELETE /todos/{id}`
+- `GET /openapi.json`
+
+The finished version in this repository lives at [examples/todo-api](../examples/todo-api/).
+
+## Step 1: Create the Project
 
 ```bash
-# From the hello-world directory
-go mod init hello-world-example
+mkdir todo-api
+cd todo-api
+go mod init todo-api
 go get github.com/fgrzl/mux
+go get github.com/google/uuid
+```
+
+## Step 2: Define Models and Storage
+
+Create `main.go` and start with the data model and in-memory storage:
+
+```go
+package main
+
+import (
+	"context"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
+
+	"github.com/fgrzl/mux"
+	"github.com/google/uuid"
+)
+
+type Todo struct {
+	ID          string    `json:"id"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	Completed   bool      `json:"completed"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
+type CreateTodoRequest struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
+}
+
+type UpdateTodoRequest struct {
+	Title       *string `json:"title,omitempty"`
+	Description *string `json:"description,omitempty"`
+	Completed   *bool   `json:"completed,omitempty"`
+}
+
+var (
+	todos   = make(map[string]*Todo)
+	todosMu sync.RWMutex
+)
+```
+
+## Step 3: Add the CRUD Handlers
+
+Add the handlers below the model definitions.
+
+### List Todos
+
+```go
+func listTodos(c mux.RouteContext) {
+	completed, hasCompleted := c.QueryBool("completed")
+
+	todosMu.RLock()
+	defer todosMu.RUnlock()
+
+	result := make([]*Todo, 0, len(todos))
+	for _, todo := range todos {
+		if hasCompleted && todo.Completed != completed {
+			continue
+		}
+		result = append(result, todo)
+	}
+
+	c.OK(result)
+}
+```
+
+### Create Todo
+
+```go
+func createTodo(c mux.RouteContext) {
+	var req CreateTodoRequest
+	if err := c.Bind(&req); err != nil {
+		c.BadRequest("Invalid JSON", err.Error())
+		return
+	}
+
+	if req.Title == "" {
+		c.BadRequest("Validation Error", "Title is required")
+		return
+	}
+
+	todo := &Todo{
+		ID:          uuid.New().String(),
+		Title:       req.Title,
+		Description: req.Description,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	todosMu.Lock()
+	todos[todo.ID] = todo
+	todosMu.Unlock()
+
+	c.Created(todo)
+}
+```
+
+### Get, Update, and Delete
+
+```go
+func getTodo(c mux.RouteContext) {
+	id, ok := c.Param("id")
+	if !ok {
+		c.BadRequest("Missing parameter", "id parameter is required")
+		return
+	}
+
+	todosMu.RLock()
+	todo, exists := todos[id]
+	todosMu.RUnlock()
+
+	if !exists {
+		c.NotFound()
+		return
+	}
+
+	c.OK(todo)
+}
+
+func updateTodo(c mux.RouteContext) {
+	id, ok := c.Param("id")
+	if !ok {
+		c.BadRequest("Missing parameter", "id parameter is required")
+		return
+	}
+
+	var req UpdateTodoRequest
+	if err := c.Bind(&req); err != nil {
+		c.BadRequest("Invalid JSON", err.Error())
+		return
+	}
+
+	todosMu.Lock()
+	defer todosMu.Unlock()
+
+	todo, exists := todos[id]
+	if !exists {
+		c.NotFound()
+		return
+	}
+
+	if req.Title != nil {
+		todo.Title = *req.Title
+	}
+	if req.Description != nil {
+		todo.Description = *req.Description
+	}
+	if req.Completed != nil {
+		todo.Completed = *req.Completed
+	}
+	todo.UpdatedAt = time.Now()
+
+	c.OK(todo)
+}
+
+func deleteTodo(c mux.RouteContext) {
+	id, ok := c.Param("id")
+	if !ok {
+		c.BadRequest("Missing parameter", "id parameter is required")
+		return
+	}
+
+	todosMu.Lock()
+	defer todosMu.Unlock()
+
+	if _, exists := todos[id]; !exists {
+		c.NotFound()
+		return
+	}
+
+	delete(todos, id)
+	c.NoContent()
+}
+```
+
+## Step 4: Wire the Router and OpenAPI Metadata
+
+Now add `main()` and register the routes inside `Configure(...)`.
+
+```go
+func main() {
+	router := mux.NewRouter()
+
+	if err := router.Configure(func(router *mux.Router) {
+		api := router.NewRouteGroup("/todos")
+		api.WithTags("Todos")
+
+		api.GET("/", listTodos).
+			WithOperationID("listTodos").
+			WithSummary("List all todos").
+			WithQueryParam("completed", "Filter todos by completion state", true).
+			WithOKResponse([]Todo{})
+
+		api.POST("/", createTodo).
+			WithOperationID("createTodo").
+			WithSummary("Create a new todo").
+			WithJsonBody(CreateTodoRequest{}).
+			WithCreatedResponse(Todo{})
+
+		api.GET("/{id}", getTodo).
+			WithOperationID("getTodo").
+			WithSummary("Get a todo by ID").
+			WithPathParam("id", "The unique identifier of the todo", "todo-123").
+			WithOKResponse(Todo{}).
+			WithNotFoundResponse()
+
+		api.PUT("/{id}", updateTodo).
+			WithOperationID("updateTodo").
+			WithSummary("Update a todo").
+			WithPathParam("id", "The unique identifier of the todo", "todo-123").
+			WithJsonBody(UpdateTodoRequest{}).
+			WithOKResponse(Todo{})
+
+		api.DELETE("/{id}", deleteTodo).
+			WithOperationID("deleteTodo").
+			WithSummary("Delete a todo").
+			WithPathParam("id", "The unique identifier of the todo", "todo-123").
+			WithNoContentResponse()
+
+		router.GET("/openapi.json", func(c mux.RouteContext) {
+			spec, err := mux.GenerateSpecWithGenerator(mux.NewGenerator(), router)
+			if err != nil {
+				c.ServerError("OpenAPI generation failed", err.Error())
+				return
+			}
+			c.OK(spec)
+		})
+
+		router.GET("/", func(c mux.RouteContext) {
+			c.OK(map[string]string{
+				"message": "Todo API",
+				"docs":    "/openapi.json",
+			})
+		})
+	}); err != nil {
+		panic(err)
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	server := mux.NewServer(":8080", router)
+	if err := server.Listen(ctx); err != nil {
+		panic(err)
+	}
+}
+```
+
+## Step 5: Run the API
+
+```bash
 go run main.go
 ```
 
-The server will start on `http://localhost:8080`
+## Step 6: Test the Endpoints
 
-## Testing the Endpoints
+Create a todo:
 
-### Simple Hello World
 ```bash
-curl http://localhost:8080/
-```
-**Expected Response:**
-```json
-"Hello, World!"
+curl -X POST http://localhost:8080/todos \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Learn Mux","description":"Finish the tutorial"}'
 ```
 
-### Personalized Greeting
+List todos:
+
 ```bash
-curl http://localhost:8080/hello/John
-```
-**Expected Response:**
-```json
-{
-  "message": "Hello, John!",
-  "status": "success"
-}
+curl http://localhost:8080/todos
 ```
 
-### Test Error Handling
+Filter completed todos:
+
 ```bash
-curl http://localhost:8080/hello/
+curl "http://localhost:8080/todos?completed=true"
 ```
-This will return a 404 since the route requires a name parameter.
 
-## Code Explanation
+Update a todo:
 
-### Router Creation
-```go
-router := mux.NewRouter()
+```bash
+curl -X PUT http://localhost:8080/todos/{id} \
+  -H "Content-Type: application/json" \
+  -d '{"completed":true}'
 ```
-Creates a new Mux router instance.
 
-### Basic Route
-```go
-router.GET("/", func(c mux.RouteContext) {
-    c.OK("Hello, World!")
-})
+Delete a todo:
+
+```bash
+curl -X DELETE http://localhost:8080/todos/{id}
 ```
-- Defines a GET endpoint at the root path
-- Returns a simple string response with 200 OK status
 
-### Parameterized Route
-```go
-router.GET("/hello/{name}", func(c mux.RouteContext) {
-    name, ok := c.Param("name")
-    if !ok {
-        c.BadRequest("Missing name", "name parameter is required")
-        return
-    }
+Inspect the generated OpenAPI document:
 
-    c.OK(map[string]string{
-        "message": "Hello, " + name + "!",
-        "status":  "success",
-    })
-})
+```bash
+curl http://localhost:8080/openapi.json
 ```
-- Returns a structured JSON response
 
-### Startup Validation
-```go
-if err := router.Configure(func(router *mux.Router) {
-    // Register routes and groups here.
-}); err != nil {
-    panic(err)
-}
-```
-Checks route configuration before the server starts accepting traffic.
+## Step 7: Compare with the Repository Example
 
-### Server Startup
-```go
-server := mux.NewServer(":8080", router)
+Once you have your own version working, compare it with the maintained example in [examples/todo-api/main.go](../examples/todo-api/main.go). That version includes the same flow with repository-style naming and comments.
 
-ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-defer cancel()
+## Next Improvements
 
-if err := server.Listen(ctx); err != nil {
-    panic(err)
-}
-```
-Uses `WebServer` for production-ready server with:
-- Automatic graceful shutdown (press Ctrl+C)
-- Production timeouts (10s read/write, 120s idle)
-- Context-based lifecycle management
+After the in-memory version works, the next practical upgrades are:
 
-## Key Concepts Demonstrated
-
-1. **Router Creation**: How to create and configure a Mux router
-2. **Route Definition**: Defining HTTP endpoints with handlers
-3. **Path Parameters**: Capturing dynamic values from URLs
-4. **Response Handling**: Using Mux response helpers (`c.OK`, `c.BadRequest`)
-5. **Parameter Extraction**: Safely extracting path parameters
-6. **Error Handling**: Basic error responses for invalid requests
-
-## Next Steps
-
-After understanding this example, try:
-- [Todo API Example](../todo-api/) - Full CRUD operations with OpenAPI
-- [CORS Wildcard Example](../cors-wildcard/) - Middleware configuration
-- [WebServer Example](../webserver/) - Server lifecycle and timeouts
+1. Replace the map with a real database.
+2. Add authentication middleware.
+3. Add pagination and sorting.
+4. Add integration tests.
+5. Serve the OpenAPI document with Swagger UI or another viewer.

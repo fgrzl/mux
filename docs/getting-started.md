@@ -4,7 +4,7 @@ Welcome! This guide will get you from zero to a working API in minutes.
 
 ## 📋 Prerequisites
 
-- **Go 1.24.4 or later** - [Download here](https://go.lang.org/dl/)
+- **Go 1.25.6 or later** - [Download here](https://go.lang.org/dl/)
 - **Basic Go knowledge** - Understand functions, structs, and packages
 - **A code editor** - VS Code, GoLand, or your favorite editor
 

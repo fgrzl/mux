@@ -25,7 +25,7 @@ This document answers common questions about using Mux for building HTTP APIs in
 
 ### Q: What's the minimum Go version requirement?
 
-**A:** Mux requires **Go 1.24.4** or later to take advantage of the latest language features and security updates.
+**A:** Mux requires **Go 1.25.6** or later to match the version declared in `go.mod` and to take advantage of the latest language features and security updates.
 
 ## Installation and Setup
 
