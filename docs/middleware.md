@@ -1,4 +1,4 @@
-# Built-in Middleware Guide
+﻿# Built-in Middleware Guide
 
 Mux includes a comprehensive set of built-in middleware to handle common cross-cutting concerns in web applications. This guide covers all available middleware, their configuration options, and usage patterns.
 
@@ -8,9 +8,11 @@ Middleware in Mux follows a functional options pattern and implements the `Middl
 
 ```go
 type Middleware interface {
-    Invoke(c routing.RouteContext, next HandlerFunc)
+    Invoke(c MutableRouteContext, next HandlerFunc)
 }
 ```
+
+Handlers receive `RouteContext`. Middleware receives `MutableRouteContext` so it can replace the request or response writer when needed.
 
 Built-in middleware is installed on the router and executes in the order it is added.
 
@@ -28,17 +30,17 @@ Provides JWT token validation and creation capabilities with support for multipl
 ### Basic Setup
 ```go
 mux.UseAuthentication(router,
-    mux.WithValidator(validateToken),
-    mux.WithTokenCreator(createToken),
-    mux.WithTokenTTL(30 * time.Minute),
+    mux.WithAuthValidator(validateToken),
+    mux.WithAuthTokenCreator(createToken),
+    mux.WithAuthTokenTTL(30 * time.Minute),
 )
 ```
 
 ### Configuration Options
-- `WithValidator(func(string) (claims.Principal, error))` - Token validation function
-- `WithTokenCreator(func(claims.Principal, time.Duration) (string, error))` - Token creation function
-- `WithTokenTTL(time.Duration)` - Token time-to-live duration
-- `WithCSRFProtection()` - Double-submit CSRF protection for cookie-authenticated state-changing requests
+- `WithAuthValidator(func(string) (claims.Principal, error))` - Token validation function
+- `WithAuthTokenCreator(func(claims.Principal, time.Duration) (string, error))` - Token creation function
+- `WithAuthTokenTTL(time.Duration)` - Token time-to-live duration
+- `WithAuthCSRFProtection()` - Double-submit CSRF protection for cookie-authenticated state-changing requests
 - `WithAuthRateLimiter(func(string) bool)` - Rate limiting for failed authentication attempts
 
 Mark routes or route groups public with `AllowAnonymous()` rather than configuring anonymous access on the middleware itself.
@@ -46,7 +48,7 @@ Mark routes or route groups public with `AllowAnonymous()` rather than configuri
 ### Token Sources
 The middleware checks tokens in these locations:
 1. **Authorization header**: `Authorization: Bearer <token>`
-2. **App session cookie**: The framework-managed session cookie used by `c.SignIn(...)`
+2. **App session cookie**: The framework-managed session cookie used by `c.Cookies().SignIn(...)`
 
 ### Example Implementation
 ```go
@@ -91,14 +93,14 @@ Provides role-based and permission-based access control that works with the auth
 ### Setup
 ```go
 mux.UseAuthorization(router,
-    mux.WithRoles("admin", "user"),
-    mux.WithPermissions("read", "write", "delete"),
+    mux.WithAuthorizationRoles("admin", "user"),
+    mux.WithAuthorizationPermissions("read", "write", "delete"),
 )
 ```
 
 ### Configuration Options
-- `WithRoles(roles ...string)` - Require roles at middleware level
-- `WithPermissions(permissions ...string)` - Require permissions at middleware level
+- `WithAuthorizationRoles(roles ...string)` - Require roles at middleware level
+- `WithAuthorizationPermissions(permissions ...string)` - Require permissions at middleware level
 
 ### Route-Level Authorization
 ```go
@@ -131,7 +133,7 @@ mux.UseCompression(router)
 
 ### Usage Example
 ```go
-router.UseCompression()
+mux.UseCompression(router)
 
 router.GET("/api/data", func(c mux.RouteContext) {
     // Large JSON response will be automatically compressed
@@ -188,11 +190,11 @@ Rate limiting is configured per route, not globally:
 ```go
 // Allow 100 requests per minute for this endpoint
 router.GET("/api/search", searchHandler).
-    WithRateLimit(100, time.Minute)
+    RateLimit(100, time.Minute)
 
 // Different limits for different endpoints
 router.POST("/api/upload", uploadHandler).
-    WithRateLimit(10, time.Minute)
+    RateLimit(10, time.Minute)
 ```
 
 ### Configuration Options
@@ -210,8 +212,8 @@ router.POST("/api/upload", uploadHandler).
 ### Advanced Configuration
 ```go
 // Create rate limiter with custom cleanup interval
-rateLimiter := mux.NewSelectiveRateLimiter(
-    mux.WithCleanupInterval(5 * time.Minute),
+rateLimiter := mux.NewRateLimiter(
+    mux.WithRateLimitCleanupInterval(5 * time.Minute),
 )
 
 // Use the custom rate limiter
@@ -239,7 +241,7 @@ mux.UseEnforceHTTPS(router)
 
 ### Example
 ```go
-router.UseEnforceHTTPS()
+mux.UseEnforceHTTPS(router)
 
 // All routes now require HTTPS
 router.GET("/api/secure", secureHandler)
@@ -293,7 +295,7 @@ defer geoipDB.Close()
 
 // Add export control middleware
 mux.UseExportControl(router,
-    mux.WithGeoIPDatabase(geoipDB),
+    mux.WithExportControlGeoIPDatabase(geoipDB),
 )
 ```
 
@@ -325,19 +327,19 @@ Provides distributed tracing and metrics collection using OpenTelemetry.
 ### Setup
 ```go
 mux.UseOpenTelemetry(router,
-    mux.WithOperation("my-api"),
+    mux.WithTelemetryOperation("my-api"),
 )
 ```
 
 ### Configuration Options
-- `WithOperation(name string)` - Sets the operation name for traces (default: "http.server")
+- `WithTelemetryOperation(name string)` - Sets the operation name for traces (default: "http.server")
 
 ### Default Route Tracing Behavior
 - Span name uses `METHOD + route pattern` when route metadata is available (example: `GET /users/{id}`)
 - Adds `http.route` with the resolved route pattern
 - Adds `http.request.method` with the HTTP method
 - Adds `mux.route.pattern` as a mux-specific route label
-- Falls back to `WithOperation(...)` (or `http.server`) when route metadata is unavailable
+- Falls back to `WithTelemetryOperation(...)` (or `http.server`) when route metadata is unavailable
 
 ### Features
 - **Automatic span creation**: Creates spans for each HTTP request
@@ -382,23 +384,23 @@ Register services explicitly when middleware and handlers need shared collaborat
 ### Setup
 ```go
 router.Services().
-    Register("db", databaseConnection).
-    Register("cache", redisClient).
-    Register("logger", logger)
+    Register(mux.ServiceKey("db"), databaseConnection).
+    Register(mux.ServiceKey("cache"), redisClient).
+    Register(mux.ServiceKey("logger"), logger)
 ```
 
 ### Using Services in Handlers
 ```go
 func getUserHandler(c mux.RouteContext) {
     // Retrieve services from context
-    db, ok := c.GetService("db")
+    db, ok := c.Services().Get(mux.ServiceKey("db"))
     if !ok {
         c.ServerError("Database unavailable", "")
         return
     }
     
-    cache, _ := c.GetService("cache")
-    logger, _ := c.GetService("logger")
+    cache, _ := c.Services().Get(mux.ServiceKey("cache"))
+    logger, _ := c.Services().Get(mux.ServiceKey("logger"))
     
     // Use services
     user := db.(*sql.DB).QueryRow("SELECT * FROM users WHERE id = ?", userID)
@@ -417,9 +419,9 @@ type Services struct {
 }
 
 func getServicesFromContext(c mux.RouteContext) *Services {
-    db, _ := c.GetService("db")
-    cache, _ := c.GetService("cache") 
-    logger, _ := c.GetService("logger")
+    db, _ := c.Services().Get(mux.ServiceKey("db"))
+    cache, _ := c.Services().Get(mux.ServiceKey("cache")) 
+    logger, _ := c.Services().Get(mux.ServiceKey("logger"))
     
     return &Services{
         DB:     db.(*sql.DB),
@@ -502,7 +504,7 @@ type CustomMiddleware struct {
     options *CustomOptions
 }
 
-func (m *CustomMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
+func (m *CustomMiddleware) Invoke(c mux.MutableRouteContext, next mux.HandlerFunc) {
     // Pre-processing
     
     next(c) // Always call next
@@ -528,3 +530,5 @@ Monitor your application's performance and adjust middleware configuration as ne
 - [Router](router.md) - Routing fundamentals
 - [Best Practices](best-practices.md) - Patterns and conventions
 - [WebServer](webserver.md) - Production server setup
+
+

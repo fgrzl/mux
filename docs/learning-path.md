@@ -41,7 +41,7 @@ Read:
 Focus on:
 
 - `c.Param("name")`
-- `c.QueryValue("name")`, `c.QueryInt("limit")`, `c.QueryBool("completed")`
+- `c.Query().String("name")`, `c.Query().Int("limit")`, `c.Query().Bool("completed")`
 - `c.Bind(&value)`
 - `c.BadRequest(title, detail)`
 
@@ -55,7 +55,7 @@ router.GET("/users/{id}", func(c mux.RouteContext) {
         return
     }
 
-    limit, _ := c.QueryInt("limit")
+    limit, _ := c.Query().Int("limit")
     c.OK(map[string]any{"id": id, "limit": limit})
 })
 ```
@@ -71,7 +71,7 @@ Read:
 
 Focus on:
 
-- `router.NewRouteGroup(...)`
+- `router.Group(...)`
 - `mux.UseLogging(router)` and other startup middleware
 - `router.Services().Register(...)` for shared collaborators
 
@@ -81,13 +81,13 @@ Example:
 router := mux.NewRouter()
 
 mux.UseLogging(router)
-router.Services().Register("clock", time.Now)
+router.Services().Register(mux.ServiceKey("clock"), time.Now)
 
 if err := router.Configure(func(router *mux.Router) {
-    api := router.NewRouteGroup("/api/v1")
-    api.WithTags("API v1")
+    api := router.Group("/api/v1")
+    api.Tags("API v1")
 
-    users := api.NewRouteGroup("/users")
+    users := api.Group("/users")
     users.GET("/", listUsers)
     users.POST("/", createUser)
 }); err != nil {
@@ -106,20 +106,20 @@ Read:
 
 Focus on:
 
-- `WithOperationID(...)`
-- `WithSummary(...)`
-- `WithJsonBody(...)`
-- `WithOKResponse(...)`, `WithCreatedResponse(...)`, `WithNotFoundResponse()`
+- `OperationID(...)`
+- `Summary(...)`
+- `AcceptJSON(...)`
+- `OK(...)`, `Created(...)`, `Responds(404, mux.ProblemDetails{})`
 - `mux.GenerateSpecWithGenerator(...)`
 
 Example:
 
 ```go
 users.POST("/", createUser).
-    WithOperationID("createUser").
-    WithSummary("Create a new user").
-    WithJsonBody(CreateUserRequest{}).
-    WithCreatedResponse(User{})
+    OperationID("createUser").
+    Summary("Create a new user").
+    AcceptJSON(CreateUserRequest{}).
+    Created(User{})
 
 router.GET("/openapi.json", func(c mux.RouteContext) {
     spec, err := mux.GenerateSpecWithGenerator(mux.NewGenerator(), router)
@@ -149,7 +149,7 @@ Focus on:
 Example:
 
 ```go
-router.HandleFunc("/legacy/users/{id}", func(w http.ResponseWriter, r *http.Request) {
+router.HandleFunc(http.MethodGet, "/legacy/users/{id}", func(w http.ResponseWriter, r *http.Request) {
     routeCtx, ok := mux.RouteContextFromRequest(r)
     if !ok {
         http.Error(w, "route context not available", http.StatusInternalServerError)
@@ -231,3 +231,5 @@ You are in good shape when you can do all of the following comfortably:
 - [Todo API](../examples/todo-api/)
 - [WebServer](../examples/webserver/)
 - [Redirects](../examples/redirects/)
+
+

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	"github.com/fgrzl/mux/pkg/routing"
+	"github.com/fgrzl/mux/internal/routing"
 )
 
 // NewRequestRecorder creates an http.Request and ResponseRecorder for tests.

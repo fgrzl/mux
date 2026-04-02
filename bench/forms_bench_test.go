@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/fgrzl/mux/pkg/common"
+	"github.com/fgrzl/mux/internal/common"
 	"github.com/fgrzl/mux/test/testsupport"
 )
 

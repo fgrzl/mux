@@ -9,8 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-
-	"github.com/fgrzl/mux/pkg/router"
 )
 
 const errInvalidTLSFiles = "invalid TLS cert/key files"
@@ -21,7 +19,7 @@ type WebServerOption func(*WebServer)
 // WebServer wraps an http.Server and a custom Router, providing methods for starting and stopping the server.
 type WebServer struct {
 	srv      *http.Server
-	rtr      *router.Router
+	rtr      *Router
 	certFile string
 	keyFile  string
 }
@@ -82,7 +80,7 @@ func WithTLSDiscovery(certsDir, certFile, keyFile string) WebServerOption {
 }
 
 // NewServer creates a new WebServer with the given address, router, and optional configuration options.
-func NewServer(addr string, rtr *router.Router, opts ...WebServerOption) *WebServer {
+func NewServer(addr string, rtr *Router, opts ...WebServerOption) *WebServer {
 	srv := &http.Server{
 		Addr:         addr,
 		Handler:      rtr,

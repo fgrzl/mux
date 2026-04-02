@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	"github.com/fgrzl/mux/pkg/routing"
+	"github.com/fgrzl/mux/internal/routing"
 	"github.com/fgrzl/mux/test/testhelpers"
 )
 

@@ -1,0 +1,874 @@
+package builder
+
+import (
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"reflect"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/fgrzl/mux/internal/common"
+	openapi "github.com/fgrzl/mux/internal/openapi"
+	"github.com/fgrzl/mux/internal/routing"
+)
+
+const (
+	paramAccept     = "Accept"
+	pathUsers       = "/users"
+	pathUsersWithID = "/users/{id}"
+	pathPublic      = "/public"
+	pathSecure      = "/secure"
+	scopeAPIRead    = "api:read"
+	scopeAPIWrite   = "api:write"
+)
+
+type builderCloneNested struct {
+	Value string `json:"value"`
+}
+
+type builderClonePayload struct {
+	Name   *string             `json:"name"`
+	Nested *builderCloneNested `json:"nested"`
+	Tags   []string            `json:"tags"`
+}
+
+type builderTestMiddleware struct {
+	id   string
+	seen *[]string
+}
+
+func (m *builderTestMiddleware) Invoke(c routing.RouteContext, next routing.HandlerFunc) {
+	*m.seen = append(*m.seen, "before:"+m.id)
+	next(c)
+	*m.seen = append(*m.seen, "after:"+m.id)
+}
+
+func TestShouldCreateRouteBuilder(t *testing.T) {
+	// Arrange & Act
+	builder := DetachedRoute(http.MethodGet, pathUsers)
+
+	// Assert
+	assert.NotNil(t, builder)
+	assert.NotNil(t, builder.Options)
+	assert.Equal(t, http.MethodGet, builder.Options.Method)
+	assert.Equal(t, pathUsers, builder.Options.Pattern)
+	assert.NotNil(t, builder.Options.Responses)
+}
+
+func TestShouldSetAllowAnonymous(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, pathPublic)
+
+	// Act
+	result := builder.AllowAnonymous()
+
+	// Assert
+	assert.True(t, builder.Options.AllowAnonymous)
+	assert.Equal(t, builder, result) // Should return self for chaining
+}
+
+func TestShouldComposeRouteScopedMiddlewareOnBuilder(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, pathUsers)
+	var seen []string
+
+	// Act
+	result := builder.Use(
+		&builderTestMiddleware{id: "A", seen: &seen},
+		&builderTestMiddleware{id: "B", seen: &seen},
+	)
+	builder.Options.Handler = func(c routing.RouteContext) {
+		seen = append(seen, "handler")
+		c.OK("ok")
+	}
+	req := httptest.NewRequest(http.MethodGet, pathUsers, nil)
+	rr := httptest.NewRecorder()
+	ctx := routing.NewRouteContext(rr, req)
+	ctx.SetOptions(builder.Options)
+	builder.Options.EffectiveHandler()(ctx)
+
+	// Assert
+	assert.Equal(t, builder, result)
+	assert.True(t, builder.Options.HasMiddleware())
+	assert.Len(t, builder.Options.Middleware, 2)
+	assert.Equal(t, []string{"before:A", "before:B", "handler", "after:B", "after:A"}, seen)
+	assert.Equal(t, http.StatusOK, rr.Code)
+}
+
+func TestShouldRegisterScopedServiceOnBuilder(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, pathUsers)
+	serviceKey := routing.ServiceKey("svc")
+	service := struct{ Name string }{Name: "primary"}
+
+	// Act
+	result := builder.WithService(serviceKey, service)
+
+	// Assert
+	assert.Equal(t, builder, result)
+	assert.True(t, builder.Options.HasServices())
+	assert.Equal(t, service, builder.Options.Services[serviceKey])
+}
+
+func TestShouldExposeServiceRegistryOnBuilder(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, pathUsers)
+	registry := builder.Services()
+	serviceKey := routing.ServiceKey("svc")
+
+	// Act
+	result := registry.Register(serviceKey, "primary")
+	retrieved, ok := registry.Get(serviceKey)
+
+	// Assert
+	assert.Same(t, registry, result)
+	assert.True(t, ok)
+	assert.Equal(t, "primary", retrieved)
+	assert.Equal(t, "primary", builder.Options.Services[serviceKey])
+}
+
+func TestShouldSetRequiredPermissions(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, pathSecure)
+	perms := []string{"read", "write"}
+
+	// Act
+	result := builder.RequirePermission(perms...)
+
+	// Assert
+	assert.Equal(t, perms, builder.Options.Permissions)
+	assert.Equal(t, builder, result)
+}
+
+func TestShouldSetRequiredRoles(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, "/admin")
+	roles := []string{"admin", "moderator"}
+
+	// Act
+	result := builder.RequireRoles(roles...)
+
+	// Assert
+	assert.Equal(t, roles, builder.Options.Roles)
+	assert.Equal(t, builder, result)
+}
+
+func TestShouldSetRequiredScopes(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, "/api")
+	scopes := []string{scopeAPIRead, scopeAPIWrite}
+
+	// Act
+	result := builder.RequireScopes(scopes...)
+
+	// Assert
+	assert.Equal(t, scopes, builder.Options.Scopes)
+	assert.Equal(t, builder, result)
+}
+
+func TestShouldSetRateLimit(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, "/limited")
+	limit := 100
+	interval := time.Minute
+
+	// Act
+	result := builder.WithRateLimit(limit, interval)
+
+	// Assert
+	assert.Equal(t, limit, builder.Options.RateLimit)
+	assert.Equal(t, interval, builder.Options.RateInterval)
+	assert.Equal(t, builder, result)
+}
+
+func TestShouldSetOperationID(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, pathUsers)
+	opID := "getUsers"
+
+	// Act
+	result := builder.WithOperationID(opID)
+
+	// Assert
+	assert.Equal(t, opID, builder.Options.OperationID)
+	assert.Equal(t, builder, result)
+}
+
+func TestShouldPanicOnInvalidOperationID(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, pathUsers)
+
+	// Act & Assert
+	assert.Panics(t, func() {
+		builder.WithOperationID("invalid-id")
+	})
+}
+
+func TestShouldAccumulateValidationErrorsWithoutPanickingWhenBuilderSafe(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, pathUsers).Safe()
+
+	// Act / Assert
+	assert.NotPanics(t, func() {
+		builder.WithOperationID("invalid-id")
+		builder.WithJsonBody(struct{ Name string }{Name: "John"})
+	})
+
+	// Assert
+	errs := builder.Errors()
+	require.Len(t, errs, 2)
+	assert.ErrorContains(t, builder.Err(), "invalid OperationID")
+	assert.ErrorContains(t, builder.Err(), "does not support a request body")
+}
+
+func TestShouldAddPathParameter(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, pathUsersWithID)
+	example := "123"
+
+	// Act
+	result := builder.WithPathParam("id", "", example)
+
+	// Assert
+	assert.Equal(t, builder, result)
+	require.Len(t, builder.Options.Parameters, 1)
+	param := builder.Options.Parameters[0]
+	assert.Equal(t, "id", param.Name)
+	assert.Equal(t, "path", param.In)
+	assert.True(t, param.Required)
+	assert.NotNil(t, param.Schema)
+}
+
+func TestShouldAddQueryParameter(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, pathUsers)
+	example := "10"
+
+	// Act
+	result := builder.WithQueryParam("limit", "", example)
+
+	// Assert
+	assert.Equal(t, builder, result)
+	require.Len(t, builder.Options.Parameters, 1)
+	param := builder.Options.Parameters[0]
+	assert.Equal(t, "limit", param.Name)
+	assert.Equal(t, "query", param.In)
+	assert.False(t, param.Required)
+}
+
+func TestShouldAddRequiredQueryParameter(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, pathUsers)
+	example := "active"
+
+	// Act
+	result := builder.WithRequiredQueryParam("status", "", example)
+
+	// Assert
+	assert.Equal(t, builder, result)
+	require.Len(t, builder.Options.Parameters, 1)
+	param := builder.Options.Parameters[0]
+	assert.Equal(t, "status", param.Name)
+	assert.Equal(t, "query", param.In)
+	assert.True(t, param.Required)
+}
+
+func TestShouldAddHeaderParameter(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, pathUsers)
+	example := common.MimeJSON
+
+	// Act
+	result := builder.WithHeaderParam(paramAccept, "", example, true)
+
+	// Assert
+	assert.Equal(t, builder, result)
+	require.Len(t, builder.Options.Parameters, 1)
+	param := builder.Options.Parameters[0]
+	assert.Equal(t, "Accept", param.Name)
+	assert.Equal(t, "header", param.In)
+	assert.True(t, param.Required)
+}
+
+func TestShouldAddCookieParameter(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, pathUsers)
+	example := "session123"
+
+	// Act
+	result := builder.WithCookieParam("sessionId", "", example, false)
+
+	// Assert
+	assert.Equal(t, builder, result)
+	require.Len(t, builder.Options.Parameters, 1)
+	param := builder.Options.Parameters[0]
+	assert.Equal(t, "sessionId", param.Name)
+	assert.Equal(t, "cookie", param.In)
+	assert.False(t, param.Required)
+}
+
+func TestShouldAddParameterWithDescription(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, pathUsers)
+	description := "The maximum number of results to return"
+	example := 10
+
+	// Act
+	result := builder.WithQueryParam("limit", description, example)
+
+	// Assert
+	assert.Equal(t, builder, result)
+	require.Len(t, builder.Options.Parameters, 1)
+	param := builder.Options.Parameters[0]
+	assert.Equal(t, "limit", param.Name)
+	assert.Equal(t, "query", param.In)
+	assert.Equal(t, description, param.Description)
+	assert.False(t, param.Required)
+}
+
+func TestShouldPanicOnInvalidParameterIn(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, pathUsers)
+
+	// Act & Assert
+	assert.Panics(t, func() {
+		builder.WithParam("test", "invalid", "", "example", false)
+	})
+}
+
+func TestShouldPanicOnEmptyParameterName(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, pathUsers)
+
+	// Act & Assert
+	assert.Panics(t, func() {
+		builder.WithParam("", "query", "", "example", false)
+	})
+}
+
+func TestShouldAddResponse(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, pathUsers)
+	example := struct {
+		Name string `json:"name"`
+	}{Name: "John"}
+
+	// Act
+	result := builder.WithResponse(200, example)
+
+	// Assert
+	assert.Equal(t, builder, result)
+	response, exists := builder.Options.Responses["200"]
+	assert.True(t, exists)
+	assert.NotNil(t, response)
+	assert.NotNil(t, response.Content)
+	mediaType := response.Content[common.MimeJSON]
+	assert.NotNil(t, mediaType)
+	assert.Equal(t, example, mediaType.Example)
+}
+
+func TestShouldOwnPointerBackedResponseExamplesOnRegistration(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, pathUsers)
+	name := "stable"
+	example := &builderClonePayload{
+		Name:   &name,
+		Nested: &builderCloneNested{Value: "root"},
+		Tags:   []string{"one"},
+	}
+
+	// Act
+	result := builder.WithResponse(http.StatusOK, example)
+	stored := builder.Options.Responses["200"].Content[common.MimeJSON].Example.(*builderClonePayload)
+	*example.Name = "changed"
+	example.Nested.Value = "mutated"
+	example.Tags[0] = "two"
+
+	// Assert
+	assert.Equal(t, builder, result)
+	assert.NotSame(t, example, stored)
+	assert.NotSame(t, example.Name, stored.Name)
+	assert.NotSame(t, example.Nested, stored.Nested)
+	assert.Equal(t, "stable", *stored.Name)
+	assert.Equal(t, "root", stored.Nested.Value)
+	assert.Equal(t, []string{"one"}, stored.Tags)
+}
+
+func TestShouldAddStandardResponses(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, pathUsers)
+	example := []string{"user1", "user2"}
+
+	// Act
+	builder.WithOKResponse(example).
+		WithCreatedResponse(example).
+		WithAcceptedResponse(example).
+		WithNoContentResponse().
+		WithNotFoundResponse().
+		WithConflictResponse().
+		WithBadRequestResponse().
+		WithStandardErrors()
+
+	// Assert
+	assert.NotNil(t, builder.Options.Responses["200"])
+	assert.NotNil(t, builder.Options.Responses["201"])
+	assert.NotNil(t, builder.Options.Responses["202"])
+	assert.NotNil(t, builder.Options.Responses["204"])
+	assert.NotNil(t, builder.Options.Responses["404"])
+	assert.NotNil(t, builder.Options.Responses["409"])
+	assert.NotNil(t, builder.Options.Responses["400"])
+}
+
+func TestShouldAddRedirectResponses(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, pathUsers)
+
+	// Act
+	builder.With301Response().
+		With302Response().
+		With303Response().
+		With307Response().
+		With308Response()
+
+	// Assert
+	assert.NotNil(t, builder.Options.Responses["301"], "301 response should be added")
+	assert.NotNil(t, builder.Options.Responses["302"], "302 response should be added")
+	assert.NotNil(t, builder.Options.Responses["303"], "303 response should be added")
+	assert.NotNil(t, builder.Options.Responses["307"], "307 response should be added")
+	assert.NotNil(t, builder.Options.Responses["308"], "308 response should be added")
+
+	// Redirect responses should have no content
+	assert.Nil(t, builder.Options.Responses["302"].Content)
+}
+
+func TestShouldAdd302ResponseForLoginRedirect(t *testing.T) {
+	// Arrange & Act
+	builder := DetachedRoute(http.MethodGet, "/login").
+		WithSummary("Login page").
+		With302Response()
+
+	// Assert
+	assert.NotNil(t, builder.Options.Responses["302"])
+	assert.Equal(t, "Login page", builder.Options.Summary)
+}
+
+func TestShouldAddJsonBody(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodPost, pathUsers)
+	example := struct {
+		Name  string `json:"name"`
+		Email string `json:"email"`
+	}{Name: "John", Email: "john@example.com"}
+
+	// Act
+	result := builder.WithJsonBody(example)
+
+	// Assert
+	assert.Equal(t, builder, result)
+	assert.NotNil(t, builder.Options.RequestBody)
+	assert.True(t, builder.Options.RequestBody.Required)
+	mediaType := builder.Options.RequestBody.Content[common.MimeJSON]
+	assert.NotNil(t, mediaType)
+	assert.Equal(t, example, mediaType.Example)
+}
+
+func TestShouldOwnPointerBackedRequestBodyExamplesOnRegistration(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodPost, pathUsers)
+	name := "stable"
+	example := &builderClonePayload{
+		Name:   &name,
+		Nested: &builderCloneNested{Value: "root"},
+		Tags:   []string{"one"},
+	}
+
+	// Act
+	result := builder.WithJsonBody(example)
+	stored := builder.Options.RequestBody.Content[common.MimeJSON].Example.(*builderClonePayload)
+	*example.Name = "changed"
+	example.Nested.Value = "mutated"
+	example.Tags[0] = "two"
+
+	// Assert
+	assert.Equal(t, builder, result)
+	assert.NotSame(t, example, stored)
+	assert.NotSame(t, example.Name, stored.Name)
+	assert.NotSame(t, example.Nested, stored.Nested)
+	assert.Equal(t, "stable", *stored.Name)
+	assert.Equal(t, "root", stored.Nested.Value)
+	assert.Equal(t, []string{"one"}, stored.Tags)
+}
+
+func TestShouldOwnPointerBackedParameterExamplesOnRegistration(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, pathUsers)
+	name := "stable"
+	example := &builderClonePayload{
+		Name:   &name,
+		Nested: &builderCloneNested{Value: "root"},
+		Tags:   []string{"one"},
+	}
+
+	// Act
+	result := builder.WithQueryParam("payload", "pointer-backed payload", example)
+	stored := builder.Options.Parameters[0].Example.(*builderClonePayload)
+	*example.Name = "changed"
+	example.Nested.Value = "mutated"
+	example.Tags[0] = "two"
+
+	// Assert
+	assert.Equal(t, builder, result)
+	require.Len(t, builder.Options.Parameters, 1)
+	assert.NotSame(t, example, stored)
+	assert.NotSame(t, example.Name, stored.Name)
+	assert.NotSame(t, example.Nested, stored.Nested)
+	assert.Equal(t, "stable", *stored.Name)
+	assert.Equal(t, "root", stored.Nested.Value)
+	assert.Equal(t, []string{"one"}, stored.Tags)
+	assert.NotNil(t, builder.Options.ParamIndex["query:payload"])
+}
+
+func TestShouldAddFormBody(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodPost, pathUsers)
+	example := struct {
+		Name  string `json:"name"`
+		Email string `json:"email"`
+	}{Name: "John", Email: "john@example.com"}
+
+	// Act
+	result := builder.WithFormBody(example)
+
+	// Assert
+	assert.Equal(t, builder, result)
+	assert.NotNil(t, builder.Options.RequestBody)
+	mediaType := builder.Options.RequestBody.Content[common.MimeFormURLEncoded]
+	assert.NotNil(t, mediaType)
+	assert.Equal(t, example, mediaType.Example)
+}
+
+func TestShouldAddMultipartBody(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodPost, "/upload")
+	example := struct {
+		File string `json:"file"`
+	}{File: "test.txt"}
+
+	// Act
+	result := builder.WithMultipartBody(example)
+
+	// Assert
+	assert.Equal(t, builder, result)
+	assert.NotNil(t, builder.Options.RequestBody)
+	mediaType := builder.Options.RequestBody.Content[common.MimeMultipartFormData]
+	assert.NotNil(t, mediaType)
+	assert.Equal(t, example, mediaType.Example)
+}
+
+func TestShouldSetSummary(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, pathUsers)
+	summary := "Get all users"
+
+	// Act
+	result := builder.WithSummary(summary)
+
+	// Assert
+	assert.Equal(t, summary, builder.Options.Summary)
+	assert.Equal(t, builder, result)
+}
+
+func TestShouldSetDescription(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, pathUsers)
+	description := "Retrieves a list of all users in the system"
+
+	// Act
+	result := builder.WithDescription(description)
+
+	// Assert
+	assert.Equal(t, description, builder.Options.Description)
+	assert.Equal(t, builder, result)
+}
+
+func TestShouldAddTags(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, pathUsers)
+	tags := []string{"users", "admin"}
+
+	// Act
+	result := builder.WithTags(tags...)
+
+	// Assert
+	assert.Equal(t, tags, builder.Options.Tags)
+	assert.Equal(t, builder, result)
+}
+
+func TestShouldSetExternalDocs(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, pathUsers)
+	url := "https://api.example.com/docs"
+	desc := "User API Documentation"
+
+	// Act
+	result := builder.WithExternalDocs(url, desc)
+
+	// Assert
+	assert.NotNil(t, builder.Options.ExternalDocs)
+	assert.Equal(t, url, builder.Options.ExternalDocs.URL)
+	assert.Equal(t, desc, builder.Options.ExternalDocs.Description)
+	assert.Equal(t, builder, result)
+}
+
+func TestShouldAddSecurity(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, pathUsers)
+	security := &openapi.SecurityRequirement{"oauth2": []string{"read"}}
+
+	// Act
+	result := builder.WithSecurity(security)
+	stored := builder.Options.Security[0]
+	(*security)["oauth2"].([]string)[0] = "write"
+
+	// Assert
+	require.Len(t, builder.Options.Security, 1)
+	assert.NotSame(t, security, stored)
+	assert.Equal(t, []string{"read"}, (*stored)["oauth2"].([]string))
+	assert.Equal(t, builder, result)
+}
+
+func TestShouldSetDeprecated(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodGet, "/old-endpoint")
+
+	// Act
+	result := builder.WithDeprecated()
+
+	// Assert
+	assert.True(t, builder.Options.Deprecated)
+	assert.Equal(t, builder, result)
+}
+
+func TestQuickSchemaShouldHandleBasicTypes(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        interface{}
+		expectedType string
+		expectedFmt  string
+	}{
+		{"string", "test", "string", ""},
+		{"int", 42, "integer", ""},
+		{"bool", true, "boolean", ""},
+		{"float", 3.14, "number", ""},
+		{"uuid", uuid.New(), "string", "uuid"},
+		{"time", time.Now(), "string", "date-time"},
+		{"bytes", []byte("test"), "string", "byte"},
+		{"ip", net.IPv4(127, 0, 0, 1), "string", "ipv4"},
+		{"url", url.URL{Scheme: "https", Host: "example.com"}, "string", "uri"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Act
+			schema, err := QuickSchema(reflect.TypeOf(tt.input))
+
+			// Assert
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedType, schema.Type)
+			if tt.expectedFmt != "" {
+				assert.Equal(t, tt.expectedFmt, schema.Format)
+			}
+		})
+	}
+}
+
+func TestQuickSchemaShouldHandleSlices(t *testing.T) {
+	// Arrange
+	input := []string{"a", "b", "c"}
+
+	// Act
+	schema, err := QuickSchema(reflect.TypeOf(input))
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, "array", schema.Type)
+	assert.NotNil(t, schema.Items)
+	assert.Equal(t, "string", schema.Items.Type)
+}
+
+func TestQuickSchemaShouldHandleNamedStruct(t *testing.T) {
+	// Arrange
+	type User struct {
+		Name string
+		Age  int
+	}
+	input := User{}
+
+	// Act
+	schema, err := QuickSchema(reflect.TypeOf(input))
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, "#/components/schemas/User", schema.Ref)
+}
+
+func TestQuickSchemaShouldHandleAnonymousStruct(t *testing.T) {
+	// Arrange
+	input := struct {
+		Name string `json:"name"`
+		Age  int    `json:"age"`
+	}{}
+
+	// Act
+	schema, err := QuickSchema(reflect.TypeOf(input))
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, "object", schema.Type)
+	assert.NotNil(t, schema.Properties)
+	assert.Contains(t, schema.Properties, "name")
+	assert.Contains(t, schema.Properties, "age")
+	assert.Equal(t, "string", schema.Properties["name"].Type)
+	assert.Equal(t, "integer", schema.Properties["age"].Type)
+}
+
+func TestQuickSchemaShouldHandlePointer(t *testing.T) {
+	// Arrange
+	input := "test"
+	ptr := &input
+
+	// Act
+	schema, err := QuickSchema(reflect.TypeOf(ptr))
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, "string", schema.Type)
+}
+
+func TestQuickSchemaShouldReturnErrorForNilType(t *testing.T) {
+	// Act
+	schema, err := QuickSchema(nil)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, schema)
+	assert.Contains(t, err.Error(), "nil type")
+}
+
+func TestRegisterSchemaShouldAddCustomSchema(t *testing.T) {
+	// Arrange
+	type CustomType struct{}
+	customSchema := &openapi.Schema{Type: "string", Format: "custom"}
+
+	typ := reflect.TypeOf(CustomType{})
+	RegisterSchema(typ, customSchema)
+	t.Cleanup(func() {
+		// Remove the custom schema from the registry to maintain test isolation
+		RemoveSchema(typ)
+	})
+
+	// Assert
+	schema, err := QuickSchema(typ)
+	require.NoError(t, err)
+	assert.Equal(t, customSchema, schema)
+	assert.NotSame(t, customSchema, schema)
+}
+
+func TestRegisterSchemaShouldOwnProvidedSchema(t *testing.T) {
+	// Arrange
+	type CustomType struct{}
+	typ := reflect.TypeOf(CustomType{})
+	customSchema := &openapi.Schema{Type: "object", Properties: map[string]*openapi.Schema{"name": {Type: "string"}}}
+	RegisterSchema(typ, customSchema)
+	t.Cleanup(func() {
+		RemoveSchema(typ)
+	})
+
+	// Act
+	customSchema.Properties["name"].Type = "integer"
+	schema, err := QuickSchema(typ)
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, "string", schema.Properties["name"].Type)
+}
+
+func TestQuickSchemaShouldReturnIndependentCopiesForKnownSchemas(t *testing.T) {
+	// Act
+	first, err := QuickSchema(reflect.TypeOf(uuid.UUID{}))
+	require.NoError(t, err)
+	first.Format = "changed"
+	second, err := QuickSchema(reflect.TypeOf(uuid.UUID{}))
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, "uuid", second.Format)
+	assert.NotSame(t, first, second)
+}
+
+func TestWithOneOfJsonBodyShouldNotMutateRegisteredSchemas(t *testing.T) {
+	// Arrange
+	type CustomType struct {
+		Name string `json:"name"`
+	}
+	typ := reflect.TypeOf(CustomType{})
+	registered := &openapi.Schema{Ref: "#/components/schemas/CustomType"}
+	RegisterSchema(typ, registered)
+	t.Cleanup(func() {
+		RemoveSchema(typ)
+	})
+
+	// Act
+	rb := DetachedRoute(http.MethodPost, "/customs").WithOneOfJsonBody(CustomType{Name: "alpha"})
+	storedSchema := rb.Options.RequestBody.Content[common.MimeJSON].Schema.OneOf[0]
+	fresh, err := QuickSchema(typ)
+
+	// Assert
+	require.NoError(t, err)
+	require.NotNil(t, storedSchema)
+	assert.Equal(t, "#/components/schemas/CustomType", storedSchema.Ref)
+	assert.Equal(t, CustomType{Name: "alpha"}, storedSchema.Example)
+	assert.Nil(t, registered.Example)
+	assert.Nil(t, fresh.Example)
+	assert.NotSame(t, registered, storedSchema)
+	assert.NotSame(t, storedSchema, fresh)
+}
+
+func TestShouldChainFluentMethods(t *testing.T) {
+	// Arrange & Act
+	builder := DetachedRoute(http.MethodGet, pathUsersWithID).
+		AllowAnonymous().
+		RequirePermission("read").
+		RequireRoles("user").
+		RequireScopes(scopeAPIRead).
+		WithRateLimit(100, time.Minute).
+		WithOperationID("getUser").
+		WithPathParam("id", "", "123").
+		WithQueryParam("include", "", "profile").
+		WithOKResponse(struct{ Name string }{Name: "John"}).
+		WithSummary("Get user by ID").
+		WithDescription("Retrieves a single user by their unique identifier").
+		WithTags("users").
+		WithDeprecated()
+
+	// Assert
+	assert.True(t, builder.Options.AllowAnonymous)
+	assert.Contains(t, builder.Options.Permissions, "read")
+	assert.Contains(t, builder.Options.Roles, "user")
+	assert.Contains(t, builder.Options.Scopes, scopeAPIRead)
+	assert.Equal(t, 100, builder.Options.RateLimit)
+	assert.Equal(t, time.Minute, builder.Options.RateInterval)
+	assert.Equal(t, "getUser", builder.Options.OperationID)
+	assert.Len(t, builder.Options.Parameters, 2)
+	assert.Contains(t, builder.Options.Responses, "200")
+	assert.Equal(t, "Get user by ID", builder.Options.Summary)
+	assert.Equal(t, "Retrieves a single user by their unique identifier", builder.Options.Description)
+	assert.Contains(t, builder.Options.Tags, "users")
+	assert.True(t, builder.Options.Deprecated)
+}

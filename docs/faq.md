@@ -108,20 +108,20 @@ router.GET("/files/{path}", func(c mux.RouteContext) {
 ```go
 func handler(c mux.RouteContext) {
 	// String values
-	search, _ := c.QueryValue("q")
+	search, _ := c.Query().String("q")
 
 	// Numeric values
-	page, _ := c.QueryInt("page")
-	limit, _ := c.QueryInt("limit")
+	page, _ := c.Query().Int("page")
+	limit, _ := c.Query().Int("limit")
 
 	// Boolean values
-	includeDeleted, _ := c.QueryBool("include_deleted")
+	includeDeleted, _ := c.Query().Bool("include_deleted")
 
 	// UUID values
-	userID, ok := c.QueryUUID("user_id")
+	userID, ok := c.Query().UUID("user_id")
 
 	// Multiple values
-	tags, _ := c.QueryValues("tags")
+	tags, _ := c.Query().Strings("tags")
 }
 ```
 
@@ -131,8 +131,8 @@ func handler(c mux.RouteContext) {
 ```go
 func handler(c mux.RouteContext) {
 	// Individual form fields
-	name, _ := c.FormValue("name")
-	age, _ := c.FormInt("age")
+	name, _ := c.Form().String("name")
+	age, _ := c.Form().Int("age")
 
 	// Automatic binding to struct
 	var user User
@@ -156,7 +156,7 @@ mux.UseAuthentication(router, ...)
 
 // Route-specific (applies only to this route)
 router.GET("/api/search", handler).
-    WithRateLimit(100, time.Minute)
+    RateLimit(100, time.Minute)
 ```
 
 ### Q: In what order should I add middleware?
@@ -174,7 +174,7 @@ router.GET("/api/search", handler).
 ```go
 type CustomMiddleware struct{}
 
-func (m *CustomMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
+func (m *CustomMiddleware) Invoke(c mux.MutableRouteContext, next mux.HandlerFunc) {
     // Pre-processing
     start := time.Now()
     
@@ -254,10 +254,10 @@ func handler(c mux.RouteContext) {
 
 **A:** Use the built-in authentication middleware:
 ```go
-router.UseAuthentication(
-    mux.WithValidator(validateToken),
-    mux.WithTokenCreator(createToken),
-    mux.WithTokenTTL(30 * time.Minute),
+mux.UseAuthentication(router,
+    mux.WithAuthValidator(validateToken),
+    mux.WithAuthTokenCreator(createToken),
+    mux.WithAuthTokenTTL(30 * time.Minute),
 )
 
 func validateToken(tokenString string) (claims.Principal, error) {
@@ -280,7 +280,7 @@ router.POST("/users", createUser).RequirePermission("write")
 ```go
 type CORSMiddleware struct{}
 
-func (m *CORSMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
+func (m *CORSMiddleware) Invoke(c mux.MutableRouteContext, next mux.HandlerFunc) {
 	c.Response().Header().Set("Access-Control-Allow-Origin", "*")
 	c.Response().Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
 	c.Response().Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
@@ -302,9 +302,9 @@ func (m *CORSMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
 ```go
 // Document routes
 router.POST("/users", createUser).
-    WithSummary("Create a user").
-    WithJsonBody(User{}).
-    WithCreatedResponse(User{})
+    Summary("Create a user").
+    AcceptJSON(User{}).
+    Created(User{})
 
 // Generate spec
 generator := mux.NewGenerator()
@@ -411,7 +411,7 @@ func TestCreateUser(t *testing.T) {
 ```go
 func TestAuthenticationMiddleware(t *testing.T) {
 	router := mux.NewRouter()
-	router.UseAuthentication(mux.WithValidator(mockValidator))
+	mux.UseAuthentication(router,mux.WithAuthValidator(mockValidator))
 	router.GET("/protected", protectedHandler)
 
 	// Test with valid token
@@ -460,7 +460,7 @@ mux.UseLogging(router) // Logs all requests and responses
 // Or add custom debug middleware
 type DebugMiddleware struct{}
 
-func (m *DebugMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
+func (m *DebugMiddleware) Invoke(c mux.MutableRouteContext, next mux.HandlerFunc) {
     log.Printf("Request: %s %s", c.Request().Method, c.Request().URL.Path)
     next(c)
 }
@@ -497,7 +497,7 @@ func (m *DebugMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
 ## Best Practices Summary
 
 1. **Use type-safe parameter helpers** instead of manual parsing
-2. **Add middleware in the correct order** (infrastructure → security → application)
+2. **Add middleware in the correct order** (infrastructure -> security -> application)
 3. **Implement proper error handling** with structured responses
 4. **Document your APIs** as you build them with OpenAPI
 5. **Test your handlers and middleware** thoroughly
@@ -513,3 +513,5 @@ func (m *DebugMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
 - [Best Practices](best-practices.md) - Detailed patterns and conventions
 - [Router](router.md) - Routing fundamentals
 - [Middleware](middleware.md) - Built-in middleware guide
+
+

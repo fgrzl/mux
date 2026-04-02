@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/fgrzl/mux"
-	"github.com/fgrzl/mux/pkg/openapi"
 	"github.com/google/uuid"
 )
 
@@ -53,57 +52,45 @@ func main() {
 
 	if err := router.Configure(func(router *mux.Router) {
 		// Create API group
-		api := router.NewRouteGroup("/todos")
-		api.WithTags("Todos")
+		api := router.Group("/todos")
+		api.Tags("Todos")
 
 		// Document each endpoint
 		api.GET("/", listTodos).
-			WithOperationID("listTodos").
-			WithSummary("List all todos").
+			OperationID("listTodos").
+			Summary("List all todos").
 			WithQueryParam("completed", "Filter todos by completion state", true).
-			WithOKResponse([]Todo{})
+			OK([]Todo{})
 
 		api.POST("/", createTodo).
-			WithOperationID("createTodo").
-			WithSummary("Create a new todo").
-			WithJsonBody(CreateTodoRequest{}).
-			WithCreatedResponse(Todo{})
+			OperationID("createTodo").
+			Summary("Create a new todo").
+			AcceptJSON(CreateTodoRequest{}).
+			Created(Todo{})
 
 		api.GET("/{id}", getTodo).
-			WithOperationID("getTodo").
-			WithSummary("Get a todo by ID").
+			OperationID("getTodo").
+			Summary("Get a todo by ID").
 			WithPathParam("id", "The unique identifier of the todo item", todoIDParam).
-			WithOKResponse(Todo{}).
-			WithNotFoundResponse()
+			OK(Todo{}).
+			Responds(404, mux.ProblemDetails{})
 
 		api.PUT("/{id}", updateTodo).
-			WithOperationID("updateTodo").
-			WithSummary("Update a todo").
+			OperationID("updateTodo").
+			Summary("Update a todo").
 			WithPathParam("id", "The unique identifier of the todo item", todoIDParam).
-			WithJsonBody(UpdateTodoRequest{}).
-			WithOKResponse(Todo{})
+			AcceptJSON(UpdateTodoRequest{}).
+			OK(Todo{})
 
 		api.DELETE("/{id}", deleteTodo).
-			WithOperationID("deleteTodo").
-			WithSummary("Delete a todo").
+			OperationID("deleteTodo").
+			Summary("Delete a todo").
 			WithPathParam("id", "The unique identifier of the todo item", todoIDParam).
-			WithNoContentResponse()
+			NoContent()
 
 		// Serve OpenAPI spec
 		router.GET("/openapi.json", func(c mux.RouteContext) {
-			info, err := router.InfoObject()
-			if err != nil {
-				c.ServerError("OpenAPI generation failed", err.Error())
-				return
-			}
-			routes, err := router.Routes()
-			if err != nil {
-				c.ServerError("OpenAPI generation failed", err.Error())
-				return
-			}
-
-			gen := openapi.NewGenerator()
-			spec, err := gen.GenerateSpecFromRoutes(info, routes)
+			spec, err := mux.GenerateSpecWithGenerator(mux.NewGenerator(), router)
 			if err != nil {
 				c.ServerError("OpenAPI generation failed", err.Error())
 				return
@@ -139,7 +126,7 @@ func main() {
 }
 
 func listTodos(c mux.RouteContext) {
-	completed, hasCompleted := c.QueryBool("completed")
+	completed, hasCompleted := c.Query().Bool("completed")
 
 	todosMu.RLock()
 	defer todosMu.RUnlock()

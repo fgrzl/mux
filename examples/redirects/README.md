@@ -1,11 +1,10 @@
 # HTTP Redirect Examples
 
-This example demonstrates all the HTTP redirect methods available in the mux router.
+This example demonstrates the redirect helpers available on `mux.RouteContext`.
 
 ## Redirect Types
 
 ### 301 - Moved Permanently
-Used when a resource has permanently moved to a new location.
 
 ```go
 router.GET("/old-api", func(c mux.RouteContext) {
@@ -13,10 +12,9 @@ router.GET("/old-api", func(c mux.RouteContext) {
 })
 ```
 
-**Use case**: Old URLs that should never be used again, SEO-friendly permanent redirects.
+Use when a URL has moved for good.
 
-### 302 - Found (Temporary Redirect)
-The most common redirect. Temporarily redirects to another URL.
+### 302 - Found
 
 ```go
 router.GET("/login", func(c mux.RouteContext) {
@@ -24,119 +22,73 @@ router.GET("/login", func(c mux.RouteContext) {
 })
 ```
 
-**Use case**: Login redirects, temporary maintenance pages, A/B testing.
+Use for temporary redirects like login flows or maintenance pages.
 
 ### 303 - See Other
-Used after POST requests to redirect to a GET page (POST-Redirect-GET pattern).
 
 ```go
 router.POST("/submit", func(c mux.RouteContext) {
-    // Process form submission...
     c.SeeOther("/result?id=123")
 })
 ```
 
-**Use case**: Form submissions, preventing duplicate form submissions on refresh.
+Use after a POST when the client should follow with a GET.
 
-### 307 - Temporary Redirect (Method Preserved)
-Like 302 but guarantees the HTTP method is preserved.
+### 307 - Temporary Redirect
 
 ```go
 router.POST("/api/v1/users", func(c mux.RouteContext) {
-    c.TemporaryRedirect("/api/v2/users")  // POST method preserved
+    c.TemporaryRedirect("/api/v2/users")
 })
 ```
 
-**Use case**: API versioning, load balancing, maintaining POST/PUT/DELETE methods.
+Use when the redirect is temporary and the HTTP method must be preserved.
 
-### 308 - Permanent Redirect (Method Preserved)
-Like 301 but guarantees the HTTP method is preserved.
+### 308 - Permanent Redirect
 
 ```go
 router.POST("/old-webhook", func(c mux.RouteContext) {
-    c.PermanentRedirect("/webhooks/v2")  // POST method preserved
+    c.PermanentRedirect("/webhooks/v2")
 })
 ```
 
-**Use case**: API migration where you need to preserve HTTP methods permanently.
+Use when the redirect is permanent and the HTTP method must be preserved.
 
-## Running the Example
+## Run It
 
 ```bash
-cd examples/redirects
-go run main.go
+go run .
 ```
 
-The server will start on `http://localhost:8080`.
+The server listens on `http://localhost:8080`.
 
-## Testing the Redirects
+## Try It
 
-### Test 301 Redirect
 ```bash
 curl -i http://localhost:8080/old-api
-```
-
-### Test 302 Redirect
-```bash
 curl -i http://localhost:8080/login
+curl -i -X POST http://localhost:8080/submit -H "Content-Type: application/json" -d '{"data":"test"}'
+curl -i -X POST http://localhost:8080/api/v1/users -H "Content-Type: application/json" -d '{"name":"test"}'
+curl -i -X POST http://localhost:8080/old-webhook -H "Content-Type: application/json" -d '{"event":"test"}'
 ```
 
-### Test 303 Redirect (POST->GET)
-```bash
-curl -i -X POST http://localhost:8080/submit \
-  -H "Content-Type: application/json" \
-  -d '{"data":"test"}'
-```
+## Documenting Redirects
 
-### Test 307 Redirect (POST preserved)
-```bash
-curl -i -X POST http://localhost:8080/api/v1/users \
-  -H "Content-Type: application/json" \
-  -d '{"name":"test"}'
-```
-
-### Test 308 Redirect (POST preserved)
-```bash
-curl -i -X POST http://localhost:8080/old-webhook \
-  -H "Content-Type: application/json" \
-  -d '{"event":"test"}'
-```
-
-## OpenAPI Documentation
-
-You can also document redirects in your route builders:
+Redirects are documented with `Responds(...)` on the normal route builder:
 
 ```go
-route := mux.DetachedRoute(http.MethodGet, "/old-page").
-    WithSummary("Old page endpoint").
-    With302Response() // Document the redirect
-
-router.HandleRoute(route, func(c mux.RouteContext) {
+router.GET("/old-page", func(c mux.RouteContext) {
     c.Found("/new-page")
-})
+}).
+    Summary("Old page endpoint").
+    Responds(http.StatusFound, nil)
 ```
 
-Available builder methods:
-- `With301Response()` - Moved Permanently
-- `With302Response()` - Found
-- `With303Response()` - See Other
-- `With307Response()` - Temporary Redirect
-- `With308Response()` - Permanent Redirect
+Most applications should register redirect routes directly inside `router.Configure(...)`.
 
-## Quick Reference
-
-| Status | Method | Builder | Preserves Method | Permanent |
-|--------|--------|---------|------------------|-----------|
-| 301 | `MovedPermanently()` | `With301Response()` | No | Yes |
-| 302 | `Found()` | `With302Response()` | No | No |
-| 303 | `SeeOther()` | `With303Response()` | No (→GET) | No |
-| 307 | `TemporaryRedirect()` | `With307Response()` | Yes | No |
-| 308 | `PermanentRedirect()` | `With308Response()` | Yes | Yes |
-
-## Best Practices
-
-1. **Use 302 for most cases** - It's the most widely supported
-2. **Use 303 after POST** - Prevents form resubmission
-3. **Use 307/308 for APIs** - When you need to preserve the HTTP method
-4. **Use 301 for SEO** - When content has permanently moved
-5. **Always use absolute URLs** - The router will handle relative paths automatically
+Common redirect response declarations:
+- `Responds(http.StatusMovedPermanently, nil)`
+- `Responds(http.StatusFound, nil)`
+- `Responds(http.StatusSeeOther, nil)`
+- `Responds(http.StatusTemporaryRedirect, nil)`
+- `Responds(http.StatusPermanentRedirect, nil)`

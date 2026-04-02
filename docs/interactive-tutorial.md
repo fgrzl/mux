@@ -1,4 +1,4 @@
-# Interactive Tutorial
+﻿# Interactive Tutorial
 
 Build a Todo API in about 30 minutes using the current safe public APIs.
 
@@ -78,7 +78,7 @@ Add the handlers below the model definitions.
 
 ```go
 func listTodos(c mux.RouteContext) {
-	completed, hasCompleted := c.QueryBool("completed")
+	completed, hasCompleted := c.Query().Bool("completed")
 
 	todosMu.RLock()
 	defer todosMu.RUnlock()
@@ -213,40 +213,40 @@ func main() {
 	router := mux.NewRouter()
 
 	if err := router.Configure(func(router *mux.Router) {
-		api := router.NewRouteGroup("/todos")
-		api.WithTags("Todos")
+		api := router.Group("/todos")
+		api.Tags("Todos")
 
 		api.GET("/", listTodos).
-			WithOperationID("listTodos").
-			WithSummary("List all todos").
+			OperationID("listTodos").
+			Summary("List all todos").
 			WithQueryParam("completed", "Filter todos by completion state", true).
-			WithOKResponse([]Todo{})
+			OK([]Todo{})
 
 		api.POST("/", createTodo).
-			WithOperationID("createTodo").
-			WithSummary("Create a new todo").
-			WithJsonBody(CreateTodoRequest{}).
-			WithCreatedResponse(Todo{})
+			OperationID("createTodo").
+			Summary("Create a new todo").
+			AcceptJSON(CreateTodoRequest{}).
+			Created(Todo{})
 
 		api.GET("/{id}", getTodo).
-			WithOperationID("getTodo").
-			WithSummary("Get a todo by ID").
+			OperationID("getTodo").
+			Summary("Get a todo by ID").
 			WithPathParam("id", "The unique identifier of the todo", "todo-123").
-			WithOKResponse(Todo{}).
-			WithNotFoundResponse()
+			OK(Todo{}).
+			Responds(404, mux.ProblemDetails{})
 
 		api.PUT("/{id}", updateTodo).
-			WithOperationID("updateTodo").
-			WithSummary("Update a todo").
+			OperationID("updateTodo").
+			Summary("Update a todo").
 			WithPathParam("id", "The unique identifier of the todo", "todo-123").
-			WithJsonBody(UpdateTodoRequest{}).
-			WithOKResponse(Todo{})
+			AcceptJSON(UpdateTodoRequest{}).
+			OK(Todo{})
 
 		api.DELETE("/{id}", deleteTodo).
-			WithOperationID("deleteTodo").
-			WithSummary("Delete a todo").
+			OperationID("deleteTodo").
+			Summary("Delete a todo").
 			WithPathParam("id", "The unique identifier of the todo", "todo-123").
-			WithNoContentResponse()
+			NoContent()
 
 		router.GET("/openapi.json", func(c mux.RouteContext) {
 			spec, err := mux.GenerateSpecWithGenerator(mux.NewGenerator(), router)
@@ -280,7 +280,7 @@ func main() {
 ## Step 5: Run the API
 
 ```bash
-go run main.go
+go run .
 ```
 
 ## Step 6: Test the Endpoints
@@ -338,3 +338,6 @@ After the in-memory version works, the next practical upgrades are:
 3. Add pagination and sorting.
 4. Add integration tests.
 5. Serve the OpenAPI document with Swagger UI or another viewer.
+
+
+

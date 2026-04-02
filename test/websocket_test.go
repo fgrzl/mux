@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fgrzl/mux/pkg/router"
+	"github.com/fgrzl/mux"
 	"github.com/fgrzl/mux/test/testsupport"
 	"github.com/stretchr/testify/require"
 )
@@ -17,7 +17,7 @@ import (
 // by spinning up a real mux.Router and performing a minimal handshake.
 func TestShouldUpgradeToWebSocketGivenValidHandshake(t *testing.T) {
 	// Arrange
-	r := router.NewRouter(router.WithHeadFallbackToGet())
+	r := mux.NewRouter(mux.WithHeadFallbackToGet())
 	testsupport.ConfigureRoutes(r)
 
 	srv := httptest.NewServer(r)

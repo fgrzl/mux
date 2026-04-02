@@ -4,7 +4,7 @@ Quick reference for common tasks in Mux.
 
 ---
 
-## 📦 Installation
+## Installation
 
 ```bash
 go get github.com/fgrzl/mux
@@ -12,7 +12,7 @@ go get github.com/fgrzl/mux
 
 ---
 
-## 🚀 Basic Setup
+## Basic Setup
 
 ### Quick Start
 ```go
@@ -35,7 +35,7 @@ server := mux.NewServer(":8080", router)
 ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 defer cancel()
 
-if err := server.Listen(ctx); err != nil { panic(err) }  // Graceful shutdown included!
+if err := server.Listen(ctx); err != nil { panic(err) }
 ```
 
 ### Background Start
@@ -59,7 +59,7 @@ if err := server.Listen(ctx); err != nil { panic(err) }
 
 ---
 
-## 🛣️ Routing
+## Routing
 
 ### Simple Routes
 ```go
@@ -81,8 +81,8 @@ router.GET("/users/{id}", func(c mux.RouteContext) {
 ### Query Parameters
 ```go
 router.GET("/search", func(c mux.RouteContext) {
-    query, ok := c.QueryValue("q")         // Single value
-    values, _ := c.QueryValues("tags")     // Multiple values
+    query, ok := c.Query().String("q")         // Single value
+    values, _ := c.Query().Strings("tags")     // Multiple values
     if !ok {
         c.BadRequest("Missing query", "q parameter is required")
         return
@@ -99,15 +99,15 @@ router.GET("/static/**", handler)      // Multi-segment catch-all
 
 ### Route Groups
 ```go
-api := router.NewRouteGroup("/api/v1")
-users := api.NewRouteGroup("/users")
+api := router.Group("/api/v1")
+users := api.Group("/users")
 users.GET("/", listUsers)
 users.POST("/", createUsers)
 ```
 
 ---
 
-## 📥 Request Handling
+## Request Handling
 
 ### Read JSON Body
 ```go
@@ -120,13 +120,13 @@ if err := c.Bind(&data); err != nil {
 
 ### Read Headers
 ```go
-token, ok := c.Header("Authorization")
-contentType, ok := c.Header("Content-Type")
+token, ok := c.Headers().String("Authorization")
+contentType, ok := c.Headers().String("Content-Type")
 ```
 
 ### Read Cookies
 ```go
-sessionID, err := c.GetCookie("session_id")
+sessionID, err := c.Cookies().Get("session_id")
 if err != nil {
     c.BadRequest("Missing cookie", err.Error())
     return
@@ -141,23 +141,23 @@ path := c.Request().URL.Path
 
 ---
 
-## 📤 Response Handling
+## Response Handling
 
 ### JSON Responses
 ```go
-c.OK(data)                                 // 200 OK
-c.Created(data)                            // 201 Created
-c.NoContent()                              // 204 No Content
+c.OK(data)                                // 200 OK
+c.Created(data)                           // 201 Created
+c.NoContent()                             // 204 No Content
 ```
 
 ### Error Responses
 ```go
 c.BadRequest("Invalid input", "describe the validation error") // 400
-c.Unauthorized()                           // 401
+c.Unauthorized()                          // 401
 c.Forbidden("Access denied")              // 403
-c.NotFound()                               // 404
-c.Conflict("Resource already exists", "describe the conflict")  // 409
-c.ServerError("Error occurred", detail)    // 500
+c.NotFound()                              // 404
+c.Conflict("Resource already exists", "describe the conflict") // 409
+c.ServerError("Error occurred", detail)   // 500
 ```
 
 ### Custom Status
@@ -173,18 +173,18 @@ c.Response().Header().Set("X-Custom", "value")
 
 ### Set Cookies
 ```go
-c.SetCookie("session", "abc123", 3600, "/", "", true, true)
+c.Cookies().Set("session", "abc123", 3600, "/", "", true, true)
 ```
 
 ---
 
-## 🔧 Middleware
+## Middleware
 
 ### Global Middleware
 ```go
 mux.UseLogging(router)
 mux.UseCompression(router)
-mux.UseCORS(router, mux.WithAllowedOrigins("*"))
+mux.UseCORS(router, mux.WithCORSAllowedOrigins("*"))
 mux.UseRateLimiter(router)
 ```
 
@@ -192,16 +192,16 @@ mux.UseRateLimiter(router)
 ```go
 // Middleware is installed on the router.
 // Use route-group defaults to mark public or protected areas.
-public := router.NewRouteGroup("/public")
+public := router.Group("/public")
 public.AllowAnonymous()
 
-admin := router.NewRouteGroup("/admin")
+admin := router.Group("/admin")
 admin.RequireRoles("admin")
 ```
 
 ### Custom Middleware
 ```go
-func MyMiddleware(c mux.RouteContext, next mux.HandlerFunc) {
+func MyMiddleware(c mux.MutableRouteContext, next mux.HandlerFunc) {
     // Before handler
     next(c)
     // After handler
@@ -212,12 +212,12 @@ router.Use(mux.MiddlewareFunc(MyMiddleware))
 
 ---
 
-## 🔐 Authentication
+## Authentication
 
 ### Bearer Token
 ```go
 mux.UseAuthentication(router,
-    mux.WithValidator(func(token string) (claims.Principal, error) {
+    mux.WithAuthValidator(func(token string) (claims.Principal, error) {
         // Validate token and return a principal.
         claimSet := claims.NewClaimsSet("user-123")
         return claims.NewPrincipal(claimSet), nil
@@ -237,101 +237,71 @@ if user != nil {
 ### Cookie Auth
 ```go
 mux.UseAuthentication(router,
-    mux.WithValidator(validateToken),
-    mux.WithTokenCreator(createToken),
-    mux.WithCSRFProtection(),
+    mux.WithAuthValidator(validateToken),
+    mux.WithAuthTokenCreator(createToken),
+    mux.WithAuthCSRFProtection(),
 )
 
-// Use c.SignIn(...) to issue the framework-managed session cookie.
+// Use c.Cookies().SignIn(...) to issue the framework-managed session cookie.
 ```
 
 ---
 
-## 📝 OpenAPI Documentation
+## OpenAPI Documentation
 
 ### Document Endpoint
 ```go
 router.GET("/users/{id}", getUser).
-    WithOperationID("getUser").
-    WithSummary("Get user by ID").
-    WithDescription("Returns a single user").
+    OperationID("getUser").
+    Summary("Get user by ID").
+    Description("Returns a single user").
     WithPathParam("id", "The unique user identifier", "user-123").
-    WithOKResponse(User{}).
-    WithNotFoundResponse()
+    OK(User{}).
+    Responds(404, mux.ProblemDetails{})
 
 // With query parameters
 router.GET("/search", searchUsers).
-    WithOperationID("searchUsers").
-    WithQueryParam("q", "Search query", "john").           // Optional query param
-    WithRequiredQueryParam("limit", "Maximum number of results", 10).   // Required query param
-    WithOKResponse([]User{})
+    OperationID("searchUsers").
+    WithQueryParam("q", "Search query", "john").      // Optional query param
+    WithRequiredQueryParam("limit", "Maximum number of results", 10). // Required query param
+    OK([]User{})
 
 // With header parameter
 router.GET("/data", getData).
-    WithHeaderParam("X-API-Version", "The API version", "v1", false).  // Optional header
-    WithOKResponse(map[string]any{})
+    WithHeaderParam("X-API-Version", "The API version", "v1").
+    OK(map[string]any{})
 
 // Low-level (if needed)
 router.GET("/custom", handler).
-    WithParam("id", "path", "Unique identifier", "123", true).  // name, in, description, example, required
-    WithParam("filter", "query", "Filter criteria", "active", false)
+    WithPathParam("id", "Unique identifier", "123").
+    WithQueryParam("filter", "Filter criteria", "active")
 ```
 
-### Non-Panicking Builder and Group Variants
-Prefer `router.Configure(...)` for normal application startup. Use detached builders only for generated or config-driven routes that need to be assembled before they are attached with `router.HandleRoute(...)`.
-
-```go
-router := mux.NewRouter()
-route := mux.DetachedRoute("POST", "/users")
-
-if _, err := route.WithOperationIDErr("createUser"); err != nil {
-    return err
-}
-if _, err := route.WithJsonBodyErr(CreateUserRequest{}); err != nil {
-    return err
-}
-if _, err := route.WithCreatedResponseErr(User{}); err != nil {
-    return err
-}
-
-if err := router.Configure(func(router *mux.Router) {
-    router.HandleRoute(route, createUser)
-}); err != nil {
-    return err
-}
-
-group := router.NewRouteGroup("/admin")
-if _, err := group.WithRequiredQueryParamErr("apiKey", "Admin API key", "secret"); err != nil {
-    return err
-}
-if _, err := group.WithPathParamErr("tenantId", "Tenant identifier", "tenant-123"); err != nil {
-    return err
-}
-```
+Validate generated input before you call the public builders; the root `mux` API intentionally omits the internal `Err`-returning variants.
 
 ### Automatic Type Inference
 The framework automatically infers OpenAPI schemas from example values:
 
 ```go
-// String parameter → OpenAPI type: "string"
+// String parameter -> OpenAPI type: "string"
 .WithPathParam("name", "Name of the entity", "john")
 
-// Integer parameter → OpenAPI type: "integer"
+// Integer parameter -> OpenAPI type: "integer"
 .WithQueryParam("age", "Age in years", 25)
 
-// Boolean parameter → OpenAPI type: "boolean"
+// Boolean parameter -> OpenAPI type: "boolean"
 .WithQueryParam("active", "Filter by active status", true)
 
-// UUID → OpenAPI type: "string", format: "uuid"
+// UUID -> OpenAPI type: "string", format: "uuid"
 .WithPathParam("id", "Unique identifier", uuid.UUID{})
 
-// Time → OpenAPI type: "string", format: "date-time"
+// Time -> OpenAPI type: "string", format: "date-time"
 .WithQueryParam("createdAt", "Creation timestamp", time.Time{})
 
-// Arrays → OpenAPI type: "array"
+// Arrays -> OpenAPI type: "array"
 .WithQueryParam("tags", "List of tags", []string{})
 
-// Maps → OpenAPI type: "object" with additionalProperties
+// Maps -> OpenAPI type: "object" with additionalProperties
 .WithQueryParam("metadata", "Additional metadata", map[string]string{})
 ```
 
@@ -355,13 +325,13 @@ router.GET("/openapi.json", func(c mux.RouteContext) {
 
 ### Tag Routes
 ```go
-api := router.NewRouteGroup("/api")
-api.WithTags("API v1")
+api := router.Group("/api")
+api.Tags("API v1")
 ```
 
 ---
 
-## ⚙️ Router Options
+## Router Options
 
 ```go
 router := mux.NewRouter(
@@ -373,7 +343,7 @@ router := mux.NewRouter(
 
 ---
 
-## 🏥 Health Check Pattern
+## Health Check Pattern
 
 ```go
 // Custom health check
@@ -407,10 +377,10 @@ router.ReadyzWithCheck(func(c mux.RouteContext) bool {
 
 ---
 
-## 📦 CRUD Pattern
+## CRUD Pattern
 
 ```go
-users := router.NewRouteGroup("/users")
+users := router.Group("/users")
 users.GET("/", listUsers)           // List all
 users.POST("/", createUser)         // Create
 users.GET("/{id}", getUser)         // Get one
@@ -420,7 +390,7 @@ users.DELETE("/{id}", deleteUser)   // Delete
 
 ---
 
-## 🔄 Common Patterns
+## Common Patterns
 
 ### Validation
 ```go
@@ -443,11 +413,11 @@ func createUser(c mux.RouteContext) {
 ### Pagination
 ```go
 func listUsers(c mux.RouteContext) {
-    page, ok := c.QueryValue("page")
+    page, ok := c.Query().String("page")
     if !ok {
         page = "1"
     }
-    limit, ok := c.QueryValue("limit")
+    limit, ok := c.Query().String("limit")
     if !ok {
         limit = "10"
     }
@@ -483,7 +453,7 @@ router.POST("/upload", func(c mux.RouteContext) {
 
 ---
 
-## 🐛 Debugging Tips
+## Debugging Tips
 
 ### Enable Verbose Logging
 ```go
@@ -506,7 +476,7 @@ func handler(c mux.RouteContext) {
 
 ---
 
-## 🚀 Performance Tips
+## Performance Tips
 
 1. **Enable Context Pooling** for high-traffic APIs
    ```go
@@ -527,7 +497,7 @@ func handler(c mux.RouteContext) {
 
 ---
 
-## 📚 Quick Links
+## Quick Links
 
 - [Full Documentation](../README.md)
 - [Learning Path](learning-path.md)
@@ -536,7 +506,7 @@ func handler(c mux.RouteContext) {
 
 ---
 
-## 💡 Remember
+## Remember
 
 - **One response per request** - Don't call `c.OK()` multiple times
 - **Always validate input** - Use `c.Bind()` for type safety
@@ -546,7 +516,7 @@ func handler(c mux.RouteContext) {
 
 ---
 
-**Print this page for quick reference while coding!** 📄
+**Print this page for quick reference while coding!**
 
 ## See Also
 
@@ -556,3 +526,7 @@ func handler(c mux.RouteContext) {
 - [Learning Path](learning-path.md) - Structured learning progression
 - [Router](router.md) - Routing fundamentals
 - [Middleware](middleware.md) - Built-in middleware guide
+
+
+
+

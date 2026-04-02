@@ -1,4 +1,4 @@
-# Mux Library Overview
+﻿# Mux Library Overview
 
 Mux is a lightweight, modular HTTP router for Go designed for building modern APIs with built-in support for middleware, request binding, OpenAPI 3.1 generation, and flexible authentication.
 
@@ -27,16 +27,16 @@ Mux provides type-safe helpers for accessing request data:
 
 ```go
 // Query parameters
-userID, ok := c.QueryUUID("user_id")
-page, _ := c.QueryInt("page")
-tags, _ := c.QueryValues("tags")
+userID, ok := c.Query().UUID("user_id")
+page, _ := c.Query().Int("page")
+tags, _ := c.Query().Strings("tags")
 
 // Path parameters  
 resourceID, ok := c.ParamUUID("id")
 
 // Form data
-name, ok := c.FormValue("name")
-age, _ := c.FormInt("age")
+name, ok := c.Form().String("name")
+age, _ := c.Form().Int("age")
 ```
 
 ### Automatic Request Binding
@@ -88,12 +88,12 @@ Define your API documentation alongside your routes:
 
 ```go
 router.POST("/users", createUser).
-    WithOperationID("createUser").
-    WithSummary("Create a new user").
-    WithJsonBody(User{}).
-    WithCreatedResponse(User{}).
-    WithBadRequestResponse().
-    WithTags("Users")
+    OperationID("createUser").
+    Summary("Create a new user").
+    AcceptJSON(User{}).
+    Created(User{}).
+    Responds(http.StatusBadRequest, mux.ProblemDetails{}).
+    Tags("Users")
 ```
 
 ## Middleware System
@@ -117,7 +117,7 @@ Custom middleware is easy to implement:
 ```go
 type CustomMiddleware struct{}
 
-func (m *CustomMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
+func (m *CustomMiddleware) Invoke(c mux.MutableRouteContext, next mux.HandlerFunc) {
     // Pre-processing
     start := time.Now()
     
@@ -134,12 +134,12 @@ func (m *CustomMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
 Organize routes with shared configuration:
 
 ```go
-api := router.NewRouteGroup("/api/v1")
-api.WithTags("API v1")
+api := router.Group("/api/v1")
+api.Tags("API v1")
 api.RequireRoles("user")
 
-users := api.NewRouteGroup("/users")
-users.WithTags("Users")
+users := api.Group("/users")
+users.Tags("Users")
 
 users.GET("/", listUsers)
 users.POST("/", createUser)
@@ -168,15 +168,15 @@ Register services on the router, a route group, or an individual route when midd
 
 ```go
 router.Services().
-    Register("db", database).
-    Register("logger", logger)
+    Register(mux.ServiceKey("db"), database).
+    Register(mux.ServiceKey("logger"), logger)
 
-admin := router.NewRouteGroup("/admin")
-admin.Services().Register("auditSink", auditSink)
+admin := router.Group("/admin")
+admin.Services().Register(mux.ServiceKey("auditSink"), auditSink)
 
 func handler(c mux.RouteContext) {
-    db, _ := c.GetService("db")
-    logger, _ := c.GetService("logger")
+    db, _ := c.Services().Get(mux.ServiceKey("db"))
+    logger, _ := c.Services().Get(mux.ServiceKey("logger"))
     // Use services...
 }
 ```
@@ -208,3 +208,5 @@ Child groups and route builders can override root registrations when a narrower 
 - [Router](router.md) - Routing fundamentals
 - [Middleware](middleware.md) - Built-in middleware guide
 - [Best Practices](best-practices.md) - Detailed patterns and conventions
+
+

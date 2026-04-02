@@ -1,6 +1,7 @@
 package test
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -23,24 +24,19 @@ type publicOpenAPIPage[T any] struct {
 }
 
 func TestShouldGenerateOpenApiSpec(t *testing.T) {
-	// Arrange
 	router := mux.NewRouter(mux.WithTitle("test title"), mux.WithDescription("test description"), mux.WithVersion("1.0.0"))
 	testsupport.ConfigureRoutes(router)
-	generator := mux.NewGenerator()
 
-	// Act
-	spec, err := mux.GenerateSpecWithGenerator(generator, router)
+	spec, err := mux.GenerateSpecWithGenerator(mux.NewGenerator(), router)
 
-	// Assert
 	require.NoError(t, err)
-	assert.NotNil(t, spec)
+	require.NotNil(t, spec)
 
 	expected := loadExpected(t)
 	assert.Equal(t, expected.Normalize(), spec.Normalize())
 }
 
 func TestShouldNotMutateRouterMetadataWhenGeneratingOpenApiSpec(t *testing.T) {
-	// Arrange
 	router := mux.NewRouter(mux.WithTitle("test title"), mux.WithDescription("test description"), mux.WithVersion("1.0.0"))
 	page := publicOpenAPIPage[publicOpenAPIUser]{
 		Items: []publicOpenAPIUser{{ID: 1, Name: "Alice"}},
@@ -50,51 +46,99 @@ func TestShouldNotMutateRouterMetadataWhenGeneratingOpenApiSpec(t *testing.T) {
 	router.POST("/users", func(c mux.RouteContext) {
 		c.OK(page)
 	}).
-		WithOperationID("createUsers").
-		WithJsonBody(page).
-		WithOKResponse(page)
+		OperationID("createUsers").
+		AcceptJSON(page).
+		OK(page)
 
-	routesBefore, err := router.Routes()
-	require.NoError(t, err)
-	require.Len(t, routesBefore, 1)
-	bodyMediaBefore := routesBefore[0].Options.RequestBody.Content[mux.MimeJSON]
-	responseMediaBefore := routesBefore[0].Options.Responses["200"].Content[mux.MimeJSON]
-	require.NotNil(t, bodyMediaBefore)
-	require.NotNil(t, responseMediaBefore)
-	requestRefBefore := bodyMediaBefore.Schema.Ref
-	responseRefBefore := responseMediaBefore.Schema.Ref
-
-	// Act
 	defaultSpec, err := mux.GenerateSpecWithGenerator(mux.NewGenerator(), router)
 	require.NoError(t, err)
-	withExamplesSpec, err := mux.GenerateSpecWithGenerator(mux.NewGenerator(mux.WithExamples()), router)
-
-	// Assert
+	withExamplesSpec, err := mux.GenerateSpecWithGenerator(mux.NewGenerator(mux.WithOpenAPIExamples()), router)
 	require.NoError(t, err)
-	require.NotNil(t, defaultSpec)
-	require.NotNil(t, withExamplesSpec)
-
-	routesAfter, err := router.Routes()
+	defaultSpecAgain, err := mux.GenerateSpecWithGenerator(mux.NewGenerator(), router)
 	require.NoError(t, err)
-	require.Len(t, routesAfter, 1)
-	bodyMediaAfter := routesAfter[0].Options.RequestBody.Content[mux.MimeJSON]
-	responseAfter := routesAfter[0].Options.Responses["200"]
-	responseMediaAfter := responseAfter.Content[mux.MimeJSON]
-	require.NotNil(t, bodyMediaAfter)
-	require.NotNil(t, responseMediaAfter)
 
-	assert.Equal(t, requestRefBefore, bodyMediaAfter.Schema.Ref)
-	assert.Equal(t, responseRefBefore, responseMediaAfter.Schema.Ref)
-	assert.Equal(t, page, bodyMediaAfter.Example)
-	assert.Equal(t, page, responseMediaAfter.Example)
-	assert.Nil(t, bodyMediaAfter.Schema.Example)
-	assert.Nil(t, responseMediaAfter.Schema.Example)
-	assert.Equal(t, "", responseAfter.Description)
+	defaultJSON := string(specJSONBytes(t, defaultSpec))
+	withExamplesJSON := string(specJSONBytes(t, withExamplesSpec))
+	defaultAgainJSON := string(specJSONBytes(t, defaultSpecAgain))
 
-	generatedRequestMedia := defaultSpec.Paths["/users"].Post.RequestBody.Content[mux.MimeJSON]
-	require.NotNil(t, generatedRequestMedia)
-	assert.Nil(t, generatedRequestMedia.Example)
-	assert.NotEmpty(t, withExamplesSpec.Paths["/users"].Post.RequestBody.Content[mux.MimeJSON].Schema.Ref)
+	assert.JSONEq(t, defaultJSON, defaultAgainJSON)
+	assert.NotEqual(t, defaultJSON, withExamplesJSON)
+	assert.NotContains(t, defaultJSON, `"Alice"`)
+	assert.Contains(t, withExamplesJSON, `"Alice"`)
+}
+
+func TestGenerateSpecShouldRejectNilGeneratorOrRouter(t *testing.T) {
+	router := mux.NewRouter(mux.WithTitle("Users API"), mux.WithVersion("1.0.0"))
+	router.GET("/users", func(c mux.RouteContext) { c.NoContent() }).NoContent()
+
+	var generator *mux.Generator
+	spec, err := mux.GenerateSpecWithGenerator(generator, router)
+	require.Error(t, err)
+	assert.Nil(t, spec)
+	assert.ErrorContains(t, err, "generator is nil")
+
+	spec, err = mux.GenerateSpecWithGenerator(mux.NewGenerator(), nil)
+	require.Error(t, err)
+	assert.Nil(t, spec)
+	assert.ErrorContains(t, err, "router is nil")
+}
+
+func TestShouldPreserveTypedSecurityRequirements(t *testing.T) {
+	router := mux.NewRouter(mux.WithTitle("Users API"), mux.WithVersion("1.0.0"))
+	security := mux.SecurityRequirement{"oauth2": []string{"read", "write"}}
+
+	router.GET("/users", func(c mux.RouteContext) {
+		c.OK(map[string]string{"status": "ok"})
+	}).
+		OperationID("listUsers").
+		Security(security).
+		OK(map[string]string{"status": "ok"})
+
+	spec, err := mux.GenerateSpecWithGenerator(mux.NewGenerator(), router)
+	require.NoError(t, err)
+
+	specMap := specJSONMap(t, spec)
+	paths := requireMap(t, specMap["paths"])
+	usersPath := requireMap(t, paths["/users"])
+	getOp := requireMap(t, usersPath["get"])
+	securityList := requireSlice(t, getOp["security"])
+	require.Len(t, securityList, 1)
+
+	firstRequirement := requireMap(t, securityList[0])
+	scopes := requireSlice(t, firstRequirement["oauth2"])
+	require.Equal(t, []any{"read", "write"}, scopes)
+}
+
+func specJSONBytes(t *testing.T, spec *mux.OpenAPISpec) []byte {
+	t.Helper()
+
+	data, err := json.Marshal(spec)
+	require.NoError(t, err)
+	return data
+}
+
+func specJSONMap(t *testing.T, spec *mux.OpenAPISpec) map[string]any {
+	t.Helper()
+
+	var out map[string]any
+	require.NoError(t, json.Unmarshal(specJSONBytes(t, spec), &out))
+	return out
+}
+
+func requireMap(t *testing.T, value any) map[string]any {
+	t.Helper()
+
+	out, ok := value.(map[string]any)
+	require.True(t, ok, "expected map[string]any, got %T", value)
+	return out
+}
+
+func requireSlice(t *testing.T, value any) []any {
+	t.Helper()
+
+	out, ok := value.([]any)
+	require.True(t, ok, "expected []any, got %T", value)
+	return out
 }
 
 func loadExpected(t *testing.T) mux.OpenAPISpec {

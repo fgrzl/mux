@@ -231,7 +231,7 @@ func main() {
 		})
 
 		// API routes
-		api := router.NewRouteGroup("/api/v1")
+		api := router.Group("/api/v1")
 		setupRoutes(api)
 	}); err != nil {
 		panic(err)
@@ -262,29 +262,29 @@ func main() {
 ### 1. Liveness vs Readiness
 
 **Liveness checks should be simple**:
-- ✅ Check if app is responsive
-- ✅ Check for deadlocks
-- ❌ Don't check external dependencies (DB, cache)
+- Check if app is responsive
+- Check for deadlocks
+- Don't check external dependencies (DB, cache)
 
 **Readiness checks can be complex**:
-- ✅ Check database connections
-- ✅ Check cache availability  
-- ✅ Check migrations completed
-- ✅ Check external service dependencies
+- Check database connections
+- Check cache availability  
+- Check migrations completed
+- Check external service dependencies
 
 ### 2. Fast Health Checks
 
 Keep health checks fast (< 100ms):
 
 ```go
-// ❌ Bad: Slow health check
+// Bad: Slow health check
 router.ReadyzWithCheck(func(c mux.RouteContext) bool {
     // This might take seconds!
     rows, _ := db.Query("SELECT COUNT(*) FROM large_table")
     return rows != nil
 })
 
-// ✅ Good: Fast health check
+// Good: Fast health check
 router.ReadyzWithCheck(func(c mux.RouteContext) bool {
     // Quick ping
     ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -298,12 +298,12 @@ router.ReadyzWithCheck(func(c mux.RouteContext) bool {
 Don't conflate liveness with readiness:
 
 ```go
-// ❌ Bad: Database failure kills pod
+// Bad: Database failure kills pod
 router.LivezWithCheck(func(c mux.RouteContext) bool {
     return db.Ping() == nil // Restarting won't fix DB issues!
 })
 
-// ✅ Good: Database failure removes from load balancer
+// Good: Database failure removes from load balancer
 router.ReadyzWithCheck(func(c mux.RouteContext) bool {
     return db.Ping() == nil // Pod stays alive, just not ready
 })
@@ -509,4 +509,7 @@ This follows Kubernetes conventions for health checks.
 
 ---
 
-**Built with ❤️ using Mux**
+**Built with Mux**
+
+
+

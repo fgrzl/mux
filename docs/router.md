@@ -1,4 +1,4 @@
-# Router
+﻿# Router
 
 The Router is the core component of Mux that handles HTTP request routing and middleware execution.
 
@@ -17,7 +17,7 @@ if err := router.Configure(func(router *mux.Router) {
 }
 ```
 
-`Configure` is the recommended startup path because it returns configuration errors directly. `Safe()` and `Err()` remain available when configuration is assembled across multiple phases.
+`Configure` is the recommended startup path because it returns configuration errors directly.
 
 ## Router Options
 
@@ -43,7 +43,7 @@ mux.WithMaxBodyBytes(2 << 20) // 2MB
 
 ## Adding Routes
 
-The Router embeds RouteGroup, so you can add routes directly:
+The Router exposes the same day-to-day route registration methods you use on groups, so you can add routes directly:
 
 ```go
 router.GET("/health", healthCheck)
@@ -59,12 +59,12 @@ Create organized route groups with shared configuration:
 
 ```go
 // API v1 group
-api := router.NewRouteGroup("/api/v1")
-api.WithTags("API v1")
+api := router.Group("/api/v1")
+api.Tags("API v1")
 
 // Users sub-group
-users := api.NewRouteGroup("/users")
-users.WithTags("Users")
+users := api.Group("/users")
+users.Tags("Users")
 users.RequireRoles("user")
 
 users.GET("/", listUsers)
@@ -91,38 +91,38 @@ mux.UseForwardedHeaders(router)
 
 // Authentication
 mux.UseAuthentication(router,
-    mux.WithValidator(validateToken),
-    mux.WithTokenCreator(createToken),
-    mux.WithTokenTTL(30 * time.Minute),
+    mux.WithAuthValidator(validateToken),
+    mux.WithAuthTokenCreator(createToken),
+    mux.WithAuthTokenTTL(30 * time.Minute),
 )
 
 // Authorization
 mux.UseAuthorization(router,
-    mux.WithRoles("admin", "user"),
-    mux.WithPermissions("read", "write"),
+    mux.WithAuthorizationRoles("admin", "user"),
+    mux.WithAuthorizationPermissions("read", "write"),
 )
 
 // Scoped services
 router.Services().
-    Register("db", database).
-    Register("cache", redisClient)
+    Register(mux.ServiceKey("db"), database).
+    Register(mux.ServiceKey("cache"), redisClient)
 
 // Rate limiting (applied per route)
 router.GET("/api/data", handler).
-    WithRateLimit(100, time.Minute)
+    RateLimit(100, time.Minute)
 
 // OpenTelemetry tracing
 mux.UseOpenTelemetry(router)
 
 // Export control with GeoIP
-mux.UseExportControl(router, mux.WithGeoIPDatabase(geoipDB))
+mux.UseExportControl(router, mux.WithExportControlGeoIPDatabase(geoipDB))
 ```
 
 ### Custom Middleware
 ```go
 type LoggingMiddleware struct{}
 
-func (m *LoggingMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
+func (m *LoggingMiddleware) Invoke(c mux.MutableRouteContext, next mux.HandlerFunc) {
     start := time.Now()
     log.Printf("Starting request: %s %s", c.Request().Method, c.Request().URL.Path)
     
@@ -157,9 +157,9 @@ Query parameters are accessed through the RouteContext:
 
 ```go
 func searchUsers(c mux.RouteContext) {
-    query, _ := c.QueryValue("q")
-    page, _ := c.QueryInt("page")
-    limit, _ := c.QueryInt("limit")
+    query, _ := c.Query().String("q")
+    page, _ := c.Query().Int("page")
+    limit, _ := c.Query().Int("limit")
     
     // Use parameters...
 }
@@ -275,3 +275,5 @@ if err := spec.MarshalToFile("openapi.yaml"); err != nil {
 - [WebServer](webserver.md) - Production server with graceful shutdown
 - [Best Practices](best-practices.md) - Patterns and conventions
 - [Health Probes](health-probes.md) - Kubernetes-style health checks
+
+

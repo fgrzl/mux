@@ -1,4 +1,4 @@
-# Installation
+﻿# Installation
 
 This guide covers prerequisites, module setup, verification, and local development for Mux.
 
@@ -70,7 +70,7 @@ func main() {
 Run the application:
 
 ```bash
-go run main.go
+go run .
 ```
 
 Verify the endpoint:
@@ -144,3 +144,5 @@ If you use `mux.WithTLS(...)` or `mux.WithTLSDiscovery(...)`, make sure the cert
 - [Router](router.md) for routing and configuration details
 - [WebServer](webserver.md) for production server lifecycle guidance
 - [Examples](../examples/) for runnable applications
+
+

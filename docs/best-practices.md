@@ -8,25 +8,25 @@ This guide outlines recommended patterns and conventions for building production
 
 ```
 my-api/
-├── main.go              # Application entry point
-├── handlers/            # HTTP handlers
-│   ├── users.go
-│   ├── auth.go
-│   └── health.go
-├── middleware/          # Custom middleware
-│   ├── auth.go
-│   └── cors.go
-├── models/              # Data models
-│   ├── user.go
-│   └── response.go
-├── services/            # Business logic
-│   ├── user_service.go
-│   └── auth_service.go
-├── config/              # Configuration
-│   └── config.go
-├── docs/                # API documentation
-│   └── openapi.yaml
-└── go.mod
+|- main.go              # Application entry point
+|- handlers/            # HTTP handlers
+|  |- users.go
+|  |- auth.go
+|  `- health.go
+|- middleware/          # Custom middleware
+|  |- auth.go
+|  `- cors.go
+|- models/              # Data models
+|  |- user.go
+|  `- response.go
+|- services/            # Business logic
+|  |- user_service.go
+|  `- auth_service.go
+|- config/              # Configuration
+|  `- config.go
+|- docs/                # API documentation
+|  `- openapi.yaml
+`- go.mod
 ```
 
 ### Package Organization
@@ -86,8 +86,8 @@ func NewRouter() (*mux.Router, error) {
 
 func setupServices(router *mux.Router) {
 	router.Services().
-		Register("auditWriter", auditWriter).
-		Register("clock", systemClock)
+		Register(mux.ServiceKey("auditWriter"), auditWriter).
+		Register(mux.ServiceKey("clock"), systemClock)
 }
 
 func setupMiddleware(router *mux.Router) {
@@ -110,8 +110,8 @@ func setupMiddleware(router *mux.Router) {
 	// 4. Authentication (if needed globally)
 	if authRequired() {
 		mux.UseAuthentication(router,
-			mux.WithValidator(validateToken),
-			mux.WithTokenCreator(createToken),
+			mux.WithAuthValidator(validateToken),
+			mux.WithAuthTokenCreator(createToken),
 		)
 	}
 }
@@ -129,62 +129,62 @@ func setupRoutes(router *mux.Router) {
 	router.GET("/health", healthHandler)
 
 	// API v1
-	v1 := router.NewRouteGroup("/api/v1")
-	v1.WithTags("API v1")
+	v1 := router.Group("/api/v1")
+	v1.Tags("API v1")
 
 	// Public endpoints
-	public := v1.NewRouteGroup("/public")
+	public := v1.Group("/public")
 	setupPublicRoutes(public)
 
 	// Protected endpoints
-	protected := v1.NewRouteGroup("/protected")
+	protected := v1.Group("/protected")
 	protected.RequireRoles("user") // All routes require authentication
 	setupProtectedRoutes(protected)
 
 	// Admin endpoints
-	admin := v1.NewRouteGroup("/admin")
+	admin := v1.Group("/admin")
 	admin.RequireRoles("admin")
 	setupAdminRoutes(admin)
 }
 
 func setupUserRoutes(group *mux.RouteGroup) {
-	users := group.NewRouteGroup("/users")
-	users.WithTags("Users")
+	users := group.Group("/users")
+	users.Tags("Users")
 
 	users.GET("/", listUsers).
-		WithSummary("List all users").
-		WithParam("page", "query", "Page number", 1, false).
-		WithParam("limit", "query", "Page size", 10, false).
-		WithOKResponse([]User{})
+		Summary("List all users").
+		WithQueryParam("page", "Page number", 1).
+		WithQueryParam("limit", "Page size", 10).
+		OK([]User{})
 
 	users.POST("/", createUser).
-		WithSummary("Create a new user").
-		WithJsonBody(User{}).
-		WithCreatedResponse(User{}).
-		WithRateLimit(10, time.Minute) // Rate limit user creation
+		Summary("Create a new user").
+		AcceptJSON(User{}).
+		Created(User{}).
+		RateLimit(10, time.Minute) // Rate limit user creation
 
 	users.GET("/{id}", getUser).
-		WithSummary("Get user by ID").
+		Summary("Get user by ID").
 		WithPathParam("id", "The unique user identifier", uuid.Nil).
-		WithOKResponse(User{}).
-		WithNotFoundResponse()
+		OK(User{}).
+		Responds(404, mux.ProblemDetails{})
 
 	users.PUT("/{id}", updateUser).
-		WithSummary("Update user").
+		Summary("Update user").
 		WithPathParam("id", "The unique user identifier", uuid.Nil).
-		WithJsonBody(User{}).
-		WithOKResponse(User{}).
+		AcceptJSON(User{}).
+		OK(User{}).
 		RequirePermission("write") // Additional permission check
 
 	users.DELETE("/{id}", deleteUser).
-		WithSummary("Delete user").
+		Summary("Delete user").
 		WithPathParam("id", "The unique user identifier", uuid.Nil).
-		WithNoContentResponse().
+		NoContent().
 		RequirePermission("delete")
 }
 ```
 
-When route groups are built from dynamic inputs such as config files or generators, prefer the `Err` variants like `WithParamErr`, `WithPathParamErr`, and `WithRequiredQueryParamErr` so startup validation can return actionable errors instead of panicking immediately.
+When routes are assembled from dynamic inputs such as config files or generators, validate that input before applying it to the public fluent builders. The root `mux` API intentionally exposes the direct, non-`Err` surface; use `router.Configure(...)` to surface startup failures cleanly.
 
 ## Handler Implementation
 
@@ -557,19 +557,19 @@ func validateInput(c mux.RouteContext, req interface{}) error {
 func setupRateLimiting(router *mux.Router) {
 	// Strict limits for expensive operations
 	router.POST("/api/v1/users", createUser).
-		WithRateLimit(10, time.Minute)
+		RateLimit(10, time.Minute)
 
 	// Moderate limits for search/list operations
 	router.GET("/api/v1/users", listUsers).
-		WithRateLimit(100, time.Minute)
+		RateLimit(100, time.Minute)
 
 	// Generous limits for read operations
 	router.GET("/api/v1/users/{id}", getUser).
-		WithRateLimit(1000, time.Minute)
+		RateLimit(1000, time.Minute)
 
 	// Very strict limits for auth operations
 	router.POST("/api/v1/auth/login", login).
-		WithRateLimit(5, time.Minute)
+		RateLimit(5, time.Minute)
 }
 ```
 
@@ -796,7 +796,7 @@ func NewMetricsMiddleware() *MetricsMiddleware {
 	}
 }
 
-func (m *MetricsMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
+func (m *MetricsMiddleware) Invoke(c mux.MutableRouteContext, next mux.HandlerFunc) {
 	start := time.Now()
 	rec := &statusRecorder{ResponseWriter: c.Response()}
 	c.SetResponse(rec)
@@ -822,7 +822,7 @@ func (m *MetricsMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
 
 ## Summary Checklist
 
-### ✅ Development Best Practices
+### Development Best Practices
 - [ ] Use structured project layout
 - [ ] Implement proper error handling
 - [ ] Use dependency injection
@@ -831,7 +831,7 @@ func (m *MetricsMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
 - [ ] Implement request validation
 - [ ] Use structured logging
 
-### ✅ Security Best Practices
+### Security Best Practices
 - [ ] Implement proper authentication
 - [ ] Use role-based authorization
 - [ ] Apply rate limiting strategically
@@ -839,7 +839,7 @@ func (m *MetricsMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
 - [ ] Use HTTPS in production
 - [ ] Implement proper token validation
 
-### ✅ Performance Best Practices
+### Performance Best Practices
 - [ ] Use connection pooling
 - [ ] Implement caching where appropriate
 - [ ] Use context timeouts
@@ -847,7 +847,7 @@ func (m *MetricsMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
 - [ ] Optimize database queries
 - [ ] Use compression for large responses
 
-### ✅ Production Best Practices
+### Production Best Practices
 - [ ] Implement graceful shutdown
 - [ ] Add comprehensive health checks
 - [ ] Use environment-based configuration
@@ -865,3 +865,5 @@ Following these best practices will help you build robust, maintainable, and pro
 - [WebServer](webserver.md) - Production server setup
 - [Health Probes](health-probes.md) - Kubernetes-style health checks
 - [Custom Middleware](custom-middleware.md) - Build your own middleware
+
+

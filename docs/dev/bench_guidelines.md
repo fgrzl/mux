@@ -24,12 +24,12 @@ This document provides comprehensive benchmarking guidelines for the mux project
 
 ### What to Benchmark
 
-- ✅ **Hot Paths** - Code executed frequently (routing, middleware invocation)
-- ✅ **Core Algorithms** - Pattern matching, parsing, tokenization
-- ✅ **Public APIs** - Entry points users will call
-- ✅ **Known Bottlenecks** - Areas where performance matters
-- ❌ **Trivial Code** - Simple getters/setters unless proven hot
-- ❌ **Test Code** - Don't benchmark test helpers
+- **Hot Paths** - Code executed frequently (routing, middleware invocation)
+- **Core Algorithms** - Pattern matching, parsing, tokenization
+- **Public APIs** - Entry points users will call
+- **Known Bottlenecks** - Areas where performance matters
+- **Trivial Code** - Simple getters/setters unless proven hot
+- **Test Code** - Don't benchmark test helpers
 
 ## Naming Conventions
 
@@ -44,13 +44,13 @@ func BenchmarkRouterExactMatch(b *testing.B) { ... }
 ### Use PascalCase
 
 ```go
-// ✅ Good - PascalCase, descriptive
+// Good - PascalCase, descriptive
 func BenchmarkRouterExactMatch(b *testing.B)
 func BenchmarkRouterParamMatch(b *testing.B)
 func BenchmarkRouteRegistryManyRoutes(b *testing.B)
 func BenchmarkCompressionGzipSmall(b *testing.B)
 
-// ❌ Bad - snake_case, underscores
+// Bad - snake_case, underscores
 func Benchmark_router_exact_match(b *testing.B)
 func BenchmarkRouter_ExactMatch(b *testing.B)
 ```
@@ -60,12 +60,12 @@ func BenchmarkRouter_ExactMatch(b *testing.B)
 Names should clearly describe **what is being measured**:
 
 ```go
-// ✅ Good - Clear what's being tested
+// Good - Clear what's being tested
 func BenchmarkMiddlewareInvoke(b *testing.B)
 func BenchmarkRouterServeHTTP(b *testing.B)
 func BenchmarkRegistryLookup(b *testing.B)
 
-// ❌ Bad - Vague or unclear
+// Bad - Vague or unclear
 func BenchmarkTest(b *testing.B)
 func BenchmarkStuff(b *testing.B)
 func BenchmarkPerformance(b *testing.B)
@@ -76,14 +76,14 @@ func BenchmarkPerformance(b *testing.B)
 For variations (different sizes, modes, etc.), prefer sub-benchmarks instead of encoding details into the function name:
 
 ```go
-// ✅ Good - Sub-benchmarks for variations
+// Good - Sub-benchmarks for variations
 func BenchmarkCompression(b *testing.B) {
     b.Run("GzipSmall", func(b *testing.B) { ... })
     b.Run("GzipLarge", func(b *testing.B) { ... })
     b.Run("Brotli", func(b *testing.B) { ... })
 }
 
-// ❌ Bad - Variations in function name
+// Bad - Variations in function name
 func BenchmarkCompressionGzipSmall(b *testing.B) { ... }
 func BenchmarkCompressionGzipLarge(b *testing.B) { ... }
 func BenchmarkCompressionBrotli(b *testing.B) { ... }
@@ -125,14 +125,14 @@ func BenchmarkSomething(b *testing.B) {
 The compiler might optimize away code that's never used:
 
 ```go
-// ❌ Bad - Compiler might optimize away
+// Bad - Compiler might optimize away
 func BenchmarkProcess(b *testing.B) {
     for i := 0; i < b.N; i++ {
         Process(data) // Result discarded
     }
 }
 
-// ✅ Good - Result is used
+// Good - Result is used
 var result int // Package-level var
 
 func BenchmarkProcess(b *testing.B) {
@@ -143,7 +143,7 @@ func BenchmarkProcess(b *testing.B) {
     result = r // Prevent optimization
 }
 
-// ✅ Also good - Use blank identifier for side effects
+// Also good - Use blank identifier for side effects
 func BenchmarkProcess(b *testing.B) {
     for i := 0; i < b.N; i++ {
         _ = Process(data)
@@ -155,10 +155,10 @@ func BenchmarkProcess(b *testing.B) {
 
 ### Middleware Benchmark Helpers
 
-To reduce boilerplate in middleware benchmarks, use the helpers in `pkg/middlewarebench`:
+To reduce boilerplate in middleware benchmarks, use the helpers in `internal/middlewarebench`:
 
 ```go
-import "github.com/fgrzl/mux/pkg/middlewarebench"
+import "github.com/fgrzl/mux/internal/middlewarebench"
 
 func BenchmarkMyMiddlewareInvoke(b *testing.B) {
     middleware := &myMiddleware{}
@@ -263,11 +263,11 @@ func BenchmarkCORSPipeline(b *testing.B) {
 
 ### Benefits of Helpers
 
-- ✅ **60-70% less code** - Reduces benchmark boilerplate
-- ✅ **Consistent** - Same patterns across all middleware
-- ✅ **Maintainable** - Changes happen in one place
-- ✅ **Zero overhead** - Helpers are inline-friendly
-- ✅ **Readable** - Intent is clear
+- **60-70% less code** - Reduces benchmark boilerplate
+- **Consistent** - Same patterns across all middleware
+- **Maintainable** - Changes happen in one place
+- **Zero overhead** - Helpers are inline-friendly
+- **Readable** - Intent is clear
 
 ## Middleware Benchmarks
 
@@ -344,7 +344,7 @@ func BenchmarkMyMiddlewarePipeline(b *testing.B) {
 
 ## Best Practices
 
-### ✅ Do's
+### Do's
 
 1. **Use b.ReportAllocs()** - Always track allocations
 2. **Reset timer after setup** - `b.ResetTimer()` after expensive setup
@@ -352,12 +352,12 @@ func BenchmarkMyMiddlewarePipeline(b *testing.B) {
 4. **Test realistic scenarios** - Use real-world data sizes
 5. **Prevent optimization** - Store results to prevent compiler optimization
 6. **Document expectations** - Add comments about expected performance
-7. **Use helpers** - Leverage `pkg/middlewarebench` for middleware
+7. **Use helpers** - Leverage `internal/middlewarebench` for middleware
 8. **Keep it simple** - Benchmark one thing at a time
 9. **Run multiple times** - Verify consistency
 10. **Commit baseline** - Track performance over time
 
-### ❌ Don'ts
+### Don'ts
 
 1. **Don't include setup in measurement** - Reset timer after setup
 2. **Don't benchmark trivial code** - Focus on hot paths
@@ -388,7 +388,7 @@ func BenchmarkProcess(b *testing.B) {
 
 // Results show allocations:
 // BenchmarkProcess-8    1000000    1234 ns/op    512 B/op    4 allocs/op
-//                                               ^^^^^^^^^^^^^ Focus here
+// ^^^^^^^^^^^^^ Focus here
 ```
 
 **Goal:** Zero allocations in hot paths (routing, middleware invocation)
@@ -402,7 +402,7 @@ func BenchmarkProcess(b *testing.B) {
 go test ./... -bench=.
 
 # Run specific benchmark
-go test ./pkg/router -bench=BenchmarkRouterExactMatch
+go test ./internal/router -bench=BenchmarkRouterExactMatch
 
 # Run with memory stats
 go test ./... -bench=. -benchmem
@@ -435,13 +435,13 @@ benchstat old.txt new.txt
 **Example output:**
 ```
 name                    old time/op    new time/op    delta
-RouterExactMatch-8        82.3ns ± 2%    61.5ns ± 1%  -25.27%  (p=0.000 n=10+10)
+RouterExactMatch-8        82.3ns +/- 2%    61.5ns +/- 1%  -25.27%  (p=0.000 n=10+10)
 
 name                    old alloc/op   new alloc/op   delta
-RouterExactMatch-8         112B ± 0%        0B       -100.00%  (p=0.000 n=10+10)
+RouterExactMatch-8         112B +/- 0%        0B       -100.00%  (p=0.000 n=10+10)
 
 name                    old allocs/op  new allocs/op  delta
-RouterExactMatch-8         1.00 ± 0%      0.00       -100.00%  (p=0.000 n=10+10)
+RouterExactMatch-8         1.00 +/- 0%      0.00       -100.00%  (p=0.000 n=10+10)
 ```
 
 ### CI Integration
@@ -552,11 +552,11 @@ func BenchmarkRouterParallel(b *testing.B) {
 ### Directory Structure
 
 ```
-pkg/router/
-├── router.go
-├── router_test.go              # Unit tests
-├── router_bench_test.go        # Benchmarks
-└── router_comparison_bench_test.go  # Comparison benchmarks
+internal/router/
+|- router.go
+|- router_test.go                 # Unit tests
+|- router_bench_test.go           # Benchmarks
+`- router_comparison_bench_test.go # Comparison benchmarks
 ```
 
 ## Performance Goals
@@ -570,11 +570,11 @@ pkg/router/
 
 **Middleware:**
 - Invoke overhead: < 50ns/op, 0 allocs (pass-through)
-- Pipeline: < 1µs/op with 5 middleware
+- Pipeline: < 1us/op with 5 middleware
 
 **Registry:**
 - Lookup: < 100ns/op
-- Registration: < 1µs/op
+- Registration: < 1us/op
 
 ## Examples
 
@@ -587,9 +587,9 @@ import (
     "net/http"
     "testing"
     
-    "github.com/fgrzl/mux/pkg/middlewarebench"
-    "github.com/fgrzl/mux/pkg/router"
-    "github.com/fgrzl/mux/pkg/routing"
+    "github.com/fgrzl/mux/internal/middlewarebench"
+    "github.com/fgrzl/mux/internal/router"
+    "github.com/fgrzl/mux/internal/routing"
 )
 
 func BenchmarkCORSInvoke(b *testing.B) {
@@ -628,8 +628,9 @@ func BenchmarkCORSRouterPipeline(b *testing.B) {
 - [Go Benchmarking](https://pkg.go.dev/testing#hdr-Benchmarks)
 - [Benchstat Tool](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat)
 - [Profiling Go Programs](https://go.dev/blog/pprof)
-- [Middleware Benchmark Helpers](../../pkg/middlewarebench/helpers.go)
+- [Middleware Benchmark Helpers](../../internal/middlewarebench/helpers.go)
 
 ---
 
 **Remember:** Benchmarks are your performance safety net. Write them for critical paths, run them regularly, and use them to guide optimization decisions.
+

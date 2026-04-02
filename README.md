@@ -3,7 +3,7 @@
 [![CI](https://github.com/fgrzl/mux/actions/workflows/ci.yaml/badge.svg)](https://github.com/fgrzl/mux/actions/workflows/ci.yaml)
 [![Dependabot](https://github.com/fgrzl/mux/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/fgrzl/mux/actions/workflows/dependabot/dependabot-updates)
 
-**Mux** is an OpenAPI‑native HTTP framework for Go.
+**Mux** is an OpenAPI-native HTTP framework for Go.
 
 ## Is Mux a fit for you?
 
@@ -53,7 +53,7 @@ func main() {
 }
 ```
 
-`Configure` runs startup registration in non-panicking validation mode and returns configuration errors directly. `Safe()` and `Err()` remain available when configuration is assembled across multiple phases.
+`Configure` is the recommended startup path because it returns configuration errors directly during startup.
 
 If you want to keep standard-library handlers while adopting Mux incrementally, use `Handle` or `HandleFunc`:
 
@@ -64,7 +64,7 @@ router.HandleFunc(http.MethodGet, "/healthz", func(w http.ResponseWriter, r *htt
         if traceID := r.Context().Value("traceID"); traceID != nil {
             _ = traceID
         }
-        _, _ = routeCtx.GetService("db")
+        _, _ = routeCtx.Services().Get(mux.ServiceKey("db"))
     }
     w.WriteHeader(http.StatusNoContent)
 })
@@ -103,28 +103,28 @@ func main() {
     router := mux.NewRouter()
     if err := router.Configure(func(router *mux.Router) {
         // Route groups help keep versioned paths and tags consistent.
-        api := router.NewRouteGroup("/api/v1")
-        api.WithTags("API v1")
+        api := router.Group("/api/v1")
+        api.Tags("API v1")
 
-        users := api.NewRouteGroup("/users")
-        users.WithTags("Users")
+        users := api.Group("/users")
+        users.Tags("Users")
 
         users.GET("/", listUsers).
-            WithOperationID("listUsers").
-            WithSummary("List all users").
-            WithOKResponse([]User{})
+            OperationID("listUsers").
+            Summary("List all users").
+            OK([]User{})
 
         users.POST("/", createUser).
-            WithOperationID("createUser").
-            WithSummary("Create a new user").
-            WithJsonBody(User{}).
-            WithCreatedResponse(User{})
+            OperationID("createUser").
+            Summary("Create a new user").
+            AcceptJSON(User{}).
+            Created(User{})
 
         users.GET("/{id}", getUser).
-            WithOperationID("getUser").
-            WithSummary("Get a user by ID").
+            OperationID("getUser").
+            Summary("Get a user by ID").
             WithPathParam("id", "The unique user identifier", uuid.Nil).
-            WithOKResponse(User{})
+            OK(User{})
     }); err != nil {
         panic(err)
     }
@@ -201,8 +201,8 @@ mux.UseOpenTelemetry(router)
 
 // Auth middleware
 mux.UseAuthentication(router,
-    mux.WithValidator(validateToken),
-    mux.WithTokenCreator(createToken),
+    mux.WithAuthValidator(validateToken),
+    mux.WithAuthTokenCreator(createToken),
 )
 
 // Custom middleware
@@ -215,14 +215,14 @@ router.Use(&CustomMiddleware{})
 router := mux.NewRouter()
 
 router.Services().
-    Register("auditWriter", auditWriter).
-    Register("clock", systemClock)
+    Register(mux.ServiceKey("auditWriter"), auditWriter).
+    Register(mux.ServiceKey("clock"), systemClock)
 
-api := router.NewRouteGroup("/api")
-api.Services().Register("mailer", mailer)
+api := router.Group("/api")
+api.Services().Register(mux.ServiceKey("mailer"), mailer)
 ```
 
-Handlers and middleware can read scoped values with `c.GetService(...)`. Child groups and route builders can override root registrations when they need different behavior.
+Handlers and middleware can read scoped values with `c.Services().Get(...)`. Child groups and route builders can override root registrations when they need different behavior.
 
 ## Docs and examples
 
@@ -232,3 +232,6 @@ Handlers and middleware can read scoped values with `c.GetService(...)`. Child g
 - [Router](docs/router.md)
 - [OpenAPI guide](docs/overview.md)
 - [Examples](examples/)
+
+
+

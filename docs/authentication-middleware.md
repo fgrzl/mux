@@ -1,4 +1,4 @@
-# Authentication Middleware
+﻿# Authentication Middleware
 
 The authentication middleware validates bearer tokens and session cookies,
 optionally issues refreshed session tokens, and can enforce CSRF protection for
@@ -11,9 +11,9 @@ cookie-based authentication.
 
 ```go
 mux.UseAuthentication(router,
-    mux.WithValidator(validateToken),
-    mux.WithTokenCreator(createToken),
-    mux.WithTokenTTL(30 * time.Minute),
+    mux.WithAuthValidator(validateToken),
+    mux.WithAuthTokenCreator(createToken),
+    mux.WithAuthTokenTTL(30 * time.Minute),
 )
 ```
 
@@ -38,13 +38,13 @@ func validateToken(token string) (claims.Principal, error) {
 }
 
 mux.UseAuthentication(router,
-    mux.WithValidator(validateToken),
+    mux.WithAuthValidator(validateToken),
 )
 ```
 
 ### Token Creation
 
-Provide a token creator if you want the middleware and `c.SignIn()` to issue or renew session tokens.
+Provide a token creator if you want the middleware and `c.Cookies().SignIn()` to issue or renew session tokens.
 
 ```go
 func createToken(principal claims.Principal, ttl time.Duration) (string, error) {
@@ -52,9 +52,9 @@ func createToken(principal claims.Principal, ttl time.Duration) (string, error) 
 }
 
 mux.UseAuthentication(router,
-    mux.WithValidator(validateToken),
-    mux.WithTokenCreator(createToken),
-    mux.WithTokenTTL(30 * time.Minute),
+    mux.WithAuthValidator(validateToken),
+    mux.WithAuthTokenCreator(createToken),
+    mux.WithAuthTokenTTL(30 * time.Minute),
 )
 ```
 
@@ -62,10 +62,10 @@ mux.UseAuthentication(router,
 
 The middleware also supports:
 
-- `mux.WithTokenRevocationChecker(...)`
-- `mux.WithIssuerValidator(...)`
-- `mux.WithAudienceValidator(...)`
-- `mux.WithContextEnricher(...)`
+- `mux.WithAuthTokenRevocationChecker(...)`
+- `mux.WithAuthIssuerValidator(...)`
+- `mux.WithAuthAudienceValidator(...)`
+- `mux.WithAuthContextEnricher(...)`
 - `mux.WithAuthRateLimiter(...)`
 
 `WithAuthRateLimiter` is applied to **failed authentication attempts**, not all incoming requests.
@@ -98,7 +98,7 @@ Mark public routes explicitly:
 ```go
 router.POST("/login", loginHandler).AllowAnonymous()
 
-public := router.NewRouteGroup("/public")
+public := router.Group("/public")
 public.AllowAnonymous()
 ```
 
@@ -108,9 +108,9 @@ If you use cookie-based authentication, enable CSRF protection:
 
 ```go
 mux.UseAuthentication(router,
-    mux.WithValidator(validateToken),
-    mux.WithTokenCreator(createToken),
-    mux.WithCSRFProtection(),
+    mux.WithAuthValidator(validateToken),
+    mux.WithAuthTokenCreator(createToken),
+    mux.WithAuthCSRFProtection(),
 )
 ```
 
@@ -140,22 +140,18 @@ func loginHandler(c mux.RouteContext) {
         return
     }
 
-    if _, err := mux.GenerateCSRFTokenErr(c); err != nil {
+    if _, err := c.Cookies().CSRFTokenErr(); err != nil {
         c.ServerError("CSRF Setup Failed", err.Error())
         return
     }
 
-    c.SignIn(user, "/dashboard")
+    c.Cookies().SignIn(user, "/dashboard")
 }
 ```
 
-`mux.GenerateCSRFToken(...)` remains available as a convenience helper. It now
-fails closed by returning an empty string and setting no cookie if secure token
-generation fails. For correctness-sensitive flows, prefer `GenerateCSRFTokenErr`.
-
 ## Logout
 
-`c.SignOut(...)` clears the framework-managed authentication cookies, including
+`c.Cookies().SignOut(...)` clears the framework-managed authentication cookies, including
 the CSRF token cookie, and then redirects.
 
 If you issued cookies with custom `Path` or `Domain` options, use
@@ -164,7 +160,7 @@ matches the deletion cookies correctly.
 
 ```go
 func logoutHandler(c mux.RouteContext) {
-    c.SignOut("/signed-out")
+    c.Cookies().SignOut("/signed-out")
 }
 
 func logoutFromScopedCookie(c mux.RouteContext) {
@@ -177,12 +173,16 @@ func logoutFromScopedCookie(c mux.RouteContext) {
 
 ## Cookie Names
 
-You can customize the framework-managed cookie names:
+You can customize the framework-managed cookie names when you install the middleware:
 
 ```go
-mux.SetAppSessionCookieName("my_app_token")
-mux.SetTwoFactorCookieName("my_2fa_token")
-mux.SetIdpSessionCookieName("my_idp_token")
+mux.UseAuthentication(router,
+    mux.WithAuthValidator(validateToken),
+    mux.WithAuthTokenCreator(createToken),
+    mux.WithAuthAppSessionCookieName("my_app_token"),
+    mux.WithAuthTwoFactorCookieName("my_2fa_token"),
+    mux.WithAuthIDPSessionCookieName("my_idp_token"),
+)
 ```
 
 ## Rate Limiting Notes
@@ -201,11 +201,11 @@ Authentication should be installed before authorization:
 
 ```go
 mux.UseAuthentication(router,
-    mux.WithValidator(validateToken),
+    mux.WithAuthValidator(validateToken),
 )
 
 mux.UseAuthorization(router,
-    mux.WithRoles("admin"),
+    mux.WithAuthorizationRoles("admin"),
 )
 ```
 
@@ -214,7 +214,7 @@ Middleware-level and route-level roles, scopes, and permissions are all enforced
 ## Best Practices
 
 1. Use strong signing keys and validate all token claims.
-2. Prefer `GenerateCSRFTokenErr` over the convenience helper in session-establishing handlers.
+2. Prefer `c.Cookies().CSRFTokenErr()` in session-establishing handlers so failures stay explicit.
 3. Use HTTPS and keep cookie `Secure` and `HttpOnly` defaults unless you have a specific reason not to.
 4. Use `WithAuthRateLimiter` to slow down failed authentication attempts.
 5. Treat forwarded client-IP headers as trusted only when your proxy strips and rewrites them.
@@ -226,3 +226,6 @@ Middleware-level and route-level roles, scopes, and permissions are all enforced
 - [Custom Middleware](custom-middleware.md)
 - [Best Practices](best-practices.md)
 - [Router](router.md)
+
+
+

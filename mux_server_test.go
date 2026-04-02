@@ -9,8 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fgrzl/mux/pkg/router"
-	routing "github.com/fgrzl/mux/pkg/routing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -33,7 +31,7 @@ const (
 
 func TestShouldCreateNewServerWithDefaults(t *testing.T) {
 	// Arrange
-	rtr := router.NewRouter()
+	rtr := NewRouter()
 
 	// Act
 	server := NewServer(testAddrHTTP, rtr)
@@ -52,7 +50,7 @@ func TestShouldCreateNewServerWithDefaults(t *testing.T) {
 
 func TestShouldConfigureServerWithTLS(t *testing.T) {
 	// Arrange
-	rtr := router.NewRouter()
+	rtr := NewRouter()
 	// Act
 	server := NewServer(testAddrHTTPS, rtr, WithTLS(testCertFile, testKeyFile))
 
@@ -64,7 +62,7 @@ func TestShouldConfigureServerWithTLS(t *testing.T) {
 
 func TestShouldConfigureServerWithTLSDiscovery(t *testing.T) {
 	// Arrange
-	rtr := router.NewRouter()
+	rtr := NewRouter()
 	tempDir := t.TempDir()
 	certsDir := filepath.Join(tempDir, testCertsDir)
 	require.NoError(t, os.MkdirAll(certsDir, 0755))
@@ -97,7 +95,7 @@ func TestShouldConfigureServerWithTLSDiscovery(t *testing.T) {
 
 func TestShouldHandleTLSDiscoveryWhenCertsDirNotFound(t *testing.T) {
 	// Arrange
-	rtr := router.NewRouter()
+	rtr := NewRouter()
 	tempDir := t.TempDir()
 
 	// Change to temp directory and ensure we change back
@@ -117,8 +115,8 @@ func TestShouldHandleTLSDiscoveryWhenCertsDirNotFound(t *testing.T) {
 
 func TestShouldStartHTTPServerSuccessfully(t *testing.T) {
 	// Arrange
-	rtr := router.NewRouter()
-	rtr.GET("/health", func(c routing.RouteContext) {
+	rtr := NewRouter()
+	rtr.GET("/health", func(c RouteContext) {
 		c.OK("OK")
 	})
 
@@ -142,7 +140,7 @@ func TestShouldStartHTTPServerSuccessfully(t *testing.T) {
 
 func TestShouldReturnErrorForInvalidAddress(t *testing.T) {
 	// Arrange
-	rtr := router.NewRouter()
+	rtr := NewRouter()
 	server := NewServer(testInvalidAddr, rtr)
 	ctx := context.Background()
 
@@ -155,7 +153,7 @@ func TestShouldReturnErrorForInvalidAddress(t *testing.T) {
 
 func TestShouldStopServerGracefully(t *testing.T) {
 	// Arrange
-	rtr := router.NewRouter()
+	rtr := NewRouter()
 	server := NewServer(testAddrLocal, rtr)
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -177,7 +175,7 @@ func TestShouldStopServerGracefully(t *testing.T) {
 
 func TestShouldReturnFromListenWhenContextIsCancelled(t *testing.T) {
 	// Arrange
-	rtr := router.NewRouter()
+	rtr := NewRouter()
 	server := NewServer(testAddrLocal, rtr)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -203,7 +201,7 @@ func TestShouldReturnFromListenWhenContextIsCancelled(t *testing.T) {
 
 func TestShouldShutdownServerOnlyOnceWhenListenContextIsCancelled(t *testing.T) {
 	// Arrange
-	rtr := router.NewRouter()
+	rtr := NewRouter()
 	server := NewServer(testAddrLocal, rtr)
 	var shutdownCalls atomic.Int32
 	server.srv.RegisterOnShutdown(func() {
@@ -240,7 +238,7 @@ func TestShouldReturnErrorFromListenWhenPortIsAlreadyBound(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { require.NoError(t, occupied.Close()) }()
 
-	rtr := router.NewRouter()
+	rtr := NewRouter()
 	server := NewServer(occupied.Addr().String(), rtr)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -254,7 +252,7 @@ func TestShouldReturnErrorFromListenWhenPortIsAlreadyBound(t *testing.T) {
 
 func TestShouldHandleMultipleOptions(t *testing.T) {
 	// Arrange
-	rtr := router.NewRouter()
+	rtr := NewRouter()
 	// Act
 	server := NewServer(testAddrHTTPS, rtr,
 		WithTLS(testCertFile, testKeyFile),

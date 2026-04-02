@@ -63,7 +63,7 @@ If you are migrating existing `net/http` code, `Handle` and `HandleFunc` let you
 
 ```bash
 # Run the server
-go run main.go
+go run .
 
 # In another terminal, test it
 curl http://localhost:8080/hello
@@ -71,23 +71,23 @@ curl http://localhost:8080/hello
 
 **Output:** `"Hello, World!"`
 
-🎉 **Congratulations!** You have a working API!
+**Congratulations!** You have a working API!
 
 ## What's Next?
 
 Choose your path:
 
 ### Learn by Doing
-**→ [Interactive Tutorial](interactive-tutorial.md)** - Build a complete Todo API in 30 minutes with validation, error handling, and OpenAPI documentation.
+**[Interactive Tutorial](interactive-tutorial.md)** - Build a complete Todo API in 30 minutes with validation, error handling, and OpenAPI documentation.
 
 ### Comprehensive Guide
-**→ [Getting Started](getting-started.md)** - Step-by-step guide covering all major features with examples.
+**[Getting Started](getting-started.md)** - Step-by-step guide covering all major features with examples.
 
 ### Quick Reference
-**→ [Cheat Sheet](cheat-sheet.md)** - Copy-paste examples for common patterns.
+**[Cheat Sheet](cheat-sheet.md)** - Copy-paste examples for common patterns.
 
 ### Structured Learning
-**→ [Learning Path](learning-path.md)** - Progressive 8-level course from beginner to advanced.
+**[Learning Path](learning-path.md)** - Progressive 8-level course from beginner to advanced.
 
 ## See Also
 
@@ -96,3 +96,5 @@ Choose your path:
 - [Middleware](middleware.md) - Built-in middleware guide
 
 Check out the other documentation files to learn about advanced features like authentication, custom middleware, and production deployment patterns.
+
+

@@ -1,11 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 
 	"github.com/fgrzl/mux"
-	"github.com/fgrzl/mux/pkg/openapi"
 )
 
 // User represents a user in the system with detailed field documentation
@@ -31,170 +31,105 @@ type Product struct {
 }
 
 func main() {
-	router := mux.NewRouter()
+	router := mux.NewRouter(
+		mux.WithTitle("Example API with Schema Descriptions"),
+		mux.WithVersion("1.0.0"),
+		mux.WithDescription("Demonstrates struct-tag-driven descriptions in generated OpenAPI schemas"),
+	)
 
-	if err := registerRoutes(router); err != nil {
-		log.Fatalf("Failed to configure routes: %v", err)
-	}
+	registerRoutes(router)
 
-	// Generate OpenAPI specification
-	info := &openapi.InfoObject{
-		Title:       "Example API with Schema Descriptions",
-		Version:     "1.0.0",
-		Description: "Demonstrates how to use property-level descriptions in OpenAPI schemas",
-	}
-
-	routes, err := router.Routes()
-	if err != nil {
-		log.Fatalf("Failed to get routes: %v", err)
-	}
-
-	gen := openapi.NewGenerator(openapi.WithExamples())
-	spec, err := gen.GenerateSpecFromRoutes(info, routes)
+	gen := mux.NewGenerator(mux.WithOpenAPIExamples())
+	spec, err := mux.GenerateSpecWithGenerator(gen, router)
 	if err != nil {
 		log.Fatalf("Failed to generate spec: %v", err)
 	}
 
-	// Descriptions from struct tags are automatically included!
-	// No need to manually enhance schemas unless you want to add
-	// top-level schema descriptions or override individual properties.
-
-	// Output the spec as JSON
 	if err := spec.MarshalToFile("openapi.json"); err != nil {
 		log.Fatalf("Failed to write JSON spec: %v", err)
 	}
-	fmt.Println("✓ Generated openapi.json with property descriptions")
+	fmt.Println("Generated openapi.json with schema descriptions")
 
-	// Output the spec as YAML
 	if err := spec.MarshalToFile("openapi.yaml"); err != nil {
 		log.Fatalf("Failed to write YAML spec: %v", err)
 	}
-	fmt.Println("✓ Generated openapi.yaml with property descriptions")
+	fmt.Println("Generated openapi.yaml with schema descriptions")
 
-	// Display a sample of the generated schema
 	displaySchemaExample(spec)
 }
 
-func registerRoutes(router *mux.Router) error {
+func registerRoutes(router *mux.Router) {
 	createUserRoute := router.POST("/users", createUser)
-	if _, err := createUserRoute.WithOperationIDErr("createUser"); err != nil {
-		return err
-	}
 	createUserRoute.
-		WithSummary("Create a new user").
-		WithDescription("Creates a new user account with the provided information").
-		WithTags("Users")
-	if _, err := createUserRoute.WithJsonBodyErr(User{}); err != nil {
-		return err
-	}
-	if _, err := createUserRoute.WithCreatedResponseErr(User{}); err != nil {
-		return err
-	}
+		OperationID("createUser").
+		Summary("Create a new user").
+		Description("Creates a new user account with the provided information").
+		Tags("Users").
+		AcceptJSON(User{}).
+		Created(User{})
 
 	getUserRoute := router.GET("/users/{id}", getUser)
-	if _, err := getUserRoute.WithOperationIDErr("getUser"); err != nil {
-		return err
-	}
 	getUserRoute.
-		WithSummary("Get user by ID").
-		WithTags("Users")
-	if _, err := getUserRoute.WithPathParamErr("id", "The unique identifier of the user", "user-123"); err != nil {
-		return err
-	}
-	if _, err := getUserRoute.WithOKResponseErr(User{}); err != nil {
-		return err
-	}
-	if _, err := getUserRoute.WithNotFoundResponseErr(); err != nil {
-		return err
-	}
+		OperationID("getUser").
+		Summary("Get user by ID").
+		Tags("Users").
+		WithPathParam("id", "The unique identifier of the user", "user-123").
+		OK(User{}).
+		Responds(404, mux.ProblemDetails{})
 
 	createProductRoute := router.POST("/products", createProduct)
-	if _, err := createProductRoute.WithOperationIDErr("createProduct"); err != nil {
-		return err
-	}
 	createProductRoute.
-		WithSummary("Create a new product").
-		WithTags("Products")
-	if _, err := createProductRoute.WithJsonBodyErr(Product{}); err != nil {
-		return err
-	}
-	if _, err := createProductRoute.WithCreatedResponseErr(Product{}); err != nil {
-		return err
-	}
-
-	return nil
+		OperationID("createProduct").
+		Summary("Create a new product").
+		Tags("Products").
+		AcceptJSON(Product{}).
+		Created(Product{})
 }
 
-// enhanceUserSchema adds detailed descriptions to the User schema properties
-func enhanceUserSchema(spec *openapi.OpenAPISpec) {
-	if spec.Components == nil || spec.Components.Schemas == nil {
+func displaySchemaExample(spec *mux.OpenAPISpec) {
+	fmt.Println("\n== User Schema with Property Descriptions ==")
+
+	data, err := json.Marshal(spec)
+	if err != nil {
+		log.Printf("failed to inspect generated spec: %v", err)
 		return
 	}
 
-	userSchema, exists := spec.Components.Schemas["User"]
-	if !exists {
+	var doc map[string]any
+	if err := json.Unmarshal(data, &doc); err != nil {
+		log.Printf("failed to decode generated spec: %v", err)
 		return
 	}
 
-	// Add top-level schema description
-	userSchema.Description = "Represents a user account in the system"
-
-	// Add property-level descriptions
-	if userSchema.Properties != nil {
-		if id := userSchema.Properties["id"]; id != nil {
-			id.Description = "The unique identifier for the user (UUID format)"
-		}
-		if username := userSchema.Properties["username"]; username != nil {
-			username.Description = "The user's unique username for login"
-		}
-		if email := userSchema.Properties["email"]; email != nil {
-			email.Description = "The user's email address (must be valid email format)"
-		}
-		if firstName := userSchema.Properties["firstName"]; firstName != nil {
-			firstName.Description = "The user's first name"
-		}
-		if lastName := userSchema.Properties["lastName"]; lastName != nil {
-			lastName.Description = "The user's last name"
-		}
-		if age := userSchema.Properties["age"]; age != nil {
-			age.Description = "The user's age in years (must be 13 or older)"
-			min := 13.0
-			age.Minimum = &min
-		}
-		if isActive := userSchema.Properties["isActive"]; isActive != nil {
-			isActive.Description = "Whether the user account is currently active"
-		}
-		if roles := userSchema.Properties["roles"]; roles != nil {
-			roles.Description = "List of roles assigned to the user (e.g., 'admin', 'user', 'moderator')"
-		}
+	components, ok := doc["components"].(map[string]any)
+	if !ok {
+		return
 	}
-}
-
-// displaySchemaExample shows a formatted example of the User schema with descriptions
-func displaySchemaExample(spec *openapi.OpenAPISpec) {
-	fmt.Println("\n" + string('=') + " Example: User Schema with Property Descriptions " + string('='))
-
-	if spec.Components == nil || spec.Components.Schemas == nil {
+	schemas, ok := components["schemas"].(map[string]any)
+	if !ok {
+		return
+	}
+	userSchema, ok := schemas["User"].(map[string]any)
+	if !ok {
+		return
+	}
+	propertiesMap, ok := userSchema["properties"].(map[string]any)
+	if !ok {
 		return
 	}
 
-	userSchema, exists := spec.Components.Schemas["User"]
-	if !exists {
-		return
-	}
-
-	fmt.Printf("\nSchema Description: %s\n\n", userSchema.Description)
-	fmt.Println("Properties:")
+	fmt.Println("\nProperties:")
 
 	// Display properties with their descriptions
 	properties := []string{"id", "username", "email", "firstName", "lastName", "age", "isActive", "roles"}
 	for _, propName := range properties {
-		if prop, ok := userSchema.Properties[propName]; ok {
-			fmt.Printf("  • %-12s (%-8s): %s\n", propName, prop.Type, prop.Description)
+		prop, ok := propertiesMap[propName].(map[string]any)
+		if ok {
+			fmt.Printf("  - %-12s (%-8v): %v\n", propName, prop["type"], prop["description"])
 		}
 	}
 
-	fmt.Println("\n" + string('=') + "======================================================" + string('='))
+	fmt.Println("\n============================================")
 }
 
 // Handler functions (not implemented in this example)
