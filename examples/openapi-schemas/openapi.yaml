@@ -1,0 +1,165 @@
+openapi: 3.1.0
+info:
+  title: Example API with Schema Descriptions
+  description: Demonstrates how to use property-level descriptions in OpenAPI schemas
+  version: 1.0.0
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+servers:
+  - url: /
+paths:
+  /products:
+    post:
+      tags:
+        - Products
+      summary: Create a new product
+      operationId: createProduct
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Product'
+            example:
+              id: ""
+              name: ""
+              description: ""
+              price: 0
+              instock: false
+              category: ""
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+              example:
+                id: ""
+                name: ""
+                description: ""
+                price: 0
+                instock: false
+                category: ""
+  /users:
+    post:
+      tags:
+        - Users
+      summary: Create a new user
+      description: Creates a new user account with the provided information
+      operationId: createUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+            example:
+              id: ""
+              username: ""
+              email: ""
+              firstname: ""
+              lastname: ""
+              age: 0
+              isactive: false
+              roles: []
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              example:
+                id: ""
+                username: ""
+                email: ""
+                firstname: ""
+                lastname: ""
+                age: 0
+                isactive: false
+                roles: []
+  /users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Get user by ID
+      operationId: getUser
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: The unique identifier of the user
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              example:
+                id: ""
+                username: ""
+                email: ""
+                firstname: ""
+                lastname: ""
+                age: 0
+                isactive: false
+                roles: []
+        "404":
+          description: Not Found
+components:
+  schemas:
+    Product:
+      type: object
+      properties:
+        category:
+          type: string
+          description: The product category (e.g., 'Electronics', 'Clothing', 'Books')
+        description:
+          type: string
+          description: A detailed description of the product and its features
+        id:
+          type: string
+          description: The unique product identifier (SKU or UUID)
+        inStock:
+          type: boolean
+          description: Whether the product is currently available for purchase
+        name:
+          type: string
+          description: The display name of the product
+        price:
+          type: number
+          description: The price of the product in USD
+          minimum: 0
+    User:
+      type: object
+      properties:
+        age:
+          type: integer
+          description: The user's age in years (must be 13 or older)
+          minimum: 13
+        email:
+          type: string
+          description: The user's email address (must be valid email format)
+        firstName:
+          type: string
+          description: The user's first name
+        id:
+          type: string
+          description: The unique identifier for the user (UUID format)
+        isActive:
+          type: boolean
+          description: Whether the user account is currently active
+        lastName:
+          type: string
+          description: The user's last name
+        roles:
+          type: array
+          description: List of roles assigned to the user (e.g., 'admin', 'user', 'moderator')
+          items:
+            type: string
+        username:
+          type: string
+          description: The user's unique username for login

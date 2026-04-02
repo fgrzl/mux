@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - main
+      - develop
+  schedule:
+    - cron: "0 0 * * *"
+
+permissions:
+  contents: read
+  packages: write
+  actions: write
+
+jobs:
+  BuildAndTest:
+    name: Build and Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+
+      - name: Set Up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: 1.25
+
+      - name: Install Dependencies
+        run: go mod tidy
+
+      - name: Download Dependencies
+        run: go mod download
+
+      - name: Build Project
+        run: go build ./...
+
+      - name: Run Tests
+        run: go test ./... -v

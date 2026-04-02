@@ -28,3 +28,6 @@ build/
 *.bak
 *.old
 .DS_Store
+*.prof
+bench_results.txt
+scripts/inventory.md
