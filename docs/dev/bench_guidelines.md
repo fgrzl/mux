@@ -553,10 +553,10 @@ func BenchmarkRouterParallel(b *testing.B) {
 
 ```
 internal/router/
-|- router.go
-|- router_test.go                 # Unit tests
-|- router_bench_test.go           # Benchmarks
-`- router_comparison_bench_test.go # Comparison benchmarks
+- router.go
+- router_test.go                 # Unit tests
+- router_bench_test.go           # Benchmarks
+- router_comparison_bench_test.go # Comparison benchmarks
 ```
 
 ## Performance Goals

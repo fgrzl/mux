@@ -1095,15 +1095,6 @@ func parseDeepKey(key string) (string, []string) {
 	return key, nil
 }
 
-func splitAndTrim(s string) []string {
-	parts := strings.Split(s, ",")
-	out := make([]string, 0, len(parts))
-	for _, p := range parts {
-		out = append(out, strings.TrimSpace(p))
-	}
-	return out
-}
-
 // parseValueBySchema attempts to coerce raw string values into a typed value
 // guided by the provided Schema (which may be nil). Returns error on parse failure.
 // parseValueBySchema is implemented in binding_convert.go

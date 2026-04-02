@@ -13,8 +13,9 @@ func HTTPHandler(handler http.Handler) HandlerFunc {
 		return nil
 	}
 	return func(c RouteContext) {
-		c.SetRequest(c.Request())
-		handler.ServeHTTP(c.Response(), c.Request())
+		req, _ := bindRouteContextToRequest(c.Request(), c)
+		c.SetRequest(req)
+		handler.ServeHTTP(c.Response(), req)
 	}
 }
 
