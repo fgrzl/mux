@@ -15,7 +15,7 @@ func main() {
 	if err := router.Configure(func(router *mux.Router) {
 		router.GET("/", func(c mux.RouteContext) {
 			c.OK("Hello, World!")
-		}).OperationID("helloRoot")
+		}).WithOperationID("helloRoot")
 
 		router.GET("/hello/{name}", func(c mux.RouteContext) {
 			name, ok := c.Param("name")
@@ -28,7 +28,7 @@ func main() {
 				"message": "Hello, " + name + "!",
 				"status":  "success",
 			})
-		}).OperationID("helloName")
+		}).WithOperationID("helloName")
 	}); err != nil {
 		panic(err)
 	}

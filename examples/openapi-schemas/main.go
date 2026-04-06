@@ -61,29 +61,29 @@ func main() {
 func registerRoutes(router *mux.Router) {
 	createUserRoute := router.POST("/users", createUser)
 	createUserRoute.
-		OperationID("createUser").
-		Summary("Create a new user").
-		Description("Creates a new user account with the provided information").
-		Tags("Users").
-		AcceptJSON(User{}).
-		Created(User{})
+		WithOperationID("createUser").
+		WithSummary("Create a new user").
+		WithDescription("Creates a new user account with the provided information").
+		WithTags("Users").
+		WithJsonBody(User{}).
+		WithCreatedResponse(User{})
 
 	getUserRoute := router.GET("/users/{id}", getUser)
 	getUserRoute.
-		OperationID("getUser").
-		Summary("Get user by ID").
-		Tags("Users").
+		WithOperationID("getUser").
+		WithSummary("Get user by ID").
+		WithTags("Users").
 		WithPathParam("id", "The unique identifier of the user", "user-123").
-		OK(User{}).
-		Responds(404, mux.ProblemDetails{})
+		WithOKResponse(User{}).
+		WithResponse(404, mux.ProblemDetails{})
 
 	createProductRoute := router.POST("/products", createProduct)
 	createProductRoute.
-		OperationID("createProduct").
-		Summary("Create a new product").
-		Tags("Products").
-		AcceptJSON(Product{}).
-		Created(Product{})
+		WithOperationID("createProduct").
+		WithSummary("Create a new product").
+		WithTags("Products").
+		WithJsonBody(Product{}).
+		WithCreatedResponse(Product{})
 }
 
 func displaySchemaExample(spec *mux.OpenAPISpec) {

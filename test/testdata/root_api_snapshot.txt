@@ -243,44 +243,43 @@ method (*QueryAccessor) UUID(string) (uuid.UUID, bool)
 method (*QueryAccessor) UUIDs(string) ([]uuid.UUID, bool)
 method (*RateLimiter) Invoke(MutableRouteContext, HandlerFunc)
 method (*RateLimiter) Stop()
-method (*RouteBuilder) AcceptForm(any) *RouteBuilder
-method (*RouteBuilder) AcceptJSON(any) *RouteBuilder
-method (*RouteBuilder) AcceptJSONAllOf(...any) *RouteBuilder
-method (*RouteBuilder) AcceptJSONAnyOf(...any) *RouteBuilder
-method (*RouteBuilder) AcceptJSONOneOf(...any) *RouteBuilder
-method (*RouteBuilder) AcceptMultipart(any) *RouteBuilder
-method (*RouteBuilder) Accepted(any) *RouteBuilder
 method (*RouteBuilder) AllowAnonymous() *RouteBuilder
-method (*RouteBuilder) Created(any) *RouteBuilder
-method (*RouteBuilder) Deprecated() *RouteBuilder
-method (*RouteBuilder) Description(string) *RouteBuilder
-method (*RouteBuilder) ExternalDocs(string, string) *RouteBuilder
-method (*RouteBuilder) NoContent() *RouteBuilder
-method (*RouteBuilder) OK(any) *RouteBuilder
-method (*RouteBuilder) OperationID(string) *RouteBuilder
-method (*RouteBuilder) RateLimit(int, time.Duration) *RouteBuilder
 method (*RouteBuilder) RequirePermission(...string) *RouteBuilder
 method (*RouteBuilder) RequireRoles(...string) *RouteBuilder
 method (*RouteBuilder) RequireScopes(...string) *RouteBuilder
-method (*RouteBuilder) Responds(int, any) *RouteBuilder
-method (*RouteBuilder) Security(SecurityRequirement) *RouteBuilder
 method (*RouteBuilder) Service(ServiceKey, any) *RouteBuilder
 method (*RouteBuilder) Services() *ServiceRegistry
-method (*RouteBuilder) Summary(string) *RouteBuilder
-method (*RouteBuilder) Tags(...string) *RouteBuilder
 method (*RouteBuilder) Use(...Middleware) *RouteBuilder
+method (*RouteBuilder) WithAcceptedResponse(any) *RouteBuilder
+method (*RouteBuilder) WithAllOfJsonBody(...any) *RouteBuilder
+method (*RouteBuilder) WithAnyOfJsonBody(...any) *RouteBuilder
 method (*RouteBuilder) WithCookieParam(string, string, any) *RouteBuilder
+method (*RouteBuilder) WithCreatedResponse(any) *RouteBuilder
+method (*RouteBuilder) WithDeprecated() *RouteBuilder
+method (*RouteBuilder) WithDescription(string) *RouteBuilder
+method (*RouteBuilder) WithExternalDocs(string, string) *RouteBuilder
+method (*RouteBuilder) WithFormBody(any) *RouteBuilder
 method (*RouteBuilder) WithHeaderParam(string, string, any) *RouteBuilder
+method (*RouteBuilder) WithJsonBody(any) *RouteBuilder
+method (*RouteBuilder) WithMultipartBody(any) *RouteBuilder
+method (*RouteBuilder) WithNoContentResponse() *RouteBuilder
+method (*RouteBuilder) WithOKResponse(any) *RouteBuilder
+method (*RouteBuilder) WithOneOfJsonBody(...any) *RouteBuilder
+method (*RouteBuilder) WithOperationID(string) *RouteBuilder
 method (*RouteBuilder) WithPathParam(string, string, any) *RouteBuilder
 method (*RouteBuilder) WithQueryParam(string, string, any) *RouteBuilder
+method (*RouteBuilder) WithRateLimit(int, time.Duration) *RouteBuilder
 method (*RouteBuilder) WithRequiredCookieParam(string, string, any) *RouteBuilder
 method (*RouteBuilder) WithRequiredHeaderParam(string, string, any) *RouteBuilder
 method (*RouteBuilder) WithRequiredQueryParam(string, string, any) *RouteBuilder
+method (*RouteBuilder) WithResponse(int, any) *RouteBuilder
+method (*RouteBuilder) WithSecurity(SecurityRequirement) *RouteBuilder
+method (*RouteBuilder) WithSummary(string) *RouteBuilder
+method (*RouteBuilder) WithTags(...string) *RouteBuilder
 method (*RouteGroup) AllowAnonymous() *RouteGroup
 method (*RouteGroup) Configure(func(*RouteGroup)) error
 method (*RouteGroup) DELETE(string, HandlerFunc) *RouteBuilder
 method (*RouteGroup) Deprecated() *RouteGroup
-method (*RouteGroup) Description(string) *RouteGroup
 method (*RouteGroup) GET(string, HandlerFunc) *RouteBuilder
 method (*RouteGroup) Group(string) *RouteGroup
 method (*RouteGroup) HEAD(string, HandlerFunc) *RouteBuilder
@@ -299,23 +298,24 @@ method (*RouteGroup) ReadyzWithCheck(func(RouteContext) bool) *RouteBuilder
 method (*RouteGroup) RequirePermission(...string) *RouteGroup
 method (*RouteGroup) RequireRoles(...string) *RouteGroup
 method (*RouteGroup) RequireScopes(...string) *RouteGroup
-method (*RouteGroup) Security(SecurityRequirement) *RouteGroup
 method (*RouteGroup) Service(ServiceKey, any) *RouteGroup
 method (*RouteGroup) Services() *ServiceRegistry
 method (*RouteGroup) Startupz() *RouteBuilder
 method (*RouteGroup) StartupzWithCheck(func(RouteContext) bool) *RouteBuilder
 method (*RouteGroup) StaticFallback(string, string, string) *RouteBuilder
-method (*RouteGroup) Summary(string) *RouteGroup
 method (*RouteGroup) TRACE(string, HandlerFunc) *RouteBuilder
-method (*RouteGroup) Tags(...string) *RouteGroup
 method (*RouteGroup) Use(...Middleware) *RouteGroup
 method (*RouteGroup) WithCookieParam(string, string, any) *RouteGroup
+method (*RouteGroup) WithDescription(string) *RouteGroup
 method (*RouteGroup) WithHeaderParam(string, string, any) *RouteGroup
 method (*RouteGroup) WithPathParam(string, string, any) *RouteGroup
 method (*RouteGroup) WithQueryParam(string, string, any) *RouteGroup
 method (*RouteGroup) WithRequiredCookieParam(string, string, any) *RouteGroup
 method (*RouteGroup) WithRequiredHeaderParam(string, string, any) *RouteGroup
 method (*RouteGroup) WithRequiredQueryParam(string, string, any) *RouteGroup
+method (*RouteGroup) WithSecurity(SecurityRequirement) *RouteGroup
+method (*RouteGroup) WithSummary(string) *RouteGroup
+method (*RouteGroup) WithTags(...string) *RouteGroup
 method (*Router) Configure(func(*Router)) error
 method (*Router) DELETE(string, HandlerFunc) *RouteBuilder
 method (*Router) GET(string, HandlerFunc) *RouteBuilder

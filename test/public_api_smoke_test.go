@@ -104,7 +104,7 @@ func TestPublicAPIGoldenPathSmoke(t *testing.T) {
 		)
 
 		api := router.Group("/api")
-		api.Tags("api")
+		api.WithTags("api")
 
 		api.POST("/users/{id}", func(c mux.RouteContext) {
 			id, ok := c.ParamInt("id")
@@ -123,14 +123,14 @@ func TestPublicAPIGoldenPathSmoke(t *testing.T) {
 
 			c.Created(createUserResponse{ID: id, Name: body.Name, Verbose: verbose})
 		}).
-			OperationID("createUser").
-			Summary("Create user").
-			Description("Creates a user from grouped routes").
-			Tags("users").
+			WithOperationID("createUser").
+			WithSummary("Create user").
+			WithDescription("Creates a user from grouped routes").
+			WithTags("users").
 			WithPathParam("id", "User identifier", 1).
-			AcceptJSON(createUserRequest{}).
-			Created(createUserResponse{}).
-			Responds(http.StatusBadRequest, mux.ProblemDetails{})
+			WithJsonBody(createUserRequest{}).
+			WithCreatedResponse(createUserResponse{}).
+			WithResponse(http.StatusBadRequest, mux.ProblemDetails{})
 
 		req := httptest.NewRequest(
 			http.MethodPost,
@@ -234,9 +234,9 @@ func TestPublicAPIGoldenPathSmoke(t *testing.T) {
 		router.GET("/health", func(c mux.RouteContext) {
 			c.NoContent()
 		}).
-			OperationID("healthCheck").
-			Summary("Health check").
-			NoContent()
+			WithOperationID("healthCheck").
+			WithSummary("Health check").
+			WithNoContentResponse()
 
 		spec, err := mux.GenerateSpecWithGenerator(mux.NewGenerator(), router)
 		require.NoError(t, err)
@@ -284,7 +284,7 @@ func TestPublicAPIGoldenPathSmoke(t *testing.T) {
 			user := c.User()
 			require.NotNil(t, user)
 			c.OK(map[string]string{"subject": user.Subject()})
-		}).OK(map[string]string{"subject": "ada"})
+		}).WithOKResponse(map[string]string{"subject": "ada"})
 
 		loginReq := httptest.NewRequest(http.MethodPost, "/login", nil)
 		loginRec := httptest.NewRecorder()

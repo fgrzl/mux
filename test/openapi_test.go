@@ -46,9 +46,9 @@ func TestShouldNotMutateRouterMetadataWhenGeneratingOpenApiSpec(t *testing.T) {
 	router.POST("/users", func(c mux.RouteContext) {
 		c.OK(page)
 	}).
-		OperationID("createUsers").
-		AcceptJSON(page).
-		OK(page)
+		WithOperationID("createUsers").
+		WithJsonBody(page).
+		WithOKResponse(page)
 
 	defaultSpec, err := mux.GenerateSpecWithGenerator(mux.NewGenerator(), router)
 	require.NoError(t, err)
@@ -69,7 +69,7 @@ func TestShouldNotMutateRouterMetadataWhenGeneratingOpenApiSpec(t *testing.T) {
 
 func TestGenerateSpecShouldRejectNilGeneratorOrRouter(t *testing.T) {
 	router := mux.NewRouter(mux.WithTitle("Users API"), mux.WithVersion("1.0.0"))
-	router.GET("/users", func(c mux.RouteContext) { c.NoContent() }).NoContent()
+	router.GET("/users", func(c mux.RouteContext) { c.NoContent() }).WithNoContentResponse()
 
 	var generator *mux.Generator
 	spec, err := mux.GenerateSpecWithGenerator(generator, router)
@@ -90,9 +90,9 @@ func TestShouldPreserveTypedSecurityRequirements(t *testing.T) {
 	router.GET("/users", func(c mux.RouteContext) {
 		c.OK(map[string]string{"status": "ok"})
 	}).
-		OperationID("listUsers").
-		Security(security).
-		OK(map[string]string{"status": "ok"})
+		WithOperationID("listUsers").
+		WithSecurity(security).
+		WithOKResponse(map[string]string{"status": "ok"})
 
 	spec, err := mux.GenerateSpecWithGenerator(mux.NewGenerator(), router)
 	require.NoError(t, err)

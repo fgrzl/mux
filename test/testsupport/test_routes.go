@@ -69,137 +69,137 @@ func ConfigureRoutes(r *mux.Router) {
 
 	// Basic resources list
 	rg.GET(ResourcesPath+"/", listResourcesHandler).AllowAnonymous().
-		OperationID("listResources").
-		Summary("List all resources").
-		OK(ResourcePage{}).
-		Responds(http.StatusNotFound, mux.ProblemDetails{}).
-		Tags(TagResources)
+		WithOperationID("listResources").
+		WithSummary("List all resources").
+		WithOKResponse(ResourcePage{}).
+		WithResponse(http.StatusNotFound, mux.ProblemDetails{}).
+		WithTags(TagResources)
 
 	// HEAD to check existence
 	rg.HEAD(ResourceIDPath, headResourceHandler).
-		OperationID("checkResourceExists").
+		WithOperationID("checkResourceExists").
 		WithPathParam(ParamResourceID, "", int(0)).
-		NoContent().
-		Responds(http.StatusNotFound, mux.ProblemDetails{}).
-		Tags(TagResources)
+		WithNoContentResponse().
+		WithResponse(http.StatusNotFound, mux.ProblemDetails{}).
+		WithTags(TagResources)
 
 	// GET a single resource
 	rg.GET(ResourceIDPath, getResourceHandler).
-		OperationID("getResource").
+		WithOperationID("getResource").
 		WithPathParam(ParamResourceID, "", int(0)).
-		OK(Resource{}).
-		Responds(http.StatusNotFound, mux.ProblemDetails{}).
-		Tags(TagResources)
+		WithOKResponse(Resource{}).
+		WithResponse(http.StatusNotFound, mux.ProblemDetails{}).
+		WithTags(TagResources)
 
 	// Search by query params (single and repeated)
 	rg.GET(ResourcesSearch, searchResourcesHandler).
-		OperationID("searchResources").
+		WithOperationID("searchResources").
 		WithQueryParam("name", "", "").
 		WithQueryParam("type", "", "").
-		OK([]Resource{}).
-		Tags(TagResources)
+		WithOKResponse([]Resource{}).
+		WithTags(TagResources)
 
 	// Bulk create resources via JSON array
 	rg.POST(ResourcesBulk, createResourcesBulkHandler).
-		OperationID("createResourcesBulk").
-		AcceptJSON([]Resource{}).
-		Created([]Resource{}).
-		Responds(http.StatusBadRequest, mux.ProblemDetails{}).
-		Tags(TagResources)
+		WithOperationID("createResourcesBulk").
+		WithJsonBody([]Resource{}).
+		WithCreatedResponse([]Resource{}).
+		WithResponse(http.StatusBadRequest, mux.ProblemDetails{}).
+		WithTags(TagResources)
 
 	// Update resource metadata to exercise map/object JSON bodies.
 	rg.PUT(ResourceMeta, updateResourceMetadataHandler).
-		OperationID("updateResourceMetadata").
+		WithOperationID("updateResourceMetadata").
 		WithPathParam(ParamResourceID, "", int(0)).
-		AcceptJSON(&struct {
+		WithJsonBody(&struct {
 			Metadata map[string]string `json:"metadata"`
 		}{}).
-		OK(struct {
+		WithOKResponse(struct {
 			Resource Resource          `json:"resource"`
 			Metadata map[string]string `json:"metadata"`
 		}{}).
-		Tags(TagResources)
+		WithTags(TagResources)
 
 	// UUID path parameter example
 	rg.GET(ItemsUUIDPath, getItemByUUIDHandler).
-		OperationID("getItemByUUID").
+		WithOperationID("getItemByUUID").
 		WithPathParam(ParamItemID, "", uuid.Nil).
-		OK(map[string]uuid.UUID{}).
-		Tags(TagItems)
+		WithOKResponse(map[string]uuid.UUID{}).
+		WithTags(TagItems)
 
 	// Simple header echo to exercise header lookup
 	rg.GET(HeadersEchoPath, headersEchoHandler).
-		OperationID("echoHeader").
-		OK("").
-		Tags(TagMisc)
+		WithOperationID("echoHeader").
+		WithOKResponse("").
+		WithTags(TagMisc)
 
 	// Query multiple ints and UUIDs to exercise QueryInts/QueryUUIDs
 	rg.GET(FilterPath, filterHandler).
-		OperationID("filter").
+		WithOperationID("filter").
 		WithQueryParam("ids", "", "").
 		WithQueryParam("uuids", "", uuid.Nil).
-		OK(struct {
+		WithOKResponse(struct {
 			IDs   []int       `json:"ids"`
 			UUIDs []uuid.UUID `json:"uuids"`
 		}{}).
-		Tags(TagMisc)
+		WithTags(TagMisc)
 
 	// Form submission example (Bind should support form-encoded bodies)
 	rg.POST(FormSubmitPath, formSubmitHandler).
-		OperationID("submitForm").
-		OK(map[string]string{}).
-		Tags(TagMisc)
+		WithOperationID("submitForm").
+		WithOKResponse(map[string]string{}).
+		WithTags(TagMisc)
 
 	rg.StaticFallback("/**", "static", "static/index.html")
 
 	// Tenant management routes (list, get, create, update, delete)
 	rg.GET(TenantsPath+"/", listTenantsHandler).
-		OperationID("listTenants").
-		Summary("List all tenants").
-		OK([]Tenant{}).
-		Tags(TagTenants)
+		WithOperationID("listTenants").
+		WithSummary("List all tenants").
+		WithOKResponse([]Tenant{}).
+		WithTags(TagTenants)
 
 	rg.POST(TenantsPath+"/", createTenantHandler).
-		OperationID("createTenant").
-		AcceptJSON(Tenant{}).
-		Created(Tenant{}).
-		Tags(TagTenants)
+		WithOperationID("createTenant").
+		WithJsonBody(Tenant{}).
+		WithCreatedResponse(Tenant{}).
+		WithTags(TagTenants)
 
 	rg.GET(TenantIDPath, getTenantHandler).
-		OperationID("getTenant").
+		WithOperationID("getTenant").
 		WithPathParam(ParamTenantID, "", int(0)).
-		OK(Tenant{}).
-		Responds(http.StatusNotFound, mux.ProblemDetails{}).
-		Tags(TagTenants)
+		WithOKResponse(Tenant{}).
+		WithResponse(http.StatusNotFound, mux.ProblemDetails{}).
+		WithTags(TagTenants)
 
 	rg.PUT(TenantIDPath, updateTenantHandler).
-		OperationID("updateTenant").
+		WithOperationID("updateTenant").
 		WithPathParam(ParamTenantID, "", int(0)).
-		AcceptJSON(Tenant{}).
-		OK(Tenant{}).
-		Tags(TagTenants)
+		WithJsonBody(Tenant{}).
+		WithOKResponse(Tenant{}).
+		WithTags(TagTenants)
 
 	rg.DELETE(TenantIDPath, deleteTenantHandler).
-		OperationID("deleteTenant").
+		WithOperationID("deleteTenant").
 		WithPathParam(ParamTenantID, "", int(0)).
-		NoContent().
-		Responds(http.StatusNotFound, mux.ProblemDetails{}).
-		Tags(TagTenants)
+		WithNoContentResponse().
+		WithResponse(http.StatusNotFound, mux.ProblemDetails{}).
+		WithTags(TagTenants)
 
 	// Tenant resources
 	rg.GET(TenantResources, listTenantResourcesHandler).
-		OperationID("listTenantResources").
+		WithOperationID("listTenantResources").
 		WithPathParam(ParamTenantID, "", int(0)).
-		OK([]Resource{}).
-		Responds(http.StatusNotFound, mux.ProblemDetails{}).
-		Tags(TagTenants, TagResources)
+		WithOKResponse([]Resource{}).
+		WithResponse(http.StatusNotFound, mux.ProblemDetails{}).
+		WithTags(TagTenants, TagResources)
 
 	rg.POST(TenantResources, createTenantResourceHandler).
-		OperationID("createTenantResource").
+		WithOperationID("createTenantResource").
 		WithPathParam(ParamTenantID, "", int(0)).
-		AcceptJSON(Resource{}).
-		Created(Resource{}).
-		Tags(TagTenants, TagResources)
+		WithJsonBody(Resource{}).
+		WithCreatedResponse(Resource{}).
+		WithTags(TagTenants, TagResources)
 }
 
 // Handlers extracted to reduce cognitive complexity of ConfigureRoutes.
