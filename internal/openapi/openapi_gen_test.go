@@ -770,6 +770,46 @@ func TestShouldNotMutateCompositeSubSchemasWhenGeneratingSpecWithoutExamples(t *
 	assert.Nil(t, oneOf[1].Example)
 }
 
+func TestShouldRewriteRefsWithinCompositeSchemas(t *testing.T) {
+	// Arrange
+	schema := &Schema{
+		OneOf: []*Schema{
+			{Ref: "#/components/schemas/Page[github.com/acme/project/pkg.User]"},
+		},
+		AnyOf: []*Schema{
+			{
+				Properties: map[string]*Schema{
+					"payload": {Ref: "#/components/schemas/Foo[github.com/acme/project/pkg.User]"},
+				},
+			},
+		},
+		AllOf: []*Schema{
+			{
+				AnyOf: []*Schema{
+					{Items: &Schema{Ref: "#/components/schemas/Bar[github.com/acme/project/pkg.User]"}},
+				},
+			},
+		},
+	}
+	nameMap := map[string]string{
+		"Page[github.com/acme/project/pkg.User]": "PageUser",
+		"Foo[github.com/acme/project/pkg.User]":  "FooUser",
+		"Bar[github.com/acme/project/pkg.User]":  "BarUser",
+	}
+
+	// Act
+	rewriteSchemaRefs(schema, nameMap)
+
+	// Assert
+	require.Len(t, schema.OneOf, 1)
+	require.Len(t, schema.AnyOf, 1)
+	require.Len(t, schema.AllOf, 1)
+	require.Len(t, schema.AllOf[0].AnyOf, 1)
+	assert.Equal(t, "#/components/schemas/PageUser", schema.OneOf[0].Ref)
+	assert.Equal(t, "#/components/schemas/FooUser", schema.AnyOf[0].Properties["payload"].Ref)
+	assert.Equal(t, "#/components/schemas/BarUser", schema.AllOf[0].AnyOf[0].Items.Ref)
+}
+
 func TestShouldNotAliasPointerBackedExamplesWhenGeneratingSpecWithExamples(t *testing.T) {
 	// Arrange
 	gen := NewGenerator(WithExamples())

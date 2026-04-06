@@ -834,6 +834,15 @@ func rewriteSchemaRefs(s *Schema, nameMap map[string]string) {
 			}
 		}
 	}
+	for _, schema := range s.OneOf {
+		rewriteSchemaRefs(schema, nameMap)
+	}
+	for _, schema := range s.AnyOf {
+		rewriteSchemaRefs(schema, nameMap)
+	}
+	for _, schema := range s.AllOf {
+		rewriteSchemaRefs(schema, nameMap)
+	}
 	if s.Items != nil {
 		rewriteSchemaRefs(s.Items, nameMap)
 	}
