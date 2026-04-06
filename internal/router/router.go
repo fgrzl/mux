@@ -320,25 +320,6 @@ func (rtr *Router) executePipelineWithRecover(c *routing.DefaultRouteContext, w 
 	rtr.executePipeline(c)
 }
 
-func (rtr *Router) recoverAndRelease(w http.ResponseWriter, r *http.Request, c *routing.DefaultRouteContext) {
-	if rec := recover(); rec != nil {
-		logCtx := context.Background()
-		if r != nil && r.Context() != nil {
-			logCtx = r.Context()
-		}
-		stack := debug.Stack()
-		slog.ErrorContext(logCtx, "panic recovered in ServeHTTP", "error", rec, "path", safeURLPath(r), "method", safeMethod(r), "stack", string(stack))
-		if c != nil {
-			c.ServerError("Internal Server Error", "An unexpected error occurred")
-		} else {
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		}
-	}
-	if rtr.options != nil && rtr.options.ContextPooling && c != nil {
-		routing.ReleaseContext(c)
-	}
-}
-
 func safeURLPath(r *http.Request) string {
 	if r == nil || r.URL == nil {
 		return ""
@@ -478,10 +459,6 @@ func (rtr *Router) configureContext(c *routing.DefaultRouteContext, w http.Respo
 	if res.suppressBody {
 		c.SetResponse(headWriter{ResponseWriter: w})
 	}
-}
-
-func (rtr *Router) usingContextPooling() bool {
-	return rtr.options != nil && rtr.options.ContextPooling
 }
 
 func (rtr *Router) executePipeline(c routing.RouteContext) {
