@@ -2,6 +2,8 @@ package test
 
 import (
 	"net/http"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/fgrzl/mux"
@@ -63,4 +65,25 @@ func TestShouldReturnStaticFallback404(t *testing.T) {
 			assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 		})
 	}
+}
+
+func TestShouldServeNestedStaticFallbackFile(t *testing.T) {
+	rootDir := t.TempDir()
+	staticDir := filepath.Join(rootDir, "static")
+	fallbackPath := filepath.Join(staticDir, "spa", "index.html")
+
+	require.NoError(t, os.MkdirAll(filepath.Dir(fallbackPath), 0o755))
+	require.NoError(t, os.WriteFile(fallbackPath, []byte("nested fallback"), 0o644))
+
+	r := mux.NewRouter()
+	r.StaticFallback("/app/**", staticDir, fallbackPath).AllowAnonymous()
+	server := newTestServerWithHandler(t, r)
+
+	resp, err := testClient.Get(server.URL + "/app/unknown")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	body := mustReadBody(t, resp)
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Contains(t, string(body), "nested fallback")
 }

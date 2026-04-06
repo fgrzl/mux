@@ -1,0 +1,35 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: read
+
+jobs:
+  version:
+    uses: ./.github/workflows/version.yml
+
+  tag-and-publish:
+    name: Tag and Notify Go Proxy
+    needs: version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Tag Commit
+        uses: fgrzl/actions/tag-commit@v0.0.6
+        with:
+          tag: ${{ needs.version.outputs.semVer }}
+
+      - name: Notify Go Proxy
+        uses: fgrzl/actions/notify-go-proxy@v0.0.6
+        with:
+          tag: ${{ needs.version.outputs.semVer }}
+
+      - name: Prune Pre-release Tags
+        uses: fgrzl/actions/prune-tags@v0.0.6

@@ -14,12 +14,22 @@ Health probes help orchestration platforms like Kubernetes determine:
 ```go
 router := mux.NewRouter()
 
-// Simple health probes (always return "ok")
-router.Healthz()  // GET /healthz
-router.Livez()    // GET /livez
-router.Readyz()   // GET /readyz
+if err := router.Configure(func(router *mux.Router) {
+    // Simple health probes (always return "ok")
+    router.Healthz()  // GET /healthz
+    router.Livez()    // GET /livez
+    router.Readyz()   // GET /readyz
+}); err != nil {
+    panic(err)
+}
 
-http.ListenAndServe(":8080", router)
+ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+defer cancel()
+
+server := mux.NewServer(":8080", router)
+if err := server.Listen(ctx); err != nil {
+    panic(err)
+}
 ```
 
 Test:
@@ -166,74 +176,84 @@ router.ReadyzWithCheck(func(c mux.RouteContext) bool {
 package main
 
 import (
-    "database/sql"
-    "net/http"
-    "runtime"
-    "sync/atomic"
-    "time"
-    
-    "github.com/fgrzl/mux"
+	"database/sql"
+	"net/http"
+	"runtime"
+	"sync/atomic"
+	"time"
+
+	"github.com/fgrzl/mux"
 )
 
 var (
-    db              *sql.DB
-    cache           *Cache
-    isReady         atomic.Bool
-    startupComplete atomic.Bool
+	db              *sql.DB
+	cache           *Cache
+	isReady         atomic.Bool
+	startupComplete atomic.Bool
 )
 
 func main() {
-    router := mux.NewRouter()
-    
-    // Liveness: Check if app is alive (not deadlocked)
-    router.LivezWithCheck(func(c mux.RouteContext) bool {
-        // Check goroutine count
-        if runtime.NumGoroutine() > 10000 {
-            return false
-        }
-        return true
-    })
-    
-    // Readiness: Check if app is ready to serve traffic
-    router.ReadyzWithCheck(func(c mux.RouteContext) bool {
-        // Don't serve traffic until startup is complete
-        if !startupComplete.Load() {
-            return false
-        }
-        
-        // Check database
-        if err := db.Ping(); err != nil {
-            return false
-        }
-        
-        // Check cache
-        if !cache.IsHealthy() {
-            return false
-        }
-        
-        return isReady.Load()
-    })
-    
-    // General health check
-    router.HealthzWithReady(func(c mux.RouteContext) bool {
-        return isReady.Load()
-    })
-    
-    // Initialize dependencies in background
-    go func() {
-        initializeDatabase()
-        initializeCache()
-        runMigrations()
-        
-        startupComplete.Store(true)
-        isReady.Store(true)
-    }()
-    
-    // API routes
-    api := router.NewRouteGroup("/api/v1")
-    setupRoutes(api)
-    
-    http.ListenAndServe(":8080", router)
+	router := mux.NewRouter()
+
+	if err := router.Configure(func(router *mux.Router) {
+		// Liveness: Check if app is alive (not deadlocked)
+		router.LivezWithCheck(func(c mux.RouteContext) bool {
+			// Check goroutine count
+			if runtime.NumGoroutine() > 10000 {
+				return false
+			}
+			return true
+		})
+
+		// Readiness: Check if app is ready to serve traffic
+		router.ReadyzWithCheck(func(c mux.RouteContext) bool {
+			// Don't serve traffic until startup is complete
+			if !startupComplete.Load() {
+				return false
+			}
+
+			// Check database
+			if err := db.Ping(); err != nil {
+				return false
+			}
+
+			// Check cache
+			if !cache.IsHealthy() {
+				return false
+			}
+
+			return isReady.Load()
+		})
+
+		// General health check
+		router.HealthzWithReady(func(c mux.RouteContext) bool {
+			return isReady.Load()
+		})
+
+		// API routes
+		api := router.Group("/api/v1")
+		setupRoutes(api)
+	}); err != nil {
+		panic(err)
+	}
+
+	// Initialize dependencies in background
+	go func() {
+		initializeDatabase()
+		initializeCache()
+		runMigrations()
+
+		startupComplete.Store(true)
+		isReady.Store(true)
+	}()
+
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	server := mux.NewServer(":8080", router)
+	if err := server.Listen(ctx); err != nil {
+		panic(err)
+	}
 }
 ```
 
@@ -242,29 +262,29 @@ func main() {
 ### 1. Liveness vs Readiness
 
 **Liveness checks should be simple**:
-- ✅ Check if app is responsive
-- ✅ Check for deadlocks
-- ❌ Don't check external dependencies (DB, cache)
+- Check if app is responsive
+- Check for deadlocks
+- Don't check external dependencies (DB, cache)
 
 **Readiness checks can be complex**:
-- ✅ Check database connections
-- ✅ Check cache availability  
-- ✅ Check migrations completed
-- ✅ Check external service dependencies
+- Check database connections
+- Check cache availability  
+- Check migrations completed
+- Check external service dependencies
 
 ### 2. Fast Health Checks
 
 Keep health checks fast (< 100ms):
 
 ```go
-// ❌ Bad: Slow health check
+// Bad: Slow health check
 router.ReadyzWithCheck(func(c mux.RouteContext) bool {
     // This might take seconds!
     rows, _ := db.Query("SELECT COUNT(*) FROM large_table")
     return rows != nil
 })
 
-// ✅ Good: Fast health check
+// Good: Fast health check
 router.ReadyzWithCheck(func(c mux.RouteContext) bool {
     // Quick ping
     ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -278,12 +298,12 @@ router.ReadyzWithCheck(func(c mux.RouteContext) bool {
 Don't conflate liveness with readiness:
 
 ```go
-// ❌ Bad: Database failure kills pod
+// Bad: Database failure kills pod
 router.LivezWithCheck(func(c mux.RouteContext) bool {
     return db.Ping() == nil // Restarting won't fix DB issues!
 })
 
-// ✅ Good: Database failure removes from load balancer
+// Good: Database failure removes from load balancer
 router.ReadyzWithCheck(func(c mux.RouteContext) bool {
     return db.Ping() == nil // Pod stays alive, just not ready
 })
@@ -295,29 +315,39 @@ Mark as not ready before shutdown:
 
 ```go
 func main() {
-    router := mux.NewRouter()
-    
-    router.ReadyzWithCheck(func(c mux.RouteContext) bool {
-        return isReady.Load()
-    })
-    
-    server := &http.Server{Addr: ":8080", Handler: router}
-    
-    go server.ListenAndServe()
-    
-    // Wait for shutdown signal
-    quit := make(chan os.Signal, 1)
-    signal.Notify(quit, os.Interrupt)
-    <-quit
-    
-    // Mark as not ready (stop receiving traffic)
-    isReady.Store(false)
-    time.Sleep(5 * time.Second) // Let readiness probes detect
-    
-    // Graceful shutdown
-    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-    defer cancel()
-    server.Shutdown(ctx)
+	router := mux.NewRouter()
+
+	if err := router.Configure(func(router *mux.Router) {
+		router.ReadyzWithCheck(func(c mux.RouteContext) bool {
+			return isReady.Load()
+		})
+	}); err != nil {
+		panic(err)
+	}
+
+	serveCtx, stopServing := context.WithCancel(context.Background())
+	defer stopServing()
+
+	server := mux.NewServer(":8080", router)
+	if err := server.Start(serveCtx); err != nil {
+		panic(err)
+	}
+
+	// Wait for shutdown signal
+	quitCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	<-quitCtx.Done()
+
+	// Mark as not ready (stop receiving traffic)
+	isReady.Store(false)
+	time.Sleep(5 * time.Second) // Let readiness probes detect
+
+	// Graceful shutdown
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := server.Stop(ctx); err != nil {
+		panic(err)
+	}
 }
 ```
 
@@ -441,7 +471,7 @@ router.GET("/health/detailed", func(c mux.RouteContext) {
     if status.Status == "healthy" {
         c.OK(status)
     } else {
-        c.Status(http.StatusServiceUnavailable).JSON(status)
+        c.JSON(http.StatusServiceUnavailable, status)
     }
 })
 ```
@@ -479,4 +509,7 @@ This follows Kubernetes conventions for health checks.
 
 ---
 
-**Built with ❤️ using Mux**
+**Built with Mux**
+
+
+

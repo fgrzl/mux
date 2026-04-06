@@ -3,182 +3,188 @@
 [![CI](https://github.com/fgrzl/mux/actions/workflows/ci.yaml/badge.svg)](https://github.com/fgrzl/mux/actions/workflows/ci.yaml)
 [![Dependabot](https://github.com/fgrzl/mux/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/fgrzl/mux/actions/workflows/dependabot/dependabot-updates)
 
-**Mux** is an OpenAPI‑native HTTP framework for Go.
+**Mux** is an OpenAPI-native HTTP framework for Go. Routes, request binding, structured errors, and generated OpenAPI stay in one model.
 
-## Is Mux a fit for you?
+## Get Started in 2 Minutes
+
+Mux requires Go 1.25.6 or later.
+
+### 1. Create a project
+
+```bash
+mkdir my-api
+cd my-api
+go mod init my-api
+go get github.com/fgrzl/mux
+```
+
+### 2. Paste this into `main.go`
+
+```go
+package main
+
+import (
+    "context"
+    "os"
+    "os/signal"
+    "syscall"
+
+    "github.com/fgrzl/mux"
+)
+
+func main() {
+    router := mux.NewRouter()
+
+    if err := router.Configure(func(router *mux.Router) {
+        router.GET("/hello", func(c mux.RouteContext) {
+            c.OK("Hello, World!")
+        })
+    }); err != nil {
+        panic(err)
+    }
+
+    ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer stop()
+
+    server := mux.NewServer(":8080", router)
+    if err := server.Listen(ctx); err != nil {
+        panic(err)
+    }
+}
+```
+
+### 3. Run it
+
+```bash
+go run .
+curl http://localhost:8080/hello
+```
+
+Expected output:
+
+```json
+"Hello, World!"
+```
+
+`Configure` is the recommended startup path because it returns route-registration errors directly before the server starts serving traffic.
+
+## What To Open Next
+
+- Want a real API quickly: [examples/todo-api/](examples/todo-api/)
+- Want the smallest example: [examples/hello-world/](examples/hello-world/)
+- Want the guided version: [docs/quick-start.md](docs/quick-start.md)
+- Want a broader walkthrough: [docs/getting-started.md](docs/getting-started.md)
+
+## Why Mux
 
 Use **Mux** if you want:
 
 - **Schema-driven APIs** where routes, validation, and OpenAPI stay in sync
-- **Explicit behavior** (middleware order, errors, lifecycle) you can reason about and test
-- **Production defaults** like structured errors and graceful shutdown without extra glue
+- **Explicit behavior** for middleware order, errors, and lifecycle
+- **Production defaults** like graceful shutdown and structured error helpers
+- **Scoped services** on routers, groups, and routes without extra plumbing
+- **Stdlib-friendly adoption** when you need to keep existing `net/http` handlers
 
-## Install
+## Next: JSON + OpenAPI
 
-```bash
-go get github.com/fgrzl/mux
-```
-
-## Quick start
+Once the hello-world route works, the next step is usually `Bind`, route groups, and generated docs:
 
 ```go
-package main
+type CreateUserRequest struct {
+    Name string `json:"name"`
+}
 
-import (
-    "context"
-    "os/signal"
-    "syscall"
+if err := router.Configure(func(router *mux.Router) {
+    api := router.Group("/api")
+    api.Tags("API")
 
-    "github.com/fgrzl/mux"
-)
+    api.POST("/users", func(c mux.RouteContext) {
+        var req CreateUserRequest
+        if err := c.Bind(&req); err != nil {
+            c.BadRequest("Invalid request", err.Error())
+            return
+        }
 
-func main() {
-    ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-    defer stop()
+        c.Created(map[string]any{"id": "user-123", "name": req.Name})
+    }).
+        OperationID("createUser").
+        Summary("Create a user").
+        AcceptJSON(CreateUserRequest{}).
+        Created(map[string]any{"id": "user-123", "name": "Ada"})
+}); err != nil {
+    panic(err)
+}
 
-    router := mux.NewRouter()
-    router.GET("/hello", func(c mux.RouteContext) {
-        c.OK("Hello, World!")
-    })
-
-    server := mux.NewServer(router, ":8080")
-    if err := server.Start(ctx); err != nil {
-        panic(err)
-    }
+spec, err := mux.GenerateSpecWithGenerator(mux.NewGenerator(), router)
+if err != nil {
+    panic(err)
+}
+if err := spec.MarshalToFile("openapi.yaml"); err != nil {
+    panic(err)
 }
 ```
 
-## What you get
+If you want the full version of that flow, start with [examples/todo-api/](examples/todo-api/) or the [interactive tutorial](docs/interactive-tutorial.md).
 
-- **One model** for routing, binding, validation, and OpenAPI generation
-- **Deterministic middleware** order and structured error responses
-- **Server lifecycle** helpers (including graceful shutdown)
-- **OpenAPI artifacts** generated from declared operations
+## Already Have `net/http` Handlers?
 
-## Build a full API with docs
+Use `Handle` or `HandleFunc` to keep standard-library handlers and only opt into Mux features when you need them.
 
 ```go
-package main
+import "net/http"
 
-import (
-    "context"
-    "os/signal"
-    "syscall"
-
-    "github.com/fgrzl/mux"
-    "github.com/google/uuid"
-)
-
-type User struct {
-    ID    uuid.UUID `json:"id"`
-    Name  string    `json:"name"`
-    Email string    `json:"email"`
-}
-
-func main() {
-    ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-    defer stop()
-
-    router := mux.NewRouter()
-
-    // Route groups help keep versioned paths and tags consistent.
-    api := router.NewRouteGroup("/api/v1")
-    api.WithTags("API v1")
-
-    users := api.NewRouteGroup("/users")
-    users.WithTags("Users")
-
-    users.GET("/", listUsers).
-        WithOperationID("listUsers").
-        WithSummary("List all users").
-        WithOKResponse([]User{})
-
-    users.POST("/", createUser).
-        WithOperationID("createUser").
-        WithSummary("Create a new user").
-        WithJsonBody(User{}).
-        WithCreatedResponse(User{})
-
-    users.GET("/{id}", getUser).
-        WithOperationID("getUser").
-        WithSummary("Get a user by ID").
-        WithPathParam("id", "The unique user identifier", uuid.Nil).
-        WithOKResponse(User{})
-
-    // Generate OpenAPI after routes are declared.
-    generator := mux.NewGenerator()
-    spec := generator.GenerateSpec(router)
-    _ = spec.MarshalToFile("openapi.yaml")
-
-    server := mux.NewServer(router, ":8080")
-    if err := server.Start(ctx); err != nil {
-        panic(err)
+router.HandleFunc(http.MethodGet, "/healthz", func(w http.ResponseWriter, r *http.Request) {
+    if routeCtx, ok := mux.RouteContextFromRequest(r); ok {
+        _, _ = routeCtx.Services().Get(mux.ServiceKey("db"))
     }
-}
-
-func listUsers(c mux.RouteContext) {
-    users := []User{
-        {ID: uuid.New(), Name: "John Doe", Email: "john@example.com"},
-        {ID: uuid.New(), Name: "Jane Smith", Email: "jane@example.com"},
-    }
-    c.OK(users)
-}
-
-func createUser(c mux.RouteContext) {
-    // Use Bind when your handler accepts a request body or mixed inputs
-    // (JSON, form values, query params, and route params).
-    var user User
-    if err := c.Bind(&user); err != nil {
-        c.BadRequest("Invalid request", err.Error())
-        return
-    }
-
-    user.ID = uuid.New()
-    c.Created(user)
-}
-
-func getUser(c mux.RouteContext) {
-    userID, ok := c.ParamUUID("id")
-    if !ok {
-        c.BadRequest("Invalid user ID", "")
-        return
-    }
-
-    user := User{
-        ID:    userID,
-        Name:  "John Doe",
-        Email: "john@example.com",
-    }
-    c.OK(user)
-}
+    w.WriteHeader(http.StatusNoContent)
+})
 ```
 
-## Add middleware
+## Add Middleware
 
 ```go
 router := mux.NewRouter()
 
-// Built-in middleware
 mux.UseLogging(router)
 mux.UseCompression(router)
 mux.UseEnforceHTTPS(router)
 mux.UseOpenTelemetry(router)
 
-// Auth middleware
 mux.UseAuthentication(router,
-    mux.WithValidator(validateToken),
-    mux.WithTokenCreator(createToken),
+    mux.WithAuthValidator(validateToken),
+    mux.WithAuthTokenCreator(createToken),
 )
 
-// Custom middleware
 router.Use(&CustomMiddleware{})
 ```
 
-## Docs and examples
+## Register Services
 
-- [Getting started](docs/getting-started.md)
-- [Middleware](docs/middleware.md)
-- [Custom middleware](docs/custom-middleware.md)
-- [Router](docs/router.md)
-- [OpenAPI guide](docs/overview.md)
-- [Examples](examples/)
+```go
+router := mux.NewRouter()
+
+router.Services().
+    Register(mux.ServiceKey("auditWriter"), auditWriter).
+    Register(mux.ServiceKey("clock"), systemClock)
+
+api := router.Group("/api")
+api.Services().Register(mux.ServiceKey("mailer"), mailer)
+```
+
+Handlers and middleware read scoped values with `c.Services().Get(...)`. Child groups and route builders can override root registrations when they need different behavior.
+
+## Docs and Examples
+
+- [docs/quick-start.md](docs/quick-start.md)
+- [docs/getting-started.md](docs/getting-started.md)
+- [docs/router.md](docs/router.md)
+- [docs/middleware.md](docs/middleware.md)
+- [docs/overview.md](docs/overview.md)
+- [examples/hello-world/](examples/hello-world/)
+- [examples/todo-api/](examples/todo-api/)
+- [examples/webserver/](examples/webserver/)
+- [examples/](examples/)
+
+
+

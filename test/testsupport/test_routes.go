@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/fgrzl/mux"
-	"github.com/fgrzl/mux/pkg/common"
+	"github.com/fgrzl/mux/internal/common"
 	"github.com/google/uuid"
 )
 
@@ -60,147 +60,146 @@ func computeAccept(key string) string {
 // tests. These routes exercise many RouteContext features and edge-cases so
 // the test-suite can validate behavior and OpenAPI generation.
 func ConfigureRoutes(r *mux.Router) {
-
 	// Minimal websocket upgrade route at top-level so tests can exercise
 	// Upgrade/Hijack behavior. This route lives at `/ws` (root) instead of
 	// under /api/v1 so test clients can connect directly to /ws.
 	r.GET(WSPath, wsHandler)
 
-	rg := r.NewRouteGroup(APIPrefix)
+	rg := r.Group(APIPrefix)
 
 	// Basic resources list
 	rg.GET(ResourcesPath+"/", listResourcesHandler).AllowAnonymous().
-		WithOperationID("listResources").
-		WithSummary("List all resources").
-		WithResponse(200, ResourcePage{}).
-		WithResponse(404, mux.ProblemDetails{}).
-		WithTags(TagResources)
+		OperationID("listResources").
+		Summary("List all resources").
+		OK(ResourcePage{}).
+		Responds(http.StatusNotFound, mux.ProblemDetails{}).
+		Tags(TagResources)
 
 	// HEAD to check existence
 	rg.HEAD(ResourceIDPath, headResourceHandler).
-		WithOperationID("checkResourceExists").
-		WithParam(ParamResourceID, "path", "", int(0), true).
-		WithResponse(204, nil).
-		WithResponse(404, mux.ProblemDetails{}).
-		WithTags(TagResources)
+		OperationID("checkResourceExists").
+		WithPathParam(ParamResourceID, "", int(0)).
+		NoContent().
+		Responds(http.StatusNotFound, mux.ProblemDetails{}).
+		Tags(TagResources)
 
 	// GET a single resource
 	rg.GET(ResourceIDPath, getResourceHandler).
-		WithOperationID("getResource").
-		WithParam(ParamResourceID, "path", "", int(0), true).
-		WithResponse(200, Resource{}).
-		WithResponse(404, mux.ProblemDetails{}).
-		WithTags(TagResources)
+		OperationID("getResource").
+		WithPathParam(ParamResourceID, "", int(0)).
+		OK(Resource{}).
+		Responds(http.StatusNotFound, mux.ProblemDetails{}).
+		Tags(TagResources)
 
 	// Search by query params (single and repeated)
 	rg.GET(ResourcesSearch, searchResourcesHandler).
-		WithOperationID("searchResources").
-		WithParam("name", "query", "", "", false).
-		WithParam("type", "query", "", "", false).
-		WithResponse(200, []Resource{}).
-		WithTags(TagResources)
+		OperationID("searchResources").
+		WithQueryParam("name", "", "").
+		WithQueryParam("type", "", "").
+		OK([]Resource{}).
+		Tags(TagResources)
 
 	// Bulk create resources via JSON array
 	rg.POST(ResourcesBulk, createResourcesBulkHandler).
-		WithOperationID("createResourcesBulk").
-		WithJsonBody([]Resource{}).
-		WithResponse(201, []Resource{}).
-		WithResponse(400, mux.ProblemDetails{}).
-		WithTags(TagResources)
+		OperationID("createResourcesBulk").
+		AcceptJSON([]Resource{}).
+		Created([]Resource{}).
+		Responds(http.StatusBadRequest, mux.ProblemDetails{}).
+		Tags(TagResources)
 
-	// Update resource metadata — exercise map/object JSON bodies
+	// Update resource metadata to exercise map/object JSON bodies.
 	rg.PUT(ResourceMeta, updateResourceMetadataHandler).
-		WithOperationID("updateResourceMetadata").
-		WithParam(ParamResourceID, "path", "", int(0), true).
-		WithJsonBody(&struct {
+		OperationID("updateResourceMetadata").
+		WithPathParam(ParamResourceID, "", int(0)).
+		AcceptJSON(&struct {
 			Metadata map[string]string `json:"metadata"`
 		}{}).
-		WithResponse(200, struct {
+		OK(struct {
 			Resource Resource          `json:"resource"`
 			Metadata map[string]string `json:"metadata"`
 		}{}).
-		WithTags(TagResources)
+		Tags(TagResources)
 
 	// UUID path parameter example
 	rg.GET(ItemsUUIDPath, getItemByUUIDHandler).
-		WithOperationID("getItemByUUID").
-		WithParam(ParamItemID, "path", "", uuid.Nil, true).
-		WithResponse(200, map[string]uuid.UUID{}).
-		WithTags(TagItems)
+		OperationID("getItemByUUID").
+		WithPathParam(ParamItemID, "", uuid.Nil).
+		OK(map[string]uuid.UUID{}).
+		Tags(TagItems)
 
-	// Simple header echo to exercise Header lookup
+	// Simple header echo to exercise header lookup
 	rg.GET(HeadersEchoPath, headersEchoHandler).
-		WithOperationID("echoHeader").
-		WithResponse(200, "").
-		WithTags(TagMisc)
+		OperationID("echoHeader").
+		OK("").
+		Tags(TagMisc)
 
 	// Query multiple ints and UUIDs to exercise QueryInts/QueryUUIDs
 	rg.GET(FilterPath, filterHandler).
-		WithOperationID("filter").
-		WithParam("ids", "query", "", "", false).
-		WithParam("uuids", "query", "", uuid.Nil, false).
-		WithResponse(200, struct {
+		OperationID("filter").
+		WithQueryParam("ids", "", "").
+		WithQueryParam("uuids", "", uuid.Nil).
+		OK(struct {
 			IDs   []int       `json:"ids"`
 			UUIDs []uuid.UUID `json:"uuids"`
 		}{}).
-		WithTags(TagMisc)
+		Tags(TagMisc)
 
 	// Form submission example (Bind should support form-encoded bodies)
 	rg.POST(FormSubmitPath, formSubmitHandler).
-		WithOperationID("submitForm").
-		WithResponse(200, map[string]string{}).
-		WithTags(TagMisc)
+		OperationID("submitForm").
+		OK(map[string]string{}).
+		Tags(TagMisc)
 
 	rg.StaticFallback("/**", "static", "static/index.html")
 
 	// Tenant management routes (list, get, create, update, delete)
 	rg.GET(TenantsPath+"/", listTenantsHandler).
-		WithOperationID("listTenants").
-		WithSummary("List all tenants").
-		WithResponse(200, []Tenant{}).
-		WithTags(TagTenants)
+		OperationID("listTenants").
+		Summary("List all tenants").
+		OK([]Tenant{}).
+		Tags(TagTenants)
 
 	rg.POST(TenantsPath+"/", createTenantHandler).
-		WithOperationID("createTenant").
-		WithJsonBody(Tenant{}).
-		WithResponse(201, Tenant{}).
-		WithTags(TagTenants)
+		OperationID("createTenant").
+		AcceptJSON(Tenant{}).
+		Created(Tenant{}).
+		Tags(TagTenants)
 
 	rg.GET(TenantIDPath, getTenantHandler).
-		WithOperationID("getTenant").
-		WithParam(ParamTenantID, "path", "", int(0), true).
-		WithResponse(200, Tenant{}).
-		WithResponse(404, mux.ProblemDetails{}).
-		WithTags(TagTenants)
+		OperationID("getTenant").
+		WithPathParam(ParamTenantID, "", int(0)).
+		OK(Tenant{}).
+		Responds(http.StatusNotFound, mux.ProblemDetails{}).
+		Tags(TagTenants)
 
 	rg.PUT(TenantIDPath, updateTenantHandler).
-		WithOperationID("updateTenant").
-		WithParam(ParamTenantID, "path", "", int(0), true).
-		WithJsonBody(Tenant{}).
-		WithResponse(200, Tenant{}).
-		WithTags(TagTenants)
+		OperationID("updateTenant").
+		WithPathParam(ParamTenantID, "", int(0)).
+		AcceptJSON(Tenant{}).
+		OK(Tenant{}).
+		Tags(TagTenants)
 
 	rg.DELETE(TenantIDPath, deleteTenantHandler).
-		WithOperationID("deleteTenant").
-		WithParam(ParamTenantID, "path", "", int(0), true).
-		WithResponse(204, nil).
-		WithResponse(404, mux.ProblemDetails{}).
-		WithTags(TagTenants)
+		OperationID("deleteTenant").
+		WithPathParam(ParamTenantID, "", int(0)).
+		NoContent().
+		Responds(http.StatusNotFound, mux.ProblemDetails{}).
+		Tags(TagTenants)
 
 	// Tenant resources
 	rg.GET(TenantResources, listTenantResourcesHandler).
-		WithOperationID("listTenantResources").
-		WithParam(ParamTenantID, "path", "", int(0), true).
-		WithResponse(200, []Resource{}).
-		WithResponse(404, mux.ProblemDetails{}).
-		WithTags(TagTenants, TagResources)
+		OperationID("listTenantResources").
+		WithPathParam(ParamTenantID, "", int(0)).
+		OK([]Resource{}).
+		Responds(http.StatusNotFound, mux.ProblemDetails{}).
+		Tags(TagTenants, TagResources)
 
 	rg.POST(TenantResources, createTenantResourceHandler).
-		WithOperationID("createTenantResource").
-		WithParam(ParamTenantID, "path", "", int(0), true).
-		WithJsonBody(Resource{}).
-		WithResponse(201, Resource{}).
-		WithTags(TagTenants, TagResources)
+		OperationID("createTenantResource").
+		WithPathParam(ParamTenantID, "", int(0)).
+		AcceptJSON(Resource{}).
+		Created(Resource{}).
+		Tags(TagTenants, TagResources)
 }
 
 // Handlers extracted to reduce cognitive complexity of ConfigureRoutes.
@@ -246,12 +245,12 @@ func listResourcesHandler(c mux.RouteContext) {
 }
 
 func headResourceHandler(c mux.RouteContext) {
-	resourceIdStr, found := c.Param(ParamResourceID)
+	resourceIDStr, found := c.Param(ParamResourceID)
 	if !found {
 		c.NotFound()
 		return
 	}
-	id64, err := strconv.ParseInt(resourceIdStr, 10, 64)
+	id64, err := strconv.ParseInt(resourceIDStr, 10, 64)
 	if err != nil {
 		c.BadRequest(ErrInvalidResourceID, ErrParseResourceID)
 		return
@@ -260,8 +259,8 @@ func headResourceHandler(c mux.RouteContext) {
 		c.BadRequest(ErrInvalidResourceID, ErrParseResourceID)
 		return
 	}
-	resourceId := int32(id64)
-	_, found = Service.GetResource(resourceId)
+	resourceID := int32(id64)
+	_, found = Service.GetResource(resourceID)
 	if !found {
 		c.NotFound()
 		return
@@ -270,12 +269,12 @@ func headResourceHandler(c mux.RouteContext) {
 }
 
 func getResourceHandler(c mux.RouteContext) {
-	resourceIdStr, found := c.Param(ParamResourceID)
+	resourceIDStr, found := c.Param(ParamResourceID)
 	if !found {
 		c.NotFound()
 		return
 	}
-	id64, err := strconv.ParseInt(resourceIdStr, 10, 64)
+	id64, err := strconv.ParseInt(resourceIDStr, 10, 64)
 	if err != nil {
 		c.BadRequest(ErrInvalidResourceID, ErrParseResourceID)
 		return
@@ -284,8 +283,8 @@ func getResourceHandler(c mux.RouteContext) {
 		c.BadRequest(ErrInvalidResourceID, ErrParseResourceID)
 		return
 	}
-	resourceId := int32(id64)
-	resource, found := Service.GetResource(resourceId)
+	resourceID := int32(id64)
+	resource, found := Service.GetResource(resourceID)
 	if !found {
 		c.NotFound()
 		return
@@ -306,8 +305,8 @@ func typesMatch(rsrcType string, types []string) bool {
 }
 
 func searchResourcesHandler(c mux.RouteContext) {
-	name, _ := c.QueryValue("name")
-	types, _ := c.QueryValues("type")
+	name, _ := c.Query().String("name")
+	types, _ := c.Query().Strings("type")
 	var out []Resource
 	for _, rsrc := range Service.ListResources(0) {
 		if name != "" && rsrc.Name != name {
@@ -353,17 +352,17 @@ func updateResourceMetadataHandler(c mux.RouteContext) {
 		c.BadRequest(ErrBadRequest, err.Error())
 		return
 	}
-	resourceId, ok := c.ParamInt32(ParamResourceID)
+	resourceID, ok := c.ParamInt32(ParamResourceID)
 	if !ok {
 		c.BadRequest(ErrInvalidResourceID, ErrParseResourceID)
 		return
 	}
-	rsrc, found := Service.GetResource(resourceId)
+	rsrc, found := Service.GetResource(resourceID)
 	if !found {
 		c.NotFound()
 		return
 	}
-	// For tests we simply echo back the received metadata along with the id
+	// For tests we simply echo back the received metadata along with the id.
 	c.OK(map[string]any{"resource": rsrc, "metadata": body.Metadata})
 }
 
@@ -377,16 +376,16 @@ func getItemByUUIDHandler(c mux.RouteContext) {
 }
 
 func headersEchoHandler(c mux.RouteContext) {
-	if val, ok := c.Header(common.HeaderXEcho); ok {
-		c.Plain(200, []byte(val))
+	if val, ok := c.Headers().String(common.HeaderXEcho); ok {
+		c.Plain(http.StatusOK, []byte(val))
 		return
 	}
 	c.NotFound()
 }
 
 func filterHandler(c mux.RouteContext) {
-	ints, _ := c.QueryInts("ids")
-	uuids, _ := c.QueryUUIDs("uuids")
+	ints, _ := c.Query().Ints("ids")
+	uuids, _ := c.Query().UUIDs("uuids")
 	c.OK(map[string]any{"ids": ints, "uuids": uuids})
 }
 

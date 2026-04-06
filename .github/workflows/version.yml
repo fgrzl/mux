@@ -1,0 +1,46 @@
+name: Version
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    outputs:
+      semVer:
+        description: Semantic version (e.g. 1.2.3 or 1.2.3-beta.4)
+        value: ${{ jobs.version.outputs.semVer }}
+      fullSemVer:
+        description: Full semantic version with metadata
+        value: ${{ jobs.version.outputs.fullSemVer }}
+      informationalVersion:
+        description: Informational version string
+        value: ${{ jobs.version.outputs.informationalVersion }}
+      majorMinorPatch:
+        description: Major.Minor.Patch (e.g. 1.2.3)
+        value: ${{ jobs.version.outputs.majorMinorPatch }}
+
+permissions:
+  contents: write
+  packages: read
+
+jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      semVer: ${{ steps.version.outputs.SemVer }}
+      fullSemVer: ${{ steps.version.outputs.FullSemVer }}
+      informationalVersion: ${{ steps.version.outputs.InformationalVersion }}
+      majorMinorPatch: ${{ steps.version.outputs.MajorMinorPatch }}
+
+    steps:
+      - name: Checkout Full History
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v4.4.2
+
+      - name: Calculate Version
+        id: version
+        uses: gittools/actions/gitversion/execute@v4.4.2

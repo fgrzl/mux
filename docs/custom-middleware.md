@@ -8,16 +8,18 @@ All middleware must implement the `Middleware` interface:
 
 ```go
 type Middleware interface {
-    Invoke(ctx RouteContext, next HandlerFunc)
+    Invoke(ctx MutableRouteContext, next HandlerFunc)
 }
 ```
+
+Handlers receive `mux.RouteContext`. Middleware receives `mux.MutableRouteContext` so it can replace the request or response writer and attach request-scoped values when needed.
 
 ## Simple Middleware Example
 
 ```go
 type TimingMiddleware struct{}
 
-func (m *TimingMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
+func (m *TimingMiddleware) Invoke(c mux.MutableRouteContext, next mux.HandlerFunc) {
     start := time.Now()
     
     // Call next middleware/handler
@@ -48,7 +50,7 @@ func NewRateLimitMiddleware(rpm int) *RateLimitMiddleware {
     }
 }
 
-func (m *RateLimitMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
+func (m *RateLimitMiddleware) Invoke(c mux.MutableRouteContext, next mux.HandlerFunc) {
     ip := c.Request().RemoteAddr
     
     m.mu.Lock()
@@ -60,7 +62,7 @@ func (m *RateLimitMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
     m.mu.Unlock()
     
     if !limiter.Allow() {
-    c.Response().WriteHeader(http.StatusTooManyRequests)
+        c.Response().WriteHeader(http.StatusTooManyRequests)
         return
     }
     
@@ -76,7 +78,7 @@ router.Use(NewRateLimitMiddleware(100)) // 100 requests per minute
 ```go
 type SecurityHeadersMiddleware struct{}
 
-func (m *SecurityHeadersMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
+func (m *SecurityHeadersMiddleware) Invoke(c mux.MutableRouteContext, next mux.HandlerFunc) {
     // Add security headers before processing
     c.Response().Header().Set("X-Content-Type-Options", "nosniff")
     c.Response().Header().Set("X-Frame-Options", "DENY")
@@ -93,7 +95,7 @@ type CORSMiddleware struct {
     AllowedOrigins []string
 }
 
-func (m *CORSMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
+func (m *CORSMiddleware) Invoke(c mux.MutableRouteContext, next mux.HandlerFunc) {
     origin := c.Request().Header.Get("Origin")
     
     // Check if origin is allowed
@@ -106,14 +108,14 @@ func (m *CORSMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
     }
     
     if allowed {
-    c.Response().Header().Set("Access-Control-Allow-Origin", origin)
-    c.Response().Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
-    c.Response().Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        c.Response().Header().Set("Access-Control-Allow-Origin", origin)
+        c.Response().Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
+        c.Response().Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
     }
     
     // Handle preflight requests
     if c.Request().Method == "OPTIONS" {
-    c.Response().WriteHeader(http.StatusOK)
+        c.Response().WriteHeader(http.StatusOK)
         return
     }
     
@@ -126,7 +128,7 @@ func (m *CORSMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
 ```go
 type ErrorHandlingMiddleware struct{}
 
-func (m *ErrorHandlingMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
+func (m *ErrorHandlingMiddleware) Invoke(c mux.MutableRouteContext, next mux.HandlerFunc) {
     defer func() {
         if err := recover(); err != nil {
             log.Printf("Panic in handler: %v", err)
@@ -155,7 +157,7 @@ type TransactionMiddleware struct {
     DB *sql.DB
 }
 
-func (m *TransactionMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
+func (m *TransactionMiddleware) Invoke(c mux.MutableRouteContext, next mux.HandlerFunc) {
     tx, err := m.DB.Begin()
     if err != nil {
         c.ServerError("Database Error", err.Error())
@@ -163,7 +165,7 @@ func (m *TransactionMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc)
     }
     
     // Store transaction in context
-    c.SetService("tx", tx)
+    c.Services().Register(mux.ServiceKey("tx"), tx)
     
     // Track if we need to commit or rollback
     shouldCommit := true
@@ -241,7 +243,7 @@ router.Use(&AuthorizationMiddleware{})    // 4th
 router.Use(&TimingMiddleware{})           // 5th (closest to handler)
 ```
 
-Request flow: 1 → 2 → 3 → 4 → 5 → Handler → 5 → 4 → 3 → 2 → 1
+Request flow: 1 -> 2 -> 3 -> 4 -> 5 -> Handler -> 5 -> 4 -> 3 -> 2 -> 1
 
 ## Best Practices
 
@@ -261,7 +263,7 @@ Request flow: 1 → 2 → 3 → 4 → 5 → Handler → 5 → 4 → 3 → 2 → 
 ### Pre-processing
 Execute logic before the handler:
 ```go
-func (m *Middleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
+func (m *Middleware) Invoke(c mux.MutableRouteContext, next mux.HandlerFunc) {
     // Pre-processing logic
     validateRequest(c)
     
@@ -272,7 +274,7 @@ func (m *Middleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
 ### Post-processing
 Execute logic after the handler:
 ```go
-func (m *Middleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
+func (m *Middleware) Invoke(c mux.MutableRouteContext, next mux.HandlerFunc) {
     next(c)
     
     // Post-processing logic
@@ -283,7 +285,7 @@ func (m *Middleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
 ### Wrapping
 Execute logic before and after:
 ```go
-func (m *Middleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
+func (m *Middleware) Invoke(c mux.MutableRouteContext, next mux.HandlerFunc) {
     // Before
     start := time.Now()
     
@@ -298,7 +300,7 @@ func (m *Middleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
 ### Short-circuiting
 Terminate the request chain:
 ```go
-func (m *Middleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
+func (m *Middleware) Invoke(c mux.MutableRouteContext, next mux.HandlerFunc) {
     if !isAuthorized(c) {
         c.Unauthorized()
         return // Don't call next()
@@ -314,3 +316,5 @@ func (m *Middleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
 - [Authentication Middleware](authentication-middleware.md) - JWT authentication
 - [Router](router.md) - Routing fundamentals
 - [Best Practices](best-practices.md) - Patterns and conventions
+
+

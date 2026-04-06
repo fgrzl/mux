@@ -1,19 +1,23 @@
-# Router
+﻿# Router
 
 The Router is the core component of Mux that handles HTTP request routing and middleware execution.
 
 ## Creating a Router
 
 ```go
-// Basic router
-router := mux.NewRouter()
-
-// Router with options
 router := mux.NewRouter(
     mux.WithTitle("My API"),
     mux.WithVersion("1.0.0"),
 )
+
+if err := router.Configure(func(router *mux.Router) {
+    router.GET("/health", healthCheck)
+}); err != nil {
+    panic(err)
+}
 ```
+
+`Configure` is the recommended startup path because it returns configuration errors directly.
 
 ## Router Options
 
@@ -39,7 +43,7 @@ mux.WithMaxBodyBytes(2 << 20) // 2MB
 
 ## Adding Routes
 
-The Router embeds RouteGroup, so you can add routes directly:
+The Router exposes the same day-to-day route registration methods you use on groups, so you can add routes directly:
 
 ```go
 router.GET("/health", healthCheck)
@@ -55,12 +59,12 @@ Create organized route groups with shared configuration:
 
 ```go
 // API v1 group
-api := router.NewRouteGroup("/api/v1")
-api.WithTags("API v1")
+api := router.Group("/api/v1")
+api.Tags("API v1")
 
 // Users sub-group
-users := api.NewRouteGroup("/users")
-users.WithTags("Users")
+users := api.Group("/users")
+users.Tags("Users")
 users.RequireRoles("user")
 
 users.GET("/", listUsers)
@@ -87,39 +91,38 @@ mux.UseForwardedHeaders(router)
 
 // Authentication
 mux.UseAuthentication(router,
-    mux.WithValidator(validateToken),
-    mux.WithTokenCreator(createToken),
-    mux.WithTokenTTL(30 * time.Minute),
+    mux.WithAuthValidator(validateToken),
+    mux.WithAuthTokenCreator(createToken),
+    mux.WithAuthTokenTTL(30 * time.Minute),
 )
 
 // Authorization
 mux.UseAuthorization(router,
-    mux.WithRoles("admin", "user"),
-    mux.WithPermissions("read", "write"),
+    mux.WithAuthorizationRoles("admin", "user"),
+    mux.WithAuthorizationPermissions("read", "write"),
 )
 
-// Service injection
-mux.UseServices(router,
-    mux.WithService("db", database),
-    mux.WithService("cache", redisClient),
-)
+// Scoped services
+router.Services().
+    Register(mux.ServiceKey("db"), database).
+    Register(mux.ServiceKey("cache"), redisClient)
 
 // Rate limiting (applied per route)
 router.GET("/api/data", handler).
-    WithRateLimit(100, time.Minute)
+    RateLimit(100, time.Minute)
 
 // OpenTelemetry tracing
 mux.UseOpenTelemetry(router)
 
 // Export control with GeoIP
-mux.UseExportControl(router, mux.WithGeoIPDatabase(geoipDB))
+mux.UseExportControl(router, mux.WithExportControlGeoIPDatabase(geoipDB))
 ```
 
 ### Custom Middleware
 ```go
 type LoggingMiddleware struct{}
 
-func (m *LoggingMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
+func (m *LoggingMiddleware) Invoke(c mux.MutableRouteContext, next mux.HandlerFunc) {
     start := time.Now()
     log.Printf("Starting request: %s %s", c.Request().Method, c.Request().URL.Path)
     
@@ -154,9 +157,9 @@ Query parameters are accessed through the RouteContext:
 
 ```go
 func searchUsers(c mux.RouteContext) {
-    query, _ := c.QueryValue("q")
-    page, _ := c.QueryInt("page")
-    limit, _ := c.QueryInt("limit")
+    query, _ := c.Query().String("q")
+    page, _ := c.Query().Int("page")
+    limit, _ := c.Query().Int("limit")
     
     // Use parameters...
 }
@@ -172,8 +175,11 @@ All standard HTTP methods are supported:
 router.GET("/resource", getResource)
 router.POST("/resource", createResource)  
 router.PUT("/resource/{id}", updateResource)
+router.PATCH("/resource/{id}", patchResource)
 router.DELETE("/resource/{id}", deleteResource)
 router.HEAD("/resource/{id}", headResource)
+router.OPTIONS("/resource", optionsResource)
+router.TRACE("/resource", traceResource)
 ```
 
 Notes:
@@ -216,16 +222,23 @@ func riskyHandler(c mux.RouteContext) {
 The Router implements `http.Handler`:
 
 ```go
-// Standard HTTP server
-http.ListenAndServe(":8080", router)
+// Recommended default
+if err := router.Configure(func(router *mux.Router) {
+    // Register routes and groups here.
+}); err != nil {
+    panic(err)
+}
 
-// With TLS
-http.ListenAndServeTLS(":8443", "cert.pem", "key.pem", router)
+ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+defer cancel()
 
-// Using Mux's built-in server
 server := mux.NewServer(":8080", router)
-server.Start()
+if err := server.Listen(ctx); err != nil {
+    panic(err)
+}
 ```
+
+The router still implements `http.Handler`, so you can pass it to a custom `http.Server` when you need lower-level control.
 
 ## OpenAPI Specification
 
@@ -233,8 +246,13 @@ Generate OpenAPI specs from your routes:
 
 ```go
 generator := mux.NewGenerator()
-spec := generator.GenerateSpec(router)
-spec.MarshalToFile("openapi.yaml")
+spec, err := mux.GenerateSpecWithGenerator(generator, router)
+if err != nil {
+    panic(err)
+}
+if err := spec.MarshalToFile("openapi.yaml"); err != nil {
+    panic(err)
+}
 ```
 
 ## Best Practices
@@ -257,3 +275,5 @@ spec.MarshalToFile("openapi.yaml")
 - [WebServer](webserver.md) - Production server with graceful shutdown
 - [Best Practices](best-practices.md) - Patterns and conventions
 - [Health Probes](health-probes.md) - Kubernetes-style health checks
+
+

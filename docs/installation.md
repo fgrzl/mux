@@ -1,36 +1,27 @@
-# Installation Guide
+﻿# Installation
 
-This guide covers the installation and setup requirements for the Mux HTTP router library.
+This guide covers prerequisites, module setup, verification, and local development for Mux.
 
 ## Requirements
 
-### Go Version
-Mux requires **Go 1.24.4** or later. Check your Go version:
+- Go 1.25.6 or later
+- Linux, macOS, or Windows
+- Go modules enabled
+
+Check your Go version:
 
 ```bash
 go version
 ```
 
-If you need to upgrade Go, visit the [official Go downloads page](https://golang.org/dl/).
-
-### System Requirements
-- **Operating System**: Linux, macOS, or Windows
-- **Memory**: Minimum 512MB RAM available
-- **Network**: Internet connection for downloading dependencies
-
-## Installation
-
-### Using Go Modules (Recommended)
-
-Add Mux to your project using Go modules:
+## Add Mux to an Existing Project
 
 ```bash
 go get github.com/fgrzl/mux
+go mod tidy
 ```
 
-### Initialize a New Project
-
-Create a new Go project with Mux:
+## Create a New Project
 
 ```bash
 mkdir my-api
@@ -39,210 +30,119 @@ go mod init my-api
 go get github.com/fgrzl/mux
 ```
 
-## Dependencies
+## Verify Your Installation
 
-Mux automatically manages its dependencies through Go modules. Key dependencies include:
+Create `main.go`:
 
-### Core Dependencies
-- `github.com/fgrzl/claims` - JWT claims handling
-- `github.com/fgrzl/json` - JSON processing
-- `github.com/google/uuid` - UUID generation and parsing
-- `gopkg.in/yaml.v3` - YAML processing for OpenAPI specs
-
-### Optional Dependencies
-These are included but only used when specific features are enabled:
-
-- `github.com/oschwald/geoip2-golang` - GeoIP support for export control
-- `go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp` - OpenTelemetry tracing
-- `github.com/stretchr/testify` - Testing framework (development only)
-
-## Verification
-
-Verify your installation by creating a simple "Hello World" application:
-
-### Create main.go
 ```go
 package main
 
 import (
-    "net/http"
+    "context"
+    "os"
+    "os/signal"
+    "syscall"
+
     "github.com/fgrzl/mux"
 )
 
 func main() {
     router := mux.NewRouter()
-    
-    router.GET("/", func(c mux.RouteContext) {
-        c.OK("Mux is working!")
-    })
-    
-    http.ListenAndServe(":8080", router)
+
+    if err := router.Configure(func(router *mux.Router) {
+        router.GET("/", func(c mux.RouteContext) {
+            c.OK("Mux is working!")
+        })
+    }); err != nil {
+        panic(err)
+    }
+
+    ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer stop()
+
+    server := mux.NewServer(":8080", router)
+    if err := server.Listen(ctx); err != nil {
+        panic(err)
+    }
 }
 ```
 
-### Run the Application
+Run the application:
+
 ```bash
-go run main.go
+go run .
 ```
 
-### Test the Endpoint
+Verify the endpoint:
+
 ```bash
 curl http://localhost:8080/
 ```
 
-You should see the response: `"Mux is working!"`
+Expected response:
+
+```json
+"Mux is working!"
+```
+
+`Configure` is the recommended startup path for application setup. It collects route-registration validation errors and returns them explicitly before the server begins serving traffic.
 
 ## Development Setup
 
-For development and contributing to Mux:
+If you are working on the Mux repository itself:
 
-### Clone the Repository
 ```bash
 git clone https://github.com/fgrzl/mux.git
 cd mux
-```
-
-### Install Development Dependencies
-```bash
 go mod download
+go test ./...
 ```
 
-### Run Tests
+Useful validation commands while developing:
+
 ```bash
-go test ./... -v
+go test ./...
+go build ./examples/hello-world ./examples/cors-wildcard
 ```
 
-### Run with Coverage
+Nested example modules can be built from their own directories:
+
 ```bash
-go test ./... -coverprofile=coverage.out
-go tool cover -html=coverage.out -o coverage.html
-```
-
-## IDE Setup
-
-### VS Code
-Install the Go extension for VS Code:
-1. Open VS Code
-2. Go to Extensions (Ctrl+Shift+X)
-3. Search for "Go" and install the official Go extension
-4. Run `Go: Install/Update Tools` from the command palette
-
-### GoLand/IntelliJ IDEA
-GoLand has built-in Go support. For IntelliJ IDEA:
-1. Install the Go plugin
-2. Configure Go SDK in Project Settings
-3. Enable Go modules integration
-
-## Docker Setup (Optional)
-
-Create a Dockerfile for containerized deployment:
-
-```dockerfile
-FROM golang:1.24-alpine AS builder
-
-WORKDIR /app
-COPY go.mod go.sum ./
-RUN go mod download
-
-COPY . .
-RUN go build -o main .
-
-FROM alpine:latest
-RUN apk --no-cache add ca-certificates
-WORKDIR /root/
-COPY --from=builder /app/main .
-
-EXPOSE 8080
-CMD ["./main"]
-```
-
-### Build and Run
-```bash
-docker build -t my-api .
-docker run -p 8080:8080 my-api
+cd examples/todo-api
+go build ./...
 ```
 
 ## Troubleshooting
 
-### Common Issues
+### Go version is too old
 
-#### "cannot find module" Error
+Mux follows the Go version declared in `go.mod`. If `go version` reports an older version than `1.25.6`, upgrade Go before building.
+
+### Module download fails
+
+Run:
+
 ```bash
-# Ensure you're in the correct directory
-go mod init your-project-name
-go get github.com/fgrzl/mux
+go env GOPROXY
+go mod tidy
 ```
 
-#### Port Already in Use
-```bash
-# Find process using port 8080
-lsof -i :8080
-# Kill the process
-kill -9 <PID>
-```
+If you are behind a corporate proxy, ensure your Go proxy settings are configured correctly.
 
-#### Go Version Too Old
-```bash
-# Check minimum version requirement
-go version  # Should be 1.24.4+
-```
+### Port 8080 is already in use
 
-#### Permission Denied (Linux/macOS)
-```bash
-# Run with different port (> 1024)
-http.ListenAndServe(":8080", router)  # Instead of :80
-```
+Use a different port in `mux.NewServer`, for example `:8081`, or stop the process that is already listening on `:8080`.
 
-### Getting Help
+### TLS files are not found
 
-- **Documentation**: Check the [docs/](../docs/) directory
-- **Issues**: Report bugs on [GitHub Issues](https://github.com/fgrzl/mux/issues)
-- **Examples**: See working examples in the [examples/](../examples/) directory
+If you use `mux.WithTLS(...)` or `mux.WithTLSDiscovery(...)`, make sure the certificate and key files exist before startup. `NewServer(...).Listen(ctx)` will fail early if the configured TLS files are invalid.
 
 ## Next Steps
 
-Once Mux is installed:
+- [Quick Start](quick-start.md) for the smallest working API
+- [Getting Started](getting-started.md) for a broader introduction
+- [Router](router.md) for routing and configuration details
+- [WebServer](webserver.md) for production server lifecycle guidance
+- [Examples](../examples/) for runnable applications
 
-1. Read the [Quick Start Tutorial](quick-start.md)
-2. Explore the [Router Documentation](router.md)
-3. Check out [Example Applications](../examples/)
-4. Review the [API Reference](api-reference.md)
 
-## Environment Variables
-
-Mux doesn't require environment variables for basic operation, but some features can be configured:
-
-```bash
-# Optional: Set log level for development
-export LOG_LEVEL=debug
-
-# Optional: Set GeoIP database path for export control
-export GEOIP_DB_PATH=/path/to/GeoLite2-Country.mmdb
-
-# Optional: OpenTelemetry configuration
-export OTEL_SERVICE_NAME=my-api
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
-```
-
-## Performance Tuning
-
-For production deployments, consider these Go runtime settings:
-
-```bash
-# Set maximum number of OS threads
-export GOMAXPROCS=4
-
-# Enable memory ballast for stable GC performance
-export GOGC=100
-
-# Disable CGO for static binaries (if not using GeoIP)
-CGO_ENABLED=0 go build
-```
-
-## See Also
-
-- [Quick Start](quick-start.md) - Get running in 5 minutes
-- [Getting Started](getting-started.md) - Comprehensive introduction
-- [Router](router.md) - Routing fundamentals
-- [WebServer](webserver.md) - Production server setup
-- [Best Practices](best-practices.md) - Deployment patterns

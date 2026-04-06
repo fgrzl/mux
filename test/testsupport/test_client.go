@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/fgrzl/mux/pkg/common"
+	"github.com/fgrzl/mux/internal/common"
 )
 
 // TestClient encapsulates the client and base URL

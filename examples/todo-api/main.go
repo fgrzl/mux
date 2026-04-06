@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/fgrzl/mux"
-	"github.com/fgrzl/mux/pkg/openapi"
 	"github.com/google/uuid"
 )
 
@@ -51,60 +50,65 @@ const (
 func main() {
 	router := mux.NewRouter()
 
-	// Create API group
-	api := router.NewRouteGroup("/todos")
-	api.WithTags("Todos")
+	if err := router.Configure(func(router *mux.Router) {
+		// Create API group
+		api := router.Group("/todos")
+		api.Tags("Todos")
 
-	// Document each endpoint
-	api.GET("/", listTodos).
-		WithOperationID("listTodos").
-		WithSummary("List all todos").
-		WithOKResponse([]Todo{})
+		// Document each endpoint
+		api.GET("/", listTodos).
+			OperationID("listTodos").
+			Summary("List all todos").
+			WithQueryParam("completed", "Filter todos by completion state", true).
+			OK([]Todo{})
 
-	api.POST("/", createTodo).
-		WithOperationID("createTodo").
-		WithSummary("Create a new todo").
-		WithJsonBody(CreateTodoRequest{}).
-		WithCreatedResponse(Todo{})
+		api.POST("/", createTodo).
+			OperationID("createTodo").
+			Summary("Create a new todo").
+			AcceptJSON(CreateTodoRequest{}).
+			Created(Todo{})
 
-	api.GET("/{id}", getTodo).
-		WithOperationID("getTodo").
-		WithSummary("Get a todo by ID").
-		WithPathParam("id", "The unique identifier of the todo item", todoIDParam).
-		WithOKResponse(Todo{}).
-		WithNotFoundResponse()
+		api.GET("/{id}", getTodo).
+			OperationID("getTodo").
+			Summary("Get a todo by ID").
+			WithPathParam("id", "The unique identifier of the todo item", todoIDParam).
+			OK(Todo{}).
+			Responds(404, mux.ProblemDetails{})
 
-	api.PUT("/{id}", updateTodo).
-		WithOperationID("updateTodo").
-		WithSummary("Update a todo").
-		WithPathParam("id", "The unique identifier of the todo item", todoIDParam).
-		WithJsonBody(UpdateTodoRequest{}).
-		WithOKResponse(Todo{})
+		api.PUT("/{id}", updateTodo).
+			OperationID("updateTodo").
+			Summary("Update a todo").
+			WithPathParam("id", "The unique identifier of the todo item", todoIDParam).
+			AcceptJSON(UpdateTodoRequest{}).
+			OK(Todo{})
 
-	api.DELETE("/{id}", deleteTodo).
-		WithOperationID("deleteTodo").
-		WithSummary("Delete a todo").
-		WithPathParam("id", "The unique identifier of the todo item", todoIDParam).
-		WithNoContentResponse()
+		api.DELETE("/{id}", deleteTodo).
+			OperationID("deleteTodo").
+			Summary("Delete a todo").
+			WithPathParam("id", "The unique identifier of the todo item", todoIDParam).
+			NoContent()
 
-	// Serve OpenAPI spec
-	router.GET("/openapi.json", func(c mux.RouteContext) {
-		info, _ := router.InfoObject()
-		routes, _ := router.Routes()
-
-		gen := openapi.NewGenerator()
-		spec, _ := gen.GenerateSpecFromRoutes(info, routes)
-		c.OK(spec)
-	})
-
-	// Root endpoint
-	router.GET("/", func(c mux.RouteContext) {
-		c.OK(map[string]string{
-			"message": "Todo API",
-			"version": "1.0.0",
-			"docs":    "/openapi.json",
+		// Serve OpenAPI spec
+		router.GET("/openapi.json", func(c mux.RouteContext) {
+			spec, err := mux.GenerateSpecWithGenerator(mux.NewGenerator(), router)
+			if err != nil {
+				c.ServerError("OpenAPI generation failed", err.Error())
+				return
+			}
+			c.OK(spec)
 		})
-	})
+
+		// Root endpoint
+		router.GET("/", func(c mux.RouteContext) {
+			c.OK(map[string]string{
+				"message": "Todo API",
+				"version": "1.0.0",
+				"docs":    "/openapi.json",
+			})
+		})
+	}); err != nil {
+		panic(err)
+	}
 
 	// Start server with graceful shutdown
 	server := mux.NewServer(":8080", router)
@@ -116,11 +120,13 @@ func main() {
 	)
 	defer cancel()
 
-	server.Listen(ctx)
+	if err := server.Listen(ctx); err != nil {
+		panic(err)
+	}
 }
 
 func listTodos(c mux.RouteContext) {
-	completed, hasCompleted := c.Params()["completed"]
+	completed, hasCompleted := c.Query().Bool("completed")
 
 	todosMu.RLock()
 	defer todosMu.RUnlock()
@@ -129,13 +135,8 @@ func listTodos(c mux.RouteContext) {
 	result := make([]*Todo, 0, len(todos))
 	for _, todo := range todos {
 		// Filter by completion status if provided
-		if hasCompleted {
-			if completed == "true" && !todo.Completed {
-				continue
-			}
-			if completed == "false" && todo.Completed {
-				continue
-			}
+		if hasCompleted && todo.Completed != completed {
+			continue
 		}
 		result = append(result, todo)
 	}

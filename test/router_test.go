@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fgrzl/mux/pkg/common"
+	"github.com/fgrzl/mux/internal/common"
 	"github.com/fgrzl/mux/test/testsupport"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"

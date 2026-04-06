@@ -27,11 +27,11 @@ This document provides comprehensive testing guidelines for the mux project. All
 
 ### What to Test
 
-- ✅ **Public APIs** - All exported functions and methods
-- ✅ **Edge Cases** - Empty inputs, nil values, boundary conditions
-- ✅ **Error Paths** - All error conditions and error handling
-- ✅ **Business Logic** - Core functionality and invariants
-- ❌ **Implementation Details** - Don't test private methods directly
+- **Public APIs** - All exported functions and methods
+- **Edge Cases** - Empty inputs, nil values, boundary conditions
+- **Error Paths** - All error conditions and error handling
+- **Business Logic** - Core functionality and invariants
+- **Implementation Details** - Don't test private methods directly
 
 ## Test Framework
 
@@ -74,16 +74,16 @@ func TestShouldProcessValidInput(t *testing.T) {
 Use **behavioral style** names that describe what the code should do:
 
 ```go
-// ✅ Good - Clear behavior description
+// Good - Clear behavior description
 func TestShouldReturnErrorGivenInvalidUserWhenValidating(t *testing.T)
 func TestShouldStoreResultGivenValidInputWhenProcessing(t *testing.T)
 func TestShouldIgnoreDuplicatesGivenMultipleEntriesWhenProcessing(t *testing.T)
 
-// ✅ Also good - Shorter variations when obvious
+// Also good - Shorter variations when obvious
 func TestShouldReturnErrorWhenUserIsInvalid(t *testing.T)
 func TestShouldStoreResultGivenValidInput(t *testing.T)
 
-// ❌ Bad - Vague or implementation-focused
+// Bad - Vague or implementation-focused
 func TestValidation(t *testing.T)
 func TestProcess(t *testing.T)
 func TestCheckUser(t *testing.T)
@@ -203,12 +203,12 @@ go tool cover -html=coverage.out
 
 ### What Coverage Doesn't Mean
 
-⚠️ **High coverage ≠ Good tests**
+**High coverage != good tests**
 
 Focus on meaningful tests, not just hitting lines:
 
 ```go
-// ❌ Bad - High coverage, low value
+// Bad - High coverage, low value
 func TestEverything(t *testing.T) {
     DoThing()
     DoOtherThing()
@@ -216,7 +216,7 @@ func TestEverything(t *testing.T) {
     // No assertions!
 }
 
-// ✅ Good - Tests actual behavior
+// Good - Tests actual behavior
 func TestShouldReturnErrorGivenInvalidInput(t *testing.T) {
     err := DoThing(nil)
     assert.Error(t, err)
@@ -347,12 +347,12 @@ func TestShouldApplyMiddlewareGivenRouterPipeline(t *testing.T) {
 ### Middleware Coverage Requirements
 
 All middleware must test:
-- ✅ Happy path (middleware allows request through)
-- ✅ Rejection path (middleware blocks/redirects request)
-- ✅ Header manipulation (if applicable)
-- ✅ Error conditions
-- ✅ Integration with router
-- ✅ Configuration options
+- Happy path (middleware allows request through)
+- Rejection path (middleware blocks/redirects request)
+- Header manipulation (if applicable)
+- Error conditions
+- Integration with router
+- Configuration options
 
 ## Helper Functions
 
@@ -385,10 +385,10 @@ func newRecorder() *httptest.ResponseRecorder {
 
 ### Benchmark Helpers
 
-For middleware benchmarks, use the standardized helpers in `pkg/middlewarebench`:
+For middleware benchmarks, use the standardized helpers in `internal/middlewarebench`:
 
 ```go
-import "github.com/fgrzl/mux/pkg/middlewarebench"
+import "github.com/fgrzl/mux/internal/middlewarebench"
 
 func BenchmarkMyMiddlewareInvoke(b *testing.B) {
     middleware := &myMiddleware{}
@@ -468,7 +468,7 @@ func TestShouldRespectCancellationGivenCancelledContext(t *testing.T) {
 
 ## Best Practices
 
-### ✅ Do's
+### Do's
 
 1. **Write tests first** (TDD when possible)
 2. **Test behavior, not implementation**
@@ -481,7 +481,7 @@ func TestShouldRespectCancellationGivenCancelledContext(t *testing.T) {
 9. **Use subtests** - `t.Run()` for grouping related tests
 10. **Keep tests fast** - Mock external dependencies
 
-### ❌ Don'ts
+### Don'ts
 
 1. **Don't test implementation details** - Focus on public API
 2. **Don't share state between tests** - Each test should be isolated
@@ -532,7 +532,7 @@ go test ./...
 go test ./... -v
 
 # Run specific test
-go test ./pkg/router -run TestShouldMatchExactRoute
+go test ./internal/router -run TestShouldMatchExactRoute
 
 # Run tests with coverage
 go test ./... -cover
@@ -620,3 +620,4 @@ func TestShouldReturnNotFoundGivenNonExistentRoute(t *testing.T) {
 ---
 
 **Remember:** Good tests are an investment in code quality and maintainability. Take the time to write clear, comprehensive tests that serve as living documentation of your code's behavior.
+
