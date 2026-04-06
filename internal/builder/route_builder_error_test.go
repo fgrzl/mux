@@ -102,6 +102,26 @@ func TestWithStandardErrorsErrShouldAddCommonErrorResponses(t *testing.T) {
 	assert.Nil(t, rb.Options.Responses["404"].Content)
 }
 
+func TestWithAuthResponsesErrShouldAddAuthResponses(t *testing.T) {
+	// Arrange
+	rb := DetachedRoute(http.MethodGet, "/x")
+
+	// Act
+	result, err := rb.WithUnauthorizedResponseErr()
+	require.NoError(t, err)
+	assert.Equal(t, rb, result)
+
+	result, err = rb.WithForbiddenResponseErr()
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, rb, result)
+	assert.Contains(t, rb.Options.Responses, "401")
+	assert.Contains(t, rb.Options.Responses, "403")
+	assert.Nil(t, rb.Options.Responses["401"].Content)
+	assert.Nil(t, rb.Options.Responses["403"].Content)
+}
+
 func TestWithJsonBodyErrShouldReturnErrorForGet(t *testing.T) {
 	// Arrange
 	rb := DetachedRoute(http.MethodGet, "/x")

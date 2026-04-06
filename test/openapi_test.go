@@ -109,6 +109,40 @@ func TestShouldPreserveTypedSecurityRequirements(t *testing.T) {
 	require.Equal(t, []any{"read", "write"}, scopes)
 }
 
+func TestShouldDocumentNamedResponseHelpers(t *testing.T) {
+	router := mux.NewRouter(mux.WithTitle("Users API"), mux.WithVersion("1.0.0"))
+
+	router.GET("/users", func(c mux.RouteContext) {
+		c.OK(map[string]string{"status": "ok"})
+	}).
+		WithOperationID("listUsers").
+		WithOKResponse(map[string]string{"status": "ok"}).
+		WithBadRequestResponse().
+		WithUnauthorizedResponse().
+		WithForbiddenResponse().
+		WithNotFoundResponse().
+		WithConflictResponse().
+		WithMovedPermanentlyResponse().
+		WithFoundResponse().
+		WithSeeOtherResponse().
+		WithTemporaryRedirectResponse().
+		WithPermanentRedirectResponse()
+
+	spec, err := mux.GenerateSpecWithGenerator(mux.NewGenerator(), router)
+	require.NoError(t, err)
+
+	specMap := specJSONMap(t, spec)
+	paths := requireMap(t, specMap["paths"])
+	usersPath := requireMap(t, paths["/users"])
+	getOp := requireMap(t, usersPath["get"])
+	responses := requireMap(t, getOp["responses"])
+
+	for _, code := range []string{"200", "301", "302", "303", "307", "308", "400", "401", "403", "404", "409"} {
+		_, ok := responses[code]
+		require.Truef(t, ok, "expected response %s to be documented", code)
+	}
+}
+
 func specJSONBytes(t *testing.T, spec *mux.OpenAPISpec) []byte {
 	t.Helper()
 

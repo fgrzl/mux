@@ -253,20 +253,27 @@ method (*RouteBuilder) Use(...Middleware) *RouteBuilder
 method (*RouteBuilder) WithAcceptedResponse(any) *RouteBuilder
 method (*RouteBuilder) WithAllOfJsonBody(...any) *RouteBuilder
 method (*RouteBuilder) WithAnyOfJsonBody(...any) *RouteBuilder
+method (*RouteBuilder) WithBadRequestResponse() *RouteBuilder
+method (*RouteBuilder) WithConflictResponse() *RouteBuilder
 method (*RouteBuilder) WithCookieParam(string, string, any) *RouteBuilder
 method (*RouteBuilder) WithCreatedResponse(any) *RouteBuilder
 method (*RouteBuilder) WithDeprecated() *RouteBuilder
 method (*RouteBuilder) WithDescription(string) *RouteBuilder
 method (*RouteBuilder) WithExternalDocs(string, string) *RouteBuilder
+method (*RouteBuilder) WithForbiddenResponse() *RouteBuilder
 method (*RouteBuilder) WithFormBody(any) *RouteBuilder
+method (*RouteBuilder) WithFoundResponse() *RouteBuilder
 method (*RouteBuilder) WithHeaderParam(string, string, any) *RouteBuilder
 method (*RouteBuilder) WithJsonBody(any) *RouteBuilder
+method (*RouteBuilder) WithMovedPermanentlyResponse() *RouteBuilder
 method (*RouteBuilder) WithMultipartBody(any) *RouteBuilder
 method (*RouteBuilder) WithNoContentResponse() *RouteBuilder
+method (*RouteBuilder) WithNotFoundResponse() *RouteBuilder
 method (*RouteBuilder) WithOKResponse(any) *RouteBuilder
 method (*RouteBuilder) WithOneOfJsonBody(...any) *RouteBuilder
 method (*RouteBuilder) WithOperationID(string) *RouteBuilder
 method (*RouteBuilder) WithPathParam(string, string, any) *RouteBuilder
+method (*RouteBuilder) WithPermanentRedirectResponse() *RouteBuilder
 method (*RouteBuilder) WithQueryParam(string, string, any) *RouteBuilder
 method (*RouteBuilder) WithRateLimit(int, time.Duration) *RouteBuilder
 method (*RouteBuilder) WithRequiredCookieParam(string, string, any) *RouteBuilder
@@ -274,8 +281,12 @@ method (*RouteBuilder) WithRequiredHeaderParam(string, string, any) *RouteBuilde
 method (*RouteBuilder) WithRequiredQueryParam(string, string, any) *RouteBuilder
 method (*RouteBuilder) WithResponse(int, any) *RouteBuilder
 method (*RouteBuilder) WithSecurity(SecurityRequirement) *RouteBuilder
+method (*RouteBuilder) WithSeeOtherResponse() *RouteBuilder
+method (*RouteBuilder) WithStandardErrors() *RouteBuilder
 method (*RouteBuilder) WithSummary(string) *RouteBuilder
 method (*RouteBuilder) WithTags(...string) *RouteBuilder
+method (*RouteBuilder) WithTemporaryRedirectResponse() *RouteBuilder
+method (*RouteBuilder) WithUnauthorizedResponse() *RouteBuilder
 method (*RouteGroup) AllowAnonymous() *RouteGroup
 method (*RouteGroup) Configure(func(*RouteGroup)) error
 method (*RouteGroup) DELETE(string, HandlerFunc) *RouteBuilder

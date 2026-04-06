@@ -375,6 +375,22 @@ func (rb *RouteBuilder) WithBadRequestResponseErr() (*RouteBuilder, error) {
 	return rb.WithResponseErr(http.StatusBadRequest, common.DefaultProblem)
 }
 
+func (rb *RouteBuilder) WithUnauthorizedResponse() *RouteBuilder {
+	return rb.WithResponse(http.StatusUnauthorized, nil)
+}
+
+func (rb *RouteBuilder) WithUnauthorizedResponseErr() (*RouteBuilder, error) {
+	return rb.WithResponseErr(http.StatusUnauthorized, nil)
+}
+
+func (rb *RouteBuilder) WithForbiddenResponse() *RouteBuilder {
+	return rb.WithResponse(http.StatusForbidden, nil)
+}
+
+func (rb *RouteBuilder) WithForbiddenResponseErr() (*RouteBuilder, error) {
+	return rb.WithResponseErr(http.StatusForbidden, nil)
+}
+
 func (rb *RouteBuilder) WithStandardErrors() *RouteBuilder {
 	return rb.WithBadRequestResponse().WithNotFoundResponse()
 }
@@ -469,10 +485,7 @@ func (rb *RouteBuilder) WithPermanentRedirectResponseErr() (*RouteBuilder, error
 
 // WithJsonBody describes a JSON request body (required=true).
 func (rb *RouteBuilder) WithJsonBody(example any) *RouteBuilder {
-	if _, err := rb.WithJsonBodyErr(example); err != nil {
-		return rb.handleValidation(err)
-	}
-	return rb
+	return rb.withBody(example, common.MimeJSON)
 }
 
 // WithJsonBodyErr describes a JSON request body without panicking.
@@ -483,10 +496,7 @@ func (rb *RouteBuilder) WithJsonBodyErr(example any) (*RouteBuilder, error) {
 // WithOneOfJsonBody describes a JSON request body using oneOf for polymorphic types.
 // Pass example instances of each possible type as separate arguments.
 func (rb *RouteBuilder) WithOneOfJsonBody(examples ...any) *RouteBuilder {
-	if _, err := rb.WithOneOfJsonBodyErr(examples...); err != nil {
-		return rb.handleValidation(err)
-	}
-	return rb
+	return rb.withCompositeBody(examples, common.MimeJSON, "oneOf")
 }
 
 // WithOneOfJsonBodyErr describes a JSON request body using oneOf without panicking.
@@ -497,10 +507,7 @@ func (rb *RouteBuilder) WithOneOfJsonBodyErr(examples ...any) (*RouteBuilder, er
 // WithAnyOfJsonBody describes a JSON request body using anyOf for polymorphic types.
 // Pass example instances of each possible type as separate arguments.
 func (rb *RouteBuilder) WithAnyOfJsonBody(examples ...any) *RouteBuilder {
-	if _, err := rb.WithAnyOfJsonBodyErr(examples...); err != nil {
-		return rb.handleValidation(err)
-	}
-	return rb
+	return rb.withCompositeBody(examples, common.MimeJSON, "anyOf")
 }
 
 // WithAnyOfJsonBodyErr describes a JSON request body using anyOf without panicking.
@@ -511,10 +518,7 @@ func (rb *RouteBuilder) WithAnyOfJsonBodyErr(examples ...any) (*RouteBuilder, er
 // WithAllOfJsonBody describes a JSON request body using allOf for composition.
 // Pass example instances of each schema to compose as separate arguments.
 func (rb *RouteBuilder) WithAllOfJsonBody(examples ...any) *RouteBuilder {
-	if _, err := rb.WithAllOfJsonBodyErr(examples...); err != nil {
-		return rb.handleValidation(err)
-	}
-	return rb
+	return rb.withCompositeBody(examples, common.MimeJSON, "allOf")
 }
 
 // WithAllOfJsonBodyErr describes a JSON request body using allOf without panicking.
@@ -524,10 +528,7 @@ func (rb *RouteBuilder) WithAllOfJsonBodyErr(examples ...any) (*RouteBuilder, er
 
 // WithFormBody describes an urlencoded form body.
 func (rb *RouteBuilder) WithFormBody(example any) *RouteBuilder {
-	if _, err := rb.WithFormBodyErr(example); err != nil {
-		return rb.handleValidation(err)
-	}
-	return rb
+	return rb.withBody(example, common.MimeFormURLEncoded)
 }
 
 // WithFormBodyErr describes an urlencoded form body without panicking.
@@ -537,10 +538,7 @@ func (rb *RouteBuilder) WithFormBodyErr(example any) (*RouteBuilder, error) {
 
 // WithMultipartBody describes a multipart form body.
 func (rb *RouteBuilder) WithMultipartBody(example any) *RouteBuilder {
-	if _, err := rb.WithMultipartBodyErr(example); err != nil {
-		return rb.handleValidation(err)
-	}
-	return rb
+	return rb.withBody(example, common.MimeMultipartFormData)
 }
 
 // WithMultipartBodyErr describes a multipart form body without panicking.

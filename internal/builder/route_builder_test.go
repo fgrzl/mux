@@ -410,6 +410,8 @@ func TestShouldAddStandardResponses(t *testing.T) {
 		WithCreatedResponse(example).
 		WithAcceptedResponse(example).
 		WithNoContentResponse().
+		WithUnauthorizedResponse().
+		WithForbiddenResponse().
 		WithNotFoundResponse().
 		WithConflictResponse().
 		WithBadRequestResponse().
@@ -420,6 +422,8 @@ func TestShouldAddStandardResponses(t *testing.T) {
 	assert.NotNil(t, builder.Options.Responses["201"])
 	assert.NotNil(t, builder.Options.Responses["202"])
 	assert.NotNil(t, builder.Options.Responses["204"])
+	assert.NotNil(t, builder.Options.Responses["401"])
+	assert.NotNil(t, builder.Options.Responses["403"])
 	assert.NotNil(t, builder.Options.Responses["404"])
 	assert.NotNil(t, builder.Options.Responses["409"])
 	assert.NotNil(t, builder.Options.Responses["400"])
