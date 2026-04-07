@@ -43,7 +43,7 @@ func main() {
 	})
 
 	router.GET("/result", func(c mux.RouteContext) {
-		id, _ := c.QueryValue("id")
+		id, _ := c.Query().String("id")
 		c.HTML(http.StatusOK, fmt.Sprintf("<h1>Result Page</h1><p>ID: %s</p>", id))
 	})
 
@@ -51,7 +51,7 @@ func main() {
 		c.JSON(http.StatusOK, map[string]string{"message": "New API endpoint"})
 	})
 
-	fmt.Println("🔀 Redirect Examples Server")
+	fmt.Println("Redirect Examples Server")
 	fmt.Println("Server starting on http://localhost:8080")
 	fmt.Println("")
 	fmt.Println("Try these endpoints:")

@@ -8,17 +8,19 @@ Middleware in Mux follows a functional options pattern and implements the `Middl
 
 ```go
 type Middleware interface {
-    Invoke(c routing.RouteContext, next HandlerFunc)
+    Invoke(c MutableRouteContext, next HandlerFunc)
 }
 ```
 
-All built-in middleware can be added to routers or route groups and will execute in the order they are added.
+Handlers receive `RouteContext`. Middleware receives `MutableRouteContext` so it can replace the request or response writer when needed.
+
+Built-in middleware is installed on the router and executes in the order it is added.
 
 ## Execution Model
 
 - Order: Middleware runs in the order you register it with `router.Use(...)`. The last registered middleware wraps the handler last.
 - Short-circuiting: A middleware may choose not to call `next(c)`. In that case, it terminates the pipeline early (e.g., to reject unauthorized requests).
-- Scope: Middleware added to a `RouteGroup` applies to the routes within that group in addition to any router-level middleware.
+- Scope: Middleware is registered on the router. Use `AllowAnonymous()` and route-group defaults such as `RequireRoles(...)`, `RequireScopes(...)`, and `RequirePermission(...)` to shape behavior for subsets of routes.
 - Performance: Mux composes the middleware pipeline and caches it. The pipeline is rebuilt only when middleware are added, avoiding per-request allocations.
 
 ## Authentication Middleware
@@ -28,23 +30,25 @@ Provides JWT token validation and creation capabilities with support for multipl
 ### Basic Setup
 ```go
 mux.UseAuthentication(router,
-    mux.WithValidator(validateToken),
-    mux.WithTokenCreator(createToken),
-    mux.WithTokenTTL(30 * time.Minute),
+    mux.WithAuthValidator(validateToken),
+    mux.WithAuthTokenCreator(createToken),
+    mux.WithAuthTokenTTL(30 * time.Minute),
 )
 ```
 
 ### Configuration Options
-- `WithValidator(func(string) (claims.Principal, error))` - JWT token validation function
-- `WithTokenCreator(func(claims.Principal) (string, error))` - JWT token creation function  
-- `WithTokenTTL(time.Duration)` - Token time-to-live duration
-- `WithAnonymousAccess()` - Allow anonymous access (no authentication required)
+- `WithAuthValidator(func(string) (claims.Principal, error))` - Token validation function
+- `WithAuthTokenCreator(func(claims.Principal, time.Duration) (string, error))` - Token creation function
+- `WithAuthTokenTTL(time.Duration)` - Token time-to-live duration
+- `WithAuthCSRFProtection()` - Double-submit CSRF protection for cookie-authenticated state-changing requests
+- `WithAuthRateLimiter(func(string) bool)` - Rate limiting for failed authentication attempts
+
+Mark routes or route groups public with `AllowAnonymous()` rather than configuring anonymous access on the middleware itself.
 
 ### Token Sources
-The middleware automatically checks for tokens in multiple locations:
+The middleware checks tokens in these locations:
 1. **Authorization header**: `Authorization: Bearer <token>`
-2. **Cookies**: Configurable cookie names for different token types
-3. **Custom headers**: Additional header-based token sources
+2. **App session cookie**: The framework-managed session cookie used by `c.Cookies().SignIn(...)`
 
 ### Example Implementation
 ```go
@@ -56,20 +60,25 @@ func validateToken(tokenString string) (claims.Principal, error) {
     if err != nil || !token.Valid {
         return nil, errors.New("invalid token")
     }
-    
-    claims := token.Claims.(jwt.MapClaims)
-    principal := claims.NewPrincipal()
-    principal.SetUserID(claims["sub"].(string))
-    principal.SetRoles(claims["roles"].([]string))
-    
-    return principal, nil
+
+    mapClaims, ok := token.Claims.(jwt.MapClaims)
+    if !ok {
+        return nil, errors.New("invalid token claims")
+    }
+
+    claimSet := claims.NewClaimsSet("")
+    if sub, ok := mapClaims["sub"].(string); ok {
+        claimSet.SetSubject(sub)
+    }
+
+    return claims.NewPrincipal(claimSet), nil
 }
 
-func createToken(principal claims.Principal) (string, error) {
+func createToken(principal claims.Principal, ttl time.Duration) (string, error) {
     token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-        "sub":   principal.GetUserID(),
-        "roles": principal.GetRoles(),
-        "exp":   time.Now().Add(time.Hour).Unix(),
+        "sub":   principal.Subject(),
+        "roles": principal.Roles(),
+        "exp":   time.Now().Add(ttl).Unix(),
     })
     
     secret := os.Getenv("JWT_SECRET")
@@ -84,14 +93,14 @@ Provides role-based and permission-based access control that works with the auth
 ### Setup
 ```go
 mux.UseAuthorization(router,
-    mux.WithRoles("admin", "user"),
-    mux.WithPermissions("read", "write", "delete"),
+    mux.WithAuthorizationRoles("admin", "user"),
+    mux.WithAuthorizationPermissions("read", "write", "delete"),
 )
 ```
 
 ### Configuration Options
-- `WithRoles(roles ...string)` - Define available roles
-- `WithPermissions(permissions ...string)` - Define available permissions
+- `WithAuthorizationRoles(roles ...string)` - Require roles at middleware level
+- `WithAuthorizationPermissions(permissions ...string)` - Require permissions at middleware level
 
 ### Route-Level Authorization
 ```go
@@ -99,12 +108,12 @@ mux.UseAuthorization(router,
 router.GET("/admin", adminHandler).RequireRoles("admin")
 
 // Require specific permissions
-router.POST("/users", createUser).RequirePermissions("write")
+router.POST("/users", createUser).RequirePermission("write")
 
 // Combine roles and permissions
 router.DELETE("/users/{id}", deleteUser).
     RequireRoles("admin", "moderator").
-    RequirePermissions("delete")
+    RequirePermission("delete")
 ```
 
 ## Compression Middleware
@@ -124,7 +133,7 @@ mux.UseCompression(router)
 
 ### Usage Example
 ```go
-router.UseCompression()
+mux.UseCompression(router)
 
 router.GET("/api/data", func(c mux.RouteContext) {
     // Large JSON response will be automatically compressed
@@ -203,8 +212,8 @@ router.POST("/api/upload", uploadHandler).
 ### Advanced Configuration
 ```go
 // Create rate limiter with custom cleanup interval
-rateLimiter := mux.NewSelectiveRateLimiter(
-    mux.WithCleanupInterval(5 * time.Minute),
+rateLimiter := mux.NewRateLimiter(
+    mux.WithRateLimitCleanupInterval(5 * time.Minute),
 )
 
 // Use the custom rate limiter
@@ -232,7 +241,7 @@ mux.UseEnforceHTTPS(router)
 
 ### Example
 ```go
-router.UseEnforceHTTPS()
+mux.UseEnforceHTTPS(router)
 
 // All routes now require HTTPS
 router.GET("/api/secure", secureHandler)
@@ -286,7 +295,7 @@ defer geoipDB.Close()
 
 // Add export control middleware
 mux.UseExportControl(router,
-    mux.WithGeoIPDatabase(geoipDB),
+    mux.WithExportControlGeoIPDatabase(geoipDB),
 )
 ```
 
@@ -318,19 +327,19 @@ Provides distributed tracing and metrics collection using OpenTelemetry.
 ### Setup
 ```go
 mux.UseOpenTelemetry(router,
-    mux.WithOperation("my-api"),
+    mux.WithTelemetryOperation("my-api"),
 )
 ```
 
 ### Configuration Options
-- `WithOperation(name string)` - Sets the operation name for traces (default: "http.server")
+- `WithTelemetryOperation(name string)` - Sets the operation name for traces (default: "http.server")
 
 ### Default Route Tracing Behavior
 - Span name uses `METHOD + route pattern` when route metadata is available (example: `GET /users/{id}`)
 - Adds `http.route` with the resolved route pattern
 - Adds `http.request.method` with the HTTP method
 - Adds `mux.route.pattern` as a mux-specific route label
-- Falls back to `WithOperation(...)` (or `http.server`) when route metadata is unavailable
+- Falls back to `WithTelemetryOperation(...)` (or `http.server`) when route metadata is unavailable
 
 ### Features
 - **Automatic span creation**: Creates spans for each HTTP request
@@ -364,35 +373,34 @@ func main() {
     otel.SetTracerProvider(tp)
     
     // Add OpenTelemetry middleware
-    router.UseOpenTelemetry()
+    mux.UseOpenTelemetry(router)
 }
 ```
 
-## Service Locator Middleware
+## Scoped Services
 
-Provides dependency injection for services, making them available to route handlers.
+Register services explicitly when middleware and handlers need shared collaborators.
 
 ### Setup
 ```go
-mux.UseServices(router,
-    mux.WithService("db", databaseConnection),
-    mux.WithService("cache", redisClient),
-    mux.WithService("logger", logger),
-)
+router.Services().
+    Register(mux.ServiceKey("db"), databaseConnection).
+    Register(mux.ServiceKey("cache"), redisClient).
+    Register(mux.ServiceKey("logger"), logger)
 ```
 
 ### Using Services in Handlers
 ```go
 func getUserHandler(c mux.RouteContext) {
     // Retrieve services from context
-    db, ok := c.GetService("db")
+    db, ok := c.Services().Get(mux.ServiceKey("db"))
     if !ok {
         c.ServerError("Database unavailable", "")
         return
     }
     
-    cache, _ := c.GetService("cache")
-    logger, _ := c.GetService("logger")
+    cache, _ := c.Services().Get(mux.ServiceKey("cache"))
+    logger, _ := c.Services().Get(mux.ServiceKey("logger"))
     
     // Use services
     user := db.(*sql.DB).QueryRow("SELECT * FROM users WHERE id = ?", userID)
@@ -411,9 +419,9 @@ type Services struct {
 }
 
 func getServicesFromContext(c mux.RouteContext) *Services {
-    db, _ := c.GetService("db")
-    cache, _ := c.GetService("cache") 
-    logger, _ := c.GetService("logger")
+    db, _ := c.Services().Get(mux.ServiceKey("db"))
+    cache, _ := c.Services().Get(mux.ServiceKey("cache")) 
+    logger, _ := c.Services().Get(mux.ServiceKey("logger"))
     
     return &Services{
         DB:     db.(*sql.DB),
@@ -432,20 +440,20 @@ The order in which middleware is added matters. Here's the recommended order:
 mux.UseForwardedHeaders(router)    // Parse proxy headers
 mux.UseLogging(router)             // Log all requests
 
-// 2. Security middleware  
+// 2. Security middleware
 mux.UseEnforceHTTPS(router)        // Force HTTPS
-mux.UseExportControl(...)    // Geographic restrictions
+mux.UseExportControl(router, ...)  // Geographic restrictions
 
 // 3. Application middleware
 mux.UseCompression(router)         // Compress responses
 mux.UseOpenTelemetry(router)       // Tracing and metrics
 
 // 4. Authentication & Authorization
-mux.UseAuthentication(...)   // Authenticate users
+mux.UseAuthentication(router, ...) // Authenticate users
 mux.UseAuthorization(router, ...)    // Authorize access
 
 // 5. Application services
-router.UseServices(...)         // Dependency injection
+router.Services().Register(...) // Shared collaborators
 
 // 6. Rate limiting (per route)
 // Applied individually to routes as needed
@@ -496,7 +504,7 @@ type CustomMiddleware struct {
     options *CustomOptions
 }
 
-func (m *CustomMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
+func (m *CustomMiddleware) Invoke(c mux.MutableRouteContext, next mux.HandlerFunc) {
     // Pre-processing
     
     next(c) // Always call next
@@ -522,3 +530,5 @@ Monitor your application's performance and adjust middleware configuration as ne
 - [Router](router.md) - Routing fundamentals
 - [Best Practices](best-practices.md) - Patterns and conventions
 - [WebServer](webserver.md) - Production server setup
+
+

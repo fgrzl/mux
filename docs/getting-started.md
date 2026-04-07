@@ -1,14 +1,15 @@
 # Getting Started with Mux
 
 Welcome! This guide will get you from zero to a working API in minutes.
+Mux is designed as a fast, batteries-included framework, so the path here starts with its integrated router, server lifecycle, and response helpers instead of assembling separate packages.
 
-## 📋 Prerequisites
+## Prerequisites
 
-- **Go 1.24.4 or later** - [Download here](https://go.lang.org/dl/)
+- **Go 1.25.6 or later** - [Download here](https://go.lang.org/dl/)
 - **Basic Go knowledge** - Understand functions, structs, and packages
 - **A code editor** - VS Code, GoLand, or your favorite editor
 
-## ⚡ Quick Start (5 Minutes)
+## Quick Start (5 Minutes)
 
 ### 1. Install Mux
 
@@ -30,28 +31,42 @@ Create `main.go`:
 package main
 
 import (
-    "net/http"
+    "context"
+    "os"
+    "os/signal"
+    "syscall"
+
     "github.com/fgrzl/mux"
 )
 
 func main() {
     router := mux.NewRouter()
-    
-    router.GET("/", func(c mux.RouteContext) {
-        c.OK(map[string]string{
-            "message": "Welcome to my API!",
-            "status":  "running",
+
+    if err := router.Configure(func(router *mux.Router) {
+        router.GET("/", func(c mux.RouteContext) {
+            c.OK(map[string]string{
+                "message": "Welcome to my API!",
+                "status":  "running",
+            })
         })
-    })
-    
-    http.ListenAndServe(":8080", router)
+    }); err != nil {
+        panic(err)
+    }
+
+    ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer stop()
+
+    server := mux.NewServer(":8080", router)
+    if err := server.Listen(ctx); err != nil {
+        panic(err)
+    }
 }
 ```
 
 ### 3. Run It!
 
 ```bash
-go run main.go
+go run .
 ```
 
 ### 4. Test It!
@@ -68,16 +83,16 @@ curl http://localhost:8080/
 }
 ```
 
-✅ **Congratulations!** You have a working API!
+**Congratulations!** You have a working API!
 
 ---
 
-## 🎯 What's Next?
+## What's Next?
 
 Choose your own adventure:
 
 ### Option 1: Learn by Doing (Recommended)
-**→ [Interactive Tutorial](interactive-tutorial.md)** - Build a complete Todo API in 30 minutes
+**[Interactive Tutorial](interactive-tutorial.md)** - Build a complete Todo API in 30 minutes
 
 This hands-on tutorial will teach you:
 - CRUD operations
@@ -87,7 +102,7 @@ This hands-on tutorial will teach you:
 - OpenAPI documentation
 
 ### Option 2: Structured Learning
-**→ [Learning Path](learning-path.md)** - Progressive 8-level course
+**[Learning Path](learning-path.md)** - Progressive 8-level course
 
 Start at your level:
 - **Beginner**: Levels 1-3 (basic routing and parameters)
@@ -95,39 +110,39 @@ Start at your level:
 - **Advanced**: Levels 7-8 (error handling, production)
 
 ### Option 3: Copy & Paste
-**→ [Cheat Sheet](cheat-sheet.md)** - Quick reference for common patterns
+**[Cheat Sheet](cheat-sheet.md)** - Quick reference for common patterns
 
 Perfect for experienced developers who just need syntax examples.
 
 ### Option 4: See Complete Examples
-**→ [Examples Directory](../examples/)** - Working applications
+**[Examples Directory](../examples/)** - Working applications
 
 - **hello-world**: Minimal example
 - **todo-api**: Full CRUD API with OpenAPI docs
 
 ---
 
-## 🧭 Roadmap
+## Roadmap
 
 Here's a typical learning progression:
 
 ```
 Day 1: Hello World + Basic Routes (30 min)
-  ↓
+  |
 Day 2: JSON APIs + Path Parameters (1 hour)
-  ↓
+  |
 Day 3: Middleware + Authentication (1 hour)
-  ↓
+  |
 Day 4: OpenAPI Documentation (30 min)
-  ↓
+  |
 Day 5: Production Deployment (1 hour)
 ```
 
-**Total investment: ~4-5 hours to full proficiency** 🚀
+**Total investment: ~4-5 hours to full proficiency**
 
 ---
 
-## 📖 Core Concepts
+## Core Concepts
 
 Before diving deeper, understand these key concepts:
 
@@ -146,7 +161,7 @@ Every handler receives a `RouteContext` with request data and response helpers:
 ```go
 func myHandler(c mux.RouteContext) {
     // Read request
-    name, _ := c.Param("name")
+    name, _ := c.Params().String("name")
     
     // Send response
     c.OK(map[string]string{"hello": name})
@@ -161,7 +176,7 @@ Middleware runs before handlers to add cross-cutting functionality:
 mux.UseLogging(router)
 
 // Add authentication to specific routes
-api := router.NewRouteGroup("/api")
+api := router.Group("/api")
 api.Use(authMiddleware)
 ```
 
@@ -169,10 +184,10 @@ api.Use(authMiddleware)
 Organize related routes with shared configuration:
 
 ```go
-api := router.NewRouteGroup("/api/v1")
+api := router.Group("/api/v1")
 api.WithTags("API v1")
 
-users := api.NewRouteGroup("/users")
+users := api.Group("/users")
 users.GET("/", listUsers)
 users.POST("/", createUser)
 // Results in: /api/v1/users
@@ -184,17 +199,25 @@ Production-ready server with graceful shutdown and TLS:
 ```go
 import (
     "context"
+    "os"
     "os/signal"
+    "syscall"
+
     "github.com/fgrzl/mux"
 )
 
 router := mux.NewRouter()
+
+if err := router.Configure(func(router *mux.Router) {
+    // Register routes and groups here.
+}); err != nil { panic(err) }
+
 server := mux.NewServer(":8080", router)
 
-ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 defer cancel()
 
-server.Listen(ctx)  // Graceful shutdown on Ctrl+C
+if err := server.Listen(ctx); err != nil { panic(err) }
 ```
 
 **Features**:
@@ -205,7 +228,7 @@ server.Listen(ctx)  // Graceful shutdown on Ctrl+C
 
 ---
 
-## 🔑 Common Patterns
+## Common Patterns
 
 ### Pattern 1: JSON API
 
@@ -231,7 +254,7 @@ router.POST("/users", func(c mux.RouteContext) {
 
 ```go
 router.GET("/users/{id}", func(c mux.RouteContext) {
-    id, ok := c.Param("id")
+    id, ok := c.Params().String("id")
     if !ok {
         c.BadRequest("Missing parameter", "id is required")
         return
@@ -246,8 +269,8 @@ router.GET("/users/{id}", func(c mux.RouteContext) {
 
 ```go
 router.GET("/search", func(c mux.RouteContext) {
-    query := c.Params()["q"]
-    limit, _ := c.ParamInt("limit")
+    query, _ := c.Query().String("q")
+    limit, _ := c.Query().Int("limit")
     
     results := search(query, limit)
     c.OK(results)
@@ -258,7 +281,7 @@ router.GET("/search", func(c mux.RouteContext) {
 
 ```go
 router.GET("/users/{id}", func(c mux.RouteContext) {
-    id, _ := c.Param("id")
+    id, _ := c.Params().String("id")
     
     user, err := fetchUser(id)
     if err == ErrNotFound {
@@ -266,7 +289,7 @@ router.GET("/users/{id}", func(c mux.RouteContext) {
         return
     }
     if err != nil {
-        c.InternalServerError("Database error", err.Error())
+        c.ServerError("Database error", err.Error())
         return
     }
     
@@ -291,7 +314,7 @@ router.ReadyzWithCheck(func(c mux.RouteContext) bool {
 
 ---
 
-## 🛠️ Development Workflow
+## Development Workflow
 
 ### 1. Local Development
 
@@ -301,7 +324,7 @@ go install github.com/cosmtrek/air@latest
 air
 
 # Or run manually
-go run main.go
+go run .
 ```
 
 ### 2. Testing
@@ -345,7 +368,7 @@ docker run -p 8080:8080 myapi
 
 ---
 
-## 🆘 Troubleshooting
+## Troubleshooting
 
 ### "cannot find package"
 
@@ -364,7 +387,7 @@ go get github.com/fgrzl/mux
 **Solutions:**
 - Check HTTP method matches (GET vs POST)
 - Verify path exactly matches (case-sensitive)
-- Ensure router is passed to `http.ListenAndServe`
+- Ensure your `mux.Router` is the handler passed to `mux.NewServer(...)` or a custom `http.Server`
 
 ### "Invalid JSON" errors
 
@@ -386,7 +409,7 @@ go get github.com/fgrzl/mux
 
 ---
 
-## 📚 Next Steps
+## Next Steps
 
 You're ready to build! Here are your best next steps:
 
@@ -407,7 +430,7 @@ You're ready to build! Here are your best next steps:
 
 ---
 
-## 🎓 Learning Resources Summary
+## Learning Resources Summary
 
 | Resource | Best For | Time |
 |----------|----------|------|
@@ -419,16 +442,16 @@ You're ready to build! Here are your best next steps:
 
 ---
 
-## 💬 Get Help
+## Get Help
 
-- **📖 Documentation**: Check the [docs](.) directory
-- **🐛 Issues**: [GitHub Issues](https://github.com/fgrzl/mux/issues)
-- **💡 Examples**: Browse [examples](../examples/)
-- **📦 API Reference**: [pkg.go.dev](https://pkg.go.dev/github.com/fgrzl/mux)
+- **Documentation**: Check the [docs](.) directory
+- **Issues**: [GitHub Issues](https://github.com/fgrzl/mux/issues)
+- **Examples**: Browse [examples](../examples/)
+- **API Reference**: [pkg.go.dev](https://pkg.go.dev/github.com/fgrzl/mux)
 
 ---
 
-## ✨ Pro Tips
+## Pro Tips
 
 1. **Use route groups** - Organize routes logically and avoid repetition
 2. **Enable logging early** - `mux.UseLogging(router)` helps debugging
@@ -438,9 +461,9 @@ You're ready to build! Here are your best next steps:
 
 ---
 
-**Ready to build something amazing? Let's go! 🚀**
+**Ready to build something amazing? Let's go!**
 
-Start with the [Interactive Tutorial →](interactive-tutorial.md)
+Start with the [Interactive Tutorial](interactive-tutorial.md)
 
 ## See Also
 
@@ -450,3 +473,6 @@ Start with the [Interactive Tutorial →](interactive-tutorial.md)
 - [Cheat Sheet](cheat-sheet.md) - Quick reference guide
 - [Router](router.md) - Routing fundamentals
 - [Middleware](middleware.md) - Built-in middleware guide
+
+
+

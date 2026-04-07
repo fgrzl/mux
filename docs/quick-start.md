@@ -1,12 +1,12 @@
 # Quick Start
 
-Get up and running with Mux in under 5 minutes. This guide shows you the absolute minimum needed to create your first API.
+Get up and running with Mux in under 5 minutes. This guide shows the smallest useful slice of the framework using its default startup path.
 
 > **New to Mux?** This quick start gets you coding immediately. For a comprehensive tutorial, see the [Interactive Tutorial](interactive-tutorial.md).
 
 ## Prerequisites
 
-- Go 1.24.4 or later installed ([Download](https://go.lang.org/dl/))
+- Go 1.25.6 or later installed ([Download](https://go.lang.org/dl/))
 - Basic familiarity with Go
 
 ## Step 1: Create a New Project
@@ -26,26 +26,44 @@ Create `main.go`:
 package main
 
 import (
-    "net/http"
+    "context"
+    "os"
+    "os/signal"
+    "syscall"
+
     "github.com/fgrzl/mux"
 )
 
 func main() {
     router := mux.NewRouter()
-    
-    router.GET("/hello", func(c mux.RouteContext) {
-        c.OK("Hello, World!")
-    })
-    
-    http.ListenAndServe(":8080", router)
+
+    if err := router.Configure(func(router *mux.Router) {
+        router.GET("/hello", func(c mux.RouteContext) {
+            c.OK("Hello, World!")
+        })
+    }); err != nil {
+        panic(err)
+    }
+
+    ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer stop()
+
+    server := mux.NewServer(":8080", router)
+    if err := server.Listen(ctx); err != nil {
+        panic(err)
+    }
 }
 ```
+
+`Configure` is the recommended startup path: it runs route registration in non-panicking validation mode and returns configuration errors directly.
+
+If you are migrating existing `net/http` code, `Handle` and `HandleFunc` let you keep standard-library handlers and only opt into `mux.RouteContextFromRequest(r)` when you need route params, scoped services, or other framework features.
 
 ## Step 3: Run and Test
 
 ```bash
 # Run the server
-go run main.go
+go run .
 
 # In another terminal, test it
 curl http://localhost:8080/hello
@@ -53,49 +71,23 @@ curl http://localhost:8080/hello
 
 **Output:** `"Hello, World!"`
 
-🎉 **Congratulations!** You have a working API!
+**Congratulations!** You have a working API!
 
 ## What's Next?
 
 Choose your path:
 
 ### Learn by Doing
-**→ [Interactive Tutorial](interactive-tutorial.md)** - Build a complete Todo API in 30 minutes with validation, error handling, and OpenAPI documentation.
+**[Interactive Tutorial](interactive-tutorial.md)** - Build a complete Todo API in 30 minutes with validation, error handling, and OpenAPI documentation.
 
 ### Comprehensive Guide
-**→ [Getting Started](getting-started.md)** - Step-by-step guide covering all major features with examples.
+**[Getting Started](getting-started.md)** - Step-by-step guide covering all major features with examples.
 
 ### Quick Reference
-**→ [Cheat Sheet](cheat-sheet.md)** - Copy-paste examples for common patterns.
+**[Cheat Sheet](cheat-sheet.md)** - Copy-paste examples for common patterns.
 
 ### Structured Learning
-**→ [Learning Path](learning-path.md)** - Progressive 8-level course from beginner to advanced.
-
-## See Also
-
-- [Installation](installation.md) - Detailed setup and requirements
-- [Router](router.md) - Routing fundamentals and configuration
-- [Middleware](middleware.md) - Built-in middleware guide
-
-**Output:** `"Hello, World!"`
-
-🎉 **Congratulations!** You have a working API!
-
-## What's Next?
-
-Choose your path:
-
-### Learn by Doing
-**→ [Interactive Tutorial](interactive-tutorial.md)** - Build a complete Todo API in 30 minutes with validation, error handling, and OpenAPI documentation.
-
-### Comprehensive Guide
-**→ [Getting Started](getting-started.md)** - Step-by-step guide covering all major features with examples.
-
-### Quick Reference
-**→ [Cheat Sheet](cheat-sheet.md)** - Copy-paste examples for common patterns.
-
-### Structured Learning
-**→ [Learning Path](learning-path.md)** - Progressive 8-level course from beginner to advanced.
+**[Learning Path](learning-path.md)** - Progressive 8-level course from beginner to advanced.
 
 ## See Also
 
@@ -104,3 +96,5 @@ Choose your path:
 - [Middleware](middleware.md) - Built-in middleware guide
 
 Check out the other documentation files to learn about advanced features like authentication, custom middleware, and production deployment patterns.
+
+

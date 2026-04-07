@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fgrzl/mux/pkg/common"
+	"github.com/fgrzl/mux/internal/common"
 	"github.com/fgrzl/mux/test/testsupport"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

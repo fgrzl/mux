@@ -1,0 +1,363 @@
+[const]
+const HeaderAccept
+const HeaderAuthorization
+const HeaderContentType
+const HeaderLocation
+const HeaderRetryAfter
+const MimeJSON
+const MimeOpenAPI
+const MimeProblemJSON
+const MimeYAML
+const ServiceKeyTokenProvider
+
+[var]
+var DefaultProblem
+
+[func]
+func ClearCookieWithOptions(RouteContext, string, ...CookieOption)
+func GenerateSpecWithGenerator(*Generator, *Router) (*OpenAPISpec, error)
+func NewGenerator(...GeneratorOption) *Generator
+func NewInMemoryRateLimiter(int, time.Duration) func(string) bool
+func NewRateLimiter(...RateLimiterOption) *RateLimiter
+func NewRateLimiterWithContext(context.Context, ...RateLimiterOption) *RateLimiter
+func NewRouteContext(http.ResponseWriter, *http.Request) MutableRouteContext
+func NewRouter(...RouterOption) *Router
+func NewServer(string, *Router, ...WebServerOption) *WebServer
+func RouteContextFromRequest(*http.Request) (RouteContext, bool)
+func SignOutWithOptions(RouteContext, string, ...CookieOption)
+func UseAuthentication(*Router, ...AuthOption)
+func UseAuthenticationWithProvider(*Router, TokenProvider, ...AuthOption)
+func UseAuthorization(*Router, ...AuthorizationOption)
+func UseCORS(*Router, ...CORSOption)
+func UseCompression(*Router)
+func UseEnforceHTTPS(*Router)
+func UseExportControl(*Router, ...ExportControlOption)
+func UseForwardedHeaders(*Router, ...ForwardedHeadersOption)
+func UseLogging(*Router)
+func UseOpenTelemetry(*Router, ...OpenTelemetryOption)
+func UseRateLimiter(*Router, ...RateLimiterOption)
+func WithAuthAppSessionCookieName(string) AuthOption
+func WithAuthAudienceValidator(string) AuthOption
+func WithAuthCSRFProtection() AuthOption
+func WithAuthContextEnricher(func(context.Context, claims.Principal) context.Context) AuthOption
+func WithAuthIDPSessionCookieName(string) AuthOption
+func WithAuthIssuerValidator(string) AuthOption
+func WithAuthRateLimiter(func(string) bool) AuthOption
+func WithAuthTokenCreator(func(claims.Principal, time.Duration) (string, error)) AuthOption
+func WithAuthTokenRevocationChecker(func(string) bool) AuthOption
+func WithAuthTokenTTL(time.Duration) AuthOption
+func WithAuthTwoFactorCookieName(string) AuthOption
+func WithAuthValidator(func(string) (claims.Principal, error)) AuthOption
+func WithAuthorizationPermissionChecker(func(claims.Principal, []string) bool) AuthorizationOption
+func WithAuthorizationPermissions(...string) AuthorizationOption
+func WithAuthorizationRoleChecker(func(claims.Principal, []string) bool) AuthorizationOption
+func WithAuthorizationRoles(...string) AuthorizationOption
+func WithAuthorizationScopeChecker(func(claims.Principal, []string) bool) AuthorizationOption
+func WithAuthorizationScopes(...string) AuthorizationOption
+func WithCORSAllowedHeaders(...string) CORSOption
+func WithCORSAllowedMethods(...string) CORSOption
+func WithCORSAllowedOrigins(...string) CORSOption
+func WithCORSCredentials(bool) CORSOption
+func WithCORSExposeHeaders(...string) CORSOption
+func WithCORSMaxAge(int) CORSOption
+func WithCORSOriginWildcard(...string) CORSOption
+func WithClientURL(string) RouterOption
+func WithContact(string, string, string) RouterOption
+func WithContextPooling() RouterOption
+func WithCookieDomain(string) CookieOption
+func WithCookieHTTPOnly(bool) CookieOption
+func WithCookieMaxAge(int) CookieOption
+func WithCookiePath(string) CookieOption
+func WithCookieSameSite(http.SameSite) CookieOption
+func WithCookieSecure(bool) CookieOption
+func WithDescription(string) RouterOption
+func WithExportControlGeoIPDatabase(*geoip2.Reader) ExportControlOption
+func WithForwardedRespectHeader(bool) ForwardedHeadersOption
+func WithForwardedTrustAll() ForwardedHeadersOption
+func WithForwardedTrustedProxies(...string) ForwardedHeadersOption
+func WithHeadFallbackToGet() RouterOption
+func WithIdleTimeout(time.Duration) WebServerOption
+func WithLicense(string, string) RouterOption
+func WithMaxBodyBytes(int64) RouterOption
+func WithOpenAPIExamples() GeneratorOption
+func WithOpenAPIPathPrefix(string) GeneratorOption
+func WithRateLimitCleanupInterval(time.Duration) RateLimiterOption
+func WithReadTimeout(time.Duration) WebServerOption
+func WithSummary(string) RouterOption
+func WithTLS(string, string) WebServerOption
+func WithTLSDiscovery(string, string, string) WebServerOption
+func WithTelemetryOperation(string) OpenTelemetryOption
+func WithTermsOfService(string) RouterOption
+func WithTitle(string) RouterOption
+func WithVersion(string) RouterOption
+func WithWriteTimeout(time.Duration) WebServerOption
+
+[type]
+type AuthOption struct
+type AuthorizationOption struct
+type CORSOption struct
+type CookieAccessor struct
+type CookieOption struct
+type ExportControlOption struct
+type FormAccessor struct
+type ForwardedHeadersOption struct
+type Generator struct
+type GeneratorOption struct
+type HandlerFunc func(RouteContext)
+type HeaderAccessor struct
+type Middleware interface
+type MiddlewareFunc func(MutableRouteContext, HandlerFunc)
+type MutableRouteContext interface
+type OpenAPISpec struct
+type OpenTelemetryOption struct
+type ParamAccessor struct
+type ProblemDetails struct
+type QueryAccessor struct
+type RateLimiter struct
+type RateLimiterOption struct
+type RouteBuilder struct
+type RouteContext interface
+type RouteGroup struct
+type Router struct
+type RouterOption struct
+type SecurityRequirement map[string][]string
+type ServiceKey string
+type ServiceRegistry struct
+type TokenProvider interface
+type WebServer struct
+type WebServerOption func(*WebServer)
+
+[field]
+field ProblemDetails.Detail string
+field ProblemDetails.Instance *string
+field ProblemDetails.Status int
+field ProblemDetails.Title string
+field ProblemDetails.Type string
+
+[iface]
+iface Middleware.Invoke(MutableRouteContext, HandlerFunc)
+iface MutableRouteContext embed RouteContext
+iface MutableRouteContext.SetContextValue(any, any)
+iface MutableRouteContext.SetRequest(*http.Request)
+iface MutableRouteContext.SetResponse(http.ResponseWriter)
+iface MutableRouteContext.SetUser(claims.Principal)
+iface RouteContext embed context.Context
+iface RouteContext.Accepted(any)
+iface RouteContext.BadRequest(string, string)
+iface RouteContext.Bind(any) error
+iface RouteContext.Conflict(string, string)
+iface RouteContext.Cookies() *CookieAccessor
+iface RouteContext.Created(any)
+iface RouteContext.Download(string, string)
+iface RouteContext.File(string)
+iface RouteContext.Forbidden(string)
+iface RouteContext.Form() *FormAccessor
+iface RouteContext.Found(string)
+iface RouteContext.HTML(int, string)
+iface RouteContext.Headers() *HeaderAccessor
+iface RouteContext.JSON(int, any)
+iface RouteContext.MovedPermanently(string)
+iface RouteContext.NoContent()
+iface RouteContext.NotFound()
+iface RouteContext.OK(any)
+iface RouteContext.Params() *ParamAccessor
+iface RouteContext.PermanentRedirect(string)
+iface RouteContext.Plain(int, []byte)
+iface RouteContext.Problem(*ProblemDetails)
+iface RouteContext.Query() *QueryAccessor
+iface RouteContext.Redirect(int, string)
+iface RouteContext.Request() *http.Request
+iface RouteContext.Response() http.ResponseWriter
+iface RouteContext.SeeOther(string)
+iface RouteContext.ServerError(string, string)
+iface RouteContext.Services() *ServiceRegistry
+iface RouteContext.TemporaryRedirect(string)
+iface RouteContext.Unauthorized()
+iface RouteContext.User() claims.Principal
+iface TokenProvider.CanCreateTokens() bool
+iface TokenProvider.CreateToken(context.Context, claims.Principal) (string, error)
+iface TokenProvider.GetTTL() time.Duration
+iface TokenProvider.ValidateToken(context.Context, string) (claims.Principal, error)
+
+[method]
+method (*CookieAccessor) Authenticate(string, claims.Principal, ...CookieOption)
+method (*CookieAccessor) CSRFToken() string
+method (*CookieAccessor) CSRFTokenErr() (string, error)
+method (*CookieAccessor) Clear(string)
+method (*CookieAccessor) Get(string) (string, error)
+method (*CookieAccessor) Set(string, string, int, string, string, bool, bool, ...http.SameSite)
+method (*CookieAccessor) SignIn(claims.Principal, string, ...CookieOption)
+method (*CookieAccessor) SignOut(string)
+method (*FormAccessor) Bool(string) (bool, bool)
+method (*FormAccessor) Bools(string) ([]bool, bool)
+method (*FormAccessor) Float32(string) (float32, bool)
+method (*FormAccessor) Float32s(string) ([]float32, bool)
+method (*FormAccessor) Float64(string) (float64, bool)
+method (*FormAccessor) Float64s(string) ([]float64, bool)
+method (*FormAccessor) Int(string) (int, bool)
+method (*FormAccessor) Int16(string) (int16, bool)
+method (*FormAccessor) Int16s(string) ([]int16, bool)
+method (*FormAccessor) Int32(string) (int32, bool)
+method (*FormAccessor) Int32s(string) ([]int32, bool)
+method (*FormAccessor) Int64(string) (int64, bool)
+method (*FormAccessor) Int64s(string) ([]int64, bool)
+method (*FormAccessor) Ints(string) ([]int, bool)
+method (*FormAccessor) String(string) (string, bool)
+method (*FormAccessor) Strings(string) ([]string, bool)
+method (*FormAccessor) UUID(string) (uuid.UUID, bool)
+method (*FormAccessor) UUIDs(string) ([]uuid.UUID, bool)
+method (*HeaderAccessor) Bool(string) (bool, bool)
+method (*HeaderAccessor) Float64(string) (float64, bool)
+method (*HeaderAccessor) Int(string) (int, bool)
+method (*HeaderAccessor) String(string) (string, bool)
+method (*HeaderAccessor) UUID(string) (uuid.UUID, bool)
+method (*OpenAPISpec) MarshalJSON() ([]byte, error)
+method (*OpenAPISpec) MarshalToFile(string) error
+method (*OpenAPISpec) MarshalYAML() (any, error)
+method (*OpenAPISpec) Normalize() *OpenAPISpec
+method (*OpenAPISpec) UnmarshalFromFile(string) error
+method (*OpenAPISpec) UnmarshalJSON([]byte) error
+method (*OpenAPISpec) UnmarshalYAML(*yaml.Node) error
+method (*OpenAPISpec) Validate() error
+method (*ParamAccessor) Int(string) (int, bool)
+method (*ParamAccessor) Int16(string) (int16, bool)
+method (*ParamAccessor) Int32(string) (int32, bool)
+method (*ParamAccessor) Int64(string) (int64, bool)
+method (*ParamAccessor) String(string) (string, bool)
+method (*ParamAccessor) UUID(string) (uuid.UUID, bool)
+method (*QueryAccessor) Bool(string) (bool, bool)
+method (*QueryAccessor) Bools(string) ([]bool, bool)
+method (*QueryAccessor) Float32(string) (float32, bool)
+method (*QueryAccessor) Float32s(string) ([]float32, bool)
+method (*QueryAccessor) Float64(string) (float64, bool)
+method (*QueryAccessor) Float64s(string) ([]float64, bool)
+method (*QueryAccessor) GetRedirectURL(string) string
+method (*QueryAccessor) Int(string) (int, bool)
+method (*QueryAccessor) Int16(string) (int16, bool)
+method (*QueryAccessor) Int16s(string) ([]int16, bool)
+method (*QueryAccessor) Int32(string) (int32, bool)
+method (*QueryAccessor) Int32s(string) ([]int32, bool)
+method (*QueryAccessor) Int64(string) (int64, bool)
+method (*QueryAccessor) Int64s(string) ([]int64, bool)
+method (*QueryAccessor) Ints(string) ([]int, bool)
+method (*QueryAccessor) String(string) (string, bool)
+method (*QueryAccessor) Strings(string) ([]string, bool)
+method (*QueryAccessor) UUID(string) (uuid.UUID, bool)
+method (*QueryAccessor) UUIDs(string) ([]uuid.UUID, bool)
+method (*RateLimiter) Invoke(MutableRouteContext, HandlerFunc)
+method (*RateLimiter) Stop()
+method (*RouteBuilder) AllowAnonymous() *RouteBuilder
+method (*RouteBuilder) RequirePermission(...string) *RouteBuilder
+method (*RouteBuilder) RequireRoles(...string) *RouteBuilder
+method (*RouteBuilder) RequireScopes(...string) *RouteBuilder
+method (*RouteBuilder) Service(ServiceKey, any) *RouteBuilder
+method (*RouteBuilder) Services() *ServiceRegistry
+method (*RouteBuilder) Use(...Middleware) *RouteBuilder
+method (*RouteBuilder) WithAcceptedResponse(any) *RouteBuilder
+method (*RouteBuilder) WithAllOfJsonBody(...any) *RouteBuilder
+method (*RouteBuilder) WithAnyOfJsonBody(...any) *RouteBuilder
+method (*RouteBuilder) WithBadRequestResponse() *RouteBuilder
+method (*RouteBuilder) WithConflictResponse() *RouteBuilder
+method (*RouteBuilder) WithCookieParam(string, string, any) *RouteBuilder
+method (*RouteBuilder) WithCreatedResponse(any) *RouteBuilder
+method (*RouteBuilder) WithDeprecated() *RouteBuilder
+method (*RouteBuilder) WithDescription(string) *RouteBuilder
+method (*RouteBuilder) WithExternalDocs(string, string) *RouteBuilder
+method (*RouteBuilder) WithForbiddenResponse() *RouteBuilder
+method (*RouteBuilder) WithFormBody(any) *RouteBuilder
+method (*RouteBuilder) WithFoundResponse() *RouteBuilder
+method (*RouteBuilder) WithHeaderParam(string, string, any) *RouteBuilder
+method (*RouteBuilder) WithJsonBody(any) *RouteBuilder
+method (*RouteBuilder) WithMovedPermanentlyResponse() *RouteBuilder
+method (*RouteBuilder) WithMultipartBody(any) *RouteBuilder
+method (*RouteBuilder) WithNoContentResponse() *RouteBuilder
+method (*RouteBuilder) WithNotFoundResponse() *RouteBuilder
+method (*RouteBuilder) WithOKResponse(any) *RouteBuilder
+method (*RouteBuilder) WithOneOfJsonBody(...any) *RouteBuilder
+method (*RouteBuilder) WithOperationID(string) *RouteBuilder
+method (*RouteBuilder) WithPathParam(string, string, any) *RouteBuilder
+method (*RouteBuilder) WithPermanentRedirectResponse() *RouteBuilder
+method (*RouteBuilder) WithQueryParam(string, string, any) *RouteBuilder
+method (*RouteBuilder) WithRateLimit(int, time.Duration) *RouteBuilder
+method (*RouteBuilder) WithRequiredCookieParam(string, string, any) *RouteBuilder
+method (*RouteBuilder) WithRequiredHeaderParam(string, string, any) *RouteBuilder
+method (*RouteBuilder) WithRequiredQueryParam(string, string, any) *RouteBuilder
+method (*RouteBuilder) WithResponse(int, any) *RouteBuilder
+method (*RouteBuilder) WithSecurity(SecurityRequirement) *RouteBuilder
+method (*RouteBuilder) WithSeeOtherResponse() *RouteBuilder
+method (*RouteBuilder) WithStandardErrors() *RouteBuilder
+method (*RouteBuilder) WithSummary(string) *RouteBuilder
+method (*RouteBuilder) WithTags(...string) *RouteBuilder
+method (*RouteBuilder) WithTemporaryRedirectResponse() *RouteBuilder
+method (*RouteBuilder) WithUnauthorizedResponse() *RouteBuilder
+method (*RouteGroup) AllowAnonymous() *RouteGroup
+method (*RouteGroup) Configure(func(*RouteGroup)) error
+method (*RouteGroup) DELETE(string, HandlerFunc) *RouteBuilder
+method (*RouteGroup) Deprecated() *RouteGroup
+method (*RouteGroup) GET(string, HandlerFunc) *RouteBuilder
+method (*RouteGroup) Group(string) *RouteGroup
+method (*RouteGroup) HEAD(string, HandlerFunc) *RouteBuilder
+method (*RouteGroup) Handle(string, string, http.Handler) *RouteBuilder
+method (*RouteGroup) HandleFunc(string, string, http.HandlerFunc) *RouteBuilder
+method (*RouteGroup) Healthz() *RouteBuilder
+method (*RouteGroup) HealthzWithReady(func(RouteContext) bool) *RouteBuilder
+method (*RouteGroup) Livez() *RouteBuilder
+method (*RouteGroup) LivezWithCheck(func(RouteContext) bool) *RouteBuilder
+method (*RouteGroup) OPTIONS(string, HandlerFunc) *RouteBuilder
+method (*RouteGroup) PATCH(string, HandlerFunc) *RouteBuilder
+method (*RouteGroup) POST(string, HandlerFunc) *RouteBuilder
+method (*RouteGroup) PUT(string, HandlerFunc) *RouteBuilder
+method (*RouteGroup) Readyz() *RouteBuilder
+method (*RouteGroup) ReadyzWithCheck(func(RouteContext) bool) *RouteBuilder
+method (*RouteGroup) RequirePermission(...string) *RouteGroup
+method (*RouteGroup) RequireRoles(...string) *RouteGroup
+method (*RouteGroup) RequireScopes(...string) *RouteGroup
+method (*RouteGroup) Service(ServiceKey, any) *RouteGroup
+method (*RouteGroup) Services() *ServiceRegistry
+method (*RouteGroup) Startupz() *RouteBuilder
+method (*RouteGroup) StartupzWithCheck(func(RouteContext) bool) *RouteBuilder
+method (*RouteGroup) StaticFallback(string, string, string) *RouteBuilder
+method (*RouteGroup) TRACE(string, HandlerFunc) *RouteBuilder
+method (*RouteGroup) Use(...Middleware) *RouteGroup
+method (*RouteGroup) WithCookieParam(string, string, any) *RouteGroup
+method (*RouteGroup) WithDescription(string) *RouteGroup
+method (*RouteGroup) WithHeaderParam(string, string, any) *RouteGroup
+method (*RouteGroup) WithPathParam(string, string, any) *RouteGroup
+method (*RouteGroup) WithQueryParam(string, string, any) *RouteGroup
+method (*RouteGroup) WithRequiredCookieParam(string, string, any) *RouteGroup
+method (*RouteGroup) WithRequiredHeaderParam(string, string, any) *RouteGroup
+method (*RouteGroup) WithRequiredQueryParam(string, string, any) *RouteGroup
+method (*RouteGroup) WithSecurity(SecurityRequirement) *RouteGroup
+method (*RouteGroup) WithSummary(string) *RouteGroup
+method (*RouteGroup) WithTags(...string) *RouteGroup
+method (*Router) Configure(func(*Router)) error
+method (*Router) DELETE(string, HandlerFunc) *RouteBuilder
+method (*Router) GET(string, HandlerFunc) *RouteBuilder
+method (*Router) Group(string) *RouteGroup
+method (*Router) HEAD(string, HandlerFunc) *RouteBuilder
+method (*Router) Handle(string, string, http.Handler) *RouteBuilder
+method (*Router) HandleFunc(string, string, http.HandlerFunc) *RouteBuilder
+method (*Router) Healthz() *RouteBuilder
+method (*Router) HealthzWithReady(func(RouteContext) bool) *RouteBuilder
+method (*Router) Livez() *RouteBuilder
+method (*Router) LivezWithCheck(func(RouteContext) bool) *RouteBuilder
+method (*Router) OPTIONS(string, HandlerFunc) *RouteBuilder
+method (*Router) PATCH(string, HandlerFunc) *RouteBuilder
+method (*Router) POST(string, HandlerFunc) *RouteBuilder
+method (*Router) PUT(string, HandlerFunc) *RouteBuilder
+method (*Router) Readyz() *RouteBuilder
+method (*Router) ReadyzWithCheck(func(RouteContext) bool) *RouteBuilder
+method (*Router) ServeHTTP(http.ResponseWriter, *http.Request)
+method (*Router) Service(ServiceKey, any) *Router
+method (*Router) Services() *ServiceRegistry
+method (*Router) Startupz() *RouteBuilder
+method (*Router) StartupzWithCheck(func(RouteContext) bool) *RouteBuilder
+method (*Router) StaticFallback(string, string, string) *RouteBuilder
+method (*Router) TRACE(string, HandlerFunc) *RouteBuilder
+method (*Router) Use(...Middleware) *Router
+method (*ServiceRegistry) Get(ServiceKey) (any, bool)
+method (*ServiceRegistry) Register(ServiceKey, any) *ServiceRegistry
+method (*WebServer) Listen(context.Context) error
+method (*WebServer) Start(context.Context) error
+method (*WebServer) Stop(context.Context) error
+method (MiddlewareFunc) Invoke(MutableRouteContext, HandlerFunc)

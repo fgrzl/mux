@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fgrzl/mux/pkg/common"
+	"github.com/fgrzl/mux/internal/common"
 	"github.com/fgrzl/mux/test/testsupport"
 )
 
@@ -45,11 +45,11 @@ func BenchmarkLatencyDistribution(b *testing.B) {
 		p99 := latencies[int(float64(samples)*0.99)]
 		pMax := latencies[samples-1]
 
-		b.ReportMetric(float64(p50.Microseconds()), fmt.Sprintf("%s_p50_µs", name))
-		b.ReportMetric(float64(p90.Microseconds()), fmt.Sprintf("%s_p90_µs", name))
-		b.ReportMetric(float64(p95.Microseconds()), fmt.Sprintf("%s_p95_µs", name))
-		b.ReportMetric(float64(p99.Microseconds()), fmt.Sprintf("%s_p99_µs", name))
-		b.ReportMetric(float64(pMax.Microseconds()), fmt.Sprintf("%s_max_µs", name))
+		b.ReportMetric(float64(p50.Microseconds()), fmt.Sprintf("%s_p50_us", name))
+		b.ReportMetric(float64(p90.Microseconds()), fmt.Sprintf("%s_p90_us", name))
+		b.ReportMetric(float64(p95.Microseconds()), fmt.Sprintf("%s_p95_us", name))
+		b.ReportMetric(float64(p99.Microseconds()), fmt.Sprintf("%s_p99_us", name))
+		b.ReportMetric(float64(pMax.Microseconds()), fmt.Sprintf("%s_max_us", name))
 	}
 
 	b.Run("GET/Resource", func(b *testing.B) {

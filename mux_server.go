@@ -9,8 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-
-	"github.com/fgrzl/mux/pkg/router"
 )
 
 const errInvalidTLSFiles = "invalid TLS cert/key files"
@@ -21,7 +19,7 @@ type WebServerOption func(*WebServer)
 // WebServer wraps an http.Server and a custom Router, providing methods for starting and stopping the server.
 type WebServer struct {
 	srv      *http.Server
-	rtr      *router.Router
+	rtr      *Router
 	certFile string
 	keyFile  string
 }
@@ -82,7 +80,7 @@ func WithTLSDiscovery(certsDir, certFile, keyFile string) WebServerOption {
 }
 
 // NewServer creates a new WebServer with the given address, router, and optional configuration options.
-func NewServer(addr string, rtr *router.Router, opts ...WebServerOption) *WebServer {
+func NewServer(addr string, rtr *Router, opts ...WebServerOption) *WebServer {
 	srv := &http.Server{
 		Addr:         addr,
 		Handler:      rtr,
@@ -100,59 +98,26 @@ func NewServer(addr string, rtr *router.Router, opts ...WebServerOption) *WebSer
 // Start begins serving in the background and returns immediately.
 // Shutdown will be triggered when ctx is canceled.
 func (ws *WebServer) Start(ctx context.Context) error {
-	if err := ws.validateAddr(); err != nil {
-		return err
-	}
-
-	// If TLS is configured, validate files early so Start can fail fast.
-	if ws.hasTLS() && !ws.validateTLSFiles() {
-		return errors.New(errInvalidTLSFiles)
-	}
-
-	// Create and bind the listener before returning so callers know the server
-	// is ready to accept connections. Use net.Listen to allocate the socket.
-	ln, err := net.Listen("tcp", ws.srv.Addr)
+	ln, err := ws.prepareListener()
 	if err != nil {
 		return err
 	}
 
-	// Run the server using the already-bound listener. run will take
-	// ownership of the listener and close it during shutdown.
-	go ws.run(ctx, nil, ln)
+	go func() {
+		if err := ws.run(ctx, ln); err != nil {
+			slog.ErrorContext(ctx, "HTTP server error", "error", err)
+		}
+	}()
 	return nil
 }
 
 // Listen blocks until ctx is canceled or the server exits unexpectedly.
 func (ws *WebServer) Listen(ctx context.Context) error {
-	if err := ws.validateAddr(); err != nil {
-		return err
-	}
-	// Bind listener first so we can serve from it and still return errors
-	// from the run goroutine.
-	if ws.hasTLS() && !ws.validateTLSFiles() {
-		return errors.New(errInvalidTLSFiles)
-	}
-
-	ln, err := net.Listen("tcp", ws.srv.Addr)
+	ln, err := ws.prepareListener()
 	if err != nil {
 		return err
 	}
-
-	errCh := make(chan error, 1)
-	done := make(chan struct{})
-	go func() { ws.run(ctx, errCh, ln); close(done) }()
-
-	select {
-	case err := <-errCh:
-		<-done // ensure run finishes
-		return err
-	case <-ctx.Done():
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		_ = ws.Stop(shutdownCtx)
-		<-done
-		return nil
-	}
+	return ws.run(ctx, ln)
 }
 
 // Stop shuts down the HTTP server gracefully using the provided context.
@@ -171,6 +136,16 @@ func (ws *WebServer) hasTLS() bool {
 	return ws.certFile != "" && ws.keyFile != ""
 }
 
+func (ws *WebServer) prepareListener() (net.Listener, error) {
+	if err := ws.validateAddr(); err != nil {
+		return nil, err
+	}
+	if ws.hasTLS() && !ws.validateTLSFiles() {
+		return nil, errors.New(errInvalidTLSFiles)
+	}
+	return net.Listen("tcp", ws.srv.Addr)
+}
+
 func (ws *WebServer) validateTLSFiles() bool {
 	if _, err := os.Stat(ws.certFile); err != nil {
 		slog.Error("TLS cert file not found", "path", ws.certFile, "error", err)
@@ -183,16 +158,6 @@ func (ws *WebServer) validateTLSFiles() bool {
 	return true
 }
 
-// getListenerFromContext attempts to retrieve a listener from the context (legacy support).
-func (ws *WebServer) getListenerFromContext(ctx context.Context) net.Listener {
-	if v := ctx.Value("listener"); v != nil {
-		if l, ok := v.(net.Listener); ok {
-			return l
-		}
-	}
-	return nil
-}
-
 // startServerWithListener starts the server using a pre-bound listener.
 func (ws *WebServer) startServerWithListener(ctx context.Context, ln net.Listener) error {
 	if ws.hasTLS() {
@@ -203,70 +168,35 @@ func (ws *WebServer) startServerWithListener(ctx context.Context, ln net.Listene
 	return ws.srv.Serve(ln)
 }
 
-// startServerWithoutListener starts the server by creating a new listener.
-func (ws *WebServer) startServerWithoutListener(ctx context.Context) error {
-	if ws.hasTLS() {
-		if !ws.validateTLSFiles() {
-			return errors.New(errInvalidTLSFiles)
-		}
-		slog.InfoContext(ctx, "Starting HTTPS server", "addr", ws.srv.Addr, "cert", ws.certFile, "key", ws.keyFile)
-		return ws.srv.ListenAndServeTLS(ws.certFile, ws.keyFile)
-	}
-	slog.InfoContext(ctx, "Starting HTTP server", "addr", ws.srv.Addr)
-	return ws.srv.ListenAndServe()
-}
-
-// handleServerShutdown gracefully shuts down the server when context is canceled.
-func (ws *WebServer) handleServerShutdown(ctx context.Context, srvDone <-chan error) {
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	if err := ws.Stop(shutdownCtx); err != nil {
-		slog.ErrorContext(ctx, "Error during server shutdown", "error", err)
-	}
-	// Ensure the server goroutine exits before returning
-	<-srvDone
-	slog.InfoContext(ctx, "Server shutdown complete")
-}
-
-// handleServerError processes server errors and sends them to errCh if available.
-func (ws *WebServer) handleServerError(ctx context.Context, err error, errCh chan<- error) {
-	if err != nil && err != http.ErrServerClosed {
-		if errCh != nil {
-			errCh <- err
-		} else {
-			slog.ErrorContext(ctx, "HTTP server error", "error", err)
-		}
-	}
-}
-
 // run manages the server lifecycle: start serving, log errors, shutdown on ctx cancel.
-func (ws *WebServer) run(ctx context.Context, errCh chan<- error, ln net.Listener) {
-	// Accept an optional listener so Start/Listen can create the bound
-	// socket before calling run. If no listener was provided, try to
-	// retrieve one from the context (legacy/private contract) as a
-	// fallback.
-	if ln == nil {
-		ln = ws.getListenerFromContext(ctx)
-	}
-
+func (ws *WebServer) run(ctx context.Context, ln net.Listener) error {
 	srvDone := make(chan error, 1)
 
-	// Start server in background
 	go func() {
-		var err error
-		if ln != nil {
-			err = ws.startServerWithListener(ctx, ln)
-		} else {
-			err = ws.startServerWithoutListener(ctx)
-		}
-		srvDone <- err
+		srvDone <- ws.startServerWithListener(ctx, ln)
 	}()
 
-	// Wait for context cancellation or server error
 	select {
-	case <-ctx.Done():
-		ws.handleServerShutdown(ctx, srvDone)
 	case err := <-srvDone:
-		ws.handleServerError(ctx, err, errCh)
+		return normalizeServerError(err)
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		shutdownErr := normalizeServerError(ws.Stop(shutdownCtx))
+		serveErr := normalizeServerError(<-srvDone)
+		if shutdownErr != nil && serveErr != nil {
+			return errors.Join(shutdownErr, serveErr)
+		}
+		if serveErr != nil {
+			return serveErr
+		}
+		return shutdownErr
 	}
+}
+
+func normalizeServerError(err error) error {
+	if err == nil || errors.Is(err, http.ErrServerClosed) {
+		return nil
+	}
+	return err
 }

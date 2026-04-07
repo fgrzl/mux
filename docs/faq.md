@@ -1,18 +1,17 @@
 # Frequently Asked Questions (FAQ)
 
-This document answers common questions about using Mux for building HTTP APIs in Go.
+This document answers common questions about using Mux to build APIs in Go.
 
 ## General Questions
 
-### Q: What is Mux and how is it different from other Go routers?
+### Q: What is Mux?
 
-**A:** Mux is a lightweight, modular HTTP router for Go designed specifically for building modern APIs. Key differences:
+**A:** Mux is a fast, batteries-included HTTP framework for Go built for modern APIs. Its core goals are:
 
-- **API-first approach**: Built-in OpenAPI 3.1 generation without code generation
-- **Type-safe parameter binding**: Automatic conversion and validation of parameters
-- **Structured responses**: Built-in helpers for consistent error responses (RFC 7807)
-- **Modular middleware**: Comprehensive set of built-in middleware with functional options
-- **Request binding**: Automatic data collection from multiple sources (path, query, body)
+- **Keep the stack cohesive**: routing, binding, structured errors, middleware, auth/authz, and generated OpenAPI live in one API
+- **Stay fast without becoming bare-bones**: performance matters, but the framework is designed to remove assembly work, not just win router shootouts
+- **Make behavior explicit**: middleware order, request lifecycle, and error handling are deliberate rather than implicit
+- **Remain stdlib-friendly**: existing `net/http` handlers can keep working while you adopt more of the framework where it helps
 
 ### Q: Is Mux production-ready?
 
@@ -25,7 +24,7 @@ This document answers common questions about using Mux for building HTTP APIs in
 
 ### Q: What's the minimum Go version requirement?
 
-**A:** Mux requires **Go 1.24.4** or later to take advantage of the latest language features and security updates.
+**A:** Mux requires **Go 1.25.6** or later to match the version declared in `go.mod` and to take advantage of the latest language features and security updates.
 
 ## Installation and Setup
 
@@ -38,11 +37,11 @@ go get github.com/fgrzl/mux
 
 ### Q: Can I use Mux with existing Go HTTP code?
 
-**A:** Yes! Mux implements the standard `http.Handler` interface, so it works seamlessly with existing HTTP servers, middleware, and tools:
+**A:** Yes. Mux implements the standard `http.Handler` interface, so it works with custom `http.Server` instances, middleware chains, and tooling. The recommended default is still `mux.NewServer(...)`:
 
 ```go
-// Works with standard library
-http.ListenAndServe(":8080", router)
+// Recommended default
+server := mux.NewServer(":8080", router)
 
 // Works with custom servers
 server := &http.Server{
@@ -51,31 +50,26 @@ server := &http.Server{
 }
 ```
 
-### Q: How do I migrate from other routers?
+### Q: How do I migrate an existing API to Mux?
 
-**A:** Migration is typically straightforward:
+**A:** Migrate in layers rather than rewriting everything at once:
 
-**From Gorilla Mux:**
+1. Start by registering routes with `router.GET`, `router.POST`, `router.Handle`, or `router.HandleFunc`.
+2. Move shared concerns into built-in middleware where it simplifies your stack.
+3. Replace manual request parsing with `Bind()` and the typed query/form/param helpers.
+4. Add OpenAPI metadata incrementally as routes settle.
+
 ```go
-// Gorilla Mux
-r := mux.NewRouter()
-r.HandleFunc("/users/{id}", getUserHandler).Methods(http.MethodGet)
-
-// Mux
 router := mux.NewRouter()
-router.GET("/users/{id}", getUserHandler)
+
+router.HandleFunc(http.MethodGet, "/healthz", healthHandler)
+router.GET("/users/{id}", getUser)
+router.POST("/users", createUser).
+	WithJsonBody(CreateUserRequest{}).
+	WithCreatedResponse(User{})
 ```
 
-**From Chi:**
-```go
-// Chi
-r := chi.NewRouter()
-r.Get("/users/{id}", getUserHandler)
-
-// Mux
-router := mux.NewRouter()
-router.GET("/users/{id}", getUserHandler)
-```
+This keeps existing `net/http` handlers working while you adopt more of Mux where it is useful.
 
 ## Routing and Parameters
 
@@ -94,7 +88,7 @@ router.DELETE("/users/{id}", deleteUser)
 
 ```go
 router.GET("/files/{path}", func(c mux.RouteContext) {
-    path, _ := c.ParamValue("path")
+	path, _ := c.Params().String("path")
     // Handle complex path logic here
     if matched, _ := regexp.MatchString(`\.jpg$`, path); matched {
         // Handle image files
@@ -104,24 +98,26 @@ router.GET("/files/{path}", func(c mux.RouteContext) {
 
 ### Q: How do I access query parameters?
 
-**A:** Use the type-safe query parameter helpers:
+**A:** Use the typed query accessors:
 ```go
 func handler(c mux.RouteContext) {
-    // String values
-    search, _ := c.QueryValue("q")
-    
-    // Numeric values
-    page, _ := c.QueryInt("page")
-    limit, _ := c.QueryInt("limit")
-    
-    // Boolean values
-    includeDeleted, _ := c.QueryBool("include_deleted")
-    
-    // UUID values
-    userID, ok := c.QueryUUID("user_id")
-    
-    // Multiple values
-    tags, _ := c.QueryValues("tags")
+	query := c.Query()
+
+	// String values
+	search, _ := query.String("q")
+
+	// Numeric values
+	page, _ := query.Int("page")
+	limit, _ := query.Int("limit")
+
+	// Boolean values
+	includeDeleted, _ := query.Bool("include_deleted")
+
+	// UUID values
+	userID, ok := query.UUID("user_id")
+
+	// Repeated values: ?tag=api&tag=admin
+	tags, _ := query.Strings("tag")
 }
 ```
 
@@ -130,16 +126,16 @@ func handler(c mux.RouteContext) {
 **A:** Use form value helpers or automatic binding:
 ```go
 func handler(c mux.RouteContext) {
-    // Individual form fields
-    name, _ := c.FormValue("name")
-    age, _ := c.FormInt("age")
-    
-    // Automatic binding to struct
-    var user User
-    if err := c.Bind(&user); err != nil {
-        c.BadRequest("Invalid data", err.Error())
-        return
-    }
+	// Individual form fields
+	name, _ := c.Form().String("name")
+	age, _ := c.Form().Int("age")
+
+	// Automatic binding to struct
+	var user User
+	if err := c.Bind(&user); err != nil {
+		c.BadRequest("Invalid data", err.Error())
+		return
+	}
 }
 ```
 
@@ -152,11 +148,11 @@ func handler(c mux.RouteContext) {
 ```go
 // Router-level (applies to all routes)
 mux.UseLogging(router)
-mux.UseAuthentication(...)
+mux.UseAuthentication(router, ...)
 
 // Route-specific (applies only to this route)
 router.GET("/api/search", handler).
-    WithRateLimit(100, time.Minute)
+	WithRateLimit(100, time.Minute)
 ```
 
 ### Q: In what order should I add middleware?
@@ -166,7 +162,7 @@ router.GET("/api/search", handler).
 2. **Security**: `UseEnforceHTTPS()`, `UseExportControl()`  
 3. **Application**: `UseCompression()`, `UseOpenTelemetry()`
 4. **Authentication**: `UseAuthentication()`, `UseAuthorization()`
-5. **Services**: `UseServices()`
+5. **Services**: `Router.Services()`, `RouteGroup.Services()`, `RouteBuilder.Services()`
 
 ### Q: Can I create custom middleware?
 
@@ -174,7 +170,7 @@ router.GET("/api/search", handler).
 ```go
 type CustomMiddleware struct{}
 
-func (m *CustomMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
+func (m *CustomMiddleware) Invoke(c mux.MutableRouteContext, next mux.HandlerFunc) {
     // Pre-processing
     start := time.Now()
     
@@ -196,15 +192,15 @@ router.Use(&CustomMiddleware{})
 **A:** Mux provides automatic JSON handling:
 ```go
 func createUser(c mux.RouteContext) {
-    // Automatic JSON binding
-    var user User
-    if err := c.Bind(&user); err != nil {
-        c.BadRequest("Invalid JSON", err.Error())
-        return
-    }
-    
-    // Automatic JSON response
-    c.Created(user)
+	// Automatic JSON binding
+	var user User
+	if err := c.Bind(&user); err != nil {
+		c.BadRequest("Invalid JSON", err.Error())
+		return
+	}
+
+	// Automatic JSON response
+	c.Created(user)
 }
 ```
 
@@ -213,18 +209,18 @@ func createUser(c mux.RouteContext) {
 **A:** Access multipart form data through the standard request:
 ```go
 func uploadFile(c mux.RouteContext) {
-    file, header, err := c.Request().FormFile("file")
-    if err != nil {
-        c.BadRequest("No file provided", err.Error())
-        return
-    }
-    defer file.Close()
-    
-    // Process file...
-    c.OK(map[string]string{
-        "filename": header.Filename,
-        "size":     fmt.Sprintf("%d", header.Size),
-    })
+	file, header, err := c.Request().FormFile("file")
+	if err != nil {
+		c.BadRequest("No file provided", err.Error())
+		return
+	}
+	defer file.Close()
+
+	// Process file...
+	c.OK(map[string]string{
+		"filename": header.Filename,
+		"size":     fmt.Sprintf("%d", header.Size),
+	})
 }
 ```
 
@@ -233,18 +229,18 @@ func uploadFile(c mux.RouteContext) {
 **A:** Use appropriate response helpers or set headers manually:
 ```go
 func handler(c mux.RouteContext) {
-    accept := c.Request().Header.Get("Accept")
-    
-    switch {
-    case strings.Contains(accept, "application/xml"):
-    c.Response().Header().Set("Content-Type", "application/xml")
-    c.Response().Write([]byte("<message>Hello</message>"))
-    case strings.Contains(accept, "text/plain"):
-    c.Response().Header().Set("Content-Type", "text/plain")
-    c.Response().Write([]byte("Hello"))
-    default:
-        c.OK("Hello")
-    }
+	accept := c.Request().Header.Get("Accept")
+
+	switch {
+	case strings.Contains(accept, "application/xml"):
+		c.Response().Header().Set("Content-Type", "application/xml")
+		c.Response().Write([]byte("<message>Hello</message>"))
+	case strings.Contains(accept, "text/plain"):
+		c.Response().Header().Set("Content-Type", "text/plain")
+		c.Response().Write([]byte("Hello"))
+	default:
+		c.OK("Hello")
+	}
 }
 ```
 
@@ -254,10 +250,10 @@ func handler(c mux.RouteContext) {
 
 **A:** Use the built-in authentication middleware:
 ```go
-router.UseAuthentication(
-    mux.WithValidator(validateToken),
-    mux.WithTokenCreator(createToken),
-    mux.WithTokenTTL(30 * time.Minute),
+mux.UseAuthentication(router,
+    mux.WithAuthValidator(validateToken),
+    mux.WithAuthTokenCreator(createToken),
+    mux.WithAuthTokenTTL(30 * time.Minute),
 )
 
 func validateToken(tokenString string) (claims.Principal, error) {
@@ -271,7 +267,7 @@ func validateToken(tokenString string) (claims.Principal, error) {
 **A:** Use route-level authorization:
 ```go
 router.GET("/admin", adminHandler).RequireRoles("admin")
-router.POST("/users", createUser).RequirePermissions("write")
+router.POST("/users", createUser).RequirePermission("write")
 ```
 
 ### Q: How do I handle CORS?
@@ -280,17 +276,17 @@ router.POST("/users", createUser).RequirePermissions("write")
 ```go
 type CORSMiddleware struct{}
 
-func (m *CORSMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
-    c.Response().Header().Set("Access-Control-Allow-Origin", "*")
-    c.Response().Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
-    c.Response().Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-    
-    if c.Request().Method == "OPTIONS" {
-    c.Response().WriteHeader(http.StatusOK)
-        return
-    }
-    
-    next(c)
+func (m *CORSMiddleware) Invoke(c mux.MutableRouteContext, next mux.HandlerFunc) {
+	c.Response().Header().Set("Access-Control-Allow-Origin", "*")
+	c.Response().Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
+	c.Response().Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+	if c.Request().Method == "OPTIONS" {
+		c.Response().WriteHeader(http.StatusOK)
+		return
+	}
+
+	next(c)
 }
 ```
 
@@ -302,14 +298,19 @@ func (m *CORSMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
 ```go
 // Document routes
 router.POST("/users", createUser).
-    WithSummary("Create a user").
-    WithJsonBody(User{}).
-    WithCreatedResponse(User{})
+	WithSummary("Create a user").
+	WithJsonBody(User{}).
+	WithCreatedResponse(User{})
 
 // Generate spec
 generator := mux.NewGenerator()
-spec := generator.GenerateSpec(router)
-spec.MarshalToFile("openapi.yaml")
+spec, err := mux.GenerateSpecWithGenerator(generator, router)
+if err != nil {
+    panic(err)
+}
+if err := spec.MarshalToFile("openapi.yaml"); err != nil {
+    panic(err)
+}
 ```
 
 ### Q: Can I customize the OpenAPI output?
@@ -330,9 +331,9 @@ router := mux.NewRouter(
 **A:** Use struct tags and provide examples:
 ```go
 type User struct {
-    ID    uuid.UUID `json:"id" example:"123e4567-e89b-12d3-a456-426614174000"`
-    Name  string    `json:"name" example:"John Doe"`
-    Email string    `json:"email" example:"john@example.com"`
+	ID    uuid.UUID `json:"id" example:"123e4567-e89b-12d3-a456-426614174000"`
+	Name  string    `json:"name" example:"John Doe"`
+	Email string    `json:"email" example:"john@example.com"`
 }
 ```
 
@@ -361,26 +362,21 @@ type User struct {
 **A:** Implement graceful shutdown with context cancellation:
 ```go
 func main() {
-    router := mux.NewRouter()
-    // ... setup routes
-    
-    server := &http.Server{
-        Addr:    ":8080",
-        Handler: router,
-    }
-    
-    // Handle shutdown gracefully
-    sigChan := make(chan os.Signal, 1)
-    signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-    
-    go func() {
-        <-sigChan
-        ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-        defer cancel()
-        server.Shutdown(ctx)
-    }()
-    
-    server.ListenAndServe()
+	router := mux.NewRouter()
+
+	if err := router.Configure(func(router *mux.Router) {
+		// ... setup routes
+	}); err != nil {
+		log.Fatal(err)
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	server := mux.NewServer(":8080", router)
+	if err := server.Listen(ctx); err != nil {
+		log.Fatal(err)
+	}
 }
 ```
 
@@ -391,17 +387,17 @@ func main() {
 **A:** Create test handlers and use HTTP testing tools:
 ```go
 func TestCreateUser(t *testing.T) {
-    router := mux.NewRouter()
-    router.POST("/users", createUser)
-    
-    body := `{"name": "John", "email": "john@example.com"}`
-    req := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(body))
-    req.Header.Set("Content-Type", "application/json")
-    
-    rec := httptest.NewRecorder()
-    rtr.ServeHTTP(rec, req)
-    
-    assert.Equal(t, http.StatusCreated, rec.Code)
+	router := mux.NewRouter()
+	router.POST("/users", createUser)
+
+	body := `{"name": "John", "email": "john@example.com"}`
+	req := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusCreated, rec.Code)
 }
 ```
 
@@ -410,18 +406,18 @@ func TestCreateUser(t *testing.T) {
 **A:** Test middleware independently:
 ```go
 func TestAuthenticationMiddleware(t *testing.T) {
-    router := mux.NewRouter()
-    router.UseAuthentication(mux.WithValidator(mockValidator))
-    router.GET("/protected", protectedHandler)
-    
-    // Test with valid token
-    req := httptest.NewRequest(http.MethodGet, "/protected", nil)
-    req.Header.Set("Authorization", "Bearer valid-token")
-    
-    rec := httptest.NewRecorder()
-    rtr.ServeHTTP(rec, req)
-    
-    assert.Equal(t, http.StatusOK, rec.Code)
+	router := mux.NewRouter()
+	mux.UseAuthentication(router,mux.WithAuthValidator(mockValidator))
+	router.GET("/protected", protectedHandler)
+
+	// Test with valid token
+	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req.Header.Set("Authorization", "Bearer valid-token")
+
+	rec := httptest.NewRecorder()
+	rtr.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
 }
 ```
 
@@ -460,7 +456,7 @@ mux.UseLogging(router) // Logs all requests and responses
 // Or add custom debug middleware
 type DebugMiddleware struct{}
 
-func (m *DebugMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
+func (m *DebugMiddleware) Invoke(c mux.MutableRouteContext, next mux.HandlerFunc) {
     log.Printf("Request: %s %s", c.Request().Method, c.Request().URL.Path)
     next(c)
 }
@@ -497,7 +493,7 @@ func (m *DebugMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
 ## Best Practices Summary
 
 1. **Use type-safe parameter helpers** instead of manual parsing
-2. **Add middleware in the correct order** (infrastructure → security → application)
+2. **Add middleware in the correct order** (infrastructure -> security -> application)
 3. **Implement proper error handling** with structured responses
 4. **Document your APIs** as you build them with OpenAPI
 5. **Test your handlers and middleware** thoroughly
@@ -513,3 +509,5 @@ func (m *DebugMiddleware) Invoke(c mux.RouteContext, next mux.HandlerFunc) {
 - [Best Practices](best-practices.md) - Detailed patterns and conventions
 - [Router](router.md) - Routing fundamentals
 - [Middleware](middleware.md) - Built-in middleware guide
+
+

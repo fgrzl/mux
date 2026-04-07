@@ -14,8 +14,8 @@ func mockServerHandler() *mux.Router {
 	r := mux.NewRouter(mux.WithContextPooling())
 
 	// Add middleware
-	// r.UseLogging(&mux.LoggingOptions{})
-	// r.UseCompression(&mux.CompressionOptions{})
+	// mux.UseLogging(r)
+	// mux.UseCompression(r)
 	// r.UseAuthentication(&mux.AuthenticationOptions{})
 	// r.UseAuthorization(&mux.AuthorizationOptions{})
 
