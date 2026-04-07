@@ -5,7 +5,7 @@ import (
 )
 
 func cloneSlice[T any](in []T) []T {
-	if len(in) == 0 {
+	if in == nil {
 		return nil
 	}
 	out := make([]T, len(in))

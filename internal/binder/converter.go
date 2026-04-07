@@ -14,15 +14,18 @@ import (
 // The returned function accepts the raw string values (multi-valued) and
 // returns a typed value suitable for placing into the staging map.
 func makeConverter(t reflect.Type, schema *openapi.Schema) func([]string) (any, error) {
-	if t != nil && t.Kind() == reflect.Ptr {
-		t = t.Elem()
-	}
 	if t != nil {
 		if c := scalarConverterForType(t); c != nil {
 			return c
 		}
 		if c := textUnmarshalerConverterForType(t); c != nil {
 			return c
+		}
+		if t.Kind() == reflect.Ptr {
+			t = t.Elem()
+			if c := scalarConverterForType(t); c != nil {
+				return c
+			}
 		}
 		if conv := makeSliceElementConverter(t); conv != nil {
 			return conv
@@ -39,7 +42,13 @@ func makeConverter(t reflect.Type, schema *openapi.Schema) func([]string) (any, 
 var textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
 
 func textUnmarshalerConverterForType(typ reflect.Type) func([]string) (any, error) {
-	if typ == nil || !reflect.PointerTo(typ).Implements(textUnmarshalerType) {
+	if typ == nil {
+		return nil
+	}
+
+	implementsDirectly := typ.Kind() == reflect.Ptr && typ.Implements(textUnmarshalerType)
+	implementsViaPointer := typ.Kind() != reflect.Ptr && reflect.PointerTo(typ).Implements(textUnmarshalerType)
+	if !implementsDirectly && !implementsViaPointer {
 		return nil
 	}
 
@@ -48,10 +57,19 @@ func textUnmarshalerConverterForType(typ reflect.Type) func([]string) (any, erro
 			return nil, nil
 		}
 
-		value := reflect.New(typ)
+		var value reflect.Value
+		if implementsDirectly {
+			value = reflect.New(typ.Elem())
+		} else {
+			value = reflect.New(typ)
+		}
+
 		unmarshaler := value.Interface().(encoding.TextUnmarshaler)
 		if err := unmarshaler.UnmarshalText([]byte(vals[0])); err != nil {
 			return nil, err
+		}
+		if implementsDirectly {
+			return value.Interface(), nil
 		}
 		return value.Elem().Interface(), nil
 	}

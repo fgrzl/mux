@@ -50,6 +50,23 @@ func TestShouldConvertSingleIntUsingMakeConverter(t *testing.T) {
 	assert.Equal(t, 42, v.(int))
 }
 
+func TestShouldConvertPointerTextUnmarshalerUsingMakeConverter(t *testing.T) {
+	// Arrange
+	conv := makeConverter(reflect.TypeOf(new(uuid.UUID)), nil)
+	require.NotNil(t, conv)
+	want := uuid.New()
+
+	// Act
+	v, err := conv([]string{want.String()})
+
+	// Assert
+	require.NoError(t, err)
+	parsed, ok := v.(*uuid.UUID)
+	require.True(t, ok, "expected *uuid.UUID, got %T", v)
+	require.NotNil(t, parsed)
+	assert.Equal(t, want, *parsed)
+}
+
 func TestShouldConvertBoolUsingMakeConverter(t *testing.T) {
 	// Arrange
 	cb := makeConverter(reflect.TypeOf(true), nil)
@@ -104,6 +121,22 @@ func TestShouldParseUUIDByExample(t *testing.T) {
 	assert.Equal(t, want, v)
 }
 
+func TestShouldParsePointerUUIDByExample(t *testing.T) {
+	// Arrange
+	want := uuid.New()
+	param := &openapi.ParameterObject{Example: new(uuid.UUID)}
+
+	// Act
+	v, ok := ParseByExample(want.String(), param)
+
+	// Assert
+	require.True(t, ok)
+	parsed, ok := v.(*uuid.UUID)
+	require.True(t, ok, "expected *uuid.UUID, got %T", v)
+	require.NotNil(t, parsed)
+	assert.Equal(t, want, *parsed)
+}
+
 func TestShouldParseSliceValuesAsInt64GivenIntegerItemsSchema(t *testing.T) {
 	// Arrange
 	param := &openapi.ParameterObject{Schema: &openapi.Schema{Items: &openapi.Schema{Type: "integer"}}}
@@ -114,6 +147,25 @@ func TestShouldParseSliceValuesAsInt64GivenIntegerItemsSchema(t *testing.T) {
 	arr, ok := v.([]int64)
 	assert.True(t, ok)
 	assert.EqualValues(t, []int64{1, 2}, arr)
+}
+
+func TestShouldParsePointerTextUnmarshalerSlicesFromExample(t *testing.T) {
+	// Arrange
+	want := []uuid.UUID{uuid.New(), uuid.New()}
+	param := &openapi.ParameterObject{Example: []*uuid.UUID{}}
+
+	// Act
+	v, ok := ParseSliceValues([]string{want[0].String(), want[1].String()}, param)
+
+	// Assert
+	require.True(t, ok)
+	parsed, ok := v.([]*uuid.UUID)
+	require.True(t, ok, "expected []*uuid.UUID, got %T", v)
+	require.Len(t, parsed, len(want))
+	for i := range want {
+		require.NotNil(t, parsed[i])
+		assert.Equal(t, want[i], *parsed[i])
+	}
 }
 
 func TestShouldApplyConverterBeforeOtherParsing(t *testing.T) {

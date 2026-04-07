@@ -109,6 +109,32 @@ func TestShouldPreserveTypedSecurityRequirements(t *testing.T) {
 	require.Equal(t, []any{"read", "write"}, scopes)
 }
 
+func TestShouldPreserveEmptySecurityScopes(t *testing.T) {
+	router := mux.NewRouter(mux.WithTitle("Users API"), mux.WithVersion("1.0.0"))
+	security := mux.SecurityRequirement{"oauth2": []string{}}
+
+	router.GET("/users", func(c mux.RouteContext) {
+		c.OK(map[string]string{"status": "ok"})
+	}).
+		WithOperationID("listUsers").
+		WithSecurity(security).
+		WithOKResponse(map[string]string{"status": "ok"})
+
+	spec, err := mux.GenerateSpecWithGenerator(mux.NewGenerator(), router)
+	require.NoError(t, err)
+
+	specMap := specJSONMap(t, spec)
+	paths := requireMap(t, specMap["paths"])
+	usersPath := requireMap(t, paths["/users"])
+	getOp := requireMap(t, usersPath["get"])
+	securityList := requireSlice(t, getOp["security"])
+	require.Len(t, securityList, 1)
+
+	firstRequirement := requireMap(t, securityList[0])
+	scopes := requireSlice(t, firstRequirement["oauth2"])
+	assert.Empty(t, scopes)
+}
+
 func TestShouldDocumentNamedResponseHelpers(t *testing.T) {
 	router := mux.NewRouter(mux.WithTitle("Users API"), mux.WithVersion("1.0.0"))
 
