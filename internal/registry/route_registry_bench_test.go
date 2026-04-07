@@ -33,19 +33,19 @@ func BenchmarkRouteRegistryLoadExactMatch(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _, _ = r.Load("/hello", "GET")
+		_, _ = r.LoadIntoSlice("/hello", "GET", nil)
 	}
 }
 
 func BenchmarkRouteRegistryLoadParamMatch(b *testing.B) {
 	r := NewRouteRegistry()
 	registerNoop(r, "/users/{id}", "GET")
+	var params routing.Params
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, params, _ := r.Load("/users/12345", "GET")
-		_ = params
+		_, _ = r.LoadIntoSlice("/users/12345", "GET", &params)
 	}
 }
 
@@ -56,7 +56,7 @@ func BenchmarkRouteRegistryLoadWildcard(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _, _ = r.Load("/files/path/to/file.txt", "GET")
+		_, _ = r.LoadIntoSlice("/files/path/to/file.txt", "GET", nil)
 	}
 }
 
@@ -67,7 +67,7 @@ func BenchmarkRouteRegistryLoadCatchAll(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _, _ = r.Load("/catch/any/number/of/segments/here", "GET")
+		_, _ = r.LoadIntoSlice("/catch/any/number/of/segments/here", "GET", nil)
 	}
 }
 
@@ -89,7 +89,7 @@ func benchRegistryMany(b *testing.B, n int) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _, _ = r.Load("/users/42", "GET")
+		_, _ = r.LoadIntoSlice("/users/42", "GET", nil)
 	}
 }
 
@@ -103,8 +103,9 @@ func BenchmarkRouteRegistryLoadParallel(b *testing.B) {
 
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
+		var params routing.Params
 		for pb.Next() {
-			_, _, _ = r.Load("/users/42", "GET")
+			_, _ = r.LoadIntoSlice("/users/42", "GET", &params)
 		}
 	})
 }

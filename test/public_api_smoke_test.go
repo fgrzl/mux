@@ -107,7 +107,7 @@ func TestPublicAPIGoldenPathSmoke(t *testing.T) {
 		api.WithTags("api")
 
 		api.POST("/users/{id}", func(c mux.RouteContext) {
-			id, ok := c.ParamInt("id")
+			id, ok := c.Params().Int("id")
 			if !ok {
 				c.BadRequest("Missing ID", "id path parameter is required")
 				return
@@ -147,6 +147,75 @@ func TestPublicAPIGoldenPathSmoke(t *testing.T) {
 		var payload createUserResponse
 		require.NoError(t, json.NewDecoder(rec.Body).Decode(&payload))
 		require.Equal(t, createUserResponse{ID: 41, Name: "Ada", Verbose: true}, payload)
+	})
+
+	t.Run("grouped request accessors", func(t *testing.T) {
+		router := mux.NewRouter()
+
+		router.POST("/access/{id}", func(c mux.RouteContext) {
+			params := c.Params()
+			query := c.Query()
+			form := c.Form()
+			headers := c.Headers()
+			cookies := c.Cookies()
+
+			id, ok := params.Int("id")
+			if !ok {
+				c.BadRequest("Missing ID", "id path parameter is required")
+				return
+			}
+
+			page, _ := query.Int("page")
+			verbose, _ := query.Bool("verbose")
+			redirectURL := query.GetRedirectURL("/fallback")
+
+			name, ok := form.String("name")
+			if !ok {
+				c.BadRequest("Missing name", "name form field is required")
+				return
+			}
+
+			traceID, _ := headers.String("X-Trace-ID")
+			session, err := cookies.Get("session")
+			if err != nil {
+				c.BadRequest("Missing session", err.Error())
+				return
+			}
+
+			c.OK(map[string]any{
+				"id":       id,
+				"page":     page,
+				"redirect": redirectURL,
+				"verbose":  verbose,
+				"name":     name,
+				"trace":    traceID,
+				"session":  session,
+			})
+		})
+
+		req := httptest.NewRequest(
+			http.MethodPost,
+			"/access/41?page=2&verbose=true&return_to=dashboard",
+			strings.NewReader("name=Ada"),
+		)
+		req.Header.Set(mux.HeaderContentType, "application/x-www-form-urlencoded")
+		req.Header.Set("X-Trace-ID", "trace-123")
+		req.AddCookie(&http.Cookie{Name: "session", Value: "session-abc"})
+
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		require.Equal(t, http.StatusOK, rec.Code)
+
+		var payload map[string]any
+		require.NoError(t, json.NewDecoder(rec.Body).Decode(&payload))
+		require.Equal(t, float64(41), payload["id"])
+		require.Equal(t, float64(2), payload["page"])
+		require.Equal(t, "/dashboard", payload["redirect"])
+		require.Equal(t, true, payload["verbose"])
+		require.Equal(t, "Ada", payload["name"])
+		require.Equal(t, "trace-123", payload["trace"])
+		require.Equal(t, "session-abc", payload["session"])
 	})
 
 	t.Run("middleware", func(t *testing.T) {

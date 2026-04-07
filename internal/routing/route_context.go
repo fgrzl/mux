@@ -25,9 +25,6 @@ import (
 // refer to it unqualified throughout the codebase.
 type ServiceKey = common.ServiceKey
 
-// RouteParams represents path parameters extracted from the URL pattern.
-type RouteParams map[string]string
-
 // RouteContext provides context for handling HTTP requests, including access to
 // request/response objects, user authentication, route parameters, and services.
 // RouteContext provides a comprehensive interface for HTTP request and response handling in mux.
@@ -149,99 +146,7 @@ type RouteContext interface {
 	// ParamInt64 parses a path parameter as int64.
 	ParamInt64(name string) (int64, bool)
 
-	// Query parameter methods
-	// QueryValue returns a query parameter by name.
-	QueryValue(name string) (string, bool)
-	// QueryValues returns all values for a query parameter.
-	QueryValues(name string) ([]string, bool)
-	// QueryUUID parses a query parameter as a UUID.
-	QueryUUID(name string) (uuid.UUID, bool)
-	// QueryUUIDs parses a query parameter as multiple UUIDs.
-	QueryUUIDs(name string) ([]uuid.UUID, bool)
-	// QueryInt parses a query parameter as int.
-	QueryInt(name string) (int, bool)
-	// QueryInts parses a query parameter as []int.
-	QueryInts(name string) ([]int, bool)
-	// QueryInt16 parses a query parameter as int16.
-	QueryInt16(name string) (int16, bool)
-	// QueryInt16s parses a query parameter as []int16.
-	QueryInt16s(name string) ([]int16, bool)
-	// QueryInt32 parses a query parameter as int32.
-	QueryInt32(name string) (int32, bool)
-	// QueryInt32s parses a query parameter as []int32.
-	QueryInt32s(name string) ([]int32, bool)
-	// QueryInt64 parses a query parameter as int64.
-	QueryInt64(name string) (int64, bool)
-	// QueryInt64s parses a query parameter as []int64.
-	QueryInt64s(name string) ([]int64, bool)
-	// QueryBool parses a query parameter as bool.
-	QueryBool(name string) (bool, bool)
-	// QueryBools parses a query parameter as []bool.
-	QueryBools(name string) ([]bool, bool)
-	// QueryFloat32 parses a query parameter as float32.
-	QueryFloat32(name string) (float32, bool)
-	// QueryFloat32s parses a query parameter as []float32.
-	QueryFloat32s(name string) ([]float32, bool)
-	// QueryFloat64 parses a query parameter as float64.
-	QueryFloat64(name string) (float64, bool)
-	// QueryFloat64s parses a query parameter as []float64.
-	QueryFloat64s(name string) ([]float64, bool)
-	// GetRedirectURL returns a safe URL to redirect to, falling back to defaultRedirect.
-	GetRedirectURL(defaultRedirect string) string
-
-	// Form parameter methods
-	// FormValue returns a form value by name from parsed body.
-	FormValue(name string) (string, bool)
-	// FormValues returns all values for a form field.
-	FormValues(name string) ([]string, bool)
-	// FormUUID parses a form value as a UUID.
-	FormUUID(name string) (uuid.UUID, bool)
-	// FormUUIDs parses a form value as multiple UUIDs.
-	FormUUIDs(name string) ([]uuid.UUID, bool)
-	// FormInt parses a form value as int.
-	FormInt(name string) (int, bool)
-	// FormInts parses a form value as []int.
-	FormInts(name string) ([]int, bool)
-	// FormInt16 parses a form value as int16.
-	FormInt16(name string) (int16, bool)
-	// FormInt16s parses a form value as []int16.
-	FormInt16s(name string) ([]int16, bool)
-	// FormInt32 parses a form value as int32.
-	FormInt32(name string) (int32, bool)
-	// FormInt32s parses a form value as []int32.
-	FormInt32s(name string) ([]int32, bool)
-	// FormInt64 parses a form value as int64.
-	FormInt64(name string) (int64, bool)
-	// FormInt64s parses a form value as []int64.
-	FormInt64s(name string) ([]int64, bool)
-	// FormBool parses a form value as bool.
-	FormBool(name string) (bool, bool)
-	// FormBools parses a form value as []bool.
-	FormBools(name string) ([]bool, bool)
-	// FormFloat32 parses a form value as float32.
-	FormFloat32(name string) (float32, bool)
-	// FormFloat32s parses a form value as []float32.
-	FormFloat32s(name string) ([]float32, bool)
-	// FormFloat64 parses a form value as float64.
-	FormFloat64(name string) (float64, bool)
-	// FormFloat64s parses a form value as []float64.
-	FormFloat64s(name string) ([]float64, bool)
-
-	// Header methods
-	// Header returns a request header value by name.
-	Header(name string) (string, bool)
-	// HeaderInt parses a request header as int.
-	HeaderInt(name string) (int, bool)
-	// HeaderUUID parses a request header as uuid.UUID.
-	HeaderUUID(name string) (uuid.UUID, bool)
-	// HeaderBool parses a request header as bool.
-	HeaderBool(name string) (bool, bool)
-	// HeaderFloat64 parses a request header as float64.
-	HeaderFloat64(name string) (float64, bool)
-
-	// Cookie methods
-	// GetCookie returns the cookie value by name or an error if missing.
-	GetCookie(name string) (string, error)
+	// Cookie mutation/auth methods
 	// SetCookie sets a cookie with attributes including maxAge, path, domain, and flags.
 	// The SameSite attribute is optional and defaults to Lax when omitted.
 	SetCookie(name, value string, maxAge int, path, domain string, secure, httpOnly bool, sameSite ...http.SameSite)

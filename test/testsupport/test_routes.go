@@ -245,7 +245,7 @@ func listResourcesHandler(c mux.RouteContext) {
 }
 
 func headResourceHandler(c mux.RouteContext) {
-	resourceIDStr, found := c.Param(ParamResourceID)
+	resourceIDStr, found := c.Params().String(ParamResourceID)
 	if !found {
 		c.NotFound()
 		return
@@ -269,7 +269,7 @@ func headResourceHandler(c mux.RouteContext) {
 }
 
 func getResourceHandler(c mux.RouteContext) {
-	resourceIDStr, found := c.Param(ParamResourceID)
+	resourceIDStr, found := c.Params().String(ParamResourceID)
 	if !found {
 		c.NotFound()
 		return
@@ -352,7 +352,7 @@ func updateResourceMetadataHandler(c mux.RouteContext) {
 		c.BadRequest(ErrBadRequest, err.Error())
 		return
 	}
-	resourceID, ok := c.ParamInt32(ParamResourceID)
+	resourceID, ok := c.Params().Int32(ParamResourceID)
 	if !ok {
 		c.BadRequest(ErrInvalidResourceID, ErrParseResourceID)
 		return
@@ -367,7 +367,7 @@ func updateResourceMetadataHandler(c mux.RouteContext) {
 }
 
 func getItemByUUIDHandler(c mux.RouteContext) {
-	id, ok := c.ParamUUID(ParamItemID)
+	id, ok := c.Params().UUID(ParamItemID)
 	if !ok {
 		c.BadRequest("Invalid UUID", "itemId is required and must be a UUID")
 		return
@@ -420,7 +420,7 @@ func createTenantHandler(c mux.RouteContext) {
 }
 
 func getTenantHandler(c mux.RouteContext) {
-	id, ok := c.ParamInt(ParamTenantID)
+	id, ok := c.Params().Int(ParamTenantID)
 	if !ok {
 		c.NotFound()
 		return
@@ -434,7 +434,7 @@ func getTenantHandler(c mux.RouteContext) {
 }
 
 func updateTenantHandler(c mux.RouteContext) {
-	id, ok := c.ParamInt(ParamTenantID)
+	id, ok := c.Params().Int(ParamTenantID)
 	if !ok {
 		c.BadRequest(ErrInvalidTenantID, ErrTenantMissing)
 		return
@@ -450,7 +450,7 @@ func updateTenantHandler(c mux.RouteContext) {
 }
 
 func deleteTenantHandler(c mux.RouteContext) {
-	id, ok := c.ParamInt(ParamTenantID)
+	id, ok := c.Params().Int(ParamTenantID)
 	if !ok {
 		c.BadRequest(ErrInvalidTenantID, ErrTenantMissing)
 		return
@@ -464,7 +464,7 @@ func deleteTenantHandler(c mux.RouteContext) {
 }
 
 func listTenantResourcesHandler(c mux.RouteContext) {
-	id, ok := c.ParamInt(ParamTenantID)
+	id, ok := c.Params().Int(ParamTenantID)
 	if !ok {
 		c.BadRequest(ErrInvalidTenantID, ErrTenantMissing)
 		return
@@ -478,7 +478,7 @@ func listTenantResourcesHandler(c mux.RouteContext) {
 }
 
 func createTenantResourceHandler(c mux.RouteContext) {
-	id, ok := c.ParamInt(ParamTenantID)
+	id, ok := c.Params().Int(ParamTenantID)
 	if !ok {
 		c.BadRequest(ErrInvalidTenantID, ErrTenantMissing)
 		return

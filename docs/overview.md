@@ -1,6 +1,6 @@
 ﻿# Mux Library Overview
 
-Mux is a lightweight, modular HTTP router for Go designed for building modern APIs with built-in support for middleware, request binding, OpenAPI 3.1 generation, and flexible authentication.
+Mux is a fast, batteries-included HTTP framework for Go designed for modern APIs. Routing, request binding, structured errors, middleware, OpenAPI 3.1 generation, and server lifecycle stay in one coherent model.
 
 ## Architecture
 
@@ -21,22 +21,27 @@ Mux is a lightweight, modular HTTP router for Go designed for building modern AP
 
 ## Key Features
 
-### Type-Safe Parameter Binding
+### Typed Request Accessors
 
-Mux provides type-safe helpers for accessing request data:
+Mux provides typed accessors for query params, path params, and form fields:
 
 ```go
+params := c.Params()
+query := c.Query()
+form := c.Form()
+
 // Query parameters
-userID, ok := c.Query().UUID("user_id")
-page, _ := c.Query().Int("page")
-tags, _ := c.Query().Strings("tags")
+search, _ := query.String("q")
+page, _ := query.Int("page")
+userID, ok := query.UUID("user_id")
+tags, _ := query.Strings("tag") // repeated values: ?tag=api&tag=admin
 
 // Path parameters  
-resourceID, ok := c.ParamUUID("id")
+resourceID, ok := params.UUID("id")
 
 // Form data
-name, ok := c.Form().String("name")
-age, _ := c.Form().Int("age")
+name, ok := form.String("name")
+age, _ := form.Int("age")
 ```
 
 ### Automatic Request Binding

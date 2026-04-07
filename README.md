@@ -3,7 +3,7 @@
 [![CI](https://github.com/fgrzl/mux/actions/workflows/ci.yaml/badge.svg)](https://github.com/fgrzl/mux/actions/workflows/ci.yaml)
 [![Dependabot](https://github.com/fgrzl/mux/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/fgrzl/mux/actions/workflows/dependabot/dependabot-updates)
 
-**Mux** is an OpenAPI-native HTTP framework for Go. Routes, request binding, structured errors, and generated OpenAPI stay in one model.
+**Mux** is a fast, batteries-included, OpenAPI-native HTTP framework for Go. Routes, request binding, structured errors, middleware, generated OpenAPI, and production server behavior stay in one model.
 
 ## Get Started in 2 Minutes
 
@@ -79,11 +79,35 @@ Expected output:
 
 Use **Mux** if you want:
 
-- **Schema-driven APIs** where routes, validation, and OpenAPI stay in sync
+- **Fast request routing** with predictable overhead
+- **Batteries included** for binding, structured errors, middleware, OpenAPI, and graceful server lifecycle
 - **Explicit behavior** for middleware order, errors, and lifecycle
-- **Production defaults** like graceful shutdown and structured error helpers
 - **Scoped services** on routers, groups, and routes without extra plumbing
+- **Schema-driven APIs** where routes, validation, and OpenAPI stay in sync
 - **Stdlib-friendly adoption** when you need to keep existing `net/http` handlers
+
+Request data stays source-grouped:
+
+```go
+params := c.Params()
+query := c.Query()
+form := c.Form()
+headers := c.Headers()
+
+id, _ := params.String("id")
+page, _ := query.Int("page")
+name, _ := form.String("name")
+traceID, _ := headers.String("X-Trace-ID")
+```
+
+## Design Goals
+
+Mux is built around a few constraints:
+
+- **Keep the API cohesive** so routing, binding, middleware, auth/authz, structured errors, and generated OpenAPI compose in one model
+- **Stay fast without becoming bare-bones** so common API work does not require stitching together a separate stack
+- **Make lifecycle behavior explicit** so startup validation, middleware order, and request handling stay predictable
+- **Support incremental adoption** so existing `net/http` handlers can keep working while teams adopt more of the framework where it helps
 
 ## Next: JSON + OpenAPI
 

@@ -325,71 +325,9 @@ func chooseNextEdge(n *routing.RouteNode, seg string) (*routing.RouteNode, strin
 	return nil, ""
 }
 
-// Load performs a route lookup for the supplied path and method. It returns
-// the matched RouteOptions, an extracted params map (or nil for no params),
-// and ok=true when a matching route exists for the path and method. For
-// static registered patterns an internal fast-path is used to avoid trie
-// traversal and allocations.
-// Load performs a route lookup for the supplied path and method. It returns
-// the matched RouteOptions, an extracted params map (or nil for no params),
-// and ok=true when a matching route exists for the path and method. For
-// static registered patterns an internal fast-path is used to avoid trie
-// traversal and allocations.
-func (r *RouteRegistry) Load(path string, method string) (*routing.RouteOptions, map[string]string, bool) {
-	// Fast path: exact registered static route
-	if m, ok := r.exactRoutes[path]; ok {
-		if opt, ok2 := m[method]; ok2 {
-			return opt, nil, true
-		}
-	}
-
-	opt, params, ok := r.walk(path, func(n *routing.RouteNode, method string) (*routing.RouteOptions, bool) {
-		if n.RouteOptions == nil {
-			return nil, false
-		}
-		o, ok := n.RouteOptions[method]
-		return o, ok
-	}, method)
-	return opt, params, ok
-}
-
-// LoadDetailedInto performs a route lookup, fills any path params into dst (clearing it first),
-// and returns the matched RouteOptions along with LoadDetails describing the match.
-// If the path matches but the method is not allowed, RouteOptions is nil and details.Allow
-// contains the precomputed Allow header value.
-// LoadDetailedInto performs a route lookup, fills any path params into dst (clearing it first),
-// and returns the matched RouteOptions along with LoadDetails describing the match.
-// If the path matches but the method is not allowed, RouteOptions is nil and details.Allow
-// contains the precomputed Allow header value.
-func (r *RouteRegistry) LoadDetailedInto(path string, method string, dst map[string]string) (*routing.RouteOptions, LoadDetails) {
-	// Clear params map up-front (if provided)
-	for k := range dst {
-		delete(dst, k)
-	}
-	// Exact static fast-path
-	if m, ok := r.exactRoutes[path]; ok {
-		details := LoadDetails{Found: true}
-		if opt, ok2 := m[method]; ok2 {
-			details.MethodOK = true
-			return opt, details
-		}
-		details.Allow = allowHeaderFromMap(m)
-		return nil, details
-	}
-	// Match a node and collect params greedily with precedence: static > param > wildcard > catch-all
-	node, _ := r.matchNodeInto(path, dst)
-	if node == nil || len(node.RouteOptions) == 0 {
-		return nil, LoadDetails{Found: false}
-	}
-	if opt, ok := node.RouteOptions[method]; ok {
-		return opt, LoadDetails{Found: true, MethodOK: true}
-	}
-	return nil, LoadDetails{Found: true, MethodOK: false, Allow: node.AllowHeader}
-}
-
-// LoadDetailedIntoSlice is the slice-based version of LoadDetailedInto.
-// It performs a route lookup, fills any path params into dst (resetting it first),
-// and returns the matched RouteOptions along with LoadDetails describing the match.
+// LoadDetailedIntoSlice performs a route lookup, fills any path params into dst
+// (resetting it first), and returns the matched RouteOptions along with
+// LoadDetails describing the match.
 func (r *RouteRegistry) LoadDetailedIntoSlice(path string, method string, dst *routing.Params) (*routing.RouteOptions, LoadDetails) {
 	// Exact static fast-path
 	if m, ok := r.exactRoutes[path]; ok {
@@ -415,48 +353,8 @@ func (r *RouteRegistry) LoadDetailedIntoSlice(path string, method string, dst *r
 	return nil, LoadDetails{Found: true, MethodOK: false, Allow: node.AllowHeader}
 }
 
-// matchNodeInto traverses the routing tree by path and returns the terminal node if matched.
-// It fills any path params into dst (if non-nil), clearing dst is the caller's responsibility.
-// matchNodeInto traverses the routing tree by path and returns the terminal node if matched.
-// It fills any path params into dst (if non-nil), clearing dst is the caller's responsibility.
-func (r *RouteRegistry) matchNodeInto(path string, dst map[string]string) (*routing.RouteNode, bool) {
-	start, end := trimPathIndices(path)
-	n := r.root
-	s := start
-	for s < end {
-		// Early short-circuits using precomputed flags
-		if n.HasOnlyCatchAll {
-			return n.CatchAll, true
-		}
-		if n.HasOnlyWildcardTerminal {
-			return n.Wildcard, true
-		}
-		seg, nextIndex := scanSegment(path, s, end)
-		next, edge := chooseNextEdge(n, seg)
-		switch edge {
-		case "child":
-			n = next
-		case "param":
-			if dst != nil {
-				dst[next.ParamName] = seg
-			}
-			n = next
-		case "wildcard":
-			n = next
-		case "catchall":
-			n = next
-			// catch-all consumes the remainder
-			return n, true
-		default:
-			return nil, false
-		}
-		s = nextIndex
-	}
-	return n, true
-}
-
-// matchNodeIntoSlice is an optimized version of matchNodeInto that populates a Params slice
-// instead of a map, eliminating hash computation and allocation overhead.
+// matchNodeIntoSlice traverses the registry and populates a Params slice,
+// avoiding hash computation and map allocation overhead.
 // The dst slice is reset (length set to 0) before populating.
 // This version inlines critical path operations to reduce function call overhead.
 func (r *RouteRegistry) matchNodeIntoSlice(path string, dst *routing.Params) (*routing.RouteNode, bool) {
@@ -515,6 +413,9 @@ func (r *RouteRegistry) matchNodeIntoSlice(path string, dst *routing.Params) (*r
 			return n.CatchAll, true
 		} else {
 			// No match found
+			if dst != nil {
+				dst.Reset()
+			}
 			return nil, false
 		}
 
@@ -525,36 +426,9 @@ func (r *RouteRegistry) matchNodeIntoSlice(path string, dst *routing.Params) (*r
 	return n, true
 }
 
-// LoadInto is like Load but writes any extracted route parameters into the provided
-// map to avoid per-call map allocations. The provided map will be cleared first.
-// It returns the matched RouteOptions and ok=true when a matching route exists.
-// LoadInto is like Load but writes any extracted route parameters into the provided
-// map to avoid per-call map allocations. The provided map will be cleared first.
-// It returns the matched RouteOptions and ok=true when a matching route exists.
-func (r *RouteRegistry) LoadInto(path string, method string, dst map[string]string) (*routing.RouteOptions, bool) {
-	// Fast path: exact registered static route
-	if m, ok := r.exactRoutes[path]; ok {
-		if opt, ok2 := m[method]; ok2 {
-			// Ensure dst is cleared
-			for k := range dst {
-				delete(dst, k)
-			}
-			return opt, true
-		}
-	}
-	opt, ok := r.walkInto(path, method, dst, func(n *routing.RouteNode, method string) (*routing.RouteOptions, bool) {
-		if n.RouteOptions == nil {
-			return nil, false
-		}
-		o, ok := n.RouteOptions[method]
-		return o, ok
-	})
-	return opt, ok
-}
-
-// LoadIntoSlice is an optimized version of LoadInto that uses slice-based parameter storage
-// instead of map-based. This eliminates hash computation overhead and reduces allocations.
-// The dst slice is reset before populating. Returns the matched RouteOptions and ok=true when found.
+// LoadIntoSlice performs a route lookup and writes any extracted path
+// parameters into the provided slice. The destination slice is reset before
+// populating. Returns the matched RouteOptions and ok=true when found.
 func (r *RouteRegistry) LoadIntoSlice(path string, method string, dst *routing.Params) (*routing.RouteOptions, bool) {
 	// Fast path: exact registered static route (no params to extract)
 	if m, ok := r.exactRoutes[path]; ok {
@@ -575,39 +449,6 @@ func (r *RouteRegistry) LoadIntoSlice(path string, method string, dst *routing.P
 		return opt, true
 	}
 	return nil, false
-}
-
-// walkInto traverses the tree and fills params into dst (which may be nil) without allocating
-// a new map. dst is cleared on entry if non-nil.
-// walkInto traverses the tree and fills params into dst (which may be nil) without allocating
-// a new map. dst is cleared on entry if non-nil.
-func (r *RouteRegistry) walkInto(path string, method string, dst map[string]string, atEnd func(*routing.RouteNode, string) (*routing.RouteOptions, bool)) (*routing.RouteOptions, bool) {
-	start, end := trimPathIndices(path)
-
-	for k := range dst {
-		delete(dst, k)
-	}
-
-	ctx := traversalContext{
-		path:   path,
-		method: method,
-		end:    end,
-		setParam: func(name, value string) {
-			if dst == nil || name == "" {
-				return
-			}
-			dst[name] = value
-		},
-		clearParam: func(name string) {
-			if dst == nil || name == "" {
-				return
-			}
-			delete(dst, name)
-		},
-		atEnd: atEnd,
-	}
-
-	return r.traverseRoute(r.root, start, &ctx)
 }
 
 // TryMatchMethods returns the list of allowed HTTP methods for a given path
@@ -755,164 +596,13 @@ func (r *RouteRegistry) FindNode(path string) *routing.RouteNode {
 	return r.findNode(path)
 }
 
-// FindNodeInto traverses the routing tree for the given path and fills any
-// path parameters into dst (clearing it first). It returns the terminal
-// RouteNode when the path matches a registered node (even if that node
-// doesn't have RouteOptions). If no node matches, it returns nil.
-//
-// This is an exported convenience wrapper around the internal matchNodeInto
-// implementation to allow callers to perform a single traversal and then
-// examine the node's RouteOptions without repeating work.
-func (r *RouteRegistry) FindNodeInto(path string, dst map[string]string) *routing.RouteNode {
-	node, ok := r.matchNodeInto(path, dst)
-	if !ok || node == nil {
-		return nil
-	}
-	return node
-}
-
-// FindNodeIntoSlice is the slice-based version of FindNodeInto.
-// It traverses the routing tree for the given path and fills any path parameters
-// into dst (resetting it first). Returns the terminal RouteNode or nil if no match.
+// FindNodeIntoSlice traverses the routing tree for the given path and fills any
+// path parameters into dst (resetting it first). Returns the terminal RouteNode
+// or nil if no match.
 func (r *RouteRegistry) FindNodeIntoSlice(path string, dst *routing.Params) *routing.RouteNode {
 	node, ok := r.matchNodeIntoSlice(path, dst)
 	if !ok || node == nil {
 		return nil
 	}
 	return node
-}
-
-// walk performs a pluggable depth-first search (DFS) traversal of the route tree.
-// It traverses the tree according to the given path and invokes the provided
-// atEnd function when a terminal node is reached. This allows custom logic to be
-// applied at the end of traversal, such as matching a route or collecting
-// parameters.
-//
-// Parameters:
-//   - path: The URL path to traverse, which may include parameters or wildcards.
-//   - atEnd: A function called at each terminal node, receiving the current node
-//     and the HTTP method. It should return a pointer to RouteOptions and a
-//     boolean indicating whether a match was found.
-//   - method: The HTTP method to match (e.g., "GET", "POST").
-//
-// Returns:
-//   - *routing.RouteOptions: The matched route options if found, or nil.
-//   - map[string]string: A map of extracted route parameters, if any (may be nil).
-//   - bool: True if a matching route was found, false otherwise.
-func (r *RouteRegistry) walk(path string, atEnd func(*routing.RouteNode, string) (*routing.RouteOptions, bool), method string) (*routing.RouteOptions, map[string]string, bool) {
-	start, end := trimPathIndices(path)
-
-	var params map[string]string
-	ctx := traversalContext{
-		path:   path,
-		method: method,
-		end:    end,
-		setParam: func(name, value string) {
-			if name == "" {
-				return
-			}
-			if params == nil {
-				params = make(map[string]string, 1)
-			}
-			params[name] = value
-		},
-		clearParam: func(name string) {
-			if params == nil || name == "" {
-				return
-			}
-			delete(params, name)
-		},
-		atEnd: atEnd,
-	}
-
-	opt, ok := r.traverseRoute(r.root, start, &ctx)
-	if !ok {
-		return nil, params, false
-	}
-	if len(params) == 0 {
-		params = nil
-	}
-	return opt, params, true
-}
-
-type traversalContext struct {
-	path       string
-	method     string
-	end        int
-	setParam   func(string, string)
-	clearParam func(string)
-	atEnd      func(*routing.RouteNode, string) (*routing.RouteOptions, bool)
-}
-
-func (r *RouteRegistry) traverseRoute(node *routing.RouteNode, s int, ctx *traversalContext) (*routing.RouteOptions, bool) {
-	if node == nil {
-		return nil, false
-	}
-	if s >= ctx.end {
-		return ctx.atEnd(node, ctx.method)
-	}
-	if node.HasOnlyCatchAll {
-		return r.tryCatchAll(node, ctx)
-	}
-	if node.HasOnlyWildcardTerminal {
-		return r.tryWildcardTerminal(node, ctx)
-	}
-	seg, nextIndex := scanSegment(ctx.path, s, ctx.end)
-	if opt, ok := r.tryStaticChild(node, seg, nextIndex, ctx); ok {
-		return opt, true
-	}
-	if opt, ok := r.tryParamChild(node, seg, nextIndex, ctx); ok {
-		return opt, true
-	}
-	if opt, ok := r.tryWildcard(node, nextIndex, ctx); ok {
-		return opt, true
-	}
-	if opt, ok := r.tryCatchAll(node, ctx); ok {
-		return opt, true
-	}
-	return nil, false
-}
-
-func (r *RouteRegistry) tryStaticChild(node *routing.RouteNode, seg string, nextIndex int, ctx *traversalContext) (*routing.RouteOptions, bool) {
-	child := node.Children[seg]
-	if child == nil {
-		return nil, false
-	}
-	return r.traverseRoute(child, nextIndex, ctx)
-}
-
-func (r *RouteRegistry) tryParamChild(node *routing.RouteNode, seg string, nextIndex int, ctx *traversalContext) (*routing.RouteOptions, bool) {
-	paramChild := node.ParamChild
-	if paramChild == nil {
-		return nil, false
-	}
-	name := paramChild.ParamName
-	ctx.setParam(name, seg)
-	opt, ok := r.traverseRoute(paramChild, nextIndex, ctx)
-	if ok {
-		return opt, true
-	}
-	ctx.clearParam(name)
-	return nil, false
-}
-
-func (r *RouteRegistry) tryWildcard(node *routing.RouteNode, nextIndex int, ctx *traversalContext) (*routing.RouteOptions, bool) {
-	if node.Wildcard == nil {
-		return nil, false
-	}
-	return r.traverseRoute(node.Wildcard, nextIndex, ctx)
-}
-
-func (r *RouteRegistry) tryWildcardTerminal(node *routing.RouteNode, ctx *traversalContext) (*routing.RouteOptions, bool) {
-	if node.Wildcard == nil {
-		return nil, false
-	}
-	return ctx.atEnd(node.Wildcard, ctx.method)
-}
-
-func (r *RouteRegistry) tryCatchAll(node *routing.RouteNode, ctx *traversalContext) (*routing.RouteOptions, bool) {
-	if node.CatchAll == nil {
-		return nil, false
-	}
-	return ctx.atEnd(node.CatchAll, ctx.method)
 }

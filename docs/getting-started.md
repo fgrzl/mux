@@ -1,6 +1,7 @@
 # Getting Started with Mux
 
 Welcome! This guide will get you from zero to a working API in minutes.
+Mux is designed as a fast, batteries-included framework, so the path here starts with its integrated router, server lifecycle, and response helpers instead of assembling separate packages.
 
 ## Prerequisites
 
@@ -160,7 +161,7 @@ Every handler receives a `RouteContext` with request data and response helpers:
 ```go
 func myHandler(c mux.RouteContext) {
     // Read request
-    name, _ := c.Param("name")
+    name, _ := c.Params().String("name")
     
     // Send response
     c.OK(map[string]string{"hello": name})
@@ -253,7 +254,7 @@ router.POST("/users", func(c mux.RouteContext) {
 
 ```go
 router.GET("/users/{id}", func(c mux.RouteContext) {
-    id, ok := c.Param("id")
+    id, ok := c.Params().String("id")
     if !ok {
         c.BadRequest("Missing parameter", "id is required")
         return
@@ -280,7 +281,7 @@ router.GET("/search", func(c mux.RouteContext) {
 
 ```go
 router.GET("/users/{id}", func(c mux.RouteContext) {
-    id, _ := c.Param("id")
+    id, _ := c.Params().String("id")
     
     user, err := fetchUser(id)
     if err == ErrNotFound {

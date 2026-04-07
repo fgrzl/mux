@@ -130,7 +130,7 @@ func createTodo(c mux.RouteContext) {
 
 ```go
 func getTodo(c mux.RouteContext) {
-	id, ok := c.Param("id")
+	id, ok := c.Params().String("id")
 	if !ok {
 		c.BadRequest("Missing parameter", "id parameter is required")
 		return
@@ -149,7 +149,7 @@ func getTodo(c mux.RouteContext) {
 }
 
 func updateTodo(c mux.RouteContext) {
-	id, ok := c.Param("id")
+	id, ok := c.Params().String("id")
 	if !ok {
 		c.BadRequest("Missing parameter", "id parameter is required")
 		return
@@ -185,7 +185,7 @@ func updateTodo(c mux.RouteContext) {
 }
 
 func deleteTodo(c mux.RouteContext) {
-	id, ok := c.Param("id")
+	id, ok := c.Params().String("id")
 	if !ok {
 		c.BadRequest("Missing parameter", "id parameter is required")
 		return

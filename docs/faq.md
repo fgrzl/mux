@@ -1,18 +1,17 @@
 # Frequently Asked Questions (FAQ)
 
-This document answers common questions about using Mux for building HTTP APIs in Go.
+This document answers common questions about using Mux to build APIs in Go.
 
 ## General Questions
 
-### Q: What is Mux and how is it different from other Go routers?
+### Q: What is Mux?
 
-**A:** Mux is a lightweight, modular HTTP router for Go designed specifically for building modern APIs. Key differences:
+**A:** Mux is a fast, batteries-included HTTP framework for Go built for modern APIs. Its core goals are:
 
-- **API-first approach**: Built-in OpenAPI 3.1 generation without code generation
-- **Type-safe parameter binding**: Automatic conversion and validation of parameters
-- **Structured responses**: Built-in helpers for consistent error responses (RFC 7807)
-- **Modular middleware**: Comprehensive set of built-in middleware with functional options
-- **Request binding**: Automatic data collection from multiple sources (path, query, body)
+- **Keep the stack cohesive**: routing, binding, structured errors, middleware, auth/authz, and generated OpenAPI live in one API
+- **Stay fast without becoming bare-bones**: performance matters, but the framework is designed to remove assembly work, not just win router shootouts
+- **Make behavior explicit**: middleware order, request lifecycle, and error handling are deliberate rather than implicit
+- **Remain stdlib-friendly**: existing `net/http` handlers can keep working while you adopt more of the framework where it helps
 
 ### Q: Is Mux production-ready?
 
@@ -51,31 +50,26 @@ server := &http.Server{
 }
 ```
 
-### Q: How do I migrate from other routers?
+### Q: How do I migrate an existing API to Mux?
 
-**A:** Migration is typically straightforward:
+**A:** Migrate in layers rather than rewriting everything at once:
 
-**From Gorilla Mux:**
+1. Start by registering routes with `router.GET`, `router.POST`, `router.Handle`, or `router.HandleFunc`.
+2. Move shared concerns into built-in middleware where it simplifies your stack.
+3. Replace manual request parsing with `Bind()` and the typed query/form/param helpers.
+4. Add OpenAPI metadata incrementally as routes settle.
+
 ```go
-// Gorilla Mux
-r := mux.NewRouter()
-r.HandleFunc("/users/{id}", getUserHandler).Methods(http.MethodGet)
-
-// Mux
 router := mux.NewRouter()
-router.GET("/users/{id}", getUserHandler)
+
+router.HandleFunc(http.MethodGet, "/healthz", healthHandler)
+router.GET("/users/{id}", getUser)
+router.POST("/users", createUser).
+	AcceptJSON(CreateUserRequest{}).
+	Created(User{})
 ```
 
-**From Chi:**
-```go
-// Chi
-r := chi.NewRouter()
-r.Get("/users/{id}", getUserHandler)
-
-// Mux
-router := mux.NewRouter()
-router.GET("/users/{id}", getUserHandler)
-```
+This keeps existing `net/http` handlers working while you adopt more of Mux where it is useful.
 
 ## Routing and Parameters
 
@@ -94,7 +88,7 @@ router.DELETE("/users/{id}", deleteUser)
 
 ```go
 router.GET("/files/{path}", func(c mux.RouteContext) {
-    path, _ := c.Param("path")
+	path, _ := c.Params().String("path")
     // Handle complex path logic here
     if matched, _ := regexp.MatchString(`\.jpg$`, path); matched {
         // Handle image files
@@ -104,24 +98,26 @@ router.GET("/files/{path}", func(c mux.RouteContext) {
 
 ### Q: How do I access query parameters?
 
-**A:** Use the type-safe query parameter helpers:
+**A:** Use the typed query accessors:
 ```go
 func handler(c mux.RouteContext) {
+	query := c.Query()
+
 	// String values
-	search, _ := c.Query().String("q")
+	search, _ := query.String("q")
 
 	// Numeric values
-	page, _ := c.Query().Int("page")
-	limit, _ := c.Query().Int("limit")
+	page, _ := query.Int("page")
+	limit, _ := query.Int("limit")
 
 	// Boolean values
-	includeDeleted, _ := c.Query().Bool("include_deleted")
+	includeDeleted, _ := query.Bool("include_deleted")
 
 	// UUID values
-	userID, ok := c.Query().UUID("user_id")
+	userID, ok := query.UUID("user_id")
 
-	// Multiple values
-	tags, _ := c.Query().Strings("tags")
+	// Repeated values: ?tag=api&tag=admin
+	tags, _ := query.Strings("tag")
 }
 ```
 

@@ -1,6 +1,7 @@
 # Learning Path for Mux
 
 This guide gives you a deliberate path from your first route to production-ready services without making you learn every part of the framework at once.
+It follows the way Mux is meant to be used: one cohesive stack for routing, request handling, middleware, and API description rather than a router plus a pile of add-ons.
 
 ## Stage 1: First Route
 
@@ -40,7 +41,7 @@ Read:
 
 Focus on:
 
-- `c.Param("name")`
+- `c.Params().String("name")`
 - `c.Query().String("name")`, `c.Query().Int("limit")`, `c.Query().Bool("completed")`
 - `c.Bind(&value)`
 - `c.BadRequest(title, detail)`
@@ -49,7 +50,7 @@ Example:
 
 ```go
 router.GET("/users/{id}", func(c mux.RouteContext) {
-    id, ok := c.Param("id")
+    id, ok := c.Params().String("id")
     if !ok {
         c.BadRequest("Missing user ID", "id parameter is required")
         return
@@ -156,7 +157,7 @@ router.HandleFunc(http.MethodGet, "/legacy/users/{id}", func(w http.ResponseWrit
         return
     }
 
-    id, _ := routeCtx.Param("id")
+    id, _ := routeCtx.Params().String("id")
     routeCtx.OK(map[string]string{"id": id})
 })
 ```

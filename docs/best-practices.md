@@ -303,7 +303,7 @@ func handleServiceError(c mux.RouteContext, err error, operation string) {
 
 // Usage in handlers
 func (h *UserHandler) GetUser(c mux.RouteContext) {
-	userID, ok := c.ParamUUID("id")
+	userID, ok := c.Params().UUID("id")
 	if !ok {
 		c.BadRequest("Invalid ID", "User ID must be a valid UUID")
 		return

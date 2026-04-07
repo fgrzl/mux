@@ -18,10 +18,10 @@ func TestShouldReturnRouteAndOKStatusGivenStaticRouteWithMatchingMethod(t *testi
 	reg := NewRouteRegistry()
 	reg.Register(static, http.MethodGet, &routing.RouteOptions{Method: http.MethodGet})
 
-	params := make(map[string]string)
+	var params routing.Params
 
 	// Act
-	opt, res := reg.LoadDetailedInto(static, http.MethodGet, params)
+	opt, res := reg.LoadDetailedIntoSlice(static, http.MethodGet, &params)
 
 	// Assert
 	assert.NotNil(t, opt)
@@ -37,10 +37,10 @@ func TestShouldReturnAllowHeaderGivenStaticRouteWithWrongMethod(t *testing.T) {
 	reg.Register(static, http.MethodGet, &routing.RouteOptions{Method: http.MethodGet})
 	reg.Register(static, http.MethodPost, &routing.RouteOptions{Method: http.MethodPost})
 
-	params := make(map[string]string)
+	var params routing.Params
 
 	// Act
-	opt, res := reg.LoadDetailedInto(static, http.MethodPut, params)
+	opt, res := reg.LoadDetailedIntoSlice(static, http.MethodPut, &params)
 
 	// Assert
 	assert.Nil(t, opt)
@@ -54,16 +54,16 @@ func TestShouldReturnRouteAndExtractParamsGivenParameterizedRouteWithMatchingMet
 	reg := NewRouteRegistry()
 	reg.Register(users, http.MethodGet, &routing.RouteOptions{Method: http.MethodGet})
 
-	params := make(map[string]string)
+	var params routing.Params
 
 	// Act
-	opt, res := reg.LoadDetailedInto("/users/123", http.MethodGet, params)
+	opt, res := reg.LoadDetailedIntoSlice("/users/123", http.MethodGet, &params)
 
 	// Assert
 	assert.NotNil(t, opt)
 	assert.True(t, res.Found)
 	assert.True(t, res.MethodOK)
-	assert.Equal(t, map[string]string{"id": "123"}, params)
+	assert.Equal(t, "123", params.Get("id"))
 }
 
 func TestShouldReturnAllowHeaderGivenParameterizedRouteWithWrongMethod(t *testing.T) {
@@ -72,10 +72,10 @@ func TestShouldReturnAllowHeaderGivenParameterizedRouteWithWrongMethod(t *testin
 	reg.Register(users, http.MethodGet, &routing.RouteOptions{Method: http.MethodGet})
 	reg.Register(users, http.MethodDelete, &routing.RouteOptions{Method: http.MethodDelete})
 
-	params := make(map[string]string)
+	var params routing.Params
 
 	// Act
-	opt, res := reg.LoadDetailedInto("/users/123", http.MethodPost, params)
+	opt, res := reg.LoadDetailedIntoSlice("/users/123", http.MethodPost, &params)
 
 	// Assert
 	assert.Nil(t, opt)
@@ -89,10 +89,10 @@ func TestShouldReturnNotFoundGivenNoMatchingRoute(t *testing.T) {
 	reg := NewRouteRegistry()
 	reg.Register("/a", http.MethodGet, &routing.RouteOptions{Method: http.MethodGet})
 
-	params := make(map[string]string)
+	var params routing.Params
 
 	// Act
-	opt, res := reg.LoadDetailedInto("/missing", http.MethodGet, params)
+	opt, res := reg.LoadDetailedIntoSlice("/missing", http.MethodGet, &params)
 
 	// Assert
 	assert.Nil(t, opt)

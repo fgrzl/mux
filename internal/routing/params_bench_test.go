@@ -19,21 +19,6 @@ func BenchmarkParamsGet(b *testing.B) {
 	}
 }
 
-// BenchmarkRouteParamsGet benchmarks parameter retrieval from map-based RouteParams
-func BenchmarkRouteParamsGet(b *testing.B) {
-	params := RouteParams{
-		"id":       "123",
-		"name":     "test",
-		"category": "books",
-	}
-
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = params["category"]
-	}
-}
-
 // BenchmarkParamsSet benchmarks adding/updating parameters in slice-based Params
 func BenchmarkParamsSet(b *testing.B) {
 	b.ReportAllocs()
@@ -43,18 +28,6 @@ func BenchmarkParamsSet(b *testing.B) {
 		params.Set("id", "123")
 		params.Set("name", "test")
 		params.Set("category", "books")
-	}
-}
-
-// BenchmarkRouteParamsSet benchmarks adding parameters to map-based RouteParams
-func BenchmarkRouteParamsSet(b *testing.B) {
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		params := make(RouteParams, 4)
-		params["id"] = "123"
-		params["name"] = "test"
-		params["category"] = "books"
 	}
 }
 
@@ -68,19 +41,6 @@ func BenchmarkParamsPool(b *testing.B) {
 		params.Set("name", "test")
 		_ = params.Get("name")
 		ReleaseParams(params)
-	}
-}
-
-// BenchmarkRouteParamsPool benchmarks acquiring and releasing from the RouteParams pool
-func BenchmarkRouteParamsPool(b *testing.B) {
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		params := AcquireRouteParams()
-		params["id"] = "123"
-		params["name"] = "test"
-		_ = params["name"]
-		ReleaseRouteParams(params)
 	}
 }
 
@@ -99,25 +59,6 @@ func BenchmarkParamsIteration(b *testing.B) {
 		for j := range params {
 			_ = params[j].Key
 			_ = params[j].Value
-		}
-	}
-}
-
-// BenchmarkRouteParamsIteration benchmarks iterating over map-based RouteParams
-func BenchmarkRouteParamsIteration(b *testing.B) {
-	params := RouteParams{
-		"id":       "123",
-		"name":     "test",
-		"category": "books",
-		"author":   "john",
-	}
-
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		for k, v := range params {
-			_ = k
-			_ = v
 		}
 	}
 }

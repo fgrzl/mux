@@ -3,9 +3,12 @@ package mux
 import (
 	"context"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/fgrzl/claims"
+	internalbinder "github.com/fgrzl/mux/internal/binder"
 	internalcommon "github.com/fgrzl/mux/internal/common"
 	internalcookiekit "github.com/fgrzl/mux/internal/cookiekit"
 	internalauthentication "github.com/fgrzl/mux/internal/middleware/authentication"
@@ -118,12 +121,7 @@ type RouteContext interface {
 	Bind(any) error
 	User() claims.Principal
 	Services() *ServiceRegistry
-	Param(name string) (string, bool)
-	ParamUUID(name string) (uuid.UUID, bool)
-	ParamInt(name string) (int, bool)
-	ParamInt16(name string) (int16, bool)
-	ParamInt32(name string) (int32, bool)
-	ParamInt64(name string) (int64, bool)
+	Params() *ParamAccessor
 	Query() *QueryAccessor
 	Form() *FormAccessor
 	Headers() *HeaderAccessor
@@ -215,31 +213,24 @@ func (c *routeContext) Services() *ServiceRegistry {
 		},
 	)
 }
-func (c *routeContext) Param(name string) (string, bool) { return c.inner.Param(name) }
-func (c *routeContext) ParamUUID(name string) (uuid.UUID, bool) {
-	return c.inner.ParamUUID(name)
-}
-func (c *routeContext) ParamInt(name string) (int, bool)     { return c.inner.ParamInt(name) }
-func (c *routeContext) ParamInt16(name string) (int16, bool) { return c.inner.ParamInt16(name) }
-func (c *routeContext) ParamInt32(name string) (int32, bool) { return c.inner.ParamInt32(name) }
-func (c *routeContext) ParamInt64(name string) (int64, bool) { return c.inner.ParamInt64(name) }
-func (c *routeContext) Query() *QueryAccessor                { return &QueryAccessor{ctx: c} }
-func (c *routeContext) Form() *FormAccessor                  { return &FormAccessor{ctx: c} }
-func (c *routeContext) Headers() *HeaderAccessor             { return &HeaderAccessor{ctx: c} }
-func (c *routeContext) Cookies() *CookieAccessor             { return &CookieAccessor{ctx: c} }
-func (c *routeContext) JSON(status int, model any)           { c.inner.JSON(status, model) }
-func (c *routeContext) Plain(status int, data []byte)        { c.inner.Plain(status, data) }
-func (c *routeContext) HTML(status int, html string)         { c.inner.HTML(status, html) }
-func (c *routeContext) OK(model any)                         { c.inner.OK(model) }
-func (c *routeContext) Created(model any)                    { c.inner.Created(model) }
-func (c *routeContext) Accepted(model any)                   { c.inner.Accept(model) }
-func (c *routeContext) NoContent()                           { c.inner.NoContent() }
-func (c *routeContext) NotFound()                            { c.inner.NotFound() }
-func (c *routeContext) BadRequest(title, detail string)      { c.inner.BadRequest(title, detail) }
-func (c *routeContext) Unauthorized()                        { c.inner.Unauthorized() }
-func (c *routeContext) Forbidden(message string)             { c.inner.Forbidden(message) }
-func (c *routeContext) Conflict(title, detail string)        { c.inner.Conflict(title, detail) }
-func (c *routeContext) ServerError(title, detail string)     { c.inner.ServerError(title, detail) }
+func (c *routeContext) Params() *ParamAccessor           { return &ParamAccessor{ctx: c} }
+func (c *routeContext) Query() *QueryAccessor            { return &QueryAccessor{ctx: c} }
+func (c *routeContext) Form() *FormAccessor              { return &FormAccessor{ctx: c} }
+func (c *routeContext) Headers() *HeaderAccessor         { return &HeaderAccessor{ctx: c} }
+func (c *routeContext) Cookies() *CookieAccessor         { return &CookieAccessor{ctx: c} }
+func (c *routeContext) JSON(status int, model any)       { c.inner.JSON(status, model) }
+func (c *routeContext) Plain(status int, data []byte)    { c.inner.Plain(status, data) }
+func (c *routeContext) HTML(status int, html string)     { c.inner.HTML(status, html) }
+func (c *routeContext) OK(model any)                     { c.inner.OK(model) }
+func (c *routeContext) Created(model any)                { c.inner.Created(model) }
+func (c *routeContext) Accepted(model any)               { c.inner.Accept(model) }
+func (c *routeContext) NoContent()                       { c.inner.NoContent() }
+func (c *routeContext) NotFound()                        { c.inner.NotFound() }
+func (c *routeContext) BadRequest(title, detail string)  { c.inner.BadRequest(title, detail) }
+func (c *routeContext) Unauthorized()                    { c.inner.Unauthorized() }
+func (c *routeContext) Forbidden(message string)         { c.inner.Forbidden(message) }
+func (c *routeContext) Conflict(title, detail string)    { c.inner.Conflict(title, detail) }
+func (c *routeContext) ServerError(title, detail string) { c.inner.ServerError(title, detail) }
 func (c *routeContext) Problem(detail *ProblemDetails) {
 	if detail == nil {
 		c.inner.Problem(nil)
@@ -286,68 +277,439 @@ func (r *ServiceRegistry) Get(key ServiceKey) (any, bool) {
 	return r.lookup(key)
 }
 
+type ParamAccessor struct{ ctx *routeContext }
+
+func (p *ParamAccessor) String(name string) (string, bool)  { return p.ctx.inner.Param(name) }
+func (p *ParamAccessor) UUID(name string) (uuid.UUID, bool) { return p.ctx.inner.ParamUUID(name) }
+func (p *ParamAccessor) Int(name string) (int, bool)        { return p.ctx.inner.ParamInt(name) }
+func (p *ParamAccessor) Int16(name string) (int16, bool)    { return p.ctx.inner.ParamInt16(name) }
+func (p *ParamAccessor) Int32(name string) (int32, bool)    { return p.ctx.inner.ParamInt32(name) }
+func (p *ParamAccessor) Int64(name string) (int64, bool)    { return p.ctx.inner.ParamInt64(name) }
+
 type QueryAccessor struct{ ctx *routeContext }
 
-func (q *QueryAccessor) String(name string) (string, bool)     { return q.ctx.inner.QueryValue(name) }
-func (q *QueryAccessor) Strings(name string) ([]string, bool)  { return q.ctx.inner.QueryValues(name) }
-func (q *QueryAccessor) UUID(name string) (uuid.UUID, bool)    { return q.ctx.inner.QueryUUID(name) }
-func (q *QueryAccessor) UUIDs(name string) ([]uuid.UUID, bool) { return q.ctx.inner.QueryUUIDs(name) }
-func (q *QueryAccessor) Int(name string) (int, bool)           { return q.ctx.inner.QueryInt(name) }
-func (q *QueryAccessor) Ints(name string) ([]int, bool)        { return q.ctx.inner.QueryInts(name) }
-func (q *QueryAccessor) Int16(name string) (int16, bool)       { return q.ctx.inner.QueryInt16(name) }
-func (q *QueryAccessor) Int16s(name string) ([]int16, bool)    { return q.ctx.inner.QueryInt16s(name) }
-func (q *QueryAccessor) Int32(name string) (int32, bool)       { return q.ctx.inner.QueryInt32(name) }
-func (q *QueryAccessor) Int32s(name string) ([]int32, bool)    { return q.ctx.inner.QueryInt32s(name) }
-func (q *QueryAccessor) Int64(name string) (int64, bool)       { return q.ctx.inner.QueryInt64(name) }
-func (q *QueryAccessor) Int64s(name string) ([]int64, bool)    { return q.ctx.inner.QueryInt64s(name) }
-func (q *QueryAccessor) Bool(name string) (bool, bool)         { return q.ctx.inner.QueryBool(name) }
-func (q *QueryAccessor) Bools(name string) ([]bool, bool)      { return q.ctx.inner.QueryBools(name) }
-func (q *QueryAccessor) Float32(name string) (float32, bool)   { return q.ctx.inner.QueryFloat32(name) }
-func (q *QueryAccessor) Float32s(name string) ([]float32, bool) {
-	return q.ctx.inner.QueryFloat32s(name)
+func (q *QueryAccessor) String(name string) (string, bool) { return queryValue(q.ctx.Request(), name) }
+func (q *QueryAccessor) Strings(name string) ([]string, bool) {
+	return queryValues(q.ctx.Request(), name)
 }
-func (q *QueryAccessor) Float64(name string) (float64, bool) { return q.ctx.inner.QueryFloat64(name) }
+func (q *QueryAccessor) UUID(name string) (uuid.UUID, bool) {
+	value, ok := queryValue(q.ctx.Request(), name)
+	if !ok {
+		return uuid.Nil, false
+	}
+	return internalbinder.ParseUUIDVal(value)
+}
+func (q *QueryAccessor) UUIDs(name string) ([]uuid.UUID, bool) {
+	values, ok := queryValues(q.ctx.Request(), name)
+	if !ok {
+		return nil, false
+	}
+	return internalbinder.ParseUUIDSlice(values)
+}
+func (q *QueryAccessor) Int(name string) (int, bool) {
+	value, ok := queryValue(q.ctx.Request(), name)
+	if !ok {
+		return 0, false
+	}
+	return internalbinder.ParseIntVal(value)
+}
+func (q *QueryAccessor) Ints(name string) ([]int, bool) {
+	values, ok := queryValues(q.ctx.Request(), name)
+	if !ok {
+		return nil, false
+	}
+	return internalbinder.ParseIntSlice(values)
+}
+func (q *QueryAccessor) Int16(name string) (int16, bool) {
+	value, ok := queryValue(q.ctx.Request(), name)
+	if !ok {
+		return 0, false
+	}
+	return internalbinder.ParseInt16Val(value)
+}
+func (q *QueryAccessor) Int16s(name string) ([]int16, bool) {
+	values, ok := queryValues(q.ctx.Request(), name)
+	if !ok {
+		return nil, false
+	}
+	return internalbinder.ParseInt16Slice(values)
+}
+func (q *QueryAccessor) Int32(name string) (int32, bool) {
+	value, ok := queryValue(q.ctx.Request(), name)
+	if !ok {
+		return 0, false
+	}
+	return internalbinder.ParseInt32Val(value)
+}
+func (q *QueryAccessor) Int32s(name string) ([]int32, bool) {
+	values, ok := queryValues(q.ctx.Request(), name)
+	if !ok {
+		return nil, false
+	}
+	return internalbinder.ParseInt32Slice(values)
+}
+func (q *QueryAccessor) Int64(name string) (int64, bool) {
+	value, ok := queryValue(q.ctx.Request(), name)
+	if !ok {
+		return 0, false
+	}
+	return internalbinder.ParseInt64Val(value)
+}
+func (q *QueryAccessor) Int64s(name string) ([]int64, bool) {
+	values, ok := queryValues(q.ctx.Request(), name)
+	if !ok {
+		return nil, false
+	}
+	return internalbinder.ParseInt64Slice(values)
+}
+func (q *QueryAccessor) Bool(name string) (bool, bool) {
+	value, ok := queryValue(q.ctx.Request(), name)
+	if !ok {
+		return false, false
+	}
+	return internalbinder.ParseBoolVal(value)
+}
+func (q *QueryAccessor) Bools(name string) ([]bool, bool) {
+	values, ok := queryValues(q.ctx.Request(), name)
+	if !ok {
+		return nil, false
+	}
+	return internalbinder.ParseBoolSlice(values)
+}
+func (q *QueryAccessor) Float32(name string) (float32, bool) {
+	value, ok := queryValue(q.ctx.Request(), name)
+	if !ok {
+		return 0, false
+	}
+	return internalbinder.ParseFloat32Val(value)
+}
+func (q *QueryAccessor) Float32s(name string) ([]float32, bool) {
+	values, ok := queryValues(q.ctx.Request(), name)
+	if !ok {
+		return nil, false
+	}
+	return internalbinder.ParseFloat32Slice(values)
+}
+func (q *QueryAccessor) Float64(name string) (float64, bool) {
+	value, ok := queryValue(q.ctx.Request(), name)
+	if !ok {
+		return 0, false
+	}
+	return internalbinder.ParseFloat64Val(value)
+}
 func (q *QueryAccessor) Float64s(name string) ([]float64, bool) {
-	return q.ctx.inner.QueryFloat64s(name)
+	values, ok := queryValues(q.ctx.Request(), name)
+	if !ok {
+		return nil, false
+	}
+	return internalbinder.ParseFloat64Slice(values)
+}
+
+func (q *QueryAccessor) GetRedirectURL(defaultRedirect string) string {
+	for _, key := range []string{"redirect_uri", "redirect_url", "return_url", "returnUrl", "return_to", "redirect", "return"} {
+		value, ok := queryValue(q.ctx.Request(), key)
+		if !ok {
+			continue
+		}
+		if redirectURL, ok := safeRedirectTarget(value, q.ctx.Request(), routeClientURL(q.ctx.inner)); ok {
+			return redirectURL
+		}
+	}
+	return defaultRedirect
+}
+
+func queryValue(r *http.Request, name string) (string, bool) {
+	values, ok := queryValues(r, name)
+	if !ok || len(values) == 0 {
+		return "", false
+	}
+	return values[0], true
+}
+
+func queryValues(r *http.Request, name string) ([]string, bool) {
+	if r == nil || r.URL == nil {
+		return nil, false
+	}
+	values, ok := r.URL.Query()[name]
+	return values, ok
+}
+
+func safeRedirectTarget(raw string, r *http.Request, clientURL *url.URL) (string, bool) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", false
+	}
+	if strings.HasPrefix(raw, "//") || strings.HasPrefix(raw, `\\`) {
+		return "", false
+	}
+
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return "", false
+	}
+
+	if parsed.Scheme != "" || parsed.Host != "" {
+		if !isSameOriginRedirect(parsed, r, clientURL) {
+			return "", false
+		}
+		return redirectPathFromURL(parsed), true
+	}
+
+	if !strings.HasPrefix(raw, "/") {
+		raw = "/" + raw
+	}
+	if len(raw) > 1 && (raw[1] == '/' || raw[1] == '\\') {
+		return "", false
+	}
+	return raw, true
+}
+
+func isSameOriginRedirect(target *url.URL, r *http.Request, clientURL *url.URL) bool {
+	if target == nil {
+		return false
+	}
+	expectedHost := ""
+	if clientURL != nil {
+		expectedHost = clientURL.Host
+	}
+	if expectedHost == "" && r != nil {
+		expectedHost = r.Host
+	}
+	return expectedHost != "" && strings.EqualFold(target.Host, expectedHost)
+}
+
+func redirectPathFromURL(target *url.URL) string {
+	path := target.EscapedPath()
+	if path == "" {
+		path = "/"
+	} else if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	if target.RawQuery != "" {
+		path += "?" + target.RawQuery
+	}
+	if target.Fragment != "" {
+		path += "#" + target.Fragment
+	}
+	return path
+}
+
+func routeClientURL(inner internalrouting.RouteContext) *url.URL {
+	if inner == nil {
+		return nil
+	}
+	provider, ok := any(inner).(interface{ ClientURL() *url.URL })
+	if !ok {
+		return nil
+	}
+	return provider.ClientURL()
 }
 
 type FormAccessor struct{ ctx *routeContext }
 
-func (f *FormAccessor) String(name string) (string, bool)     { return f.ctx.inner.FormValue(name) }
-func (f *FormAccessor) Strings(name string) ([]string, bool)  { return f.ctx.inner.FormValues(name) }
-func (f *FormAccessor) UUID(name string) (uuid.UUID, bool)    { return f.ctx.inner.FormUUID(name) }
-func (f *FormAccessor) UUIDs(name string) ([]uuid.UUID, bool) { return f.ctx.inner.FormUUIDs(name) }
-func (f *FormAccessor) Int(name string) (int, bool)           { return f.ctx.inner.FormInt(name) }
-func (f *FormAccessor) Ints(name string) ([]int, bool)        { return f.ctx.inner.FormInts(name) }
-func (f *FormAccessor) Int16(name string) (int16, bool)       { return f.ctx.inner.FormInt16(name) }
-func (f *FormAccessor) Int16s(name string) ([]int16, bool)    { return f.ctx.inner.FormInt16s(name) }
-func (f *FormAccessor) Int32(name string) (int32, bool)       { return f.ctx.inner.FormInt32(name) }
-func (f *FormAccessor) Int32s(name string) ([]int32, bool)    { return f.ctx.inner.FormInt32s(name) }
-func (f *FormAccessor) Int64(name string) (int64, bool)       { return f.ctx.inner.FormInt64(name) }
-func (f *FormAccessor) Int64s(name string) ([]int64, bool)    { return f.ctx.inner.FormInt64s(name) }
-func (f *FormAccessor) Bool(name string) (bool, bool)         { return f.ctx.inner.FormBool(name) }
-func (f *FormAccessor) Bools(name string) ([]bool, bool)      { return f.ctx.inner.FormBools(name) }
-func (f *FormAccessor) Float32(name string) (float32, bool)   { return f.ctx.inner.FormFloat32(name) }
-func (f *FormAccessor) Float32s(name string) ([]float32, bool) {
-	return f.ctx.inner.FormFloat32s(name)
+func (f *FormAccessor) String(name string) (string, bool) { return formValue(f.ctx.Request(), name) }
+func (f *FormAccessor) Strings(name string) ([]string, bool) {
+	return formValues(f.ctx.Request(), name)
 }
-func (f *FormAccessor) Float64(name string) (float64, bool) { return f.ctx.inner.FormFloat64(name) }
+func (f *FormAccessor) UUID(name string) (uuid.UUID, bool) {
+	value, ok := formValue(f.ctx.Request(), name)
+	if !ok {
+		return uuid.Nil, false
+	}
+	return internalbinder.ParseUUIDVal(value)
+}
+func (f *FormAccessor) UUIDs(name string) ([]uuid.UUID, bool) {
+	values, ok := formValues(f.ctx.Request(), name)
+	if !ok {
+		return nil, false
+	}
+	return internalbinder.ParseUUIDSlice(values)
+}
+func (f *FormAccessor) Int(name string) (int, bool) {
+	value, ok := formValue(f.ctx.Request(), name)
+	if !ok {
+		return 0, false
+	}
+	return internalbinder.ParseIntVal(value)
+}
+func (f *FormAccessor) Ints(name string) ([]int, bool) {
+	values, ok := formValues(f.ctx.Request(), name)
+	if !ok {
+		return nil, false
+	}
+	return internalbinder.ParseIntSlice(values)
+}
+func (f *FormAccessor) Int16(name string) (int16, bool) {
+	value, ok := formValue(f.ctx.Request(), name)
+	if !ok {
+		return 0, false
+	}
+	return internalbinder.ParseInt16Val(value)
+}
+func (f *FormAccessor) Int16s(name string) ([]int16, bool) {
+	values, ok := formValues(f.ctx.Request(), name)
+	if !ok {
+		return nil, false
+	}
+	return internalbinder.ParseInt16Slice(values)
+}
+func (f *FormAccessor) Int32(name string) (int32, bool) {
+	value, ok := formValue(f.ctx.Request(), name)
+	if !ok {
+		return 0, false
+	}
+	return internalbinder.ParseInt32Val(value)
+}
+func (f *FormAccessor) Int32s(name string) ([]int32, bool) {
+	values, ok := formValues(f.ctx.Request(), name)
+	if !ok {
+		return nil, false
+	}
+	return internalbinder.ParseInt32Slice(values)
+}
+func (f *FormAccessor) Int64(name string) (int64, bool) {
+	value, ok := formValue(f.ctx.Request(), name)
+	if !ok {
+		return 0, false
+	}
+	return internalbinder.ParseInt64Val(value)
+}
+func (f *FormAccessor) Int64s(name string) ([]int64, bool) {
+	values, ok := formValues(f.ctx.Request(), name)
+	if !ok {
+		return nil, false
+	}
+	return internalbinder.ParseInt64Slice(values)
+}
+func (f *FormAccessor) Bool(name string) (bool, bool) {
+	value, ok := formValue(f.ctx.Request(), name)
+	if !ok {
+		return false, false
+	}
+	return internalbinder.ParseBoolVal(value)
+}
+func (f *FormAccessor) Bools(name string) ([]bool, bool) {
+	values, ok := formValues(f.ctx.Request(), name)
+	if !ok {
+		return nil, false
+	}
+	return internalbinder.ParseBoolSlice(values)
+}
+func (f *FormAccessor) Float32(name string) (float32, bool) {
+	value, ok := formValue(f.ctx.Request(), name)
+	if !ok {
+		return 0, false
+	}
+	return internalbinder.ParseFloat32Val(value)
+}
+func (f *FormAccessor) Float32s(name string) ([]float32, bool) {
+	values, ok := formValues(f.ctx.Request(), name)
+	if !ok {
+		return nil, false
+	}
+	return internalbinder.ParseFloat32Slice(values)
+}
+func (f *FormAccessor) Float64(name string) (float64, bool) {
+	value, ok := formValue(f.ctx.Request(), name)
+	if !ok {
+		return 0, false
+	}
+	return internalbinder.ParseFloat64Val(value)
+}
 func (f *FormAccessor) Float64s(name string) ([]float64, bool) {
-	return f.ctx.inner.FormFloat64s(name)
+	values, ok := formValues(f.ctx.Request(), name)
+	if !ok {
+		return nil, false
+	}
+	return internalbinder.ParseFloat64Slice(values)
+}
+
+func formValue(r *http.Request, name string) (string, bool) {
+	values, ok := formValues(r, name)
+	if !ok || len(values) == 0 {
+		return "", false
+	}
+	return values[0], true
+}
+
+func formValues(r *http.Request, name string) ([]string, bool) {
+	if err := ensureFormsParsed(r); err != nil {
+		return nil, false
+	}
+	if r == nil || r.Form == nil {
+		return nil, false
+	}
+	values, ok := r.Form[name]
+	return values, ok
+}
+
+func ensureFormsParsed(r *http.Request) error {
+	if r == nil {
+		return nil
+	}
+	contentType := r.Header.Get(HeaderContentType)
+	if strings.HasPrefix(contentType, internalcommon.MimeMultipartFormData) {
+		return r.ParseMultipartForm(32 << 20)
+	}
+	if strings.HasPrefix(contentType, internalcommon.MimeFormURLEncoded) {
+		return r.ParseForm()
+	}
+	return nil
 }
 
 type HeaderAccessor struct{ ctx *routeContext }
 
-func (h *HeaderAccessor) String(name string) (string, bool)   { return h.ctx.inner.Header(name) }
-func (h *HeaderAccessor) Int(name string) (int, bool)         { return h.ctx.inner.HeaderInt(name) }
-func (h *HeaderAccessor) UUID(name string) (uuid.UUID, bool)  { return h.ctx.inner.HeaderUUID(name) }
-func (h *HeaderAccessor) Bool(name string) (bool, bool)       { return h.ctx.inner.HeaderBool(name) }
-func (h *HeaderAccessor) Float64(name string) (float64, bool) { return h.ctx.inner.HeaderFloat64(name) }
+func (h *HeaderAccessor) String(name string) (string, bool) {
+	return headerValue(h.ctx.Request(), name)
+}
+func (h *HeaderAccessor) Int(name string) (int, bool) {
+	value, ok := headerValue(h.ctx.Request(), name)
+	if !ok {
+		return 0, false
+	}
+	return internalbinder.ParseIntVal(value)
+}
+func (h *HeaderAccessor) UUID(name string) (uuid.UUID, bool) {
+	value, ok := headerValue(h.ctx.Request(), name)
+	if !ok {
+		return uuid.Nil, false
+	}
+	return internalbinder.ParseUUIDVal(value)
+}
+func (h *HeaderAccessor) Bool(name string) (bool, bool) {
+	value, ok := headerValue(h.ctx.Request(), name)
+	if !ok {
+		return false, false
+	}
+	return internalbinder.ParseBoolVal(value)
+}
+func (h *HeaderAccessor) Float64(name string) (float64, bool) {
+	value, ok := headerValue(h.ctx.Request(), name)
+	if !ok {
+		return 0, false
+	}
+	return internalbinder.ParseFloat64Val(value)
+}
+
+func headerValue(r *http.Request, name string) (string, bool) {
+	if r == nil {
+		return "", false
+	}
+	value := r.Header.Get(name)
+	return value, value != ""
+}
 
 type CookieAccessor struct{ ctx *routeContext }
 
 func (c *CookieAccessor) Get(name string) (string, error) {
-	return c.ctx.inner.GetCookie(name)
+	if c == nil || c.ctx == nil || c.ctx.Request() == nil {
+		return "", http.ErrNoCookie
+	}
+	cookie, err := c.ctx.Request().Cookie(name)
+	if err != nil {
+		return "", err
+	}
+	return cookie.Value, nil
 }
 
 func (c *CookieAccessor) Set(name, value string, maxAge int, path, domain string, secure, httpOnly bool, sameSite ...http.SameSite) {

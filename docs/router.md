@@ -157,11 +157,13 @@ Query parameters are accessed through the RouteContext:
 
 ```go
 func searchUsers(c mux.RouteContext) {
-    query, _ := c.Query().String("q")
-    page, _ := c.Query().Int("page")
-    limit, _ := c.Query().Int("limit")
+    query := c.Query()
+    search, _ := query.String("q")
+    page, _ := query.Int("page")
+    limit, _ := query.Int("limit")
     
     // Use parameters...
+    _ = search
 }
 
 router.GET("/users/search", searchUsers)
@@ -204,6 +206,31 @@ func createUser(c mux.RouteContext) {
     c.Created(createdUser)
 }
 ```
+
+## Request Access Model
+
+Mux keeps request data access source-grouped so handlers learn one rule and reuse it everywhere:
+
+```go
+func handler(c mux.RouteContext) {
+    params := c.Params()
+    query := c.Query()
+    form := c.Form()
+    headers := c.Headers()
+
+    id, _ := params.String("id")
+    page, _ := query.Int("page")
+    name, _ := form.String("name")
+    traceID, _ := headers.String("X-Trace-ID")
+
+    _ = id
+    _ = page
+    _ = name
+    _ = traceID
+}
+```
+
+That source-first pattern is the canonical public model: `Params()`, `Query()`, `Form()`, `Headers()`, and `Cookies()`.
 
 ## Error Handling
 

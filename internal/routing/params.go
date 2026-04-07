@@ -53,28 +53,3 @@ func (ps Params) Len() int {
 func (ps *Params) Reset() {
 	*ps = (*ps)[:0]
 }
-
-// ToMap converts Params to a map[string]string for backward compatibility.
-// This allocates a new map, so prefer using Params directly when possible.
-func (ps Params) ToMap() map[string]string {
-	if len(ps) == 0 {
-		return nil
-	}
-	m := make(map[string]string, len(ps))
-	for i := range ps {
-		m[ps[i].Key] = ps[i].Value
-	}
-	return m
-}
-
-// FromMap populates Params from a map[string]string.
-// This is useful for backward compatibility during migration.
-func (ps *Params) FromMap(m map[string]string) {
-	ps.Reset()
-	if len(m) == 0 {
-		return
-	}
-	for k, v := range m {
-		*ps = append(*ps, Param{Key: k, Value: v})
-	}
-}

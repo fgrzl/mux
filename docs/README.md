@@ -1,6 +1,6 @@
 # Mux Documentation
 
-Welcome to the Mux HTTP router library documentation. Mux is a lightweight, modular HTTP router for Go designed for building modern APIs with built-in support for middleware, request binding, OpenAPI 3.1 generation, and flexible authentication.
+Welcome to the Mux documentation. Mux is a fast, batteries-included HTTP framework for Go for building modern APIs with routing, request binding, structured errors, middleware, and OpenAPI 3.1 generation in one coherent model.
 
 ## Documentation Guide
 
@@ -43,7 +43,6 @@ Deep dives into specific features:
 Additional resources:
 
 - **[FAQ](faq.md)** - Frequently asked questions and troubleshooting
-- **[Router Comparison](router-comparison-quick.md)** - Performance benchmarks vs other routers
 
 ## Recommended Learning Paths
 

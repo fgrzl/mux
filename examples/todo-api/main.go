@@ -179,7 +179,7 @@ func createTodo(c mux.RouteContext) {
 }
 
 func getTodo(c mux.RouteContext) {
-	id, ok := c.Param("id")
+	id, ok := c.Params().String("id")
 	if !ok {
 		c.BadRequest(errMissingParam, errIDRequired)
 		return
@@ -198,7 +198,7 @@ func getTodo(c mux.RouteContext) {
 }
 
 func updateTodo(c mux.RouteContext) {
-	id, ok := c.Param("id")
+	id, ok := c.Params().String("id")
 	if !ok {
 		c.BadRequest(errMissingParam, errIDRequired)
 		return
@@ -236,7 +236,7 @@ func updateTodo(c mux.RouteContext) {
 }
 
 func deleteTodo(c mux.RouteContext) {
-	id, ok := c.Param("id")
+	id, ok := c.Params().String("id")
 	if !ok {
 		c.BadRequest(errMissingParam, errIDRequired)
 		return

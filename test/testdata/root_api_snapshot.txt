@@ -110,6 +110,7 @@ type MiddlewareFunc func(MutableRouteContext, HandlerFunc)
 type MutableRouteContext interface
 type OpenAPISpec struct
 type OpenTelemetryOption struct
+type ParamAccessor struct
 type ProblemDetails struct
 type QueryAccessor struct
 type RateLimiter struct
@@ -159,12 +160,7 @@ iface RouteContext.MovedPermanently(string)
 iface RouteContext.NoContent()
 iface RouteContext.NotFound()
 iface RouteContext.OK(any)
-iface RouteContext.Param(string) (string, bool)
-iface RouteContext.ParamInt(string) (int, bool)
-iface RouteContext.ParamInt16(string) (int16, bool)
-iface RouteContext.ParamInt32(string) (int32, bool)
-iface RouteContext.ParamInt64(string) (int64, bool)
-iface RouteContext.ParamUUID(string) (uuid.UUID, bool)
+iface RouteContext.Params() *ParamAccessor
 iface RouteContext.PermanentRedirect(string)
 iface RouteContext.Plain(int, []byte)
 iface RouteContext.Problem(*ProblemDetails)
@@ -223,12 +219,19 @@ method (*OpenAPISpec) UnmarshalFromFile(string) error
 method (*OpenAPISpec) UnmarshalJSON([]byte) error
 method (*OpenAPISpec) UnmarshalYAML(*yaml.Node) error
 method (*OpenAPISpec) Validate() error
+method (*ParamAccessor) Int(string) (int, bool)
+method (*ParamAccessor) Int16(string) (int16, bool)
+method (*ParamAccessor) Int32(string) (int32, bool)
+method (*ParamAccessor) Int64(string) (int64, bool)
+method (*ParamAccessor) String(string) (string, bool)
+method (*ParamAccessor) UUID(string) (uuid.UUID, bool)
 method (*QueryAccessor) Bool(string) (bool, bool)
 method (*QueryAccessor) Bools(string) ([]bool, bool)
 method (*QueryAccessor) Float32(string) (float32, bool)
 method (*QueryAccessor) Float32s(string) ([]float32, bool)
 method (*QueryAccessor) Float64(string) (float64, bool)
 method (*QueryAccessor) Float64s(string) ([]float64, bool)
+method (*QueryAccessor) GetRedirectURL(string) string
 method (*QueryAccessor) Int(string) (int, bool)
 method (*QueryAccessor) Int16(string) (int16, bool)
 method (*QueryAccessor) Int16s(string) ([]int16, bool)

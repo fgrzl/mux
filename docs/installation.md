@@ -1,6 +1,6 @@
 ﻿# Installation
 
-This guide covers prerequisites, module setup, verification, and local development for Mux.
+This guide covers prerequisites, module setup, verification, and local development for Mux, the fast, batteries-included HTTP framework for Go.
 
 ## Requirements
 

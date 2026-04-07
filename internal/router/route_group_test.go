@@ -323,7 +323,8 @@ func TestShouldInheritParametersWhenCreatingNestedRouteGroup(t *testing.T) {
 	})
 
 	// Assert: Route inherits parameters and defaults
-	options, _, found := rtr.routeRegistry.Load("/api/v1/users", http.MethodGet)
+	var params routing.Params
+	options, found := rtr.routeRegistry.LoadIntoSlice("/api/v1/users", http.MethodGet, &params)
 	require.True(t, found, "Route should be registered")
 	assert.Contains(t, options.Roles, "admin")
 	assert.Len(t, options.Operation.Parameters, 2) // version and limit params
@@ -358,7 +359,8 @@ func TestShouldMarkPathParameterRequiredWhenUsingLowLevelWithParam(t *testing.T)
 	api.GET("/users/{id}", func(c routing.RouteContext) {
 		c.OK("users")
 	})
-	options, _, found := rtr.routeRegistry.Load("/api/users/{id}", http.MethodGet)
+	var params routing.Params
+	options, found := rtr.routeRegistry.LoadIntoSlice("/api/users/{id}", http.MethodGet, &params)
 
 	// Assert
 	require.True(t, found, "Route should be registered")

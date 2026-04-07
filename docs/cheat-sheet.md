@@ -73,7 +73,7 @@ router.PATCH("/path", handler)
 ### Path Parameters
 ```go
 router.GET("/users/{id}", func(c mux.RouteContext) {
-    id, _ := c.Param("id")
+    id, _ := c.Params().String("id")
     c.OK(map[string]string{"userId": id})
 })
 ```
@@ -81,13 +81,14 @@ router.GET("/users/{id}", func(c mux.RouteContext) {
 ### Query Parameters
 ```go
 router.GET("/search", func(c mux.RouteContext) {
-    query, ok := c.Query().String("q")         // Single value
-    values, _ := c.Query().Strings("tags")     // Multiple values
+    query := c.Query()
+    term, ok := query.String("q")              // Single value
+    values, _ := query.Strings("tag")          // Repeated values: ?tag=a&tag=b
     if !ok {
         c.BadRequest("Missing query", "q parameter is required")
         return
     }
-    c.OK(map[string]any{"q": query, "tags": values})
+    c.OK(map[string]any{"q": term, "tags": values})
 })
 ```
 

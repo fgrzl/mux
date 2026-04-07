@@ -18,7 +18,7 @@ func main() {
 		}).WithOperationID("helloRoot")
 
 		router.GET("/hello/{name}", func(c mux.RouteContext) {
-			name, ok := c.Param("name")
+			name, ok := c.Params().String("name")
 			if !ok {
 				c.BadRequest("Missing name", "name parameter is required")
 				return

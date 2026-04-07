@@ -79,7 +79,7 @@ curl -X DELETE http://localhost:8080/todos/{id}
 
 - `router.Configure(...)` as the startup path
 - route groups and route-builder metadata
-- `c.Bind(...)`, `c.Param(...)`, `c.OK(...)`, and `c.Created(...)`
+- `c.Bind(...)`, `c.Params().String(...)`, `c.OK(...)`, and `c.Created(...)`
 - OpenAPI generation from registered routes
 - server lifecycle with `mux.NewServer(...).Listen(ctx)`
 

@@ -1,6 +1,6 @@
 # Quick Start
 
-Get up and running with Mux in under 5 minutes. This guide shows you the absolute minimum needed to create your first API.
+Get up and running with Mux in under 5 minutes. This guide shows the smallest useful slice of the framework using its default startup path.
 
 > **New to Mux?** This quick start gets you coding immediately. For a comprehensive tutorial, see the [Interactive Tutorial](interactive-tutorial.md).
 

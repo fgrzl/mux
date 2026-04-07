@@ -219,22 +219,7 @@ func (m *authorizationMiddleware) checkPermission(c routing.RouteContext) bool {
 		return true
 	}
 
-	// Prefer a non-allocating interpolation path using the Params slice.
-	// Fall back to the map-based helper only if there is no params slice.
-	if ps := c.ParamsSlice(); ps != nil {
-		perms := interpolatePermissions(ps, sources...)
-		if m.options != nil && m.options.CheckPermissions != nil {
-			return m.options.CheckPermissions(c.User(), perms)
-		}
-		// Permissions required but no checker configured - log warning and deny
-		slog.WarnContext(c, "permissions required but no CheckPermissions function configured", "permissions", perms)
-		return false
-	}
-
-	// Legacy: no params slice available, use map-based interpolation (allocates).
-	// There are no params to copy since ps is nil; call the map-based helper with
-	// an empty map to keep behavior consistent.
-	perms := interpolatePermissions(nil, sources...)
+	perms := interpolatePermissions(c.ParamsSlice(), sources...)
 
 	if m.options != nil && m.options.CheckPermissions != nil {
 		return m.options.CheckPermissions(c.User(), perms)
@@ -246,11 +231,6 @@ func (m *authorizationMiddleware) checkPermission(c routing.RouteContext) bool {
 
 // ---- Helpers ----
 
-// Deprecated map-based interpolation removed in favor of slice-based helpers.
-// The slice-based versions are defined below and are used throughout the codebase.
-
-// interpolatePermissionsFromSlice behaves like interpolatePermissions but looks
-// up replacements from the provided Params slice without allocating a map.
 func interpolatePermissions(ps *routing.Params, permissions ...[]string) []string {
 	var result []string
 	for _, slice := range permissions {
@@ -272,8 +252,6 @@ func interpolatePermissions(ps *routing.Params, permissions ...[]string) []strin
 	return result
 }
 
-// interpolatePermissionFromSlice performs placeholder interpolation using
-// a Params slice for lookups. It scans the slice for matching keys.
 func interpolatePermission(ps *routing.Params, permission string) string {
 	// Use a pooled buffer to avoid intermediate allocations from creating new
 	// buffers/builders for each interpolation. Final string allocation still occurs
@@ -315,5 +293,3 @@ func interpolatePermission(ps *routing.Params, permission string) string {
 var bufferPool = sync.Pool{
 	New: func() any { return new(bytes.Buffer) },
 }
-
-// note: map-based interpolation removed

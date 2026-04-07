@@ -1,6 +1,6 @@
 # Hello World Example
 
-The smallest useful Mux service: one router, two routes, direct path-param access, and direct response helpers.
+The smallest useful Mux service: one router, two routes, grouped request accessors, and direct response helpers.
 
 ## Run It
 
@@ -40,7 +40,7 @@ The last request returns `404` because the route requires a `{name}` segment.
 ## What It Demonstrates
 
 - `mux.NewRouter()` and `router.Configure(...)`
-- Direct handler ergonomics with `c.Param(...)`, `c.OK(...)`, and `c.BadRequest(...)`
+- Grouped request access with `c.Params().String(...)`, plus `c.OK(...)` and `c.BadRequest(...)`
 - `mux.NewServer(...).Listen(ctx)` with signal-driven shutdown
 
 ## Next Steps
