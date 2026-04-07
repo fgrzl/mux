@@ -2,6 +2,7 @@ package router
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	openapi "github.com/fgrzl/mux/internal/openapi"
@@ -483,6 +484,43 @@ func TestShouldStopMiddlewareChainWhenNotContinuing(t *testing.T) {
 	assert.True(t, middlewareExecuted)
 	assert.False(t, handlerExecuted) // Handler should not be executed
 	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+}
+
+func TestShouldReturnInternalServerErrorWhenMatchedRouteHasNilOptions(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+	rtr.routeRegistry.Register("/broken", http.MethodGet, nil)
+	req := httptest.NewRequest(http.MethodGet, "/broken", nil)
+	rr := httptest.NewRecorder()
+
+	// Act
+	assert.NotPanics(t, func() {
+		rtr.ServeHTTP(rr, req)
+	})
+
+	// Assert
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Contains(t, rr.Body.String(), "An unexpected error occurred")
+}
+
+func TestShouldReturnInternalServerErrorWhenMiddlewarePipelineReachesNilEffectiveHandler(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+	rtr.Use(&testMiddleware{
+		invoke: func(c routing.RouteContext, next HandlerFunc) {
+			next(c)
+		},
+	})
+	rtr.routeRegistry.Register("/broken", http.MethodGet, &routing.RouteOptions{Method: http.MethodGet, Pattern: "/broken"})
+	req := httptest.NewRequest(http.MethodGet, "/broken", nil)
+	rr := httptest.NewRecorder()
+
+	// Act
+	rtr.ServeHTTP(rr, req)
+
+	// Assert
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Contains(t, rr.Body.String(), "An unexpected error occurred")
 }
 
 // Test middleware implementation for testing

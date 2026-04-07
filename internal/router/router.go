@@ -226,7 +226,7 @@ func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		// Skip middleware pipeline if no middleware configured (~20-30ns faster)
 		if len(rtr.middleware) == 0 {
-			rtr.executeHandlerWithRecover(opt.EffectiveHandler(), c, w, r)
+			rtr.executeHandlerWithRecover(c, w, r)
 			rtr.releaseContext(c)
 		} else {
 			rtr.executePipelineWithRecover(c, w, r)
@@ -257,7 +257,7 @@ func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Skip middleware pipeline if no middleware configured (~20-30ns faster)
 	if len(rtr.middleware) == 0 {
-		rtr.executeHandlerWithRecover(res.options.EffectiveHandler(), c, w, r)
+		rtr.executeHandlerWithRecover(c, w, r)
 		rtr.releaseContext(c)
 	} else {
 		rtr.executePipelineWithRecover(c, w, r)
@@ -279,8 +279,8 @@ func (rtr *Router) releaseContext(c *routing.DefaultRouteContext) {
 	}
 }
 
-// executeHandlerWithRecover executes a handler directly with panic recovery (no middleware)
-func (rtr *Router) executeHandlerWithRecover(handler routing.HandlerFunc, c *routing.DefaultRouteContext, w http.ResponseWriter, r *http.Request) {
+// executeHandlerWithRecover executes the resolved route handler directly with panic recovery (no middleware).
+func (rtr *Router) executeHandlerWithRecover(c *routing.DefaultRouteContext, w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			logCtx := context.Background()
@@ -296,7 +296,7 @@ func (rtr *Router) executeHandlerWithRecover(handler routing.HandlerFunc, c *rou
 			}
 		}
 	}()
-	handler(c)
+	invokeRouteHandler(c)
 }
 
 // executePipelineWithRecover executes the pipeline with panic recovery
@@ -336,15 +336,15 @@ func safeMethod(r *http.Request) string {
 
 func invokeRouteHandler(c routing.RouteContext) {
 	if c == nil {
-		return
+		panic("router: invokeRouteHandler called with nil route context")
 	}
 	options := c.Options()
 	if options == nil {
-		return
+		panic("router: invokeRouteHandler called with nil route options")
 	}
 	handler := options.EffectiveHandler()
 	if handler == nil {
-		return
+		panic("router: invokeRouteHandler called with nil effective handler")
 	}
 	handler(c)
 }

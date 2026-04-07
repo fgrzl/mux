@@ -582,6 +582,10 @@ func (rg *RouteGroup) registerBuiltRoute(rb *builder.RouteBuilder) *builder.Rout
 		validation.Handle(fmt.Errorf("route method and pattern cannot be empty"))
 		return rb
 	}
+	if rb.Options.EffectiveHandler() == nil {
+		validation.Handle(fmt.Errorf("route %s %s must have a non-nil handler", rb.Options.Method, rb.Options.Pattern))
+		return rb
+	}
 	if rg.routeRegistry.HasRoute(rb.Options.Pattern, rb.Options.Method) {
 		validation.Handle(fmt.Errorf("route %s %s is already registered", rb.Options.Method, rb.Options.Pattern))
 		return rb

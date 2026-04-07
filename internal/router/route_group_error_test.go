@@ -180,3 +180,32 @@ func TestShouldNotAttachDetachedRouteBuilderWithExistingValidationErrors(t *test
 	assert.Equal(t, http.StatusNotFound, rr.Code)
 	require.Len(t, rtr.Errors(), 1)
 }
+
+func TestShouldRejectRouteRegistrationWithoutHandlerInSafeMode(t *testing.T) {
+	// Arrange
+	rtr := NewRouter().Safe()
+	api := rtr.NewRouteGroup("/api")
+
+	// Act
+	route := api.GET("/users", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/users", nil)
+	rr := httptest.NewRecorder()
+	rtr.ServeHTTP(rr, req)
+
+	// Assert
+	require.Error(t, route.Err())
+	assert.ErrorContains(t, route.Err(), "route GET /api/users must have a non-nil handler")
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+	require.Len(t, rtr.Errors(), 1)
+}
+
+func TestShouldPanicWhenRegisteringRouteWithoutHandlerByDefault(t *testing.T) {
+	// Arrange
+	rtr := NewRouter()
+	api := rtr.NewRouteGroup("/api")
+
+	// Act / Assert
+	assert.PanicsWithValue(t, "route GET /api/users must have a non-nil handler", func() {
+		api.GET("/users", nil)
+	})
+}
