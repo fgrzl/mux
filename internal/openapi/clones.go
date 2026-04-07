@@ -45,32 +45,32 @@ func (state *cloneOpenAPIState) cloneOperation(op *Operation) *Operation {
 	state.operations[op] = &clone
 	clone.Tags = cloneStringSlice(op.Tags)
 	clone.ExternalDocs = cloneExternalDocumentation(op.ExternalDocs)
-	if len(op.Parameters) > 0 {
+	if op.Parameters != nil {
 		clone.Parameters = make([]*ParameterObject, len(op.Parameters))
 		for index, param := range op.Parameters {
 			clone.Parameters[index] = CloneParameterObject(param)
 		}
 	}
 	clone.RequestBody = CloneRequestBodyObject(op.RequestBody)
-	if len(op.Responses) > 0 {
+	if op.Responses != nil {
 		clone.Responses = make(map[string]*ResponseObject, len(op.Responses))
 		for key, resp := range op.Responses {
 			clone.Responses[key] = CloneResponseObject(resp)
 		}
 	}
-	if len(op.Callbacks) > 0 {
+	if op.Callbacks != nil {
 		clone.Callbacks = make(map[string]*PathItem, len(op.Callbacks))
 		for key, item := range op.Callbacks {
 			clone.Callbacks[key] = state.clonePathItem(item)
 		}
 	}
-	if len(op.Security) > 0 {
+	if op.Security != nil {
 		clone.Security = make([]*SecurityRequirement, len(op.Security))
 		for index, sec := range op.Security {
 			clone.Security[index] = CloneSecurityRequirement(sec)
 		}
 	}
-	if len(op.Servers) > 0 {
+	if op.Servers != nil {
 		clone.Servers = make([]*ServerObject, len(op.Servers))
 		for index, server := range op.Servers {
 			clone.Servers[index] = cloneServerObject(server)
@@ -99,13 +99,13 @@ func (state *cloneOpenAPIState) clonePathItem(item *PathItem) *PathItem {
 	clone.Head = state.cloneOperation(item.Head)
 	clone.Patch = state.cloneOperation(item.Patch)
 	clone.Trace = state.cloneOperation(item.Trace)
-	if len(item.Parameters) > 0 {
+	if item.Parameters != nil {
 		clone.Parameters = make([]*ParameterObject, len(item.Parameters))
 		for index, param := range item.Parameters {
 			clone.Parameters[index] = CloneParameterObject(param)
 		}
 	}
-	if len(item.Servers) > 0 {
+	if item.Servers != nil {
 		clone.Servers = make([]*ServerObject, len(item.Servers))
 		for index, server := range item.Servers {
 			clone.Servers[index] = cloneServerObject(server)
@@ -150,11 +150,13 @@ func cloneLicenseObject(license *LicenseObject) *LicenseObject {
 }
 
 func cloneStringSlice(values []string) []string {
-	if len(values) == 0 {
+	if values == nil {
 		return nil
 	}
 
-	return append([]string(nil), values...)
+	clone := make([]string, len(values))
+	copy(clone, values)
+	return clone
 }
 
 func CloneParameterObject(param *ParameterObject) *ParameterObject {
@@ -169,19 +171,19 @@ func CloneParameterObject(param *ParameterObject) *ParameterObject {
 	}
 	clone.Schema = CloneSchema(param.Schema)
 	clone.Example = cloneValue(param.Example)
-	if len(param.Examples) > 0 {
+	if param.Examples != nil {
 		clone.Examples = make(map[string]*ExampleObject, len(param.Examples))
 		for key, value := range param.Examples {
 			clone.Examples[key] = CloneExampleObject(value)
 		}
 	}
-	if len(param.Content) > 0 {
+	if param.Content != nil {
 		clone.Content = make(map[string]*MediaType, len(param.Content))
 		for key, value := range param.Content {
 			clone.Content[key] = CloneMediaType(value)
 		}
 	}
-	if len(param.Extensions) > 0 {
+	if param.Extensions != nil {
 		clone.Extensions = make(map[string]*any, len(param.Extensions))
 		for key, value := range param.Extensions {
 			clone.Extensions[key] = cloneAnyPointer(value)
@@ -197,7 +199,7 @@ func CloneRequestBodyObject(body *RequestBodyObject) *RequestBodyObject {
 	}
 
 	clone := *body
-	if len(body.Content) > 0 {
+	if body.Content != nil {
 		clone.Content = make(map[string]*MediaType, len(body.Content))
 		for key, value := range body.Content {
 			clone.Content[key] = CloneMediaType(value)
@@ -214,19 +216,19 @@ func CloneResponseObject(resp *ResponseObject) *ResponseObject {
 	}
 
 	clone := *resp
-	if len(resp.Headers) > 0 {
+	if resp.Headers != nil {
 		clone.Headers = make(map[string]*HeaderObject, len(resp.Headers))
 		for key, value := range resp.Headers {
 			clone.Headers[key] = cloneHeaderObject(value)
 		}
 	}
-	if len(resp.Content) > 0 {
+	if resp.Content != nil {
 		clone.Content = make(map[string]*MediaType, len(resp.Content))
 		for key, value := range resp.Content {
 			clone.Content[key] = CloneMediaType(value)
 		}
 	}
-	if len(resp.Links) > 0 {
+	if resp.Links != nil {
 		clone.Links = make(map[string]*LinkObject, len(resp.Links))
 		for key, value := range resp.Links {
 			clone.Links[key] = cloneLinkObject(value)
@@ -245,13 +247,13 @@ func CloneMediaType(media *MediaType) *MediaType {
 	clone := *media
 	clone.Schema = CloneSchema(media.Schema)
 	clone.Example = cloneValue(media.Example)
-	if len(media.Examples) > 0 {
+	if media.Examples != nil {
 		clone.Examples = make(map[string]*ExampleObject, len(media.Examples))
 		for key, value := range media.Examples {
 			clone.Examples[key] = CloneExampleObject(value)
 		}
 	}
-	if len(media.Encoding) > 0 {
+	if media.Encoding != nil {
 		clone.Encoding = make(map[string]*EncodingObject, len(media.Encoding))
 		for key, value := range media.Encoding {
 			clone.Encoding[key] = cloneEncodingObject(value)
@@ -268,17 +270,18 @@ func CloneSchema(schema *Schema) *Schema {
 	}
 
 	clone := *schema
-	if len(schema.Properties) > 0 {
+	if schema.Properties != nil {
 		clone.Properties = make(map[string]*Schema, len(schema.Properties))
 		for key, value := range schema.Properties {
 			clone.Properties[key] = CloneSchema(value)
 		}
 	}
 	clone.Items = CloneSchema(schema.Items)
-	if len(schema.Required) > 0 {
-		clone.Required = append([]string(nil), schema.Required...)
+	if schema.Required != nil {
+		clone.Required = make([]string, len(schema.Required))
+		copy(clone.Required, schema.Required)
 	}
-	if len(schema.Enum) > 0 {
+	if schema.Enum != nil {
 		clone.Enum = make([]any, len(schema.Enum))
 		for index, value := range schema.Enum {
 			clone.Enum[index] = cloneValue(value)
@@ -295,19 +298,19 @@ func CloneSchema(schema *Schema) *Schema {
 		clone.Maximum = &maximum
 	}
 	clone.AdditionalProperties = CloneSchema(schema.AdditionalProperties)
-	if len(schema.OneOf) > 0 {
+	if schema.OneOf != nil {
 		clone.OneOf = make([]*Schema, len(schema.OneOf))
 		for index, value := range schema.OneOf {
 			clone.OneOf[index] = CloneSchema(value)
 		}
 	}
-	if len(schema.AnyOf) > 0 {
+	if schema.AnyOf != nil {
 		clone.AnyOf = make([]*Schema, len(schema.AnyOf))
 		for index, value := range schema.AnyOf {
 			clone.AnyOf[index] = CloneSchema(value)
 		}
 	}
-	if len(schema.AllOf) > 0 {
+	if schema.AllOf != nil {
 		clone.AllOf = make([]*Schema, len(schema.AllOf))
 		for index, value := range schema.AllOf {
 			clone.AllOf[index] = CloneSchema(value)
@@ -315,7 +318,7 @@ func CloneSchema(schema *Schema) *Schema {
 	}
 	if schema.Discriminator != nil {
 		discriminator := *schema.Discriminator
-		if len(schema.Discriminator.Mapping) > 0 {
+		if schema.Discriminator.Mapping != nil {
 			discriminator.Mapping = make(map[string]string, len(schema.Discriminator.Mapping))
 			for key, value := range schema.Discriminator.Mapping {
 				discriminator.Mapping[key] = value
@@ -344,6 +347,10 @@ func CloneSecurityRequirement(sec *SecurityRequirement) *SecurityRequirement {
 	if sec == nil {
 		return nil
 	}
+	if *sec == nil {
+		var clone SecurityRequirement
+		return &clone
+	}
 
 	clone := make(SecurityRequirement, len(*sec))
 	for key, value := range *sec {
@@ -362,7 +369,7 @@ func cloneHeaderObject(header *HeaderObject) *HeaderObject {
 	clone.Schema = CloneSchema(header.Schema)
 	clone.Example = cloneValue(header.Example)
 	clone.Examples = cloneStringAnyMap(header.Examples)
-	if len(header.Content) > 0 {
+	if header.Content != nil {
 		clone.Content = make(map[string]*MediaType, len(header.Content))
 		for key, value := range header.Content {
 			clone.Content[key] = CloneMediaType(value)
@@ -379,7 +386,7 @@ func cloneEncodingObject(encoding *EncodingObject) *EncodingObject {
 	}
 
 	clone := *encoding
-	if len(encoding.Headers) > 0 {
+	if encoding.Headers != nil {
 		clone.Headers = make(map[string]*HeaderObject, len(encoding.Headers))
 		for key, value := range encoding.Headers {
 			clone.Headers[key] = cloneHeaderObject(value)
@@ -410,15 +417,15 @@ func cloneServerObject(server *ServerObject) *ServerObject {
 	}
 
 	clone := *server
-	if len(server.Variables) > 0 {
+	if server.Variables != nil {
 		clone.Variables = make(map[string]*ServerVariable, len(server.Variables))
 		for key, value := range server.Variables {
 			if value == nil {
 				continue
 			}
 			variable := *value
-			if len(value.Enum) > 0 {
-				variable.Enum = append([]string(nil), value.Enum...)
+			if value.Enum != nil {
+				variable.Enum = cloneStringSlice(value.Enum)
 			}
 			variable.Extensions = cloneStringAnyMap(value.Extensions)
 			clone.Variables[key] = &variable
@@ -439,7 +446,7 @@ func cloneAnyPointer(value *any) *any {
 }
 
 func cloneStringAnyMap(input map[string]any) map[string]any {
-	if len(input) == 0 {
+	if input == nil {
 		return nil
 	}
 

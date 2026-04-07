@@ -242,6 +242,252 @@ func TestCloneOperationShouldDeepCopyCallbacksServersAndExtensions(t *testing.T)
 	assert.Equal(t, true, op.Extensions["x-op"].(map[string]any)["trace"])
 }
 
+func TestCloneOperationShouldPreserveEmptyTagsAndExtensions(t *testing.T) {
+	// Arrange
+	op := &Operation{
+		Tags:       []string{},
+		Extensions: map[string]any{},
+	}
+
+	// Act
+	clone := CloneOperation(op)
+	clone.Extensions["x-op"] = true
+
+	// Assert
+	require.NotNil(t, clone)
+	require.NotNil(t, clone.Tags)
+	assert.Empty(t, clone.Tags)
+	require.NotNil(t, clone.Extensions)
+	assert.Empty(t, op.Extensions)
+	assert.Equal(t, true, clone.Extensions["x-op"])
+}
+
+func TestCloneOperationShouldDeepCopyEmptyCollections(t *testing.T) {
+	// Arrange
+	op := &Operation{
+		Parameters: make([]*ParameterObject, 0, 1),
+		Responses:  map[string]*ResponseObject{},
+		Callbacks:  map[string]*PathItem{},
+		Security:   make([]*SecurityRequirement, 0, 1),
+		Servers:    make([]*ServerObject, 0, 1),
+	}
+
+	// Act
+	clone := CloneOperation(op)
+	clone.Parameters = append(clone.Parameters, &ParameterObject{Name: "clone-param"})
+	clone.Responses["200"] = &ResponseObject{Description: "clone-response"}
+	clone.Callbacks["clone"] = &PathItem{}
+	clone.Security = append(clone.Security, &SecurityRequirement{})
+	clone.Servers = append(clone.Servers, &ServerObject{URL: "https://clone.example.com"})
+
+	op.Parameters = append(op.Parameters, &ParameterObject{Name: "source-param"})
+	op.Security = append(op.Security, &SecurityRequirement{})
+	op.Servers = append(op.Servers, &ServerObject{URL: "https://source.example.com"})
+
+	// Assert
+	require.NotNil(t, clone)
+	require.NotNil(t, clone.Parameters)
+	require.NotNil(t, clone.Responses)
+	require.NotNil(t, clone.Callbacks)
+	require.NotNil(t, clone.Security)
+	require.NotNil(t, clone.Servers)
+	require.Len(t, clone.Parameters, 1)
+	require.Len(t, op.Parameters, 1)
+	assert.Equal(t, "clone-param", clone.Parameters[0].Name)
+	assert.Equal(t, "source-param", op.Parameters[0].Name)
+	assert.Contains(t, clone.Responses, "200")
+	assert.Empty(t, op.Responses)
+	assert.Contains(t, clone.Callbacks, "clone")
+	assert.Empty(t, op.Callbacks)
+	require.Len(t, clone.Security, 1)
+	require.Len(t, op.Security, 1)
+	require.Len(t, clone.Servers, 1)
+	require.Len(t, op.Servers, 1)
+	assert.Equal(t, "https://clone.example.com", clone.Servers[0].URL)
+	assert.Equal(t, "https://source.example.com", op.Servers[0].URL)
+}
+
+func TestCloneOperationShouldDeepCopyNestedEmptyCollections(t *testing.T) {
+	// Arrange
+	callback := &PathItem{
+		Parameters: make([]*ParameterObject, 0, 1),
+		Servers:    make([]*ServerObject, 0, 1),
+		Extensions: map[string]any{},
+	}
+	operationSecurity := SecurityRequirement{}
+	op := &Operation{
+		Parameters: []*ParameterObject{{
+			Name:       "filter",
+			In:         "query",
+			Examples:   map[string]*ExampleObject{},
+			Content:    map[string]*MediaType{},
+			Extensions: map[string]*any{},
+			Schema: &Schema{
+				Properties:    map[string]*Schema{},
+				Required:      make([]string, 0, 1),
+				Enum:          make([]any, 0, 1),
+				OneOf:         make([]*Schema, 0, 1),
+				AnyOf:         make([]*Schema, 0, 1),
+				AllOf:         make([]*Schema, 0, 1),
+				Discriminator: &Discriminator{PropertyName: "kind", Mapping: map[string]string{}},
+				Extensions:    map[string]any{},
+			},
+		}},
+		Responses: map[string]*ResponseObject{
+			"200": {
+				Description: "OK",
+				Headers:     map[string]*HeaderObject{},
+				Content: map[string]*MediaType{
+					"application/json": {
+						Examples: map[string]*ExampleObject{},
+						Encoding: map[string]*EncodingObject{
+							"payload": {
+								Headers:    map[string]*HeaderObject{},
+								Extensions: map[string]any{},
+							},
+						},
+						Extensions: map[string]any{},
+					},
+				},
+				Links:      map[string]*LinkObject{},
+				Extensions: map[string]any{},
+			},
+		},
+		Callbacks: map[string]*PathItem{"cb": callback},
+		Security:  []*SecurityRequirement{&operationSecurity},
+		Servers: []*ServerObject{{
+			URL: "https://api.example.com",
+			Variables: map[string]*ServerVariable{
+				"stage": {
+					Default:    "prod",
+					Enum:       make([]string, 0, 1),
+					Extensions: map[string]any{},
+				},
+			},
+			Extensions: map[string]any{},
+		}},
+	}
+
+	// Act
+	clone := CloneOperation(op)
+	cloneParam := clone.Parameters[0]
+	cloneSchema := cloneParam.Schema
+	cloneResponse := clone.Responses["200"]
+	cloneMedia := cloneResponse.Content["application/json"]
+	cloneEncoding := cloneMedia.Encoding["payload"]
+	cloneCallback := clone.Callbacks["cb"]
+	cloneServerVar := clone.Servers[0].Variables["stage"]
+
+	cloneParam.Examples["clone"] = &ExampleObject{Summary: "clone"}
+	cloneParam.Content["application/json"] = &MediaType{}
+	cloneParam.Extensions["x-clone"] = nil
+	cloneSchema.Properties["clone"] = &Schema{Type: "string"}
+	cloneSchema.Required = append(cloneSchema.Required, "clone")
+	cloneSchema.Enum = append(cloneSchema.Enum, "clone")
+	cloneSchema.OneOf = append(cloneSchema.OneOf, &Schema{Type: "string"})
+	cloneSchema.AnyOf = append(cloneSchema.AnyOf, &Schema{Type: "number"})
+	cloneSchema.AllOf = append(cloneSchema.AllOf, &Schema{Type: "boolean"})
+	cloneSchema.Discriminator.Mapping["clone"] = "#/components/schemas/Clone"
+	cloneSchema.Extensions["x-clone"] = true
+	cloneResponse.Headers["X-Clone"] = &HeaderObject{Description: "clone"}
+	cloneResponse.Links["clone"] = &LinkObject{Description: "clone"}
+	cloneResponse.Extensions["x-clone"] = true
+	cloneMedia.Examples["clone"] = &ExampleObject{Summary: "clone"}
+	cloneMedia.Extensions["x-clone"] = true
+	cloneEncoding.Headers["X-Clone"] = &HeaderObject{Description: "clone"}
+	cloneEncoding.Extensions["x-clone"] = true
+	cloneCallback.Parameters = append(cloneCallback.Parameters, &ParameterObject{Name: "clone-callback"})
+	cloneCallback.Servers = append(cloneCallback.Servers, &ServerObject{URL: "https://clone-callback.example.com"})
+	cloneCallback.Extensions["x-clone"] = true
+	cloneServerVar.Enum = append(cloneServerVar.Enum, "clone")
+	cloneServerVar.Extensions["x-clone"] = true
+
+	op.Parameters[0].Examples["source"] = &ExampleObject{Summary: "source"}
+	op.Parameters[0].Content["text/plain"] = &MediaType{}
+	op.Parameters[0].Extensions["x-source"] = nil
+	op.Parameters[0].Schema.Properties["source"] = &Schema{Type: "integer"}
+	op.Parameters[0].Schema.Required = append(op.Parameters[0].Schema.Required, "source")
+	op.Parameters[0].Schema.Enum = append(op.Parameters[0].Schema.Enum, "source")
+	op.Parameters[0].Schema.OneOf = append(op.Parameters[0].Schema.OneOf, &Schema{Type: "integer"})
+	op.Parameters[0].Schema.AnyOf = append(op.Parameters[0].Schema.AnyOf, &Schema{Type: "object"})
+	op.Parameters[0].Schema.AllOf = append(op.Parameters[0].Schema.AllOf, &Schema{Type: "array"})
+	op.Parameters[0].Schema.Discriminator.Mapping["source"] = "#/components/schemas/Source"
+	op.Parameters[0].Schema.Extensions["x-source"] = true
+	op.Responses["200"].Headers["X-Source"] = &HeaderObject{Description: "source"}
+	op.Responses["200"].Links["source"] = &LinkObject{Description: "source"}
+	op.Responses["200"].Extensions["x-source"] = true
+	op.Responses["200"].Content["application/json"].Examples["source"] = &ExampleObject{Summary: "source"}
+	op.Responses["200"].Content["application/json"].Extensions["x-source"] = true
+	op.Responses["200"].Content["application/json"].Encoding["payload"].Headers["X-Source"] = &HeaderObject{Description: "source"}
+	op.Responses["200"].Content["application/json"].Encoding["payload"].Extensions["x-source"] = true
+	op.Callbacks["cb"].Parameters = append(op.Callbacks["cb"].Parameters, &ParameterObject{Name: "source-callback"})
+	op.Callbacks["cb"].Servers = append(op.Callbacks["cb"].Servers, &ServerObject{URL: "https://source-callback.example.com"})
+	op.Callbacks["cb"].Extensions["x-source"] = true
+	op.Servers[0].Variables["stage"].Enum = append(op.Servers[0].Variables["stage"].Enum, "source")
+	op.Servers[0].Variables["stage"].Extensions["x-source"] = true
+
+	// Assert
+	assert.Contains(t, cloneParam.Examples, "clone")
+	assert.NotContains(t, op.Parameters[0].Examples, "clone")
+	assert.Contains(t, op.Parameters[0].Examples, "source")
+	assert.NotContains(t, cloneParam.Examples, "source")
+	assert.Contains(t, cloneParam.Content, "application/json")
+	assert.NotContains(t, op.Parameters[0].Content, "application/json")
+	assert.Contains(t, op.Parameters[0].Content, "text/plain")
+	assert.NotContains(t, cloneParam.Content, "text/plain")
+	assert.Contains(t, cloneParam.Extensions, "x-clone")
+	assert.NotContains(t, op.Parameters[0].Extensions, "x-clone")
+	assert.Contains(t, op.Parameters[0].Schema.Properties, "source")
+	assert.NotContains(t, cloneSchema.Properties, "source")
+	assert.Equal(t, []string{"clone"}, cloneSchema.Required)
+	assert.Equal(t, []string{"source"}, op.Parameters[0].Schema.Required)
+	assert.Equal(t, []any{"clone"}, cloneSchema.Enum)
+	assert.Equal(t, []any{"source"}, op.Parameters[0].Schema.Enum)
+	assert.Len(t, cloneSchema.OneOf, 1)
+	assert.Len(t, op.Parameters[0].Schema.OneOf, 1)
+	assert.Equal(t, "string", cloneSchema.OneOf[0].Type)
+	assert.Equal(t, "integer", op.Parameters[0].Schema.OneOf[0].Type)
+	assert.Equal(t, "#/components/schemas/Clone", cloneSchema.Discriminator.Mapping["clone"])
+	assert.NotContains(t, op.Parameters[0].Schema.Discriminator.Mapping, "clone")
+	assert.Contains(t, cloneResponse.Headers, "X-Clone")
+	assert.NotContains(t, op.Responses["200"].Headers, "X-Clone")
+	assert.Contains(t, cloneResponse.Links, "clone")
+	assert.NotContains(t, op.Responses["200"].Links, "clone")
+	assert.Contains(t, cloneMedia.Examples, "clone")
+	assert.NotContains(t, op.Responses["200"].Content["application/json"].Examples, "clone")
+	assert.Contains(t, cloneEncoding.Headers, "X-Clone")
+	assert.NotContains(t, op.Responses["200"].Content["application/json"].Encoding["payload"].Headers, "X-Clone")
+	require.Len(t, cloneCallback.Parameters, 1)
+	require.Len(t, op.Callbacks["cb"].Parameters, 1)
+	assert.Equal(t, "clone-callback", cloneCallback.Parameters[0].Name)
+	assert.Equal(t, "source-callback", op.Callbacks["cb"].Parameters[0].Name)
+	require.Len(t, cloneCallback.Servers, 1)
+	require.Len(t, op.Callbacks["cb"].Servers, 1)
+	assert.Equal(t, "https://clone-callback.example.com", cloneCallback.Servers[0].URL)
+	assert.Equal(t, "https://source-callback.example.com", op.Callbacks["cb"].Servers[0].URL)
+	assert.Equal(t, []string{"clone"}, cloneServerVar.Enum)
+	assert.Equal(t, []string{"source"}, op.Servers[0].Variables["stage"].Enum)
+	assert.Contains(t, cloneServerVar.Extensions, "x-clone")
+	assert.NotContains(t, op.Servers[0].Variables["stage"].Extensions, "x-clone")
+}
+
+func TestCloneSecurityRequirementShouldPreserveNilAndEmptyMaps(t *testing.T) {
+	// Arrange
+	var nilRequirement SecurityRequirement
+	emptyRequirement := SecurityRequirement{}
+
+	// Act
+	nilClone := CloneSecurityRequirement(&nilRequirement)
+	emptyClone := CloneSecurityRequirement(&emptyRequirement)
+
+	// Assert
+	require.NotNil(t, nilClone)
+	assert.Nil(t, *nilClone)
+	require.NotNil(t, emptyClone)
+	require.NotNil(t, *emptyClone)
+	assert.Empty(t, *emptyClone)
+}
+
 func TestCloneOperationShouldPreserveCallbackCycles(t *testing.T) {
 	// Arrange
 	op := &Operation{
