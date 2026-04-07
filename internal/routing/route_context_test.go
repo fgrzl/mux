@@ -41,7 +41,6 @@ func TestShouldCreateNewRouteContext(t *testing.T) {
 	assert.Nil(t, ctx.User())
 	assert.Nil(t, ctx.Options())
 	assert.Nil(t, ctx.ParamsSlice())
-	assert.False(t, ctx.formsParsed)
 	assert.Nil(t, ctx.services)
 }
 

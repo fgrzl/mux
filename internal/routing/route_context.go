@@ -196,7 +196,6 @@ func AcquireContext(w http.ResponseWriter, r *http.Request) *DefaultRouteContext
 	c.user = nil
 	c.options = nil
 	c.services = nil
-	c.formsParsed = false
 	c.paramIndex = nil
 	c.maxBodyBytes = 0
 	c.bodyLimitApplied = false
@@ -227,7 +226,6 @@ func ReleaseContext(c *DefaultRouteContext) {
 		c.paramsSlice = nil
 	}
 	c.services = nil
-	c.formsParsed = false
 	c.paramIndex = nil
 	c.maxBodyBytes = 0
 	c.bodyLimitApplied = false
@@ -274,7 +272,6 @@ func Detach(c RouteContext) *DefaultRouteContext {
 		clientURL:         d.clientURL,
 		user:              d.user,
 		options:           d.options,
-		formsParsed:       d.formsParsed,
 		wasPooled:         false,
 		maxBodyBytes:      d.maxBodyBytes,
 		responseCommitted: false,
@@ -310,7 +307,6 @@ type DefaultRouteContext struct {
 	options     *RouteOptions
 	paramsSlice *Params // Optimized slice-based parameter storage
 	services    map[ServiceKey]any
-	formsParsed bool
 	// wasPooled indicates whether this instance was obtained from the pool.
 	// It is used to prevent double-returns to the object pool: if true,
 	// ReleaseContext will return it to the pool; otherwise it will not be pooled.
