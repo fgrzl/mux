@@ -152,7 +152,7 @@ mux.UseAuthentication(router, ...)
 
 // Route-specific (applies only to this route)
 router.GET("/api/search", handler).
-    RateLimit(100, time.Minute)
+	WithRateLimit(100, time.Minute)
 ```
 
 ### Q: In what order should I add middleware?

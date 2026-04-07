@@ -557,19 +557,19 @@ func validateInput(c mux.RouteContext, req interface{}) error {
 func setupRateLimiting(router *mux.Router) {
 	// Strict limits for expensive operations
 	router.POST("/api/v1/users", createUser).
-		RateLimit(10, time.Minute)
+		WithRateLimit(10, time.Minute)
 
 	// Moderate limits for search/list operations
 	router.GET("/api/v1/users", listUsers).
-		RateLimit(100, time.Minute)
+		WithRateLimit(100, time.Minute)
 
 	// Generous limits for read operations
 	router.GET("/api/v1/users/{id}", getUser).
-		RateLimit(1000, time.Minute)
+		WithRateLimit(1000, time.Minute)
 
 	// Very strict limits for auth operations
 	router.POST("/api/v1/auth/login", login).
-		RateLimit(5, time.Minute)
+		WithRateLimit(5, time.Minute)
 }
 ```
 

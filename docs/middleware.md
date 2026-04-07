@@ -190,11 +190,11 @@ Rate limiting is configured per route, not globally:
 ```go
 // Allow 100 requests per minute for this endpoint
 router.GET("/api/search", searchHandler).
-    RateLimit(100, time.Minute)
+    WithRateLimit(100, time.Minute)
 
 // Different limits for different endpoints
 router.POST("/api/upload", uploadHandler).
-    RateLimit(10, time.Minute)
+    WithRateLimit(10, time.Minute)
 ```
 
 ### Configuration Options

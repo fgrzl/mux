@@ -109,7 +109,7 @@ router.Services().
 
 // Rate limiting (applied per route)
 router.GET("/api/data", handler).
-    RateLimit(100, time.Minute)
+    WithRateLimit(100, time.Minute)
 
 // OpenTelemetry tracing
 mux.UseOpenTelemetry(router)
