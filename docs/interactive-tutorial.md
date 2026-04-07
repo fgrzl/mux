@@ -1,4 +1,4 @@
-﻿# Interactive Tutorial
+# Interactive Tutorial
 
 Build a Todo API in about 30 minutes using the current safe public APIs.
 

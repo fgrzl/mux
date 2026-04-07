@@ -1,4 +1,4 @@
-﻿# Built-in Middleware Guide
+# Built-in Middleware Guide
 
 Mux includes a comprehensive set of built-in middleware to handle common cross-cutting concerns in web applications. This guide covers all available middleware, their configuration options, and usage patterns.
 

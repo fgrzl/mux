@@ -1,4 +1,4 @@
-﻿# Authentication Middleware
+# Authentication Middleware
 
 The authentication middleware validates bearer tokens and session cookies,
 optionally issues refreshed session tokens, and can enforce CSRF protection for

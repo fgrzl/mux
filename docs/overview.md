@@ -1,4 +1,4 @@
-﻿# Mux Library Overview
+# Mux Library Overview
 
 Mux is a fast, batteries-included HTTP framework for Go designed for modern APIs. Routing, request binding, structured errors, middleware, OpenAPI 3.1 generation, and server lifecycle stay in one coherent model.
 

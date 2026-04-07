@@ -1,4 +1,4 @@
-﻿# Router
+# Router
 
 The Router is the core component of Mux that handles HTTP request routing and middleware execution.
 

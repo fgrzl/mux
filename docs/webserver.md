@@ -1,4 +1,4 @@
-﻿# WebServer
+# WebServer
 
 `WebServer` is the production-oriented HTTP server wrapper exposed by Mux. It wraps `http.Server` with sensible defaults, graceful shutdown, and TLS helpers.
 
