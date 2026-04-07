@@ -130,7 +130,7 @@ func setupRoutes(router *mux.Router) {
 
 	// API v1
 	v1 := router.Group("/api/v1")
-	v1.Tags("API v1")
+	v1.WithTags("API v1")
 
 	// Public endpoints
 	public := v1.Group("/public")
@@ -149,37 +149,37 @@ func setupRoutes(router *mux.Router) {
 
 func setupUserRoutes(group *mux.RouteGroup) {
 	users := group.Group("/users")
-	users.Tags("Users")
+	users.WithTags("Users")
 
 	users.GET("/", listUsers).
-		Summary("List all users").
+		WithSummary("List all users").
 		WithQueryParam("page", "Page number", 1).
 		WithQueryParam("limit", "Page size", 10).
-		OK([]User{})
+		WithOKResponse([]User{})
 
 	users.POST("/", createUser).
-		Summary("Create a new user").
-		AcceptJSON(User{}).
-		Created(User{}).
-		RateLimit(10, time.Minute) // Rate limit user creation
+		WithSummary("Create a new user").
+		WithJsonBody(User{}).
+		WithCreatedResponse(User{}).
+		WithRateLimit(10, time.Minute) // Rate limit user creation
 
 	users.GET("/{id}", getUser).
-		Summary("Get user by ID").
+		WithSummary("Get user by ID").
 		WithPathParam("id", "The unique user identifier", uuid.Nil).
-		OK(User{}).
-		Responds(404, mux.ProblemDetails{})
+		WithOKResponse(User{}).
+		WithResponse(404, mux.ProblemDetails{})
 
 	users.PUT("/{id}", updateUser).
-		Summary("Update user").
+		WithSummary("Update user").
 		WithPathParam("id", "The unique user identifier", uuid.Nil).
-		AcceptJSON(User{}).
-		OK(User{}).
+		WithJsonBody(User{}).
+		WithOKResponse(User{}).
 		RequirePermission("write") // Additional permission check
 
 	users.DELETE("/{id}", deleteUser).
-		Summary("Delete user").
+		WithSummary("Delete user").
 		WithPathParam("id", "The unique user identifier", uuid.Nil).
-		NoContent().
+		WithNoContentResponse().
 		RequirePermission("delete")
 }
 ```

@@ -60,11 +60,11 @@ Create organized route groups with shared configuration:
 ```go
 // API v1 group
 api := router.Group("/api/v1")
-api.Tags("API v1")
+api.WithTags("API v1")
 
 // Users sub-group
 users := api.Group("/users")
-users.Tags("Users")
+users.WithTags("Users")
 users.RequireRoles("user")
 
 users.GET("/", listUsers)

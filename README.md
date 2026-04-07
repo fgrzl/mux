@@ -120,7 +120,7 @@ type CreateUserRequest struct {
 
 if err := router.Configure(func(router *mux.Router) {
     api := router.Group("/api")
-    api.Tags("API")
+    api.WithTags("API")
 
     api.POST("/users", func(c mux.RouteContext) {
         var req CreateUserRequest
@@ -131,10 +131,10 @@ if err := router.Configure(func(router *mux.Router) {
 
         c.Created(map[string]any{"id": "user-123", "name": req.Name})
     }).
-        OperationID("createUser").
-        Summary("Create a user").
-        AcceptJSON(CreateUserRequest{}).
-        Created(map[string]any{"id": "user-123", "name": "Ada"})
+        WithOperationID("createUser").
+        WithSummary("Create a user").
+        WithJsonBody(CreateUserRequest{}).
+        WithCreatedResponse(map[string]any{"id": "user-123", "name": "Ada"})
 }); err != nil {
     panic(err)
 }

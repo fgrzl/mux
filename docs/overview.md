@@ -93,12 +93,12 @@ Define your API documentation alongside your routes:
 
 ```go
 router.POST("/users", createUser).
-    OperationID("createUser").
-    Summary("Create a new user").
-    AcceptJSON(User{}).
-    Created(User{}).
-    Responds(http.StatusBadRequest, mux.ProblemDetails{}).
-    Tags("Users")
+    WithOperationID("createUser").
+    WithSummary("Create a new user").
+    WithJsonBody(User{}).
+    WithCreatedResponse(User{}).
+    WithResponse(http.StatusBadRequest, mux.ProblemDetails{}).
+    WithTags("Users")
 ```
 
 ## Middleware System
@@ -140,11 +140,11 @@ Organize routes with shared configuration:
 
 ```go
 api := router.Group("/api/v1")
-api.Tags("API v1")
+api.WithTags("API v1")
 api.RequireRoles("user")
 
 users := api.Group("/users")
-users.Tags("Users")
+users.WithTags("Users")
 
 users.GET("/", listUsers)
 users.POST("/", createUser)

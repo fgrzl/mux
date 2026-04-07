@@ -253,24 +253,24 @@ mux.UseAuthentication(router,
 ### Document Endpoint
 ```go
 router.GET("/users/{id}", getUser).
-    OperationID("getUser").
-    Summary("Get user by ID").
-    Description("Returns a single user").
+    WithOperationID("getUser").
+    WithSummary("Get user by ID").
+    WithDescription("Returns a single user").
     WithPathParam("id", "The unique user identifier", "user-123").
-    OK(User{}).
-    Responds(404, mux.ProblemDetails{})
+    WithOKResponse(User{}).
+    WithResponse(404, mux.ProblemDetails{})
 
 // With query parameters
 router.GET("/search", searchUsers).
-    OperationID("searchUsers").
+    WithOperationID("searchUsers").
     WithQueryParam("q", "Search query", "john").      // Optional query param
     WithRequiredQueryParam("limit", "Maximum number of results", 10). // Required query param
-    OK([]User{})
+    WithOKResponse([]User{})
 
 // With header parameter
 router.GET("/data", getData).
     WithHeaderParam("X-API-Version", "The API version", "v1").
-    OK(map[string]any{})
+    WithOKResponse(map[string]any{})
 
 // Low-level (if needed)
 router.GET("/custom", handler).
@@ -327,7 +327,7 @@ router.GET("/openapi.json", func(c mux.RouteContext) {
 ### Tag Routes
 ```go
 api := router.Group("/api")
-api.Tags("API v1")
+api.WithTags("API v1")
 ```
 
 ---

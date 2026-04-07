@@ -65,8 +65,8 @@ router := mux.NewRouter()
 router.HandleFunc(http.MethodGet, "/healthz", healthHandler)
 router.GET("/users/{id}", getUser)
 router.POST("/users", createUser).
-	AcceptJSON(CreateUserRequest{}).
-	Created(User{})
+	WithJsonBody(CreateUserRequest{}).
+	WithCreatedResponse(User{})
 ```
 
 This keeps existing `net/http` handlers working while you adopt more of Mux where it is useful.
@@ -298,9 +298,9 @@ func (m *CORSMiddleware) Invoke(c mux.MutableRouteContext, next mux.HandlerFunc)
 ```go
 // Document routes
 router.POST("/users", createUser).
-    Summary("Create a user").
-    AcceptJSON(User{}).
-    Created(User{})
+	WithSummary("Create a user").
+	WithJsonBody(User{}).
+	WithCreatedResponse(User{})
 
 // Generate spec
 generator := mux.NewGenerator()

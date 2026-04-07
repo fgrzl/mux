@@ -74,21 +74,21 @@ curl -i -X POST http://localhost:8080/old-webhook -H "Content-Type: application/
 
 ## Documenting Redirects
 
-Redirects are documented with `Responds(...)` on the normal route builder:
+Redirects are documented with the normal route-builder response helpers:
 
 ```go
 router.GET("/old-page", func(c mux.RouteContext) {
     c.Found("/new-page")
 }).
-    Summary("Old page endpoint").
-    Responds(http.StatusFound, nil)
+    WithSummary("Old page endpoint").
+    WithFoundResponse()
 ```
 
 Most applications should register redirect routes directly inside `router.Configure(...)`.
 
 Common redirect response declarations:
-- `Responds(http.StatusMovedPermanently, nil)`
-- `Responds(http.StatusFound, nil)`
-- `Responds(http.StatusSeeOther, nil)`
-- `Responds(http.StatusTemporaryRedirect, nil)`
-- `Responds(http.StatusPermanentRedirect, nil)`
+- `WithMovedPermanentlyResponse()`
+- `WithFoundResponse()`
+- `WithSeeOtherResponse()`
+- `WithTemporaryRedirectResponse()`
+- `WithPermanentRedirectResponse()`

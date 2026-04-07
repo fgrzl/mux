@@ -86,7 +86,7 @@ router.Services().Register(mux.ServiceKey("clock"), time.Now)
 
 if err := router.Configure(func(router *mux.Router) {
     api := router.Group("/api/v1")
-    api.Tags("API v1")
+    api.WithTags("API v1")
 
     users := api.Group("/users")
     users.GET("/", listUsers)
@@ -107,20 +107,20 @@ Read:
 
 Focus on:
 
-- `OperationID(...)`
-- `Summary(...)`
-- `AcceptJSON(...)`
-- `OK(...)`, `Created(...)`, `Responds(404, mux.ProblemDetails{})`
+- `WithOperationID(...)`
+- `WithSummary(...)`
+- `WithJsonBody(...)`
+- `WithOKResponse(...)`, `WithCreatedResponse(...)`, `WithResponse(404, mux.ProblemDetails{})`
 - `mux.GenerateSpecWithGenerator(...)`
 
 Example:
 
 ```go
 users.POST("/", createUser).
-    OperationID("createUser").
-    Summary("Create a new user").
-    AcceptJSON(CreateUserRequest{}).
-    Created(User{})
+    WithOperationID("createUser").
+    WithSummary("Create a new user").
+    WithJsonBody(CreateUserRequest{}).
+    WithCreatedResponse(User{})
 
 router.GET("/openapi.json", func(c mux.RouteContext) {
     spec, err := mux.GenerateSpecWithGenerator(mux.NewGenerator(), router)

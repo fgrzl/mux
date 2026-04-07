@@ -165,8 +165,8 @@ func logoutHandler(c mux.RouteContext) {
 
 func logoutFromScopedCookie(c mux.RouteContext) {
     mux.SignOutWithOptions(c, "/signed-out",
-        cookiekit.WithPath("/app"),
-        cookiekit.WithDomain(".example.com"),
+        mux.WithCookiePath("/app"),
+        mux.WithCookieDomain(".example.com"),
     )
 }
 ```

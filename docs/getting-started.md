@@ -185,7 +185,7 @@ Organize related routes with shared configuration:
 
 ```go
 api := router.Group("/api/v1")
-api.Tags("API v1")
+api.WithTags("API v1")
 
 users := api.Group("/users")
 users.GET("/", listUsers)
