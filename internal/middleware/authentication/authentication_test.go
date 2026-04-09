@@ -272,6 +272,116 @@ func TestAuthenticationMiddlewareShouldAuthenticateViaCookie(t *testing.T) {
 	assert.Equal(t, "user123", authenticatedUser.Subject())
 }
 
+func TestAuthenticationMiddlewareShouldApplyConfiguredCookieOptionsWhenSigningIn(t *testing.T) {
+	mockUser := newMockPrincipal("user123")
+	rtr := router.NewRouter()
+	UseAuthentication(rtr,
+		WithTokenTTL(30*time.Minute),
+		WithTokenCreator(func(principal claims.Principal, ttl time.Duration) (string, error) {
+			assert.Equal(t, mockUser, principal)
+			assert.Equal(t, 30*time.Minute, ttl)
+			return "signed-user123", nil
+		}),
+		WithCookieOptions(
+			cookiekit.WithDomain(".example.com"),
+			cookiekit.WithPath("/portal"),
+			cookiekit.WithSameSite(http.SameSiteNoneMode),
+			cookiekit.WithSecure(true),
+		),
+	)
+
+	ctx, res := newRouteContext(nil)
+	rtr.GET("/test", func(c routing.RouteContext) {
+		c.SignIn(mockUser, "/dashboard")
+	}).AllowAnonymous()
+
+	rtr.ServeHTTP(res, ctx.Request())
+
+	assert.Equal(t, http.StatusTemporaryRedirect, res.Code)
+	setCookieHeader := res.Header().Get(common.HeaderSetCookie)
+	assert.Contains(t, setCookieHeader, "app_token=signed-user123")
+	assert.Contains(t, setCookieHeader, "Domain=example.com")
+	assert.Contains(t, setCookieHeader, "Path=/portal")
+	assert.Contains(t, setCookieHeader, "SameSite=None")
+	assert.Contains(t, setCookieHeader, "Max-Age=1800")
+	assert.Contains(t, setCookieHeader, "Secure")
+	assert.Contains(t, setCookieHeader, "HttpOnly")
+}
+
+func TestAuthenticationMiddlewareShouldRenewCookieWithConfiguredCookieOptions(t *testing.T) {
+	mockUser := newMockPrincipal("user123")
+	rtr := router.NewRouter()
+	UseAuthentication(rtr,
+		WithTokenTTL(30*time.Minute),
+		WithValidator(func(token string) (claims.Principal, error) {
+			if token == "valid-cookie-token" {
+				return mockUser, nil
+			}
+			return nil, ErrInvalidToken
+		}),
+		WithTokenCreator(func(principal claims.Principal, ttl time.Duration) (string, error) {
+			assert.Equal(t, mockUser, principal)
+			assert.Equal(t, 30*time.Minute, ttl)
+			return "renewed-user123", nil
+		}),
+		WithCookieOptions(
+			cookiekit.WithDomain(".example.com"),
+			cookiekit.WithPath("/"),
+			cookiekit.WithSameSite(http.SameSiteLaxMode),
+			cookiekit.WithSecure(true),
+		),
+	)
+
+	ctx, res := newRouteContext(func(r *http.Request) {
+		r.AddCookie(&http.Cookie{
+			Name:  cookiekit.GetUserCookieName(),
+			Value: "valid-cookie-token",
+		})
+	})
+
+	rtr.GET("/test", func(c routing.RouteContext) {
+		c.OK("success")
+	})
+
+	rtr.ServeHTTP(res, ctx.Request())
+
+	assert.Equal(t, http.StatusOK, res.Code)
+	setCookieHeader := res.Header().Get(common.HeaderSetCookie)
+	assert.Contains(t, setCookieHeader, "app_token=renewed-user123")
+	assert.Contains(t, setCookieHeader, "Domain=example.com")
+	assert.Contains(t, setCookieHeader, "Path=/")
+	assert.Contains(t, setCookieHeader, "SameSite=Lax")
+	assert.Contains(t, setCookieHeader, "Max-Age=1800")
+	assert.Contains(t, setCookieHeader, "Secure")
+	assert.Contains(t, setCookieHeader, "HttpOnly")
+}
+
+func TestAuthenticationMiddlewareShouldApplyConfiguredCookieOptionsWhenSigningOut(t *testing.T) {
+	rtr := router.NewRouter()
+	UseAuthentication(rtr,
+		WithCookieOptions(
+			cookiekit.WithDomain(".example.com"),
+			cookiekit.WithPath("/portal"),
+		),
+	)
+
+	ctx, res := newRouteContext(nil)
+	rtr.GET("/test", func(c routing.RouteContext) {
+		c.SignOut("/signed-out")
+	}).AllowAnonymous()
+
+	rtr.ServeHTTP(res, ctx.Request())
+
+	assert.Equal(t, http.StatusTemporaryRedirect, res.Code)
+	setCookieHeaders := res.Header().Values(common.HeaderSetCookie)
+	require.Len(t, setCookieHeaders, 4)
+	for _, header := range setCookieHeaders {
+		assert.Contains(t, header, "Domain=example.com")
+		assert.Contains(t, header, "Path=/portal")
+		assert.Contains(t, header, "Expires=Thu, 01 Jan 1970 00:00:01 GMT")
+	}
+}
+
 func TestAuthenticationMiddlewareShouldAuthenticateViaBearerToken(t *testing.T) {
 	// Arrange
 	mockUser := newMockPrincipal("user456")

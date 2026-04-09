@@ -9,6 +9,7 @@ const (
 )
 
 const ServiceKeyCookieNames = internalcommon.ServiceKey("mux.auth.cookie_names")
+const ServiceKeyAuthCookieOptions = internalcommon.ServiceKey("mux.auth.cookie_options")
 
 type CookieNames struct {
 	AppSession string
@@ -56,4 +57,28 @@ func ResolveCookieNames(value any) CookieNames {
 		return DefaultCookieNames()
 	}
 	return NormalizeCookieNames(names)
+}
+
+func CloneCookieOptions(opts []CookieOption) []CookieOption {
+	if len(opts) == 0 {
+		return nil
+	}
+	cloned := make([]CookieOption, 0, len(opts))
+	for _, opt := range opts {
+		if opt != nil {
+			cloned = append(cloned, opt)
+		}
+	}
+	if len(cloned) == 0 {
+		return nil
+	}
+	return cloned
+}
+
+func ResolveCookieOptionSet(value any) []CookieOption {
+	opts, ok := value.([]CookieOption)
+	if !ok {
+		return nil
+	}
+	return CloneCookieOptions(opts)
 }

@@ -24,6 +24,27 @@ func currentCookieNames(c RouteContext) cookiekit.CookieNames {
 	return cookiekit.DefaultCookieNames()
 }
 
+func currentAuthCookieOptions(c RouteContext) []cookiekit.CookieOption {
+	if c == nil {
+		return nil
+	}
+	if value, ok := c.GetService(cookiekit.ServiceKeyAuthCookieOptions); ok {
+		return cookiekit.ResolveCookieOptionSet(value)
+	}
+	return nil
+}
+
+func mergeAuthCookieOptions(c RouteContext, opts ...cookiekit.CookieOption) []cookiekit.CookieOption {
+	defaults := currentAuthCookieOptions(c)
+	if len(defaults) == 0 && len(opts) == 0 {
+		return nil
+	}
+	merged := make([]cookiekit.CookieOption, 0, len(defaults)+len(opts))
+	merged = append(merged, defaults...)
+	merged = append(merged, opts...)
+	return merged
+}
+
 // EnforceSecureForSameSiteNone controls whether SetCookie will force the Secure
 // flag when SameSite=None is specified. Default true to match browser
 // expectations; flip to false in local development environments that use plain HTTP.
@@ -152,8 +173,11 @@ func (c *DefaultRouteContext) authenticate(cookieName string, user claims.Princi
 		providerMaxAge = int(ttl.Seconds())
 	}
 
-	// Resolve cookie options provided by caller (if any)
-	optMaxAge, path, domain, secure, httpOnly, sameSite := cookiekit.ResolveCookieOptions(opts...)
+	resolvedOpts := mergeAuthCookieOptions(c, opts...)
+
+	// Resolve cookie options provided by middleware and caller, with caller opts
+	// taking precedence when both are present.
+	optMaxAge, path, domain, secure, httpOnly, sameSite := cookiekit.ResolveCookieOptions(resolvedOpts...)
 
 	// If caller didn't specify MaxAge (0), fall back to provider TTL
 	finalMaxAge := optMaxAge
@@ -180,7 +204,11 @@ func (c *DefaultRouteContext) SignIn(user claims.Principal, redirectUrl string, 
 
 // SignOut clears user-related cookies and redirects to the logout page.
 func (c *DefaultRouteContext) SignOut(redirectUrl string) {
-	SignOutWithOptions(c, redirectUrl, cookiekit.WithSameSite(http.SameSiteLaxMode))
+	opts := currentAuthCookieOptions(c)
+	if len(opts) == 0 {
+		opts = []cookiekit.CookieOption{cookiekit.WithSameSite(http.SameSiteLaxMode)}
+	}
+	SignOutWithOptions(c, redirectUrl, opts...)
 }
 
 // SignOutWithOptions clears user-related cookies using the provided cookie

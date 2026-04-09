@@ -40,6 +40,7 @@ func WithAuthAppSessionCookieName(string) AuthOption
 func WithAuthAudienceValidator(string) AuthOption
 func WithAuthCSRFProtection() AuthOption
 func WithAuthContextEnricher(func(context.Context, claims.Principal) context.Context) AuthOption
+func WithAuthCookieOptions(...CookieOption) AuthOption
 func WithAuthIDPSessionCookieName(string) AuthOption
 func WithAuthIssuerValidator(string) AuthOption
 func WithAuthRateLimiter(func(string) bool) AuthOption

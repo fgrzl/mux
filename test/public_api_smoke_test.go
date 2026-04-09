@@ -326,6 +326,7 @@ func TestPublicAPIGoldenPathSmoke(t *testing.T) {
 	t.Run("auth cookie naming and csrf", func(t *testing.T) {
 		router := mux.NewRouter()
 		mux.UseAuthentication(router,
+			mux.WithAuthTokenTTL(30*time.Minute),
 			mux.WithAuthValidator(func(token string) (claims.Principal, error) {
 				if !strings.HasPrefix(token, "signed:") {
 					return nil, fmt.Errorf("invalid token")
@@ -339,6 +340,11 @@ func TestPublicAPIGoldenPathSmoke(t *testing.T) {
 			mux.WithAuthAppSessionCookieName("session_token"),
 			mux.WithAuthTwoFactorCookieName("step_up_token"),
 			mux.WithAuthIDPSessionCookieName("idp_token"),
+			mux.WithAuthCookieOptions(
+				mux.WithCookieDomain(".example.com"),
+				mux.WithCookiePath("/"),
+				mux.WithCookieSameSite(http.SameSiteLaxMode),
+			),
 		)
 
 		router.POST("/login", func(c mux.RouteContext) {
@@ -371,6 +377,9 @@ func TestPublicAPIGoldenPathSmoke(t *testing.T) {
 			switch cookie.Name {
 			case "session_token":
 				sawSessionCookie = true
+				require.Equal(t, "example.com", cookie.Domain)
+				require.Equal(t, "/", cookie.Path)
+				require.Equal(t, http.SameSiteLaxMode, cookie.SameSite)
 			case "csrf_token":
 				csrfToken = cookie.Value
 			case "app_token":
@@ -390,6 +399,19 @@ func TestPublicAPIGoldenPathSmoke(t *testing.T) {
 		router.ServeHTTP(protectedRec, protectedReq)
 
 		require.Equal(t, http.StatusOK, protectedRec.Code)
+
+		protectedSetCookies := protectedRec.Header().Values("Set-Cookie")
+		require.NotEmpty(t, protectedSetCookies)
+		var sawRenewedSession bool
+		for _, header := range protectedSetCookies {
+			if strings.Contains(header, "session_token=") {
+				sawRenewedSession = true
+				require.Contains(t, header, "Domain=example.com")
+				require.Contains(t, header, "Path=/")
+				require.Contains(t, header, "SameSite=Lax")
+			}
+		}
+		require.True(t, sawRenewedSession)
 
 		var payload map[string]string
 		require.NoError(t, json.NewDecoder(protectedRec.Body).Decode(&payload))

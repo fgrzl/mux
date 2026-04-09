@@ -103,6 +103,14 @@ func WithIDPSessionCookieName(name string) AuthOption {
 	}
 }
 
+// WithCookieOptions sets default cookie attributes for auth cookies issued,
+// renewed, and cleared through the authentication middleware.
+func WithCookieOptions(opts ...cookiekit.CookieOption) AuthOption {
+	return func(o *AuthenticationOptions) {
+		o.CookieOptions = append(o.CookieOptions, cookiekit.CloneCookieOptions(opts)...)
+	}
+}
+
 // WithCSRFProtection enables CSRF protection for cookie-based authentication.
 // When enabled, state-changing requests (POST, PUT, DELETE, PATCH) must include
 // a valid CSRF token in the X-CSRF-Token header that matches the csrf_token cookie.
@@ -174,6 +182,7 @@ type AuthenticationOptions struct {
 	Validate         func(string) (claims.Principal, error)
 	CreateToken      func(claims.Principal, time.Duration) (string, error)
 	CookieNames      cookiekit.CookieNames
+	CookieOptions    []cookiekit.CookieOption
 	EnableCSRF       bool
 	RateLimiter      func(clientID string) bool
 	IsTokenRevoked   func(token string) bool
@@ -225,6 +234,7 @@ type authenticationMiddleware struct {
 func newAuthMiddlewareWithOptions(provider tokenizer.TokenProvider, options *AuthenticationOptions) *authenticationMiddleware {
 	if options != nil {
 		options.CookieNames = cookiekit.NormalizeCookieNames(options.CookieNames)
+		options.CookieOptions = cookiekit.CloneCookieOptions(options.CookieOptions)
 	}
 	return &authenticationMiddleware{provider: provider, options: options}
 }
@@ -256,6 +266,9 @@ var csrfTokenEntropySource io.Reader = rand.Reader
 func (m *authenticationMiddleware) Invoke(c routing.RouteContext, next router.HandlerFunc) {
 	c.SetService(tokenizer.ServiceKeyTokenProvider, m.provider)
 	c.SetService(cookiekit.ServiceKeyCookieNames, m.cookieNames())
+	if cookieOptions := m.authCookieOptions(); len(cookieOptions) > 0 {
+		c.SetService(cookiekit.ServiceKeyAuthCookieOptions, cookieOptions)
+	}
 
 	opts := c.Options()
 	// Options may be nil for some contexts (pooled or partially-initialized).
@@ -351,6 +364,13 @@ func (m *authenticationMiddleware) cookieNames() cookiekit.CookieNames {
 	return cookiekit.NormalizeCookieNames(m.options.CookieNames)
 }
 
+func (m *authenticationMiddleware) authCookieOptions() []cookiekit.CookieOption {
+	if m == nil || m.options == nil {
+		return nil
+	}
+	return cookiekit.CloneCookieOptions(m.options.CookieOptions)
+}
+
 // authenticateViaBearer attempts to authenticate using bearer token.
 func (m *authenticationMiddleware) authenticateViaBearer(c routing.RouteContext) bool {
 	req := c.Request()
@@ -422,12 +442,14 @@ func (m *authenticationMiddleware) extendSessionExpiration(c routing.RouteContex
 	// Renew token if possible
 	m.renewTokenIfPossible(c, cookie)
 
-	// Update cookie properties
-	isSecure := isSecureRequest(c.Request())
-	m.updateCookieProperties(cookie, ttl, isSecure)
+	maxAge, path, domain, secure, httpOnly, sameSite := m.resolveSessionCookieSettings(ttl)
+	c.SetCookie(cookie.Name, cookie.Value, maxAge, path, domain, secure, httpOnly, sameSite)
 
-	http.SetCookie(c.Response(), cookie)
-	slog.DebugContext(c, "session cookie extended", "expires", cookie.Expires)
+	expires := time.Time{}
+	if maxAge > 0 {
+		expires = time.Now().Add(time.Duration(maxAge) * time.Second)
+	}
+	slog.DebugContext(c, "session cookie extended", "expires", expires)
 }
 
 // renewTokenIfPossible attempts to create a new token for the current user and
@@ -454,14 +476,14 @@ func (m *authenticationMiddleware) renewTokenIfPossible(c routing.RouteContext, 
 	}
 }
 
-// updateCookieProperties updates cookie security properties.
-func (m *authenticationMiddleware) updateCookieProperties(cookie *http.Cookie, ttl time.Duration, isSecure bool) {
-	cookie.Expires = time.Now().Add(ttl)
-	cookie.MaxAge = int(ttl.Seconds())
-	cookie.HttpOnly = true
-	cookie.SameSite = http.SameSiteLaxMode
-	cookie.Secure = isSecure
-	cookie.Path = "/"
+// resolveSessionCookieSettings returns the configured cookie attributes for auth
+// cookies, defaulting Max-Age to the provider TTL when not explicitly set.
+func (m *authenticationMiddleware) resolveSessionCookieSettings(ttl time.Duration) (maxAge int, path, domain string, secure, httpOnly bool, sameSite http.SameSite) {
+	maxAge, path, domain, secure, httpOnly, sameSite = cookiekit.ResolveCookieOptions(m.authCookieOptions()...)
+	if maxAge == 0 {
+		maxAge = int(ttl.Seconds())
+	}
+	return
 }
 
 // isSecureRequest determines if the request was made over HTTPS.

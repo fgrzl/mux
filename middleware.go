@@ -168,6 +168,10 @@ func WithAuthIDPSessionCookieName(name string) AuthOption {
 	return AuthOption{apply: internalauthentication.WithIDPSessionCookieName(name)}
 }
 
+func WithAuthCookieOptions(opts ...CookieOption) AuthOption {
+	return AuthOption{apply: internalauthentication.WithCookieOptions(toInternalCookieOptions(opts)...)}
+}
+
 func WithAuthCSRFProtection() AuthOption {
 	return AuthOption{apply: internalauthentication.WithCSRFProtection()}
 }
