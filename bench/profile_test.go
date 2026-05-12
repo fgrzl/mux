@@ -17,10 +17,7 @@ func TestAllocationProfile(t *testing.T) {
 
 	// Warmup
 	for i := 0; i < 100; i++ {
-		resp, _ := benchClient.Get(server.URL + "/api/v1/resources/1")
-		if resp != nil {
-			readAndClose(resp)
-		}
+		_, _ = benchClientDo(t, http.MethodGet, server.URL+"/api/v1/resources/1", nil, "")
 	}
 
 	// Force GC to get clean state
@@ -31,11 +28,10 @@ func TestAllocationProfile(t *testing.T) {
 	runtime.ReadMemStats(&m1)
 
 	// Single request
-	resp, err := benchClient.Get(server.URL + "/api/v1/resources/1")
+	_, err := benchClientDo(t, http.MethodGet, server.URL+"/api/v1/resources/1", nil, "")
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
-	readAndClose(resp)
 
 	// Get final state
 	var m2 runtime.MemStats
@@ -58,10 +54,7 @@ func BenchmarkAllocationsDetailed(b *testing.B) {
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
-			resp, _ := benchClient.Get(server.URL + "/api/v1/resources/1")
-			if resp != nil {
-				readAndClose(resp)
-			}
+			_, _ = benchClientDo(b, http.MethodGet, server.URL+"/api/v1/resources/1", nil, "")
 		}
 	})
 
@@ -71,10 +64,10 @@ func BenchmarkAllocationsDetailed(b *testing.B) {
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
-			req, _ := http.NewRequest("HEAD", server.URL+"/api/v1/resources/1", nil)
+			req, _ := http.NewRequestWithContext(b.Context(), "HEAD", server.URL+"/api/v1/resources/1", nil)
 			resp, _ := benchClient.Do(req)
 			if resp != nil {
-				resp.Body.Close()
+				_ = resp.Body.Close()
 			}
 		}
 	})
@@ -85,10 +78,10 @@ func BenchmarkAllocationsDetailed(b *testing.B) {
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
-			req, _ := http.NewRequest("DELETE", server.URL+"/api/v1/tenants/1", nil)
+			req, _ := http.NewRequestWithContext(b.Context(), "DELETE", server.URL+"/api/v1/tenants/1", nil)
 			resp, _ := benchClient.Do(req)
 			if resp != nil {
-				readAndClose(resp)
+				_ = readAndClose(resp)
 			}
 		}
 	})
@@ -101,10 +94,7 @@ func BenchmarkAllocationsDetailed(b *testing.B) {
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
-			resp, _ := benchClient.Get(server2.URL + "/api/v1/resources/999")
-			if resp != nil {
-				readAndClose(resp)
-			}
+			_, _ = benchClientDo(b, http.MethodGet, server2.URL+"/api/v1/resources/999", nil, "")
 		}
 	})
 }

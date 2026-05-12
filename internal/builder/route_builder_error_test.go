@@ -122,12 +122,12 @@ func TestWithAuthResponsesErrShouldAddAuthResponses(t *testing.T) {
 	assert.Nil(t, rb.Options.Responses["403"].Content)
 }
 
-func TestWithJsonBodyErrShouldReturnErrorForGet(t *testing.T) {
+func TestWithJSONBodyErrShouldReturnErrorForGet(t *testing.T) {
 	// Arrange
 	rb := DetachedRoute(http.MethodGet, "/x")
 
 	// Act
-	result, err := rb.WithJsonBodyErr(struct{ A int }{A: 1})
+	result, err := rb.WithJSONBodyErr(struct{ A int }{A: 1})
 
 	// Assert
 	require.Error(t, err)

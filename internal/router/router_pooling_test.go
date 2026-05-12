@@ -1,6 +1,8 @@
 package router
 
 import (
+	"context"
+
 	"io"
 	"log/slog"
 	"net/http"
@@ -26,7 +28,7 @@ func TestShouldServeExactRouteGivenContextPoolingEnabled(t *testing.T) {
 		c.OK(map[string]string{"msg": "hi"})
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/hello", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/hello", nil)
 	rr := httptest.NewRecorder()
 
 	// Act
@@ -47,7 +49,7 @@ func TestShouldServeHeadViaGetWithoutBodyGivenFallbackEnabled(t *testing.T) {
 		c.OK("body")
 	})
 
-	req := httptest.NewRequest(http.MethodHead, "/resource", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodHead, "/resource", nil)
 	rr := httptest.NewRecorder()
 
 	// Act
@@ -72,7 +74,7 @@ func TestShouldPreferExplicitHeadRouteOverGetFallback(t *testing.T) {
 		c.Response().WriteHeader(http.StatusNoContent)
 	})
 
-	req := httptest.NewRequest(http.MethodHead, "/resource", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodHead, "/resource", nil)
 	rr := httptest.NewRecorder()
 
 	// Act
@@ -90,7 +92,7 @@ func TestShouldReturn405WithAllowHeaderGivenHeadWithoutFallback(t *testing.T) {
 	rg := r.NewRouteGroup("")
 	rg.GET("/only-get", func(c routing.RouteContext) { c.OK("ok") })
 
-	req := httptest.NewRequest(http.MethodHead, "/only-get", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodHead, "/only-get", nil)
 	rr := httptest.NewRecorder()
 
 	// Act
@@ -109,7 +111,7 @@ func TestShouldReturn405WithAllowHeaderGivenMethodNotAllowed(t *testing.T) {
 	rg := r.NewRouteGroup("")
 	rg.GET("/path", func(c routing.RouteContext) { c.OK("ok") })
 
-	req := httptest.NewRequest(http.MethodPost, "/path", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/path", nil)
 	rr := httptest.NewRecorder()
 
 	// Act
@@ -127,7 +129,7 @@ func TestShouldReturn500GivenHandlerPanic(t *testing.T) {
 	rg := r.NewRouteGroup("")
 	rg.GET("/panic", func(c routing.RouteContext) { panic("boom") })
 
-	req := httptest.NewRequest(http.MethodGet, "/panic", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/panic", nil)
 	rr := httptest.NewRecorder()
 
 	// Act
@@ -140,7 +142,7 @@ func TestShouldReturn500GivenHandlerPanic(t *testing.T) {
 func TestShouldReturn404GivenNoMatchingRoute(t *testing.T) {
 	// Arrange
 	r := NewRouter()
-	req := httptest.NewRequest(http.MethodGet, "/missing", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/missing", nil)
 	rr := httptest.NewRecorder()
 
 	// Act
@@ -153,7 +155,7 @@ func TestShouldReturn404GivenNoMatchingRoute(t *testing.T) {
 func TestShouldReturn404GivenHeadWithNoRouteAndNoFallback(t *testing.T) {
 	// Arrange
 	r := NewRouter()
-	req := httptest.NewRequest(http.MethodHead, "/missing", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodHead, "/missing", nil)
 	rr := httptest.NewRecorder()
 
 	// Act
@@ -169,7 +171,7 @@ func TestShouldReturn405GivenHeadWithFallbackButNoGetRoute(t *testing.T) {
 	rg := r.NewRouteGroup("")
 	rg.POST("/res", func(c routing.RouteContext) { c.OK("ok") })
 
-	req := httptest.NewRequest(http.MethodHead, "/res", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodHead, "/res", nil)
 	rr := httptest.NewRecorder()
 
 	// Act
@@ -213,7 +215,7 @@ func TestShouldExecuteMiddlewareInOrderAndStopGivenShortCircuit(t *testing.T) {
 	rg := r.NewRouteGroup("")
 	rg.GET("/x", func(c routing.RouteContext) { c.OK("ok") })
 
-	req := httptest.NewRequest(http.MethodGet, "/x", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/x", nil)
 	rr := httptest.NewRecorder()
 
 	// Act
@@ -233,7 +235,7 @@ func TestShouldExecuteMiddlewareInOrderAndStopGivenShortCircuit(t *testing.T) {
 	rg2 := r2.NewRouteGroup("")
 	rg2.GET("/x", func(c routing.RouteContext) { c.OK("ok") })
 
-	req2 := httptest.NewRequest(http.MethodGet, "/x", nil)
+	req2 := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/x", nil)
 	rr2 := httptest.NewRecorder()
 
 	// Act
@@ -257,7 +259,7 @@ func TestShouldExecuteRouterGroupAndRouteMiddlewareInOrder(t *testing.T) {
 		c.OK("ok")
 	}).Use(&orderMW{id: "route", seen: &seen})
 
-	req := httptest.NewRequest(http.MethodGet, "/api/users", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/users", nil)
 	rr := httptest.NewRecorder()
 
 	// Act
@@ -288,7 +290,7 @@ func TestShouldExecuteScopedMiddlewareWithoutRouterMiddlewareOnFastPath(t *testi
 		c.OK("ok")
 	}).Use(&stopMW{id: "route", seen: &seen})
 
-	req := httptest.NewRequest(http.MethodGet, "/api/users", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/users", nil)
 	rr := httptest.NewRecorder()
 
 	// Act

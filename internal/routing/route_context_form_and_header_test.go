@@ -1,6 +1,8 @@
 package routing
 
 import (
+	"context"
+
 	"bytes"
 	"mime/multipart"
 	"net/http"
@@ -26,7 +28,7 @@ func TestShouldBindFormURLEncoded(t *testing.T) {
 	vals.Add("tags", "a")
 	vals.Add("tags", "b")
 
-	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(vals.Encode()))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/", strings.NewReader(vals.Encode()))
 	req.Header.Set(common.HeaderContentType, common.MimeFormURLEncoded)
 	rr := httptest.NewRecorder()
 
@@ -47,7 +49,7 @@ func TestShouldBindFormURLEncodedWithCharset(t *testing.T) {
 	vals.Add("tags", "a")
 	vals.Add("tags", "b")
 
-	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(vals.Encode()))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/", strings.NewReader(vals.Encode()))
 	req.Header.Set(common.HeaderContentType, common.MimeFormURLEncoded+"; charset=utf-8")
 	rr := httptest.NewRecorder()
 
@@ -70,7 +72,7 @@ func TestShouldBindMultipartFormData(t *testing.T) {
 	assert.NoError(t, writer.WriteField("tags", "b"))
 	assert.NoError(t, writer.Close())
 
-	req := httptest.NewRequest(http.MethodPost, "/", &buf)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/", &buf)
 	req.Header.Set(common.HeaderContentType, writer.FormDataContentType())
 	rr := httptest.NewRecorder()
 
@@ -86,7 +88,7 @@ func TestShouldBindMultipartFormData(t *testing.T) {
 
 func TestShouldCollectDeclaredHeaderParam(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 	req.Header.Set(common.HeaderXCorrelationID, "abc123")
 	rr := httptest.NewRecorder()
 
@@ -99,7 +101,7 @@ func TestShouldCollectDeclaredHeaderParam(t *testing.T) {
 	}
 	opts := &RouteOptions{}
 	// set parameter on embedded Operation
-	opts.Operation.Parameters = []*openapi.ParameterObject{po}
+	opts.Parameters = []*openapi.ParameterObject{po}
 	opts.ParamIndex = BuildParamIndex([]*openapi.ParameterObject{po})
 	c.SetOptions(opts)
 

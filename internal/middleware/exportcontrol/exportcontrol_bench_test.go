@@ -1,6 +1,8 @@
 package exportcontrol
 
 import (
+	"context"
+
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -74,7 +76,7 @@ func BenchmarkExportControlRouterPipeline(b *testing.B) {
 // BenchmarkGetRealIP measures the IP extraction helper performance.
 func BenchmarkGetRealIP(b *testing.B) {
 	b.Run("RemoteAddr", func(b *testing.B) {
-		req := httptest.NewRequest(http.MethodGet, benchURL, nil)
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, benchURL, nil)
 		req.RemoteAddr = benchRemoteAddr
 
 		b.ReportAllocs()
@@ -85,7 +87,7 @@ func BenchmarkGetRealIP(b *testing.B) {
 	})
 
 	b.Run("XForwardedFor", func(b *testing.B) {
-		req := httptest.NewRequest(http.MethodGet, benchURL, nil)
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, benchURL, nil)
 		req.RemoteAddr = benchRemoteAddr
 		req.Header.Set(headerXFF, "203.0.113.1, 192.168.1.1")
 
@@ -97,7 +99,7 @@ func BenchmarkGetRealIP(b *testing.B) {
 	})
 
 	b.Run("XRealIP", func(b *testing.B) {
-		req := httptest.NewRequest(http.MethodGet, benchURL, nil)
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, benchURL, nil)
 		req.RemoteAddr = benchRemoteAddr
 		req.Header.Set(headerXRealIP, benchXRealIP)
 

@@ -1,6 +1,8 @@
 package cors
 
 import (
+	"context"
+
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -20,7 +22,7 @@ func TestShouldReturnNoContentWithoutCallingNextGivenPreflightRequest(t *testing
 	// Arrange
 	m := newCORSMiddleware(CORSOptions{AllowedOrigins: []string{testOriginExample}})
 
-	req := httptest.NewRequest(http.MethodOptions, testAPITestURL, nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodOptions, testAPITestURL, nil)
 	req.Header.Set(common.HeaderOrigin, testOriginExample)
 	req.Header.Set(common.HeaderAccessControlRequestMethod, "POST")
 	req.Header.Set(common.HeaderAccessControlRequestHeaders, "X-Custom, Content-Type")
@@ -46,7 +48,7 @@ func TestShouldSetWildcardAllowOriginGivenSimpleRequestWithWildcardConfig(t *tes
 	// Arrange
 	m := newCORSMiddleware(CORSOptions{AllowedOrigins: []string{"*"}})
 
-	req := httptest.NewRequest(http.MethodGet, testAPITestURL, nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, testAPITestURL, nil)
 	req.Header.Set(common.HeaderOrigin, "https://evil.com")
 	rec := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(rec, req)
@@ -68,7 +70,7 @@ func TestShouldReflectOriginAndSetCredentialsGivenAllowCredentialsEnabled(t *tes
 	// Arrange
 	m := newCORSMiddleware(CORSOptions{AllowedOrigins: []string{testOriginExample}, AllowCredentials: true})
 
-	req := httptest.NewRequest(http.MethodGet, testAPITestURL, nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, testAPITestURL, nil)
 	req.Header.Set(common.HeaderOrigin, testOriginExample)
 	rec := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(rec, req)
@@ -94,7 +96,7 @@ func TestShouldApplyCORSHeadersGivenUseCORSMiddleware(t *testing.T) {
 		c.Response().WriteHeader(http.StatusOK)
 	})
 
-	req := httptest.NewRequest(http.MethodGet, testAPITestURL, nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, testAPITestURL, nil)
 	req.Header.Set(common.HeaderOrigin, testOriginExample)
 	rec := httptest.NewRecorder()
 
@@ -196,7 +198,7 @@ func TestWildcardPattern_ResponseHeaders(t *testing.T) {
 		AllowedOrigins: []string{"*.example.com"},
 	})
 
-	req := httptest.NewRequest(http.MethodGet, testAPITestURL, nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, testAPITestURL, nil)
 	req.Header.Set(common.HeaderOrigin, "https://api.example.com")
 	rec := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(rec, req)
@@ -220,7 +222,7 @@ func TestWildcardPattern_PreflightRequest(t *testing.T) {
 		AllowedOrigins: []string{"*.example.com"},
 	})
 
-	req := httptest.NewRequest(http.MethodOptions, testAPITestURL, nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodOptions, testAPITestURL, nil)
 	req.Header.Set(common.HeaderOrigin, "https://sub.example.com")
 	req.Header.Set(common.HeaderAccessControlRequestMethod, "POST")
 	req.Header.Set(common.HeaderAccessControlRequestHeaders, "Content-Type")
@@ -248,7 +250,7 @@ func TestWildcardPattern_WithCredentials(t *testing.T) {
 		AllowCredentials: true,
 	})
 
-	req := httptest.NewRequest(http.MethodGet, testAPITestURL, nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, testAPITestURL, nil)
 	req.Header.Set(common.HeaderOrigin, "https://secure.example.com")
 	rec := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(rec, req)
@@ -272,7 +274,7 @@ func TestWildcardPattern_RejectsNonMatching(t *testing.T) {
 		AllowedOrigins: []string{"*.example.com"},
 	})
 
-	req := httptest.NewRequest(http.MethodGet, testAPITestURL, nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, testAPITestURL, nil)
 	req.Header.Set(common.HeaderOrigin, "https://evil.com")
 	rec := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(rec, req)
@@ -302,7 +304,7 @@ func TestWithOriginWildcard_FunctionalOption(t *testing.T) {
 		c.Response().WriteHeader(http.StatusOK)
 	})
 
-	req := httptest.NewRequest(http.MethodGet, testAPITestURL, nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, testAPITestURL, nil)
 	req.Header.Set(common.HeaderOrigin, "https://api.example.com")
 	rec := httptest.NewRecorder()
 
@@ -340,7 +342,7 @@ func TestWithOriginWildcard_MultiplePatterns(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, testAPITestURL, nil)
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, testAPITestURL, nil)
 			req.Header.Set(common.HeaderOrigin, tt.origin)
 			rec := httptest.NewRecorder()
 

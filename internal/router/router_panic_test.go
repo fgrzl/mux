@@ -1,6 +1,8 @@
 package router
 
 import (
+	"context"
+
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -19,7 +21,7 @@ func TestShouldRecoverFromPanicInHandler(t *testing.T) {
 		panic("test panic")
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/panic", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/panic", nil)
 	recorder := httptest.NewRecorder()
 
 	// Act

@@ -6,7 +6,7 @@ import (
 	"github.com/go-faker/faker/v4"
 )
 
-var Service *FakeService = NewFakeService()
+var Service = NewFakeService()
 
 // FakeService is a struct to hold our in-memory "database" and mock methods.
 type FakeService struct {
@@ -52,7 +52,7 @@ func (s *FakeService) PutResource(resource *Resource) *Resource {
 	defer s.mu.Unlock()
 
 	if resource.ResourceID == 0 {
-		resource.ResourceID = int32(len(s.resources) + 1)
+		resource.ResourceID = int32(len(s.resources) + 1) //nolint:gosec // G115: fake service uses small monotonic IDs
 	}
 
 	s.resources[resource.ResourceID] = resource
@@ -118,7 +118,7 @@ func (s *FakeService) seedData() {
 			Plan:     "diamond",
 		}
 		for j := 0; j < 10; j++ {
-			resourceID := int32(len(s.resources) + 1)
+			resourceID := int32(len(s.resources) + 1) //nolint:gosec // G115: fake service uses small monotonic IDs
 			s.resources[resourceID] = &Resource{
 				ResourceID: resourceID,
 				TenantID:   tenantID,

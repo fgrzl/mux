@@ -1,6 +1,8 @@
 package router
 
 import (
+	"context"
+
 	"io"
 	"log/slog"
 	"net/http"
@@ -49,7 +51,7 @@ func BenchmarkRouterExactMatchSingleRoute(b *testing.B) {
 	rg := r.NewRouteGroup("")
 	rg.GET(benchmarkHelloPath, noopHandler)
 
-	req := httptest.NewRequest(http.MethodGet, benchmarkHelloPath, nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, benchmarkHelloPath, nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -64,7 +66,7 @@ func BenchmarkRouterExactMatchSingleRoutePool(b *testing.B) {
 	rg := r.NewRouteGroup("")
 	rg.GET(benchmarkHelloPath, noopHandler)
 
-	req := httptest.NewRequest(http.MethodGet, benchmarkHelloPath, nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, benchmarkHelloPath, nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -79,7 +81,7 @@ func BenchmarkRouterParamMatchSingleRoute(b *testing.B) {
 	rg := r.NewRouteGroup("")
 	rg.GET("/users/{id}", noopHandler)
 
-	req := httptest.NewRequest(http.MethodGet, "/users/12345", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/users/12345", nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -94,7 +96,7 @@ func BenchmarkRouterParamMatchSingleRoutePool(b *testing.B) {
 	rg := r.NewRouteGroup("")
 	rg.GET("/users/{id}", noopHandler)
 
-	req := httptest.NewRequest(http.MethodGet, "/users/12345", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/users/12345", nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -110,7 +112,7 @@ func BenchmarkRouterWildcardCatchAll(b *testing.B) {
 	rg.GET(benchmarkFilesPath, noopHandler)
 	rg.GET(benchmarkCatchPath, noopHandler)
 
-	req := httptest.NewRequest(http.MethodGet, "/files/some/path/file.txt", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/files/some/path/file.txt", nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -126,7 +128,7 @@ func BenchmarkRouterWildcardCatchAllPool(b *testing.B) {
 	rg.GET(benchmarkFilesPath, noopHandler)
 	rg.GET(benchmarkCatchPath, noopHandler)
 
-	req := httptest.NewRequest(http.MethodGet, "/files/some/path/file.txt", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/files/some/path/file.txt", nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -140,7 +142,7 @@ func benchRouterManyRoutes(b *testing.B, routeCount int) {
 	r := createRouterWithN(routeCount)
 
 	// pick a path that will exercise param matching and deeper trees
-	req := httptest.NewRequest(http.MethodGet, "/users/42", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/users/42", nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()

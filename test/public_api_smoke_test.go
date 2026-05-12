@@ -76,7 +76,7 @@ func TestPublicAPIGoldenPathSmoke(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		req := httptest.NewRequest(http.MethodGet, "/hello", nil)
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/hello", nil)
 		rec := httptest.NewRecorder()
 		router.ServeHTTP(rec, req)
 
@@ -128,11 +128,11 @@ func TestPublicAPIGoldenPathSmoke(t *testing.T) {
 			WithDescription("Creates a user from grouped routes").
 			WithTags("users").
 			WithPathParam("id", "User identifier", 1).
-			WithJsonBody(createUserRequest{}).
+			WithJSONBody(createUserRequest{}).
 			WithCreatedResponse(createUserResponse{}).
 			WithResponse(http.StatusBadRequest, mux.ProblemDetails{})
 
-		req := httptest.NewRequest(
+		req := httptest.NewRequestWithContext(context.Background(),
 			http.MethodPost,
 			"/api/users/41?verbose=true",
 			strings.NewReader(`{"name":"Ada"}`),
@@ -193,7 +193,7 @@ func TestPublicAPIGoldenPathSmoke(t *testing.T) {
 			})
 		})
 
-		req := httptest.NewRequest(
+		req := httptest.NewRequestWithContext(context.Background(),
 			http.MethodPost,
 			"/access/41?page=2&verbose=true&return_to=dashboard",
 			strings.NewReader("name=Ada"),
@@ -237,7 +237,7 @@ func TestPublicAPIGoldenPathSmoke(t *testing.T) {
 			})
 		})
 
-		req := httptest.NewRequest(http.MethodGet, "/middleware", nil)
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/middleware", nil)
 		req.Header.Set("Origin", "https://example.com")
 
 		rec := httptest.NewRecorder()
@@ -277,12 +277,12 @@ func TestPublicAPIGoldenPathSmoke(t *testing.T) {
 			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{"service": svc.(string)}))
 		})
 
-		legacyReq := httptest.NewRequest(http.MethodGet, "/legacy", nil)
+		legacyReq := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/legacy", nil)
 		legacyRec := httptest.NewRecorder()
 		router.ServeHTTP(legacyRec, legacyReq)
 		require.Equal(t, http.StatusNoContent, legacyRec.Code)
 
-		bridgeReq := httptest.NewRequest(http.MethodGet, "/bridge", nil)
+		bridgeReq := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/bridge", nil)
 		bridgeRec := httptest.NewRecorder()
 		router.ServeHTTP(bridgeRec, bridgeReq)
 
@@ -361,7 +361,7 @@ func TestPublicAPIGoldenPathSmoke(t *testing.T) {
 			c.OK(map[string]string{"subject": user.Subject()})
 		}).WithOKResponse(map[string]string{"subject": "ada"})
 
-		loginReq := httptest.NewRequest(http.MethodPost, "/login", nil)
+		loginReq := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/login", nil)
 		loginRec := httptest.NewRecorder()
 		router.ServeHTTP(loginRec, loginReq)
 
@@ -389,7 +389,7 @@ func TestPublicAPIGoldenPathSmoke(t *testing.T) {
 		require.True(t, sawSessionCookie)
 		require.NotEmpty(t, csrfToken)
 
-		protectedReq := httptest.NewRequest(http.MethodPost, "/protected", nil)
+		protectedReq := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/protected", nil)
 		for _, cookie := range cookies {
 			protectedReq.AddCookie(cookie)
 		}
@@ -419,7 +419,7 @@ func TestPublicAPIGoldenPathSmoke(t *testing.T) {
 	})
 
 	t.Run("new route context helper", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/unit", nil)
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/unit", nil)
 		rec := httptest.NewRecorder()
 		ctx := mux.NewRouteContext(rec, req)
 

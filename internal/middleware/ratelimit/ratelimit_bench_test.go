@@ -1,6 +1,8 @@
 package ratelimit
 
 import (
+	"context"
+
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -32,7 +34,7 @@ func benchRateLimit(b *testing.B, pooled bool) {
 	// instead of triggering the rate limiter itself.
 	rb.WithRateLimit(1000000000, time.Second)
 
-	req := httptest.NewRequest(http.MethodGet, "/ok", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/ok", nil)
 	// Ensure the request has a stable RemoteAddr so the rate limiter
 	// attributes all iterations to the same visitor during the benchmark.
 	req.RemoteAddr = "127.0.0.1:12345"

@@ -8,6 +8,7 @@ import (
 
 	"github.com/fgrzl/mux"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestShouldHandleRootPathRequestGivenNoExplicitPath ensures the router can handle
@@ -22,9 +23,11 @@ func TestShouldHandleRootPathRequestGivenNoExplicitPath(t *testing.T) {
 	defer server.Close()
 
 	// Act - Request without explicit path
-	resp, err := http.Get(server.URL)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server.URL, nil)
+	require.NoError(t, err)
+	resp, err := http.DefaultClient.Do(req)
 	assert.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Assert
 	assert.Equal(t, http.StatusOK, resp.StatusCode)

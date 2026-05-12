@@ -1,3 +1,4 @@
+//nolint:gosec // Test support routes; RFC 6455 Sec-WebSocket-Accept requires SHA-1 (G401/G505).
 package testsupport
 
 import (
@@ -102,7 +103,7 @@ func ConfigureRoutes(r *mux.Router) {
 	// Bulk create resources via JSON array
 	rg.POST(ResourcesBulk, createResourcesBulkHandler).
 		WithOperationID("createResourcesBulk").
-		WithJsonBody([]Resource{}).
+		WithJSONBody([]Resource{}).
 		WithCreatedResponse([]Resource{}).
 		WithResponse(http.StatusBadRequest, mux.ProblemDetails{}).
 		WithTags(TagResources)
@@ -111,7 +112,7 @@ func ConfigureRoutes(r *mux.Router) {
 	rg.PUT(ResourceMeta, updateResourceMetadataHandler).
 		WithOperationID("updateResourceMetadata").
 		WithPathParam(ParamResourceID, "", int(0)).
-		WithJsonBody(&struct {
+		WithJSONBody(&struct {
 			Metadata map[string]string `json:"metadata"`
 		}{}).
 		WithOKResponse(struct {
@@ -161,7 +162,7 @@ func ConfigureRoutes(r *mux.Router) {
 
 	rg.POST(TenantsPath+"/", createTenantHandler).
 		WithOperationID("createTenant").
-		WithJsonBody(Tenant{}).
+		WithJSONBody(Tenant{}).
 		WithCreatedResponse(Tenant{}).
 		WithTags(TagTenants)
 
@@ -175,7 +176,7 @@ func ConfigureRoutes(r *mux.Router) {
 	rg.PUT(TenantIDPath, updateTenantHandler).
 		WithOperationID("updateTenant").
 		WithPathParam(ParamTenantID, "", int(0)).
-		WithJsonBody(Tenant{}).
+		WithJSONBody(Tenant{}).
 		WithOKResponse(Tenant{}).
 		WithTags(TagTenants)
 
@@ -197,7 +198,7 @@ func ConfigureRoutes(r *mux.Router) {
 	rg.POST(TenantResources, createTenantResourceHandler).
 		WithOperationID("createTenantResource").
 		WithPathParam(ParamTenantID, "", int(0)).
-		WithJsonBody(Resource{}).
+		WithJSONBody(Resource{}).
 		WithCreatedResponse(Resource{}).
 		WithTags(TagTenants, TagResources)
 }
@@ -227,11 +228,11 @@ func wsHandler(c mux.RouteContext) {
 		return
 	}
 	// Write raw upgrade response and close the connection.
-	fmt.Fprintf(conn, "HTTP/1.1 101 Switching Protocols\r\n")
-	fmt.Fprintf(conn, "Upgrade: websocket\r\n")
-	fmt.Fprintf(conn, "Connection: Upgrade\r\n")
-	fmt.Fprintf(conn, "Sec-WebSocket-Accept: %s\r\n", accept)
-	fmt.Fprintf(conn, "\r\n")
+	_, _ = fmt.Fprintf(conn, "HTTP/1.1 101 Switching Protocols\r\n")
+	_, _ = fmt.Fprintf(conn, "Upgrade: websocket\r\n")
+	_, _ = fmt.Fprintf(conn, "Connection: Upgrade\r\n")
+	_, _ = fmt.Fprintf(conn, "Sec-WebSocket-Accept: %s\r\n", accept)
+	_, _ = fmt.Fprintf(conn, "\r\n")
 	_ = conn.Close()
 }
 
@@ -425,7 +426,7 @@ func getTenantHandler(c mux.RouteContext) {
 		c.NotFound()
 		return
 	}
-	tenant, found := Service.GetTenant(int32(id))
+	tenant, found := Service.GetTenant(int32(id)) //nolint:gosec // G115: test IDs are small bounded integers
 	if !found {
 		c.NotFound()
 		return
@@ -444,7 +445,7 @@ func updateTenantHandler(c mux.RouteContext) {
 		c.BadRequest(ErrBadRequest, err.Error())
 		return
 	}
-	t.TenantID = int32(id)
+	t.TenantID = int32(id) //nolint:gosec // G115: test IDs are small bounded integers
 	updated := Service.PutTenant(&t)
 	c.OK(updated)
 }
@@ -455,7 +456,7 @@ func deleteTenantHandler(c mux.RouteContext) {
 		c.BadRequest(ErrInvalidTenantID, ErrTenantMissing)
 		return
 	}
-	deleted := Service.DeleteTenant(int32(id))
+	deleted := Service.DeleteTenant(int32(id)) //nolint:gosec // G115: test IDs are small bounded integers
 	if !deleted {
 		c.NotFound()
 		return
@@ -469,7 +470,7 @@ func listTenantResourcesHandler(c mux.RouteContext) {
 		c.BadRequest(ErrInvalidTenantID, ErrTenantMissing)
 		return
 	}
-	resources := Service.ListResources(int32(id))
+	resources := Service.ListResources(int32(id)) //nolint:gosec // G115: test IDs are small bounded integers
 	if len(resources) == 0 {
 		c.NotFound()
 		return
@@ -488,7 +489,7 @@ func createTenantResourceHandler(c mux.RouteContext) {
 		c.BadRequest(ErrBadRequest, err.Error())
 		return
 	}
-	res.TenantID = int32(id)
+	res.TenantID = int32(id) //nolint:gosec // G115: test IDs are small bounded integers
 	created := Service.PutResource(&res)
 	c.Created(created)
 }

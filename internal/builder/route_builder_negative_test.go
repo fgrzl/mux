@@ -24,6 +24,6 @@ func TestShouldPanicOnBodyForGet(t *testing.T) {
 	// Act & Assert
 	require.PanicsWithValue(t,
 		"HTTP method GET does not support a request body",
-		func() { rb.WithJsonBody(struct{ A int }{A: 1}) },
+		func() { rb.WithJSONBody(struct{ A int }{A: 1}) },
 	)
 }

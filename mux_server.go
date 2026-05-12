@@ -143,7 +143,8 @@ func (ws *WebServer) prepareListener() (net.Listener, error) {
 	if ws.hasTLS() && !ws.validateTLSFiles() {
 		return nil, errors.New(errInvalidTLSFiles)
 	}
-	return net.Listen("tcp", ws.srv.Addr)
+	var lc net.ListenConfig
+	return lc.Listen(context.Background(), "tcp", ws.srv.Addr)
 }
 
 func (ws *WebServer) validateTLSFiles() bool {

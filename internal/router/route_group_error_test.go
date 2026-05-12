@@ -1,6 +1,8 @@
 package router
 
 import (
+	"context"
+
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -127,7 +129,7 @@ func TestShouldRejectDuplicateRouteRegistrationWithoutOverwritingExistingHandler
 		c.Response().Header().Set("X-Handler", "second")
 		c.OK("second")
 	})
-	req := httptest.NewRequest(http.MethodGet, "/api/users", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/users", nil)
 	rr := httptest.NewRecorder()
 	rtr.ServeHTTP(rr, req)
 
@@ -148,7 +150,7 @@ func TestShouldNotServeRouteAfterBuilderValidationFailsInSafeMode(t *testing.T) 
 	route := api.GET("/users", func(c routing.RouteContext) {
 		c.OK("users")
 	}).WithOperationID("invalid-id")
-	req := httptest.NewRequest(http.MethodGet, "/api/users", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/users", nil)
 	rr := httptest.NewRecorder()
 	rtr.ServeHTTP(rr, req)
 
@@ -170,7 +172,7 @@ func TestShouldNotAttachDetachedRouteBuilderWithExistingValidationErrors(t *test
 	attached := api.HandleRoute(detached, func(c routing.RouteContext) {
 		c.OK("users")
 	})
-	req := httptest.NewRequest(http.MethodGet, "/api/users", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/users", nil)
 	rr := httptest.NewRecorder()
 	rtr.ServeHTTP(rr, req)
 
@@ -188,7 +190,7 @@ func TestShouldRejectRouteRegistrationWithoutHandlerInSafeMode(t *testing.T) {
 
 	// Act
 	route := api.GET("/users", nil)
-	req := httptest.NewRequest(http.MethodGet, "/api/users", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/users", nil)
 	rr := httptest.NewRecorder()
 	rtr.ServeHTTP(rr, req)
 

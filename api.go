@@ -94,7 +94,7 @@ func WithCookieSecure(secure bool) CookieOption {
 }
 
 func WithCookieHTTPOnly(httpOnly bool) CookieOption {
-	return CookieOption{apply: internalcookiekit.WithHttpOnly(httpOnly)}
+	return CookieOption{apply: internalcookiekit.WithHTTPOnly(httpOnly)}
 }
 
 func WithCookieSameSite(sameSite http.SameSite) CookieOption {

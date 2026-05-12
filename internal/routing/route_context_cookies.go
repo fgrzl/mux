@@ -61,10 +61,11 @@ func (c *DefaultRouteContext) SetCookie(
 	secure, httpOnly bool,
 	sameSite ...http.SameSite, // optional SameSite (defaults to Lax)
 ) {
-	var ss http.SameSite = http.SameSiteLaxMode
+	var ss = http.SameSiteLaxMode
 	if len(sameSite) > 0 {
 		ss = sameSite[0]
 	}
+	//nolint:gosec // G124: cookie flags are caller-controlled via SetCookie parameters.
 	cookie := &http.Cookie{
 		Name:     name,
 		Value:    value,
@@ -122,6 +123,7 @@ func ClearCookieWithOptions(c RouteContext, name string, opts ...cookiekit.Cooki
 	}
 
 	_, path, domain, secure, httpOnly, sameSite := cookiekit.ResolveCookieOptions(opts...)
+	//nolint:gosec // G124: cookie flags come from ClearCookieWithOptions / cookiekit.
 	http.SetCookie(c.Response(), &http.Cookie{
 		Name:     name,
 		Value:    "",
@@ -159,7 +161,7 @@ func (c *DefaultRouteContext) authenticate(cookieName string, user claims.Princi
 		// Use request context for logging to avoid passing the RouteContext
 		// directly (its embedded Context may be nil if the instance was
 		// pooled and later cleared). Fall back to background if unavailable.
-		var logCtx context.Context = context.Background()
+		var logCtx = context.Background()
 		if c != nil && c.Request() != nil && c.Request().Context() != nil {
 			logCtx = c.Request().Context()
 		}
@@ -190,31 +192,31 @@ func (c *DefaultRouteContext) authenticate(cookieName string, user claims.Princi
 }
 
 // SignIn authenticates the user and redirects to the given URL (or "/" by default).
-func (c *DefaultRouteContext) SignIn(user claims.Principal, redirectUrl string, opts ...cookiekit.CookieOption) {
+func (c *DefaultRouteContext) SignIn(user claims.Principal, redirectURL string, opts ...cookiekit.CookieOption) {
 	cookieNames := currentCookieNames(c)
 	c.Authenticate(cookieNames.AppSession, user, opts...)
 	if c.responseCommitted {
 		return
 	}
-	if redirectUrl == "" {
-		redirectUrl = "/"
+	if redirectURL == "" {
+		redirectURL = "/"
 	}
-	c.TemporaryRedirect(redirectUrl)
+	c.TemporaryRedirect(redirectURL)
 }
 
 // SignOut clears user-related cookies and redirects to the logout page.
-func (c *DefaultRouteContext) SignOut(redirectUrl string) {
+func (c *DefaultRouteContext) SignOut(redirectURL string) {
 	opts := currentAuthCookieOptions(c)
 	if len(opts) == 0 {
 		opts = []cookiekit.CookieOption{cookiekit.WithSameSite(http.SameSiteLaxMode)}
 	}
-	SignOutWithOptions(c, redirectUrl, opts...)
+	SignOutWithOptions(c, redirectURL, opts...)
 }
 
 // SignOutWithOptions clears user-related cookies using the provided cookie
 // attributes and redirects to the logout page. Use this when the cookies were
 // originally issued with non-default path or domain options.
-func SignOutWithOptions(c RouteContext, redirectUrl string, opts ...cookiekit.CookieOption) {
+func SignOutWithOptions(c RouteContext, redirectURL string, opts ...cookiekit.CookieOption) {
 	if c == nil {
 		return
 	}
@@ -224,5 +226,5 @@ func SignOutWithOptions(c RouteContext, redirectUrl string, opts ...cookiekit.Co
 	ClearCookieWithOptions(c, cookieNames.TwoFactor, opts...)
 	ClearCookieWithOptions(c, cookieNames.IDPSession, opts...)
 	ClearCookieWithOptions(c, csrfCookieName, opts...)
-	c.TemporaryRedirect(redirectUrl)
+	c.TemporaryRedirect(redirectURL)
 }

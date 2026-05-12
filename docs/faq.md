@@ -65,7 +65,7 @@ router := mux.NewRouter()
 router.HandleFunc(http.MethodGet, "/healthz", healthHandler)
 router.GET("/users/{id}", getUser)
 router.POST("/users", createUser).
-	WithJsonBody(CreateUserRequest{}).
+	WithJSONBody(CreateUserRequest{}).
 	WithCreatedResponse(User{})
 ```
 
@@ -299,7 +299,7 @@ func (m *CORSMiddleware) Invoke(c mux.MutableRouteContext, next mux.HandlerFunc)
 // Document routes
 router.POST("/users", createUser).
 	WithSummary("Create a user").
-	WithJsonBody(User{}).
+	WithJSONBody(User{}).
 	WithCreatedResponse(User{})
 
 // Generate spec

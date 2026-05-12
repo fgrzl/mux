@@ -1,6 +1,8 @@
 package forwardheaders
 
 import (
+	"context"
+
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,7 +15,7 @@ import (
 
 const (
 	testURL             = "http://example.com/test"
-	fhProtoHttps        = "https"
+	fhProtoHTTPS        = "https"
 	fhAddr1             = "192.168.1.100"
 	fhAddr2             = "10.0.0.1"
 	fhAddr3             = "1.2.3.4"
@@ -24,8 +26,8 @@ func TestShouldProcessXForwardedProtoHeader(t *testing.T) {
 	// Arrange
 	middleware := &forwardedHeadersMiddleware{}
 
-	req := httptest.NewRequest(http.MethodGet, testURL, nil)
-	req.Header.Set(common.HeaderXForwardedProto, fhProtoHttps)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, testURL, nil)
+	req.Header.Set(common.HeaderXForwardedProto, fhProtoHTTPS)
 	recorder := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(recorder, req)
 
@@ -45,7 +47,7 @@ func TestShouldProcessXForwardedProtoHeader(t *testing.T) {
 func TestShouldProcessXForwardedForHeader(t *testing.T) {
 	// Arrange
 	middleware := &forwardedHeadersMiddleware{}
-	req := httptest.NewRequest(http.MethodGet, testURL, nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, testURL, nil)
 	req.Header.Set(common.HeaderXForwardedFor, fhAddr1)
 	recorder := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(recorder, req)
@@ -66,8 +68,8 @@ func TestShouldProcessXForwardedForHeader(t *testing.T) {
 func TestShouldProcessBothForwardedHeaders(t *testing.T) {
 	// Arrange
 	middleware := &forwardedHeadersMiddleware{}
-	req := httptest.NewRequest(http.MethodGet, testURL, nil)
-	req.Header.Set(common.HeaderXForwardedProto, fhProtoHttps)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, testURL, nil)
+	req.Header.Set(common.HeaderXForwardedProto, fhProtoHTTPS)
 	req.Header.Set(common.HeaderXForwardedFor, fhAddr2)
 	recorder := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(recorder, req)
@@ -89,7 +91,7 @@ func TestShouldProcessBothForwardedHeaders(t *testing.T) {
 func TestShouldIgnoreEmptyForwardedHeaders(t *testing.T) {
 	// Arrange
 	middleware := &forwardedHeadersMiddleware{}
-	req := httptest.NewRequest(http.MethodGet, testURL, nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, testURL, nil)
 	originalScheme := req.URL.Scheme
 	originalRemoteAddr := req.RemoteAddr
 	recorder := httptest.NewRecorder()
@@ -119,8 +121,8 @@ func TestShouldAddForwardedHeadersMiddlewareToRouter(t *testing.T) {
 		_, _ = c.Response().Write([]byte(c.Request().URL.Scheme + "|" + c.Request().RemoteAddr))
 	})
 
-	req := httptest.NewRequest(http.MethodGet, testURL, nil)
-	req.Header.Set(common.HeaderXForwardedProto, fhProtoHttps)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, testURL, nil)
+	req.Header.Set(common.HeaderXForwardedProto, fhProtoHTTPS)
 	req.Header.Set(common.HeaderXForwardedFor, fhAddr3)
 	rec := httptest.NewRecorder()
 

@@ -351,33 +351,33 @@ func (rg *RouteGroup) Deprecated() *RouteGroup {
 
 // ---- Nested Group Creation ----
 
-// copyDefaults copies all default settings from source to target RouteGroup.
-func (target *RouteGroup) copyDefaults(source *RouteGroup) {
-	target.defaultMiddleware = slices.Clone(source.defaultMiddleware)
-	target.validation = source.validationState().Clone()
+// copyDefaults copies all default settings from source to this RouteGroup.
+func (rg *RouteGroup) copyDefaults(source *RouteGroup) {
+	rg.defaultMiddleware = slices.Clone(source.defaultMiddleware)
+	rg.validation = source.validationState().Clone()
 	if len(source.defaultServices) > 0 {
-		target.defaultServices = cloneGroupServices(source.defaultServices)
+		rg.defaultServices = cloneGroupServices(source.defaultServices)
 	}
 	if len(source.defaultParams) > 0 {
-		target.defaultParams = make([]*openapi.ParameterObject, len(source.defaultParams))
+		rg.defaultParams = make([]*openapi.ParameterObject, len(source.defaultParams))
 		for index, param := range source.defaultParams {
-			target.defaultParams[index] = openapi.CloneParameterObject(param)
+			rg.defaultParams[index] = openapi.CloneParameterObject(param)
 		}
 	}
-	target.defaultRoles = slices.Clone(source.defaultRoles)
-	target.defaultScopes = slices.Clone(source.defaultScopes)
-	target.defaultPermissions = slices.Clone(source.defaultPermissions)
-	target.defaultTags = slices.Clone(source.defaultTags)
+	rg.defaultRoles = slices.Clone(source.defaultRoles)
+	rg.defaultScopes = slices.Clone(source.defaultScopes)
+	rg.defaultPermissions = slices.Clone(source.defaultPermissions)
+	rg.defaultTags = slices.Clone(source.defaultTags)
 	if len(source.defaultSecurity) > 0 {
-		target.defaultSecurity = make([]*openapi.SecurityRequirement, len(source.defaultSecurity))
+		rg.defaultSecurity = make([]*openapi.SecurityRequirement, len(source.defaultSecurity))
 		for index, sec := range source.defaultSecurity {
-			target.defaultSecurity[index] = openapi.CloneSecurityRequirement(sec)
+			rg.defaultSecurity[index] = openapi.CloneSecurityRequirement(sec)
 		}
 	}
-	target.defaultSummary = source.defaultSummary
-	target.defaultDescription = source.defaultDescription
-	target.defaultAllowAnon = source.defaultAllowAnon
-	target.defaultDeprecated = source.defaultDeprecated
+	rg.defaultSummary = source.defaultSummary
+	rg.defaultDescription = source.defaultDescription
+	rg.defaultAllowAnon = source.defaultAllowAnon
+	rg.defaultDeprecated = source.defaultDeprecated
 }
 
 func cloneGroupServices(services map[routing.ServiceKey]any) map[routing.ServiceKey]any {

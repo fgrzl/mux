@@ -23,9 +23,32 @@ func newBenchmarkServer(b *testing.B) *httptest.Server {
 
 // readAndClose reads and discards the response body and closes it.
 func readAndClose(resp *http.Response) error {
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 	_, err := io.ReadAll(resp.Body)
 	return err
+}
+
+// benchClientDo issues an HTTP request using the benchmark client's transport
+// and the TB's context (supports *testing.B and *testing.T). The response body
+// is drained and closed before returning; StatusCode and headers remain valid.
+func benchClientDo(tb testing.TB, method, url string, body io.Reader, contentType string) (*http.Response, error) {
+	tb.Helper()
+	req, err := http.NewRequestWithContext(tb.Context(), method, url, body)
+	if err != nil {
+		return nil, err
+	}
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
+	resp, err := benchClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	_, _ = io.Copy(io.Discard, resp.Body)
+	_ = resp.Body.Close()
+	return resp, nil
 }
 
 // benchClient is an HTTP client optimized for benchmarking with connection pooling.
@@ -38,8 +61,8 @@ var benchClient = &http.Client{
 	},
 }
 
-// min returns the minimum of two integers.
-func min(a, b int) int {
+// benchMin returns the smaller of two integers (avoid shadowing the builtin min).
+func benchMin(a, b int) int {
 	if a < b {
 		return a
 	}

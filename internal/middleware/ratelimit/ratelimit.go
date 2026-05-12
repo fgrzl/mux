@@ -68,7 +68,7 @@ func NewSelectiveRateLimiter(opts ...RateLimiterOption) *SelectiveRateLimiter {
 }
 
 // NewSelectiveRateLimiterWithContext constructs a SelectiveRateLimiter that stops its cleanup
-// goroutine when the provided context is cancelled. Use this for proper resource cleanup.
+// goroutine when the provided context is canceled. Use this for proper resource cleanup.
 func NewSelectiveRateLimiterWithContext(ctx context.Context, opts ...RateLimiterOption) *SelectiveRateLimiter {
 	rl := NewSelectiveRateLimiter(opts...)
 	go func() {
@@ -97,7 +97,6 @@ const rateLimitTitle = "Rate limit exceeded"
 const rateLimitDetail = "You have exceeded the allowed number of requests. Please try again later."
 
 func (m *SelectiveRateLimiter) Invoke(c routing.RouteContext, next router.HandlerFunc) {
-
 	opts := c.Options()
 	if opts == nil || opts.RateLimit <= 0 {
 		next(c)

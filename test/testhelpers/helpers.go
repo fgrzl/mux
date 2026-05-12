@@ -1,6 +1,8 @@
 package testhelpers
 
 import (
+	"context"
+
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -10,7 +12,7 @@ import (
 
 // NewRequestRecorder creates an http.Request and ResponseRecorder for tests.
 func NewRequestRecorder(method, url string, body io.Reader) (*http.Request, *httptest.ResponseRecorder) {
-	req := httptest.NewRequest(method, url, body)
+	req := httptest.NewRequestWithContext(context.Background(), method, url, body)
 	rec := httptest.NewRecorder()
 	return req, rec
 }

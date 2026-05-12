@@ -133,7 +133,7 @@ if err := router.Configure(func(router *mux.Router) {
     }).
         WithOperationID("createUser").
         WithSummary("Create a user").
-        WithJsonBody(CreateUserRequest{}).
+        WithJSONBody(CreateUserRequest{}).
         WithCreatedResponse(map[string]any{"id": "user-123", "name": "Ada"})
 }); err != nil {
     panic(err)

@@ -1,6 +1,8 @@
 package middlewarebench
 
 import (
+	"context"
+
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -15,7 +17,7 @@ type MiddlewareInvokeFunc func(routing.RouteContext, router.HandlerFunc)
 // BenchmarkMiddlewareInvoke benchmarks a middleware's Invoke method in isolation.
 // It measures the overhead of the middleware without router pipeline costs.
 func BenchmarkMiddlewareInvoke(b *testing.B, invoke MiddlewareInvokeFunc, setupRequest func(*http.Request)) {
-	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "http://example.com/test", nil)
 	if setupRequest != nil {
 		setupRequest(req)
 	}
@@ -35,7 +37,7 @@ func BenchmarkMiddlewareInvoke(b *testing.B, invoke MiddlewareInvokeFunc, setupR
 // BenchmarkMiddlewareRouterPipeline benchmarks a middleware through a full router pipeline.
 // This measures real-world performance including routing overhead.
 func BenchmarkMiddlewareRouterPipeline(b *testing.B, rtr *router.Router, method, path string, setupRequest func(*http.Request)) {
-	req := httptest.NewRequest(method, path, nil)
+	req := httptest.NewRequestWithContext(context.Background(), method, path, nil)
 	if setupRequest != nil {
 		setupRequest(req)
 	}

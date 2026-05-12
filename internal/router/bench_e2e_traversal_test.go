@@ -1,6 +1,8 @@
 package router
 
 import (
+	"context"
+
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -26,7 +28,7 @@ func setupComplexRouter() *Router {
 
 func BenchmarkRouterE2EPool(b *testing.B) {
 	r := setupComplexRouter()
-	req := httptest.NewRequest(http.MethodGet, "/files/some/path/file.txt", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/files/some/path/file.txt", nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
@@ -46,7 +48,7 @@ func BenchmarkRouterE2ENonPool(b *testing.B) {
 	rg.GET("/files/*", func(c routing.RouteContext) {})
 	rg.GET("/catch/**", func(c routing.RouteContext) {})
 
-	req := httptest.NewRequest(http.MethodGet, "/files/some/path/file.txt", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/files/some/path/file.txt", nil)
 	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()

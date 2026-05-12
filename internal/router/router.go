@@ -39,7 +39,7 @@ func NewRouter(opts ...RouterOption) *Router {
 	defaultHandler := func(c routing.RouteContext) {
 		invokeRouteHandler(c)
 	}
-	r.pipeline.Store(pipelineCache{h: HandlerFunc(defaultHandler), mwCount: 0})
+	r.pipeline.Store(pipelineCache{h: defaultHandler, mwCount: 0})
 	return r
 }
 
@@ -98,11 +98,11 @@ func (rtr *Router) Configure(configure func(*Router)) error {
 		return nil
 	}
 
-	original := rtr.RouteGroup.validationState()
+	original := rtr.validationState()
 	configured := original.WithPanicOnError(false)
-	rtr.RouteGroup.validation = configured
+	rtr.validation = configured
 	defer func() {
-		rtr.RouteGroup.validation = original
+		rtr.validation = original
 	}()
 
 	configure(rtr)
@@ -186,7 +186,7 @@ func (rtr *Router) Use(m Middleware) {
 	// Compose the pipeline immediately and cache it so the first request
 	// doesn't pay for pipeline construction.
 	mw := rtr.middleware
-	var final HandlerFunc = func(c routing.RouteContext) {
+	var final = func(c routing.RouteContext) {
 		invokeRouteHandler(c)
 	}
 	for i := len(mw) - 1; i >= 0; i-- {
@@ -240,6 +240,8 @@ func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	res, outcome := rtr.resolveRoute(r, c)
 	switch outcome {
+	case routeOutcomeResolved:
+		// handled below after switch
 	case routeOutcomeNotFound:
 		c.NotFound()
 		rtr.releaseContext(c)
@@ -476,9 +478,9 @@ func (rtr *Router) executePipeline(c routing.RouteContext) {
 }
 
 func (rtr *Router) buildPipeline(mw []Middleware) HandlerFunc {
-	final := HandlerFunc(func(c routing.RouteContext) {
+	final := func(c routing.RouteContext) {
 		invokeRouteHandler(c)
-	})
+	}
 	for i := len(mw) - 1; i >= 0; i-- {
 		middleware := mw[i]
 		next := final

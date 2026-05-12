@@ -1,6 +1,8 @@
 package bench
 
 import (
+	"context"
+
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -22,15 +24,12 @@ func BenchmarkHTTPMethods(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			resp, err := benchClient.Get(server.URL + testsupport.APIResources)
+			resp, err := benchClientDo(b, http.MethodGet, server.URL+testsupport.APIResources, nil, "")
 			if err != nil {
 				b.Fatalf("GET failed: %v", err)
 			}
 			if resp.StatusCode != http.StatusOK {
 				b.Fatalf("unexpected status: %d", resp.StatusCode)
-			}
-			if err := readAndClose(resp); err != nil {
-				b.Fatalf("read body failed: %v", err)
 			}
 		}
 	})
@@ -39,15 +38,12 @@ func BenchmarkHTTPMethods(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			resp, err := benchClient.Get(server.URL + fmt.Sprintf(testsupport.APIResourceByID, 1))
+			resp, err := benchClientDo(b, http.MethodGet, server.URL+fmt.Sprintf(testsupport.APIResourceByID, 1), nil, "")
 			if err != nil {
 				b.Fatalf("GET failed: %v", err)
 			}
 			if resp.StatusCode != http.StatusOK {
 				b.Fatalf("unexpected status: %d", resp.StatusCode)
-			}
-			if err := readAndClose(resp); err != nil {
-				b.Fatalf("read body failed: %v", err)
 			}
 		}
 	})
@@ -56,7 +52,7 @@ func BenchmarkHTTPMethods(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			req, _ := http.NewRequest(http.MethodHead, server.URL+fmt.Sprintf(testsupport.APIResourceByID, 1), nil)
+			req, _ := http.NewRequestWithContext(context.Background(), http.MethodHead, server.URL+fmt.Sprintf(testsupport.APIResourceByID, 1), nil)
 			resp, err := benchClient.Do(req)
 			if err != nil {
 				b.Fatalf("HEAD failed: %v", err)
@@ -64,7 +60,7 @@ func BenchmarkHTTPMethods(b *testing.B) {
 			if resp.StatusCode != http.StatusNoContent {
 				b.Fatalf("unexpected status: %d", resp.StatusCode)
 			}
-			resp.Body.Close()
+			_ = resp.Body.Close()
 		}
 	})
 
@@ -76,15 +72,12 @@ func BenchmarkHTTPMethods(b *testing.B) {
 			n := atomic.AddUint64(&seq, 1)
 			resource := testsupport.Resource{TenantID: 0, Name: fmt.Sprintf("bench-%d", n), Type: "resource"}
 			bts, _ := json.Marshal([]testsupport.Resource{resource})
-			resp, err := benchClient.Post(server.URL+testsupport.APIBase+"/resources/bulk", common.MimeJSON, bytes.NewReader(bts))
+			resp, err := benchClientDo(b, http.MethodPost, server.URL+testsupport.APIBase+"/resources/bulk", bytes.NewReader(bts), common.MimeJSON)
 			if err != nil {
 				b.Fatalf("POST failed: %v", err)
 			}
 			if resp.StatusCode != http.StatusCreated {
 				b.Fatalf("unexpected status: %d", resp.StatusCode)
-			}
-			if err := readAndClose(resp); err != nil {
-				b.Fatalf("read body failed: %v", err)
 			}
 		}
 	})
@@ -95,7 +88,7 @@ func BenchmarkHTTPMethods(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			req, _ := http.NewRequest(http.MethodPut, server.URL+fmt.Sprintf(testsupport.APIResourceMetadata, 1), bytes.NewReader(bts))
+			req, _ := http.NewRequestWithContext(context.Background(), http.MethodPut, server.URL+fmt.Sprintf(testsupport.APIResourceMetadata, 1), bytes.NewReader(bts))
 			req.Header.Set(common.HeaderContentType, common.MimeJSON)
 			resp, err := benchClient.Do(req)
 			if err != nil {
@@ -103,9 +96,6 @@ func BenchmarkHTTPMethods(b *testing.B) {
 			}
 			if resp.StatusCode != http.StatusOK {
 				b.Fatalf("unexpected status: %d", resp.StatusCode)
-			}
-			if err := readAndClose(resp); err != nil {
-				b.Fatalf("read body failed: %v", err)
 			}
 		}
 	})
@@ -122,7 +112,7 @@ func BenchmarkHTTPMethods(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			req, _ := http.NewRequest(http.MethodDelete, server.URL+fmt.Sprintf(testsupport.APITenantByID, 1000+i), nil)
+			req, _ := http.NewRequestWithContext(context.Background(), http.MethodDelete, server.URL+fmt.Sprintf(testsupport.APITenantByID, 1000+i), nil)
 			resp, err := benchClient.Do(req)
 			if err != nil {
 				b.Fatalf("DELETE failed: %v", err)
@@ -130,7 +120,7 @@ func BenchmarkHTTPMethods(b *testing.B) {
 			if resp.StatusCode != http.StatusNoContent {
 				b.Fatalf("unexpected status: %d", resp.StatusCode)
 			}
-			resp.Body.Close()
+			_ = resp.Body.Close()
 		}
 	})
 }
@@ -143,11 +133,10 @@ func BenchmarkRouteMatching(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			resp, err := benchClient.Get(server.URL + testsupport.APIResources)
+			_, err := benchClientDo(b, http.MethodGet, server.URL+testsupport.APIResources, nil, "")
 			if err != nil {
 				b.Fatalf("GET failed: %v", err)
 			}
-			readAndClose(resp)
 		}
 	})
 
@@ -155,11 +144,10 @@ func BenchmarkRouteMatching(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			resp, err := benchClient.Get(server.URL + fmt.Sprintf(testsupport.APIResourceByID, 5))
+			_, err := benchClientDo(b, http.MethodGet, server.URL+fmt.Sprintf(testsupport.APIResourceByID, 5), nil, "")
 			if err != nil {
 				b.Fatalf("GET failed: %v", err)
 			}
-			readAndClose(resp)
 		}
 	})
 
@@ -167,11 +155,10 @@ func BenchmarkRouteMatching(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			resp, err := benchClient.Get(server.URL + fmt.Sprintf(testsupport.APITenantResources, 1))
+			_, err := benchClientDo(b, http.MethodGet, server.URL+fmt.Sprintf(testsupport.APITenantResources, 1), nil, "")
 			if err != nil {
 				b.Fatalf("GET failed: %v", err)
 			}
-			readAndClose(resp)
 		}
 	})
 
@@ -180,11 +167,10 @@ func BenchmarkRouteMatching(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			resp, err := benchClient.Get(server.URL + fmt.Sprintf(testsupport.APIItemsUUID, id.String()))
+			_, err := benchClientDo(b, http.MethodGet, server.URL+fmt.Sprintf(testsupport.APIItemsUUID, id.String()), nil, "")
 			if err != nil {
 				b.Fatalf("GET failed: %v", err)
 			}
-			readAndClose(resp)
 		}
 	})
 
@@ -197,11 +183,10 @@ func BenchmarkRouteMatching(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			resp, err := benchClient.Get(server.URL + testsupport.APIBase + "/resources/search?name=" + name + "&type=resource")
+			_, err := benchClientDo(b, http.MethodGet, server.URL+testsupport.APIBase+"/resources/search?name="+name+"&type=resource", nil, "")
 			if err != nil {
 				b.Fatalf("GET failed: %v", err)
 			}
-			readAndClose(resp)
 		}
 	})
 
@@ -211,11 +196,10 @@ func BenchmarkRouteMatching(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			resp, err := benchClient.Get(server.URL + testsupport.APIBase + "/filter" + query)
+			_, err := benchClientDo(b, http.MethodGet, server.URL+testsupport.APIBase+"/filter"+query, nil, "")
 			if err != nil {
 				b.Fatalf("GET failed: %v", err)
 			}
-			readAndClose(resp)
 		}
 	})
 }
@@ -228,13 +212,13 @@ func BenchmarkHeaders(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			req, _ := http.NewRequest(http.MethodGet, server.URL+testsupport.APIHeadersEcho, nil)
+			req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, server.URL+testsupport.APIHeadersEcho, nil)
 			req.Header.Set(common.HeaderXEcho, "benchmark-value")
 			resp, err := benchClient.Do(req)
 			if err != nil {
 				b.Fatalf("GET failed: %v", err)
 			}
-			readAndClose(resp)
+			_ = readAndClose(resp)
 		}
 	})
 
@@ -242,7 +226,7 @@ func BenchmarkHeaders(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			req, _ := http.NewRequest(http.MethodGet, server.URL+testsupport.APIResources, nil)
+			req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, server.URL+testsupport.APIResources, nil)
 			for j := 0; j < 20; j++ {
 				req.Header.Set(fmt.Sprintf("X-Custom-Header-%d", j), fmt.Sprintf("value-%d", j))
 			}
@@ -250,7 +234,7 @@ func BenchmarkHeaders(b *testing.B) {
 			if err != nil {
 				b.Fatalf("GET failed: %v", err)
 			}
-			readAndClose(resp)
+			_ = readAndClose(resp)
 		}
 	})
 }

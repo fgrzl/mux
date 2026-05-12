@@ -483,46 +483,46 @@ func (rb *RouteBuilder) WithPermanentRedirectResponseErr() (*RouteBuilder, error
 	return rb.WithResponseErr(http.StatusPermanentRedirect, nil)
 }
 
-// WithJsonBody describes a JSON request body (required=true).
-func (rb *RouteBuilder) WithJsonBody(example any) *RouteBuilder {
+// WithJSONBody describes a JSON request body (required=true).
+func (rb *RouteBuilder) WithJSONBody(example any) *RouteBuilder {
 	return rb.withBody(example, common.MimeJSON)
 }
 
-// WithJsonBodyErr describes a JSON request body without panicking.
-func (rb *RouteBuilder) WithJsonBodyErr(example any) (*RouteBuilder, error) {
+// WithJSONBodyErr describes a JSON request body without panicking.
+func (rb *RouteBuilder) WithJSONBodyErr(example any) (*RouteBuilder, error) {
 	return rb.withBodyErr(example, common.MimeJSON)
 }
 
-// WithOneOfJsonBody describes a JSON request body using oneOf for polymorphic types.
+// WithOneOfJSONBody describes a JSON request body using oneOf for polymorphic types.
 // Pass example instances of each possible type as separate arguments.
-func (rb *RouteBuilder) WithOneOfJsonBody(examples ...any) *RouteBuilder {
+func (rb *RouteBuilder) WithOneOfJSONBody(examples ...any) *RouteBuilder {
 	return rb.withCompositeBody(examples, common.MimeJSON, "oneOf")
 }
 
-// WithOneOfJsonBodyErr describes a JSON request body using oneOf without panicking.
-func (rb *RouteBuilder) WithOneOfJsonBodyErr(examples ...any) (*RouteBuilder, error) {
+// WithOneOfJSONBodyErr describes a JSON request body using oneOf without panicking.
+func (rb *RouteBuilder) WithOneOfJSONBodyErr(examples ...any) (*RouteBuilder, error) {
 	return rb.withCompositeBodyErr(examples, common.MimeJSON, "oneOf")
 }
 
-// WithAnyOfJsonBody describes a JSON request body using anyOf for polymorphic types.
+// WithAnyOfJSONBody describes a JSON request body using anyOf for polymorphic types.
 // Pass example instances of each possible type as separate arguments.
-func (rb *RouteBuilder) WithAnyOfJsonBody(examples ...any) *RouteBuilder {
+func (rb *RouteBuilder) WithAnyOfJSONBody(examples ...any) *RouteBuilder {
 	return rb.withCompositeBody(examples, common.MimeJSON, "anyOf")
 }
 
-// WithAnyOfJsonBodyErr describes a JSON request body using anyOf without panicking.
-func (rb *RouteBuilder) WithAnyOfJsonBodyErr(examples ...any) (*RouteBuilder, error) {
+// WithAnyOfJSONBodyErr describes a JSON request body using anyOf without panicking.
+func (rb *RouteBuilder) WithAnyOfJSONBodyErr(examples ...any) (*RouteBuilder, error) {
 	return rb.withCompositeBodyErr(examples, common.MimeJSON, "anyOf")
 }
 
-// WithAllOfJsonBody describes a JSON request body using allOf for composition.
+// WithAllOfJSONBody describes a JSON request body using allOf for composition.
 // Pass example instances of each schema to compose as separate arguments.
-func (rb *RouteBuilder) WithAllOfJsonBody(examples ...any) *RouteBuilder {
+func (rb *RouteBuilder) WithAllOfJSONBody(examples ...any) *RouteBuilder {
 	return rb.withCompositeBody(examples, common.MimeJSON, "allOf")
 }
 
-// WithAllOfJsonBodyErr describes a JSON request body using allOf without panicking.
-func (rb *RouteBuilder) WithAllOfJsonBodyErr(examples ...any) (*RouteBuilder, error) {
+// WithAllOfJSONBodyErr describes a JSON request body using allOf without panicking.
+func (rb *RouteBuilder) WithAllOfJSONBodyErr(examples ...any) (*RouteBuilder, error) {
 	return rb.withCompositeBodyErr(examples, common.MimeJSON, "allOf")
 }
 
@@ -554,7 +554,6 @@ func (rb *RouteBuilder) withBody(example any, ctype string) *RouteBuilder {
 }
 
 func (rb *RouteBuilder) withBodyErr(example any, ctype string) (*RouteBuilder, error) {
-
 	method := rb.Options.Method
 	if method == http.MethodHead || method == http.MethodGet || method == http.MethodDelete {
 		return rb, fmt.Errorf("HTTP method %s does not support a request body", method)
@@ -699,7 +698,7 @@ func QuickSchema(t reflect.Type) (*openapi.Schema, error) {
 		return nil, fmt.Errorf("nil type")
 	}
 
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 
@@ -717,6 +716,7 @@ func QuickSchema(t reflect.Type) (*openapi.Schema, error) {
 		return generateInlineStructSchema(t)
 	}
 
+	//exhaustive:ignore -- QuickSchema maps JSON-representable Go types to OpenAPI
 	switch t.Kind() {
 	case reflect.String:
 		return &openapi.Schema{Type: "string"}, nil
@@ -739,6 +739,7 @@ func QuickSchema(t reflect.Type) (*openapi.Schema, error) {
 		valueType := t.Elem()
 
 		// Support string keys and numeric keys (which JSON converts to strings)
+		//exhaustive:ignore -- map keys limited to string-like scalars for JSON/OpenAPI
 		switch keyType.Kind() {
 		case reflect.String, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
@@ -772,7 +773,7 @@ var knownSchemas = map[reflect.Type]*openapi.Schema{
 }
 
 func RegisterSchema(t reflect.Type, schema *openapi.Schema) {
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 	knownSchemas[t] = openapi.CloneSchema(schema)
@@ -780,14 +781,14 @@ func RegisterSchema(t reflect.Type, schema *openapi.Schema) {
 
 // RemoveSchema removes a schema from the knownSchemas registry (for test cleanup).
 func RemoveSchema(t reflect.Type) {
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 	delete(knownSchemas, t)
 }
 
 func lookupKnownSchema(t reflect.Type) (*openapi.Schema, bool) {
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 	schema, ok := knownSchemas[t]

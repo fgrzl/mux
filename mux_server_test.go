@@ -65,13 +65,13 @@ func TestShouldConfigureServerWithTLSDiscovery(t *testing.T) {
 	rtr := NewRouter()
 	tempDir := t.TempDir()
 	certsDir := filepath.Join(tempDir, testCertsDir)
-	require.NoError(t, os.MkdirAll(certsDir, 0755))
+	require.NoError(t, os.MkdirAll(certsDir, 0750))
 
 	// Create dummy cert files
 	certFile := filepath.Join(certsDir, testCertName)
 	keyFile := filepath.Join(certsDir, testKeyName)
-	require.NoError(t, os.WriteFile(certFile, []byte("dummy cert"), 0644))
-	require.NoError(t, os.WriteFile(keyFile, []byte("dummy key"), 0644))
+	require.NoError(t, os.WriteFile(certFile, []byte("dummy cert"), 0600))
+	require.NoError(t, os.WriteFile(keyFile, []byte("dummy key"), 0600))
 
 	// Change to temp directory
 	origDir, err := os.Getwd()
@@ -234,7 +234,8 @@ func TestShouldShutdownServerOnlyOnceWhenListenContextIsCancelled(t *testing.T) 
 
 func TestShouldReturnErrorFromListenWhenPortIsAlreadyBound(t *testing.T) {
 	// Arrange
-	occupied, err := net.Listen("tcp", testAddrLocal)
+	var lc net.ListenConfig
+	occupied, err := lc.Listen(t.Context(), "tcp", testAddrLocal)
 	require.NoError(t, err)
 	defer func() { require.NoError(t, occupied.Close()) }()
 

@@ -392,31 +392,28 @@ func (r *RouteRegistry) matchNodeIntoSlice(path string, dst *routing.Params) (*r
 		seg := path[s:j]
 
 		// Inline chooseNextEdge with precedence: static > param > wildcard > catch-all
-		var next *routing.RouteNode
-
 		if child, ok := n.Children[seg]; ok {
 			// Static child match (most common case)
 			n = child
-		} else if n.ParamChild != nil {
-			// Parameter match
-			next = n.ParamChild
-			if dst != nil {
-				// Append directly to slice - much faster than map insertion
-				*dst = append(*dst, routing.Param{Key: next.ParamName, Value: seg})
-			}
-			n = next
-		} else if n.Wildcard != nil {
-			// Wildcard match
-			n = n.Wildcard
-		} else if n.CatchAll != nil {
-			// Catch-all match - consumes remainder
-			return n.CatchAll, true
 		} else {
-			// No match found
-			if dst != nil {
-				dst.Reset()
+			switch {
+			case n.ParamChild != nil:
+				next := n.ParamChild
+				if dst != nil {
+					// Append directly to slice - much faster than map insertion
+					*dst = append(*dst, routing.Param{Key: next.ParamName, Value: seg})
+				}
+				n = next
+			case n.Wildcard != nil:
+				n = n.Wildcard
+			case n.CatchAll != nil:
+				return n.CatchAll, true
+			default:
+				if dst != nil {
+					dst.Reset()
+				}
+				return nil, false
 			}
-			return nil, false
 		}
 
 		// Advance to next segment (skip '/')

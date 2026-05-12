@@ -1,6 +1,8 @@
 package enforcehttps
 
 import (
+	"context"
+
 	"crypto/tls"
 	"net/http"
 	"net/http/httptest"
@@ -21,14 +23,14 @@ const (
 
 // newCtx creates a routing context and recorder for tests to reduce duplication.
 func newCtx(method, urlStr string) (routing.RouteContext, *httptest.ResponseRecorder) {
-	req := httptest.NewRequest(method, urlStr, nil)
+	req := httptest.NewRequestWithContext(context.Background(), method, urlStr, nil)
 	rec := httptest.NewRecorder()
 	return routing.NewRouteContext(rec, req), rec
 }
 
 // newCtxWithTLS creates a routing context simulating a TLS connection.
 func newCtxWithTLS(method, urlStr string) (routing.RouteContext, *httptest.ResponseRecorder) {
-	req := httptest.NewRequest(method, urlStr, nil)
+	req := httptest.NewRequestWithContext(context.Background(), method, urlStr, nil)
 	req.TLS = &tls.ConnectionState{} // Simulate TLS connection
 	rec := httptest.NewRecorder()
 	return routing.NewRouteContext(rec, req), rec
@@ -36,7 +38,7 @@ func newCtxWithTLS(method, urlStr string) (routing.RouteContext, *httptest.Respo
 
 // newCtxWithHeader creates a routing context with a specific header.
 func newCtxWithHeader(method, urlStr, headerKey, headerVal string) (routing.RouteContext, *httptest.ResponseRecorder) {
-	req := httptest.NewRequest(method, urlStr, nil)
+	req := httptest.NewRequestWithContext(context.Background(), method, urlStr, nil)
 	req.Header.Set(headerKey, headerVal)
 	rec := httptest.NewRecorder()
 	return routing.NewRouteContext(rec, req), rec
@@ -133,7 +135,7 @@ func TestShouldAddEnforceHTTPSMiddlewareToRouter(t *testing.T) {
 		_, _ = c.Response().Write([]byte("ok"))
 	})
 
-	req := httptest.NewRequest(http.MethodGet, testHTTPURL, nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, testHTTPURL, nil)
 	rec := httptest.NewRecorder()
 
 	// Act

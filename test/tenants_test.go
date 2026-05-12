@@ -1,6 +1,8 @@
 package test
 
 import (
+	"context"
+
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -20,7 +22,7 @@ func TestShouldReturnTenantsWhenRouterImplemented(t *testing.T) {
 
 	server := newTestServer(t)
 
-	resp, err := testClient.Get(server.URL + testsupport.APITenants)
+	resp, err := testClientGET(t, server.URL+testsupport.APITenants)
 	require.NoError(t, err)
 	body := mustReadBody(t, resp)
 	// Expect a JSON array with tenants when route is implemented; tighten
@@ -39,7 +41,7 @@ func TestShouldCreateTenantWhenRouterImplemented(t *testing.T) {
 
 	server := newTestServer(t)
 
-	resp, err := testClient.Post(server.URL+testsupport.APITenants, common.MimeJSON, bytes.NewReader([]byte(`{"tenant_id":8,"name":"New","plan":"gold"}`)))
+	resp, err := testClientPOST(t, server.URL+testsupport.APITenants, common.MimeJSON, bytes.NewReader([]byte(`{"tenant_id":8,"name":"New","plan":"gold"}`)))
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusCreated, resp.StatusCode)
 	ct := resp.Header.Get(common.HeaderContentType)
@@ -56,7 +58,7 @@ func TestShouldDeleteTenantWhenRouterImplemented(t *testing.T) {
 
 	server := newTestServer(t)
 
-	req, _ := http.NewRequest(http.MethodDelete, server.URL+fmt.Sprintf(testsupport.APITenantByID, 8), nil)
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodDelete, server.URL+fmt.Sprintf(testsupport.APITenantByID, 8), nil)
 	resp, err := testClient.Do(req)
 	require.NoError(t, err)
 	// Expect 204 No Content when implemented
@@ -70,7 +72,7 @@ func TestShouldListTenantResourcesWhenRouterImplemented(t *testing.T) {
 
 	server := newTestServer(t)
 
-	resp, err := testClient.Get(server.URL + fmt.Sprintf(testsupport.APITenantResources, 0))
+	resp, err := testClientGET(t, server.URL+fmt.Sprintf(testsupport.APITenantResources, 0))
 	require.NoError(t, err)
 	// Expect JSON list of resources when implemented
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -88,7 +90,7 @@ func TestShouldCreateTenantResourceWhenRouterImplemented(t *testing.T) {
 	server := newTestServer(t)
 
 	body := `{"tenant_id":0,"name":"created","type":"resource"}`
-	resp, err := testClient.Post(server.URL+fmt.Sprintf(testsupport.APITenantResources, 0), common.MimeJSON, strings.NewReader(body))
+	resp, err := testClientPOST(t, server.URL+fmt.Sprintf(testsupport.APITenantResources, 0), common.MimeJSON, strings.NewReader(body))
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusCreated, resp.StatusCode)
 	ct := resp.Header.Get(common.HeaderContentType)
@@ -105,7 +107,7 @@ func TestShouldUpdateTenantWhenRouterImplemented(t *testing.T) {
 	server := newTestServer(t)
 
 	body := `{"tenant_id":0,"name":"updated","plan":"silver"}`
-	req, _ := http.NewRequest(http.MethodPut, server.URL+fmt.Sprintf(testsupport.APITenantByID, 0), strings.NewReader(body))
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPut, server.URL+fmt.Sprintf(testsupport.APITenantByID, 0), strings.NewReader(body))
 	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	resp, err := testClient.Do(req)
 	require.NoError(t, err)
@@ -123,7 +125,7 @@ func TestShouldReturnNotFoundForMissingTenantWhenRouterImplemented(t *testing.T)
 
 	server := newTestServer(t)
 
-	resp, err := testClient.Get(server.URL + fmt.Sprintf(testsupport.APITenantByID, 99999))
+	resp, err := testClientGET(t, server.URL+fmt.Sprintf(testsupport.APITenantByID, 99999))
 	require.NoError(t, err)
 	// Expect a 404 ProblemDetails JSON when implemented
 	assert.Equal(t, http.StatusNotFound, resp.StatusCode)

@@ -21,7 +21,7 @@ func makeConverter(t reflect.Type, schema *openapi.Schema) func([]string) (any, 
 		if c := textUnmarshalerConverterForType(t); c != nil {
 			return c
 		}
-		if t.Kind() == reflect.Ptr {
+		if t.Kind() == reflect.Pointer {
 			t = t.Elem()
 			if c := scalarConverterForType(t); c != nil {
 				return c
@@ -46,8 +46,8 @@ func textUnmarshalerConverterForType(typ reflect.Type) func([]string) (any, erro
 		return nil
 	}
 
-	implementsDirectly := typ.Kind() == reflect.Ptr && typ.Implements(textUnmarshalerType)
-	implementsViaPointer := typ.Kind() != reflect.Ptr && reflect.PointerTo(typ).Implements(textUnmarshalerType)
+	implementsDirectly := typ.Kind() == reflect.Pointer && typ.Implements(textUnmarshalerType)
+	implementsViaPointer := typ.Kind() != reflect.Pointer && reflect.PointerTo(typ).Implements(textUnmarshalerType)
 	if !implementsDirectly && !implementsViaPointer {
 		return nil
 	}
@@ -211,6 +211,7 @@ func scalarConverterForType(typ reflect.Type) func([]string) (any, error) {
 	if typ == nil {
 		return nil
 	}
+	//exhaustive:ignore -- only OpenAPI scalar kinds are supported here
 	switch typ.Kind() {
 	case reflect.String:
 		return makeStringConverter()
@@ -253,6 +254,8 @@ func makeIntConverter(typ reflect.Type) func([]string) (any, error) {
 			if err != nil {
 				return nil, err
 			}
+			//exhaustive:ignore -- typ is a fixed-width signed int kind from OpenAPI
+			//nolint:gosec // G115: strconv.ParseInt(..., typ.Bits()) bounds v to the target integer width.
 			switch typ.Kind() {
 			case reflect.Int8:
 				return int8(v), nil
@@ -284,6 +287,8 @@ func makeUintConverter(typ reflect.Type) func([]string) (any, error) {
 			if err != nil {
 				return nil, err
 			}
+			//exhaustive:ignore -- typ is a fixed-width unsigned int kind from OpenAPI
+			//nolint:gosec // G115: strconv.ParseUint(..., typ.Bits()) bounds v to the target integer width.
 			switch typ.Kind() {
 			case reflect.Uint8:
 				return uint8(v), nil
@@ -531,7 +536,7 @@ func parseSliceFromExample(values []string, example any) (any, bool) {
 		return nil, false
 	}
 	t := reflect.TypeOf(example)
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 	if t.Kind() != reflect.Slice {

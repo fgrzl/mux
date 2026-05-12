@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/url"
 	"sync/atomic"
 	"testing"
@@ -21,11 +22,10 @@ func BenchmarkConcurrency(b *testing.B) {
 		b.ResetTimer()
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
-				resp, err := benchClient.Get(server.URL + testsupport.APIResources)
+				_, err := benchClientDo(b, http.MethodGet, server.URL+testsupport.APIResources, nil, "")
 				if err != nil {
 					b.Fatalf("GET failed: %v", err)
 				}
-				readAndClose(resp)
 			}
 		})
 	})
@@ -37,11 +37,10 @@ func BenchmarkConcurrency(b *testing.B) {
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
 				id := atomic.AddUint64(&counter, 1)%10 + 1
-				resp, err := benchClient.Get(server.URL + fmt.Sprintf(testsupport.APIResourceByID, id))
+				_, err := benchClientDo(b, http.MethodGet, server.URL+fmt.Sprintf(testsupport.APIResourceByID, id), nil, "")
 				if err != nil {
 					b.Fatalf("GET failed: %v", err)
 				}
-				readAndClose(resp)
 			}
 		})
 	})
@@ -56,11 +55,10 @@ func BenchmarkConcurrency(b *testing.B) {
 		b.ResetTimer()
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
-				resp, err := benchClient.Get(server.URL + testsupport.APIBase + "/resources/search?name=" + name + "&type=resource")
+				_, err := benchClientDo(b, http.MethodGet, server.URL+testsupport.APIBase+"/resources/search?name="+name+"&type=resource", nil, "")
 				if err != nil {
 					b.Fatalf("search failed: %v", err)
 				}
-				readAndClose(resp)
 			}
 		})
 	})
@@ -74,11 +72,10 @@ func BenchmarkConcurrency(b *testing.B) {
 				n := atomic.AddUint64(&seq, 1)
 				resources := []testsupport.Resource{{TenantID: 0, Name: fmt.Sprintf("bench-p-%d", n), Type: "resource"}}
 				bts, _ := json.Marshal(resources)
-				resp, err := benchClient.Post(server.URL+testsupport.APIBase+"/resources/bulk", common.MimeJSON, bytes.NewReader(bts))
+				_, err := benchClientDo(b, http.MethodPost, server.URL+testsupport.APIBase+"/resources/bulk", bytes.NewReader(bts), common.MimeJSON)
 				if err != nil {
 					b.Fatalf("POST failed: %v", err)
 				}
-				readAndClose(resp)
 			}
 		})
 	})
@@ -97,17 +94,15 @@ func BenchmarkConcurrency(b *testing.B) {
 					n := atomic.AddUint64(&seq, 1)
 					resources := []testsupport.Resource{{TenantID: 0, Name: fmt.Sprintf("bench-m-%d", n), Type: "resource"}}
 					bts, _ := json.Marshal(resources)
-					resp, err := benchClient.Post(server.URL+testsupport.APIBase+"/resources/bulk", common.MimeJSON, bytes.NewReader(bts))
+					_, err := benchClientDo(b, http.MethodPost, server.URL+testsupport.APIBase+"/resources/bulk", bytes.NewReader(bts), common.MimeJSON)
 					if err != nil {
 						b.Fatalf("POST failed: %v", err)
 					}
-					readAndClose(resp)
 				} else { // 80% reads
-					resp, err := benchClient.Get(server.URL + testsupport.APIResources)
+					_, err := benchClientDo(b, http.MethodGet, server.URL+testsupport.APIResources, nil, "")
 					if err != nil {
 						b.Fatalf("GET failed: %v", err)
 					}
-					readAndClose(resp)
 				}
 			}
 		})

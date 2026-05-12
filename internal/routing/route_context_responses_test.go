@@ -1,6 +1,8 @@
 package routing
 
 import (
+	"context"
+
 	"bytes"
 	"log/slog"
 	"math"
@@ -46,7 +48,7 @@ func newRoutingTestLogger(minLevel slog.Level) (*bytes.Buffer, *slog.Logger) {
 
 func TestShouldReturnServerErrorWithProblemDetails(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -63,7 +65,7 @@ func TestShouldReturnServerErrorWithProblemDetails(t *testing.T) {
 
 func TestShouldReturnServerErrorWithDefaultTitle(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -77,7 +79,7 @@ func TestShouldReturnServerErrorWithDefaultTitle(t *testing.T) {
 
 func TestShouldReturnBadRequestWithProblemDetails(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodPost, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -94,7 +96,7 @@ func TestShouldReturnBadRequestWithProblemDetails(t *testing.T) {
 
 func TestShouldReturnBadRequestWithDefaultTitle(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodPost, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -108,7 +110,7 @@ func TestShouldReturnBadRequestWithDefaultTitle(t *testing.T) {
 
 func TestShouldReturnConflictWithProblemDetails(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodPut, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -128,7 +130,7 @@ func TestConflictShouldNotEmitRoutineLog(t *testing.T) {
 	logBuffer, logger := newRoutingTestLogger(slog.LevelDebug)
 	slog.SetDefault(logger)
 
-	req := httptest.NewRequest(http.MethodPut, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -141,7 +143,7 @@ func TestConflictShouldNotEmitRoutineLog(t *testing.T) {
 
 func TestShouldReturnUnauthorized(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/protected", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -156,7 +158,7 @@ func TestShouldReturnUnauthorized(t *testing.T) {
 
 func TestShouldReturnForbidden(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/admin", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/admin", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -171,7 +173,7 @@ func TestShouldReturnForbidden(t *testing.T) {
 
 func TestShouldReturnNotFound(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/nonexistent", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/nonexistent", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -187,7 +189,7 @@ func TestShouldReturnNotFound(t *testing.T) {
 
 func TestShouldReturnOKWithData(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -207,7 +209,7 @@ func TestShouldReturnInternalServerErrorWhenJSONEncodingFails(t *testing.T) {
 	logBuffer, logger := newRoutingTestLogger(slog.LevelError)
 	slog.SetDefault(logger)
 
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -230,7 +232,7 @@ func TestShouldReturnInternalServerErrorWhenJSONEncodingFails(t *testing.T) {
 
 func TestShouldReturnCreatedWithData(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodPost, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -248,7 +250,7 @@ func TestShouldReturnCreatedWithData(t *testing.T) {
 
 func TestShouldReturnNoContent(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodDelete, "/test/123", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodDelete, "/test/123", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -262,7 +264,7 @@ func TestShouldReturnNoContent(t *testing.T) {
 
 func TestShouldWriteHeaderOnlyOnceAcrossMultipleResponses(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	writer := &countingResponseWriter{}
 	ctx := NewRouteContext(writer, req)
 
@@ -279,7 +281,7 @@ func TestShouldWriteHeaderOnlyOnceAcrossMultipleResponses(t *testing.T) {
 
 func TestShouldWriteHeaderOnlyOnceAcrossNoContentAndJSON(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	writer := &countingResponseWriter{}
 	ctx := NewRouteContext(writer, req)
 
@@ -295,7 +297,7 @@ func TestShouldWriteHeaderOnlyOnceAcrossNoContentAndJSON(t *testing.T) {
 
 func TestShouldReturnAcceptWithData(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodPost, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -312,7 +314,7 @@ func TestShouldReturnAcceptWithData(t *testing.T) {
 
 func TestShouldReturn301MovedPermanently(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "http://example.com/old", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "http://example.com/old", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -326,7 +328,7 @@ func TestShouldReturn301MovedPermanently(t *testing.T) {
 
 func TestShouldReturn302Found(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "http://example.com/page", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "http://example.com/page", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -340,7 +342,7 @@ func TestShouldReturn302Found(t *testing.T) {
 
 func TestShouldReturn303SeeOther(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodPost, "http://example.com/form", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "http://example.com/form", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -354,7 +356,7 @@ func TestShouldReturn303SeeOther(t *testing.T) {
 
 func TestShouldReturn307TemporaryRedirect(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodPost, "http://example.com/api", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "http://example.com/api", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -368,7 +370,7 @@ func TestShouldReturn307TemporaryRedirect(t *testing.T) {
 
 func TestShouldReturn308PermanentRedirect(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodPost, "http://example.com/api/v1", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "http://example.com/api/v1", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 
@@ -382,7 +384,7 @@ func TestShouldReturn308PermanentRedirect(t *testing.T) {
 
 func TestShouldHandleAbsoluteURLInRedirect(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "http://example.com/page", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "http://example.com/page", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 

@@ -1,6 +1,8 @@
 package bench
 
 import (
+	"context"
+
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -20,11 +22,10 @@ func BenchmarkMultiTenant(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			resp, err := benchClient.Get(server.URL + testsupport.APITenants)
+			_, err := benchClientDo(b, http.MethodGet, server.URL+testsupport.APITenants, nil, "")
 			if err != nil {
 				b.Fatalf("GET failed: %v", err)
 			}
-			readAndClose(resp)
 		}
 	})
 
@@ -33,11 +34,10 @@ func BenchmarkMultiTenant(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			id := i%10 + 1
-			resp, err := benchClient.Get(server.URL + fmt.Sprintf(testsupport.APITenantByID, id))
+			_, err := benchClientDo(b, http.MethodGet, server.URL+fmt.Sprintf(testsupport.APITenantByID, id), nil, "")
 			if err != nil {
 				b.Fatalf("GET failed: %v", err)
 			}
-			readAndClose(resp)
 		}
 	})
 
@@ -46,11 +46,10 @@ func BenchmarkMultiTenant(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			tenantID := i % 10
-			resp, err := benchClient.Get(server.URL + fmt.Sprintf(testsupport.APITenantResources, tenantID))
+			_, err := benchClientDo(b, http.MethodGet, server.URL+fmt.Sprintf(testsupport.APITenantResources, tenantID), nil, "")
 			if err != nil {
 				b.Fatalf("GET failed: %v", err)
 			}
-			readAndClose(resp)
 		}
 	})
 
@@ -62,11 +61,10 @@ func BenchmarkMultiTenant(b *testing.B) {
 			n := atomic.AddUint64(&seq, 1)
 			tenant := testsupport.Tenant{TenantID: int32(1000 + n), Name: fmt.Sprintf("tenant-%d", n), Plan: "gold"}
 			bts, _ := json.Marshal(tenant)
-			resp, err := benchClient.Post(server.URL+testsupport.APITenants, common.MimeJSON, bytes.NewReader(bts))
+			_, err := benchClientDo(b, http.MethodPost, server.URL+testsupport.APITenants, bytes.NewReader(bts), common.MimeJSON)
 			if err != nil {
 				b.Fatalf("POST failed: %v", err)
 			}
-			readAndClose(resp)
 		}
 	})
 
@@ -76,13 +74,13 @@ func BenchmarkMultiTenant(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			req, _ := http.NewRequest("PUT", server.URL+fmt.Sprintf(testsupport.APITenantByID, 1), bytes.NewReader(bts))
+			req, _ := http.NewRequestWithContext(context.Background(), "PUT", server.URL+fmt.Sprintf(testsupport.APITenantByID, 1), bytes.NewReader(bts))
 			req.Header.Set(common.HeaderContentType, common.MimeJSON)
 			resp, err := benchClient.Do(req)
 			if err != nil {
 				b.Fatalf("PUT failed: %v", err)
 			}
-			readAndClose(resp)
+			_ = readAndClose(resp)
 		}
 	})
 
@@ -101,28 +99,19 @@ func BenchmarkMultiTenant(b *testing.B) {
 					n := atomic.AddUint64(&seq, 1)
 					tenant := testsupport.Tenant{TenantID: int32(10000 + n), Name: fmt.Sprintf("t-%d", n), Plan: "test"}
 					bts, _ := json.Marshal(tenant)
-					resp, _ := benchClient.Post(server.URL+testsupport.APITenants, common.MimeJSON, bytes.NewReader(bts))
-					if resp != nil {
-						readAndClose(resp)
-					}
+					_, _ = benchClientDo(b, http.MethodPost, server.URL+testsupport.APITenants, bytes.NewReader(bts), common.MimeJSON)
 				case 1: // Read
-					resp, _ := benchClient.Get(server.URL + fmt.Sprintf(testsupport.APITenantByID, tenantID))
-					if resp != nil {
-						readAndClose(resp)
-					}
+					_, _ = benchClientDo(b, http.MethodGet, server.URL+fmt.Sprintf(testsupport.APITenantByID, tenantID), nil, "")
 				case 2: // List resources
-					resp, _ := benchClient.Get(server.URL + fmt.Sprintf(testsupport.APITenantResources, tenantID))
-					if resp != nil {
-						readAndClose(resp)
-					}
+					_, _ = benchClientDo(b, http.MethodGet, server.URL+fmt.Sprintf(testsupport.APITenantResources, tenantID), nil, "")
 				case 3: // Update
 					tenant := testsupport.Tenant{TenantID: int32(tenantID), Name: "updated", Plan: "gold"}
 					bts, _ := json.Marshal(tenant)
-					req, _ := http.NewRequest("PUT", server.URL+fmt.Sprintf(testsupport.APITenantByID, tenantID), bytes.NewReader(bts))
+					req, _ := http.NewRequestWithContext(context.Background(), "PUT", server.URL+fmt.Sprintf(testsupport.APITenantByID, tenantID), bytes.NewReader(bts))
 					req.Header.Set(common.HeaderContentType, common.MimeJSON)
 					resp, _ := benchClient.Do(req)
 					if resp != nil {
-						readAndClose(resp)
+						_ = readAndClose(resp)
 					}
 				}
 			}

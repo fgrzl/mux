@@ -1,6 +1,8 @@
 package router
 
 import (
+	"context"
+
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -32,7 +34,7 @@ func TestShouldCreateNestedRouteGroupsWhenCallingNewRouteGroup(t *testing.T) {
 	})
 
 	// Act: Make request to the nested route
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/users", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/users", nil)
 	w := httptest.NewRecorder()
 	rtr.ServeHTTP(w, req)
 
@@ -207,7 +209,7 @@ func TestShouldSupportMultipleLevelsOfNestingWhenCreatingRouteGroups(t *testing.
 	})
 
 	// Act: Make request to deeply nested route
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/users/profile", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/users/profile", nil)
 	w := httptest.NewRecorder()
 	rtr.ServeHTTP(w, req)
 
@@ -252,7 +254,7 @@ func TestShouldNotDoublePrefixAbsoluteRoutePatternsWithinGroup(t *testing.T) {
 	})
 
 	// Act
-	req := httptest.NewRequest(http.MethodGet, "/api/users", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/users", nil)
 	w := httptest.NewRecorder()
 	rtr.ServeHTTP(w, req)
 
@@ -277,14 +279,14 @@ func TestShouldAttachDetachedRouteBuilderWithGroupDefaultsWithoutMutatingSource(
 	detached := builder.DetachedRoute(http.MethodPost, "/users").
 		WithOperationID("createUser").
 		WithSummary("Create user").
-		WithJsonBody(createUserRequest{Name: "Jane"}).
+		WithJSONBody(createUserRequest{Name: "Jane"}).
 		WithCreatedResponse(createUserResponse{ID: "u-1"})
 
 	// Act
 	attached := api.HandleRoute(detached, func(c routing.RouteContext) {
 		c.NoContent()
 	})
-	request := httptest.NewRequest(http.MethodPost, "/api/users", nil)
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/users", nil)
 	recorder := httptest.NewRecorder()
 	rtr.ServeHTTP(recorder, request)
 
@@ -327,7 +329,7 @@ func TestShouldInheritParametersWhenCreatingNestedRouteGroup(t *testing.T) {
 	options, found := rtr.routeRegistry.LoadIntoSlice("/api/v1/users", http.MethodGet, &params)
 	require.True(t, found, "Route should be registered")
 	assert.Contains(t, options.Roles, "admin")
-	assert.Len(t, options.Operation.Parameters, 2) // version and limit params
+	assert.Len(t, options.Parameters, 2) // version and limit params
 }
 
 func TestShouldWorkAsExpectedWhenUsingExampleFromIssue(t *testing.T) {
@@ -340,7 +342,7 @@ func TestShouldWorkAsExpectedWhenUsingExampleFromIssue(t *testing.T) {
 	})
 
 	// Act: Make request to the route
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/users", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/users", nil)
 	w := httptest.NewRecorder()
 	rtr.ServeHTTP(w, req)
 
@@ -364,7 +366,7 @@ func TestShouldMarkPathParameterRequiredWhenUsingLowLevelWithParam(t *testing.T)
 
 	// Assert
 	require.True(t, found, "Route should be registered")
-	require.Len(t, options.Operation.Parameters, 1)
+	require.Len(t, options.Parameters, 1)
 	assert.True(t, options.Operation.Parameters[0].Required)
 	assert.Equal(t, "123", options.Operation.Parameters[0].Example)
 	assert.NotNil(t, options.Operation.Parameters[0].Converter)
@@ -417,7 +419,7 @@ func TestShouldKeepRegisteredRouteParametersIndependentFromGroupDefaults(t *test
 	usersRoute := api.GET("/users", func(c routing.RouteContext) {
 		c.OK("users")
 	})
-	usersParam := usersRoute.Options.Operation.Parameters[0]
+	usersParam := usersRoute.Options.Parameters[0]
 	usersParam.Schema.Items.Type = "integer"
 	usersExample := usersParam.Example.([]string)
 	usersExample[0] = "v2"
@@ -427,13 +429,13 @@ func TestShouldKeepRegisteredRouteParametersIndependentFromGroupDefaults(t *test
 
 	// Assert
 	require.Len(t, api.defaultParams, 1)
-	require.Len(t, usersRoute.Options.Operation.Parameters, 1)
-	require.Len(t, adminsRoute.Options.Operation.Parameters, 1)
+	require.Len(t, usersRoute.Options.Parameters, 1)
+	require.Len(t, adminsRoute.Options.Parameters, 1)
 	assert.NotSame(t, api.defaultParams[0], usersParam)
 	assert.Equal(t, []string{"v1"}, api.defaultParams[0].Example.([]string))
 	assert.Equal(t, "string", api.defaultParams[0].Schema.Items.Type)
 	assert.Equal(t, []string{"v1"}, adminsRoute.Options.Operation.Parameters[0].Example.([]string))
-	assert.Equal(t, "string", adminsRoute.Options.Operation.Parameters[0].Schema.Items.Type)
+	assert.Equal(t, "string", adminsRoute.Options.Parameters[0].Schema.Items.Type)
 }
 
 func TestShouldOwnPointerBackedExamplesWhenAddingGroupDefaults(t *testing.T) {
@@ -511,7 +513,7 @@ func TestShouldKeepRegisteredRouteSecurityIndependentFromGroupDefaults(t *testin
 	usersRoute := api.GET("/users", func(c routing.RouteContext) {
 		c.OK("users")
 	})
-	usersSecurity := usersRoute.Options.Operation.Security[0]
+	usersSecurity := usersRoute.Options.Security[0]
 	usersScopes := (*usersSecurity)["oauth2"].([]string)
 	usersScopes[0] = "write"
 	adminsRoute := api.GET("/admins", func(c routing.RouteContext) {
@@ -520,11 +522,11 @@ func TestShouldKeepRegisteredRouteSecurityIndependentFromGroupDefaults(t *testin
 
 	// Assert
 	require.Len(t, api.defaultSecurity, 1)
-	require.Len(t, usersRoute.Options.Operation.Security, 1)
-	require.Len(t, adminsRoute.Options.Operation.Security, 1)
+	require.Len(t, usersRoute.Options.Security, 1)
+	require.Len(t, adminsRoute.Options.Security, 1)
 	assert.NotSame(t, api.defaultSecurity[0], usersSecurity)
 	assert.Equal(t, []string{"read"}, (*api.defaultSecurity[0])["oauth2"].([]string))
-	assert.Equal(t, []string{"read"}, (*adminsRoute.Options.Operation.Security[0])["oauth2"].([]string))
+	assert.Equal(t, []string{"read"}, (*adminsRoute.Options.Security[0])["oauth2"].([]string))
 }
 
 func TestShouldDeepCopyPointerBackedExamplesWhenCreatingNestedRouteGroups(t *testing.T) {
@@ -583,8 +585,8 @@ func TestShouldKeepRegisteredRoutePointerExamplesIndependentFromGroupDefaults(t 
 	adminsExample := adminsRoute.Options.Operation.Parameters[0].Example.(*routeGroupClonePayload)
 
 	// Assert
-	require.Len(t, usersRoute.Options.Operation.Parameters, 1)
-	require.Len(t, adminsRoute.Options.Operation.Parameters, 1)
+	require.Len(t, usersRoute.Options.Parameters, 1)
+	require.Len(t, adminsRoute.Options.Parameters, 1)
 	assert.NotSame(t, example, usersExample)
 	assert.NotSame(t, example.Name, usersExample.Name)
 	assert.NotSame(t, example.Nested, usersExample.Nested)

@@ -2,6 +2,7 @@ package bench
 
 import (
 	"context"
+	"net/http"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -35,9 +36,8 @@ func BenchmarkStress(b *testing.B) {
 					case <-ctx.Done():
 						return
 					default:
-						resp, err := benchClient.Get(server.URL + testsupport.APIResources)
-						if err == nil && resp != nil {
-							readAndClose(resp)
+						_, err := benchClientDo(b, http.MethodGet, server.URL+testsupport.APIResources, nil, "")
+						if err == nil {
 							atomic.AddInt64(&ops, 1)
 						}
 					}
@@ -61,14 +61,11 @@ func BenchmarkStress(b *testing.B) {
 
 		for burst := 0; burst < b.N/100+1; burst++ {
 			var wg sync.WaitGroup
-			for i := 0; i < min(100, b.N-burst*100); i++ {
+			for i := 0; i < benchMin(100, b.N-burst*100); i++ {
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
-					resp, err := benchClient.Get(server.URL + testsupport.APIResources)
-					if err == nil && resp != nil {
-						readAndClose(resp)
-					}
+					_, _ = benchClientDo(b, http.MethodGet, server.URL+testsupport.APIResources, nil, "")
 				}()
 			}
 			wg.Wait()

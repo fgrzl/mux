@@ -24,9 +24,10 @@ func TestShouldUpgradeToWebSocketGivenValidHandshake(t *testing.T) {
 	defer srv.Close()
 
 	addr := strings.TrimPrefix(srv.URL, "http://")
-	conn, err := net.Dial("tcp", addr)
+	d := net.Dialer{}
+	conn, err := d.DialContext(t.Context(), "tcp", addr)
 	require.NoError(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	req := "GET /ws HTTP/1.1\r\n"
 	req += fmt.Sprintf("Host: %s\r\n", addr)

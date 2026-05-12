@@ -169,32 +169,32 @@ func (b *RouteBuilder) WithRequiredCookieParam(name, description string, example
 	return b.addRouteParam(name, "cookie", description, example, true)
 }
 
-// WithJsonBody documents a required application/json request body using
+// WithJSONBody documents a required application/json request body using
 // example to infer both schema and example payload. Prefer concrete structs
 // over generic maps when you want stable generated schemas.
-func (b *RouteBuilder) WithJsonBody(example any) *RouteBuilder {
-	b.inner.WithJsonBody(example)
+func (b *RouteBuilder) WithJSONBody(example any) *RouteBuilder {
+	b.inner.WithJSONBody(example)
 	return b
 }
 
-// WithOneOfJsonBody documents an application/json request body whose schema
+// WithOneOfJSONBody documents an application/json request body whose schema
 // may match any one of the supplied examples.
-func (b *RouteBuilder) WithOneOfJsonBody(examples ...any) *RouteBuilder {
-	b.inner.WithOneOfJsonBody(examples...)
+func (b *RouteBuilder) WithOneOfJSONBody(examples ...any) *RouteBuilder {
+	b.inner.WithOneOfJSONBody(examples...)
 	return b
 }
 
-// WithAnyOfJsonBody documents an application/json request body whose schema
+// WithAnyOfJSONBody documents an application/json request body whose schema
 // may include any combination of the supplied examples.
-func (b *RouteBuilder) WithAnyOfJsonBody(examples ...any) *RouteBuilder {
-	b.inner.WithAnyOfJsonBody(examples...)
+func (b *RouteBuilder) WithAnyOfJSONBody(examples ...any) *RouteBuilder {
+	b.inner.WithAnyOfJSONBody(examples...)
 	return b
 }
 
-// WithAllOfJsonBody documents an application/json request body that must
+// WithAllOfJSONBody documents an application/json request body that must
 // satisfy all of the supplied example schemas.
-func (b *RouteBuilder) WithAllOfJsonBody(examples ...any) *RouteBuilder {
-	b.inner.WithAllOfJsonBody(examples...)
+func (b *RouteBuilder) WithAllOfJSONBody(examples ...any) *RouteBuilder {
+	b.inner.WithAllOfJSONBody(examples...)
 	return b
 }
 

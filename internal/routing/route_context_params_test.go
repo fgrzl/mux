@@ -1,6 +1,8 @@
 package routing
 
 import (
+	"context"
+
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,7 +13,7 @@ import (
 
 func TestShouldReturnParamValue(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 	params := &Params{}
@@ -29,7 +31,7 @@ func TestShouldReturnParamValue(t *testing.T) {
 
 func TestShouldReturnFalseForMissingParam(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 	params := &Params{}
@@ -44,7 +46,7 @@ func TestShouldReturnFalseForMissingParam(t *testing.T) {
 
 func TestShouldParseValidUUIDParam(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 	testUUID := uuid.New()
@@ -62,7 +64,7 @@ func TestShouldParseValidUUIDParam(t *testing.T) {
 
 func TestShouldReturnFalseForInvalidUUID(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 	params := &Params{}
@@ -78,7 +80,7 @@ func TestShouldReturnFalseForInvalidUUID(t *testing.T) {
 
 func TestShouldReturnFalseForMissingUUID(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 	params := &Params{}
@@ -94,7 +96,7 @@ func TestShouldReturnFalseForMissingUUID(t *testing.T) {
 
 func TestShouldReturnIntParam(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 	params := &Params{}
@@ -111,7 +113,7 @@ func TestShouldReturnIntParam(t *testing.T) {
 
 func TestShouldReturnFalseForInvalidInt(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 	params := &Params{}
@@ -127,7 +129,7 @@ func TestShouldReturnFalseForInvalidInt(t *testing.T) {
 
 func TestShouldReturnInt16Param(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 	params := &Params{}
@@ -144,7 +146,7 @@ func TestShouldReturnInt16Param(t *testing.T) {
 
 func TestShouldReturnFalseForInt16Overflow(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 	params := &Params{}
@@ -160,7 +162,7 @@ func TestShouldReturnFalseForInt16Overflow(t *testing.T) {
 
 func TestShouldReturnInt32Param(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 	params := &Params{}
@@ -177,7 +179,7 @@ func TestShouldReturnInt32Param(t *testing.T) {
 
 func TestShouldReturnFalseForInvalidInt32(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 	params := &Params{}
@@ -193,7 +195,7 @@ func TestShouldReturnFalseForInvalidInt32(t *testing.T) {
 
 func TestShouldReturnInt64Param(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 	params := &Params{}
@@ -210,7 +212,7 @@ func TestShouldReturnInt64Param(t *testing.T) {
 
 func TestShouldReturnFalseForInvalidInt64(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 	params := &Params{}
@@ -226,7 +228,7 @@ func TestShouldReturnFalseForInvalidInt64(t *testing.T) {
 
 func TestShouldReturnZeroForMissingIntParams(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := NewRouteContext(recorder, req)
 	params := &Params{}

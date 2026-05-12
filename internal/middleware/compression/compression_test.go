@@ -1,6 +1,8 @@
 package compression
 
 import (
+	"context"
+
 	"compress/gzip"
 	"io"
 	"net/http"
@@ -17,7 +19,7 @@ import (
 func TestShouldCompressResponseWithGzip(t *testing.T) {
 	// Arrange
 	middleware := &compressionMiddleware{options: &CompressionOptions{}}
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	req.Header.Set(common.HeaderAcceptEncoding, "gzip")
 	recorder := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(recorder, req)
@@ -36,7 +38,7 @@ func TestShouldCompressResponseWithGzip(t *testing.T) {
 	// Decompress and verify content
 	reader, err := gzip.NewReader(recorder.Body)
 	require.NoError(t, err)
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	decompressed, err := io.ReadAll(reader)
 	require.NoError(t, err)
@@ -46,7 +48,7 @@ func TestShouldCompressResponseWithGzip(t *testing.T) {
 func TestShouldCompressResponseWithDeflate(t *testing.T) {
 	// Arrange
 	middleware := &compressionMiddleware{options: &CompressionOptions{}}
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	req.Header.Set(common.HeaderAcceptEncoding, "deflate")
 	recorder := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(recorder, req)
@@ -67,7 +69,7 @@ func TestShouldCompressResponseWithDeflate(t *testing.T) {
 func TestShouldPreferGzipOverDeflate(t *testing.T) {
 	// Arrange
 	middleware := &compressionMiddleware{options: &CompressionOptions{}}
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	req.Header.Set(common.HeaderAcceptEncoding, "gzip, deflate")
 	recorder := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(recorder, req)
@@ -86,7 +88,7 @@ func TestShouldPreferGzipOverDeflate(t *testing.T) {
 func TestShouldNotCompressWhenNoAcceptEncoding(t *testing.T) {
 	// Arrange
 	middleware := &compressionMiddleware{options: &CompressionOptions{}}
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(recorder, req)
 
@@ -106,7 +108,7 @@ func TestShouldNotCompressWhenNoAcceptEncoding(t *testing.T) {
 func TestShouldNotCompressWhenUnsupportedEncoding(t *testing.T) {
 	// Arrange
 	middleware := &compressionMiddleware{options: &CompressionOptions{}}
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	req.Header.Set(common.HeaderAcceptEncoding, "br") // Brotli - not supported
 	recorder := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(recorder, req)
@@ -136,7 +138,7 @@ func TestShouldAddCompressionMiddlewareToRouter(t *testing.T) {
 		_, _ = c.Response().Write([]byte("hello"))
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	req.Header.Set(common.HeaderAcceptEncoding, "gzip")
 	rec := httptest.NewRecorder()
 	rtr.ServeHTTP(rec, req)
@@ -171,5 +173,5 @@ func TestCompressionWriterShouldImplementResponseWriter(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, len(data), n)
 
-	compressor.Close()
+	_ = compressor.Close()
 }

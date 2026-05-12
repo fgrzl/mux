@@ -65,7 +65,7 @@ func main() {
 		api.POST("/", createTodo).
 			WithOperationID("createTodo").
 			WithSummary("Create a new todo").
-			WithJsonBody(CreateTodoRequest{}).
+			WithJSONBody(CreateTodoRequest{}).
 			WithCreatedResponse(Todo{})
 
 		api.GET("/{id}", getTodo).
@@ -79,7 +79,7 @@ func main() {
 			WithOperationID("updateTodo").
 			WithSummary("Update a todo").
 			WithPathParam("id", "The unique identifier of the todo item", todoIDParam).
-			WithJsonBody(UpdateTodoRequest{}).
+			WithJSONBody(UpdateTodoRequest{}).
 			WithOKResponse(Todo{})
 
 		api.DELETE("/{id}", deleteTodo).

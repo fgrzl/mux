@@ -1,6 +1,8 @@
 package cors
 
 import (
+	"context"
+
 	"io"
 	"log/slog"
 	"net/http"
@@ -65,7 +67,7 @@ func BenchmarkCORSInvoke(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				req := httptest.NewRequest(http.MethodGet, testURL, nil)
+				req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, testURL, nil)
 				rec := httptest.NewRecorder()
 				if tc.setup != nil {
 					tc.setup(req)
@@ -87,7 +89,7 @@ func BenchmarkCORSRouterPipeline(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			req := httptest.NewRequest(http.MethodGet, testURL, nil)
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, testURL, nil)
 			req.Header.Set("Origin", testOrigin)
 			rec := httptest.NewRecorder()
 			r.ServeHTTP(rec, req)

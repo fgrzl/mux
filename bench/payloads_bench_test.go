@@ -1,6 +1,8 @@
 package bench
 
 import (
+	"context"
+
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -45,14 +47,13 @@ func BenchmarkPayloadSizes(b *testing.B) {
 					resources[j].Name = fmt.Sprintf("r-%d-%d", n, j)
 				}
 				payload, _ := json.Marshal(resources)
-				resp, err := benchClient.Post(server.URL+testsupport.APIBase+"/resources/bulk", common.MimeJSON, bytes.NewReader(payload))
+				resp, err := benchClientDo(b, http.MethodPost, server.URL+testsupport.APIBase+"/resources/bulk", bytes.NewReader(payload), common.MimeJSON)
 				if err != nil {
 					b.Fatalf("POST failed: %v", err)
 				}
 				if resp.StatusCode != 201 {
 					b.Fatalf("unexpected status: %d", resp.StatusCode)
 				}
-				readAndClose(resp)
 			}
 		})
 	}
@@ -81,13 +82,13 @@ func BenchmarkPayloadSizes(b *testing.B) {
 			b.ResetTimer()
 
 			for i := 0; i < b.N; i++ {
-				req, _ := http.NewRequest("PUT", server.URL+fmt.Sprintf(testsupport.APIResourceMetadata, 1), bytes.NewReader(bts))
+				req, _ := http.NewRequestWithContext(context.Background(), "PUT", server.URL+fmt.Sprintf(testsupport.APIResourceMetadata, 1), bytes.NewReader(bts))
 				req.Header.Set(common.HeaderContentType, common.MimeJSON)
 				resp, err := benchClient.Do(req)
 				if err != nil {
 					b.Fatalf("PUT failed: %v", err)
 				}
-				readAndClose(resp)
+				_ = readAndClose(resp)
 			}
 		})
 	}

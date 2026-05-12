@@ -35,7 +35,7 @@ func TestOneOfJsonBodyShouldProduceValidOpenAPIYAML(t *testing.T) {
 
 	// Create a route with oneOf
 	op := DetachedRoute(http.MethodPost, "/pets").
-		WithOneOfJsonBody(DogAnimal{}, CatAnimal{}).
+		WithOneOfJSONBody(DogAnimal{}, CatAnimal{}).
 		WithOperationID("createPet").
 		Options.Operation
 
@@ -99,7 +99,7 @@ func TestAnyOfJsonBodyShouldProduceValidOpenAPIYAML(t *testing.T) {
 	gen := openapi.NewGenerator()
 
 	op := DetachedRoute(http.MethodPost, "/animals").
-		WithAnyOfJsonBody(DogAnimal{}, CatAnimal{}, BirdAnimal{}).
+		WithAnyOfJSONBody(DogAnimal{}, CatAnimal{}, BirdAnimal{}).
 		WithOperationID("createAnimal").
 		Options.Operation
 
@@ -161,7 +161,7 @@ func TestAllOfJsonBodyShouldProduceValidOpenAPIYAML(t *testing.T) {
 	gen := openapi.NewGenerator()
 
 	op := DetachedRoute(http.MethodPost, "/entities").
-		WithAllOfJsonBody(BaseEntity{}, Timestamps{}).
+		WithAllOfJSONBody(BaseEntity{}, Timestamps{}).
 		WithOperationID("createEntity").
 		Options.Operation
 
@@ -215,7 +215,7 @@ func TestCompositeSchemasShouldReferenceComponentSchemas(t *testing.T) {
 	gen := openapi.NewGenerator()
 
 	op := DetachedRoute(http.MethodPost, "/pets").
-		WithOneOfJsonBody(DogAnimal{}, CatAnimal{}).
+		WithOneOfJSONBody(DogAnimal{}, CatAnimal{}).
 		WithOperationID("createPet").
 		Options.Operation
 
@@ -253,7 +253,7 @@ func TestCompositeJSONBodyShouldMarshalToValidJSON(t *testing.T) {
 	gen := openapi.NewGenerator()
 
 	op := DetachedRoute(http.MethodPost, "/pets").
-		WithOneOfJsonBody(DogAnimal{Type: "dog"}, CatAnimal{Type: "cat"}).
+		WithOneOfJSONBody(DogAnimal{Type: "dog"}, CatAnimal{Type: "cat"}).
 		WithOperationID("createPet").
 		Options.Operation
 
@@ -446,7 +446,7 @@ func TestAnyOfWithNestedTypesShouldRegisterAllComponents(t *testing.T) {
 	gen := openapi.NewGenerator()
 
 	op := DetachedRoute(http.MethodPost, "/entities").
-		WithAnyOfJsonBody(PersonWithAddress{}, CompanyWithAddress{}).
+		WithAnyOfJSONBody(PersonWithAddress{}, CompanyWithAddress{}).
 		WithOperationID("createEntity").
 		Options.Operation
 

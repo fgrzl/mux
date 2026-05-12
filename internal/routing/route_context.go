@@ -155,9 +155,9 @@ type RouteContext interface {
 	// Authenticate persists the user principal using the named cookie.
 	Authenticate(cookieName string, user claims.Principal, opts ...cookiekit.CookieOption)
 	// SignIn signs in the user and optionally redirects to the given URL.
-	SignIn(user claims.Principal, redirectUrl string, opts ...cookiekit.CookieOption)
+	SignIn(user claims.Principal, redirectURL string, opts ...cookiekit.CookieOption)
 	// SignOut clears authentication state for the current user.
-	SignOut(redirectUrl string)
+	SignOut(redirectURL string)
 }
 
 // NewRouteContext creates a new RouteContext from an HTTP request and response writer.
@@ -476,8 +476,8 @@ func (c *DefaultRouteContext) Bind(model any) error {
 		return json.Unmarshal(marshaledData, model)
 	}
 
-	if handled, err := bindDirectModel(model, staging); handled {
-		return err
+	if bindDirectModel(model, staging) {
+		return nil
 	}
 
 	marshaledData, err := json.Marshal(staging)
@@ -508,21 +508,22 @@ func (c *DefaultRouteContext) hasAdditionalArrayBindInputs() bool {
 	return false
 }
 
-func bindDirectModel(model any, staging map[string]any) (bool, error) {
+func bindDirectModel(model any, staging map[string]any) bool {
 	if model == nil {
-		return false, nil
+		return false
 	}
 
 	rv := reflect.ValueOf(model)
 	if !rv.IsValid() || rv.Kind() != reflect.Pointer || rv.IsNil() {
-		return false, nil
+		return false
 	}
 
 	target := rv.Elem()
+	//exhaustive:ignore -- bindDirectModel only supports map[string]any{} or interface{} targets
 	switch target.Kind() {
 	case reflect.Map:
 		if target.Type().Key().Kind() != reflect.String || !isEmptyInterfaceType(target.Type().Elem()) {
-			return false, nil
+			return false
 		}
 		if target.IsNil() {
 			target.Set(reflect.MakeMapWithSize(target.Type(), len(staging)))
@@ -530,15 +531,15 @@ func bindDirectModel(model any, staging map[string]any) (bool, error) {
 		for key, value := range staging {
 			target.SetMapIndex(reflect.ValueOf(key), reflectValueForMapElement(target.Type().Elem(), value))
 		}
-		return true, nil
+		return true
 	case reflect.Interface:
 		if !isEmptyInterfaceType(target.Type()) {
-			return false, nil
+			return false
 		}
 		target.Set(reflect.ValueOf(staging))
-		return true, nil
+		return true
 	default:
-		return false, nil
+		return false
 	}
 }
 
@@ -839,6 +840,7 @@ func lookupDeepExample(example any, path []string) (any, bool) {
 	}
 
 	for _, segment := range path {
+		//exhaustive:ignore -- deep example lookup walks struct fields and string-keyed maps only
 		switch currentType.Kind() {
 		case reflect.Struct:
 			fieldIndex, fieldType, ok := findStructField(currentType, segment)
