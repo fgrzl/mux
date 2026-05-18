@@ -45,8 +45,16 @@ jobs:
       - name: Download Dependencies
         run: go mod download
 
+      - name: Vet
+        run: go vet ./...
+
       - name: Build Project
         run: go build ./...
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: latest
 
       - name: Run Tests
         run: go test ./... -v

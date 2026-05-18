@@ -1,3 +1,4 @@
+﻿# fgrzl standard golangci-lint config (shared across Go repositories)
 version: "2"
 
 run:
@@ -64,6 +65,20 @@ linters:
       - linters:
           - gosec
         text: "G404"
+      - linters: [revive]
+        path: _test\.go$
+        text: "redefines-builtin-id"
+      - linters: [revive]
+        path: _test\.go$
+        text: "^unused-parameter:"
+      - path: _test\.go$
+        linters:
+          - gosec
+        text: "G306"
+      - path: _test\.go$
+        linters:
+          - gosec
+        text: "G304"
       - path: _test\.go$
         linters:
           - gosec
@@ -72,15 +87,12 @@ linters:
         linters:
           - gosec
         text: "G115"
-      # bodyclose does not prove cross-function closes; benchClientDo drains+closes.
       - path: (^|[\\/])bench([\\/]).*\.go$
         linters:
           - bodyclose
-      # testClientGET/POST and helpers wrap http.Client.Do; mustReadBody closes after read.
       - path: (^|[\\/])test([\\/]).*\.go$
         linters:
           - bodyclose
-      # Test-only cookies and subprocess/file fixtures; not production security boundaries.
       - path: _test\.go$
         linters:
           - gosec
@@ -90,6 +102,11 @@ linters:
           - gosec
         text: "G304"
       - path: (^|[\\/])test([\\/])
+        linters:
+          - gosec
+        text: "G204"
+      # Platform trust-store installers run validated certutil/security/sudo with fixed argv.
+      - path: (^|[\\/])internal[\\/]trust[\\/]
         linters:
           - gosec
         text: "G204"
