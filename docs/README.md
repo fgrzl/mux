@@ -44,6 +44,12 @@ Additional resources:
 
 - **[FAQ](faq.md)** - Frequently asked questions and troubleshooting
 
+## Related
+
+- [README](../README.md) — project entry point
+- [CHANGELOG](../CHANGELOG.md) — release notes
+- [CONTRIBUTING](../CONTRIBUTING.md) — contribution workflow
+
 ## Recommended Learning Paths
 
 ### Path 1: Quick Start (15 minutes)
