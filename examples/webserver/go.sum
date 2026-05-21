@@ -6,8 +6,8 @@ github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2
 github.com/felixge/httpsnoop v1.0.4/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
 github.com/fgrzl/claims v0.1.0 h1:SW0e8c1VJ10tzm0l3/tYktNvbK0mxGMvQI5Hve3Qxgc=
 github.com/fgrzl/claims v0.1.0/go.mod h1:uQv82RYxqTXNdPjraojNakIZHA2fsYsMUIoiYeS51IA=
-github.com/fgrzl/json v1.0.0 h1:ZCTSbZq3077eP/grt+H71TFoI/Ac8TMSgo0nI/gXNFE=
-github.com/fgrzl/json v1.0.0/go.mod h1:8ZdkBL2YZJ2w96e9GHs70TG7omuJLPVclgj/uQSTgq8=
+github.com/fgrzl/json v1.0.1 h1:VioeCGiORopB6RucA7Ir7amXa5Urwf5yijdDiTtu8ZU=
+github.com/fgrzl/json v1.0.1/go.mod h1:IqXPQpVxXnceeaXiHaFHWlxuCeRbvWEzkf6YZAtnY1U=
 github.com/go-logr/logr v1.2.2/go.mod h1:jdQByPbusPIv2/zmleS9BjJVeZ6kBagPoEUsqbVz/1A=
 github.com/go-logr/logr v1.4.3 h1:CjnDlHq8ikf6E492q6eKboGOC0T8CDaOvkHCIg8idEI=
 github.com/go-logr/logr v1.4.3/go.mod h1:9T104GzyrTigFIr8wt5mBrctHMim0Nb2HLGrmQ40KvY=
