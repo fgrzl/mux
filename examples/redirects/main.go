@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/fgrzl/mux"
 )
@@ -62,7 +63,15 @@ func main() {
 	fmt.Println("  POST /old-webhook   -> 308 redirect (preserves POST)")
 	fmt.Println("")
 
-	if err := http.ListenAndServe(":8080", router); err != nil {
+	srv := &http.Server{
+		Addr:              ":8080",
+		Handler:           router,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+	if err := srv.ListenAndServe(); err != nil {
 		panic(err)
 	}
 }

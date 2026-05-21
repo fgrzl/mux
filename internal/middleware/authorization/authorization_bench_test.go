@@ -1,6 +1,8 @@
 package authorization
 
 import (
+	"context"
+
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -97,7 +99,7 @@ func BenchmarkAuthorizationRouterPipeline(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "http://example.com/test", nil)
 			// include a user in the context by using middleware chain externally is non-trivial;
 			// for pipeline benchmark we'll just hit the route which will have no user and thus be forbidden,
 			// still exercises middleware overhead.

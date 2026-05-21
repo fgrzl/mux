@@ -94,17 +94,18 @@ func (m *compressionMiddleware) Invoke(c routing.RouteContext, next router.Handl
 	var compressor io.WriteCloser
 	res := c.Response()
 	hdr := res.Header()
-	if strings.Contains(acceptEncoding, gzipEncoding) {
+	switch {
+	case strings.Contains(acceptEncoding, gzipEncoding):
 		applyEncodingHeaders(hdr, gzipEncoding)
 		gw := gzipPool.Get().(*gzip.Writer)
 		gw.Reset(res)
 		compressor = gw
-	} else if strings.Contains(acceptEncoding, deflateEncoding) {
+	case strings.Contains(acceptEncoding, deflateEncoding):
 		applyEncodingHeaders(hdr, deflateEncoding)
 		dw := deflatePool.Get().(*flate.Writer)
 		dw.Reset(res)
 		compressor = dw
-	} else {
+	default:
 		next(c)
 		return
 	}

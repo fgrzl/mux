@@ -1,6 +1,8 @@
 package forwardheaders
 
 import (
+	"context"
+
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -90,7 +92,7 @@ func BenchmarkForwardedHeadersInvoke(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
+				req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "http://example.com/test", nil)
 				rec := httptest.NewRecorder()
 				if tc.setup != nil {
 					tc.setup(req)
@@ -112,7 +114,7 @@ func BenchmarkForwardedHeadersRouterPipeline(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "http://example.com/test", nil)
 			req.Header.Set("X-Forwarded-Proto", "https")
 			req.Header.Set("X-Forwarded-Host", "api.example.com")
 			req.Header.Set("X-Forwarded-Port", "443")
@@ -126,7 +128,7 @@ func BenchmarkForwardedHeadersRouterPipeline(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "http://example.com/test", nil)
 			req.Header.Set("Forwarded", "for=203.0.113.100;proto=https;host=gw.example.com")
 			rec := httptest.NewRecorder()
 			r.ServeHTTP(rec, req)

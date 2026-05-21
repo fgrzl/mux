@@ -213,12 +213,12 @@ func (c *DefaultRouteContext) File(filePath string) {
 
 // Download serves a file with Content-Disposition attachment.
 func (c *DefaultRouteContext) Download(filePath, filename string) {
-	f, err := os.Open(filePath)
+	f, err := os.Open(filePath) //nolint:gosec // G304: Download serves caller-selected paths like http.ServeFile
 	if err != nil {
 		c.ServerError("File not found", err.Error())
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	c.Response().Header().Set(common.HeaderContentDisposition, buildContentDisposition(filename))
 	if !c.writeHeaderOnce(http.StatusOK, common.MimeOctetStream) {

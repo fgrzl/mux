@@ -1,6 +1,8 @@
 package bench
 
 import (
+	"context"
+
 	"bytes"
 	"net/http"
 	"net/url"
@@ -21,13 +23,13 @@ func BenchmarkFormProcessing(b *testing.B) {
 		b.SetBytes(int64(len(body)))
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			req, _ := http.NewRequest("POST", server.URL+testsupport.APIFormSubmit, bytes.NewReader([]byte(body)))
+			req, _ := http.NewRequestWithContext(context.Background(), "POST", server.URL+testsupport.APIFormSubmit, bytes.NewReader([]byte(body)))
 			req.Header.Set(common.HeaderContentType, "application/x-www-form-urlencoded")
 			resp, err := benchClient.Do(req)
 			if err != nil {
 				b.Fatalf("POST failed: %v", err)
 			}
-			readAndClose(resp)
+			_ = readAndClose(resp)
 		}
 	})
 }

@@ -490,6 +490,7 @@ func (state *cloneState) cloneReflectValue(value reflect.Value) reflect.Value {
 		return cloned
 	}
 
+	//exhaustive:ignore -- deep clone handles a subset of reflect kinds used in OpenAPI models
 	switch value.Kind() {
 	case reflect.Interface:
 		if value.IsNil() {
@@ -570,6 +571,7 @@ func (state *cloneState) rememberVisit(value reflect.Value, clone reflect.Value)
 }
 
 func cloneVisitKey(value reflect.Value) (cloneVisit, bool) {
+	//exhaustive:ignore -- visit keys only for heap-allocated kinds tracked in cloneState
 	switch value.Kind() {
 	case reflect.Pointer, reflect.Map:
 		if value.IsNil() {

@@ -78,7 +78,7 @@ func isParamArray(param *openapi.ParameterObject) bool {
 	}
 	if param.Example != nil {
 		exT := reflect.TypeOf(param.Example)
-		if exT.Kind() == reflect.Ptr {
+		if exT.Kind() == reflect.Pointer {
 			exT = exT.Elem()
 		}
 		return exT.Kind() == reflect.Slice

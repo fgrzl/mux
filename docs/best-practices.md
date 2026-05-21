@@ -159,7 +159,7 @@ func setupUserRoutes(group *mux.RouteGroup) {
 
 	users.POST("/", createUser).
 		WithSummary("Create a new user").
-		WithJsonBody(User{}).
+		WithJSONBody(User{}).
 		WithCreatedResponse(User{}).
 		WithRateLimit(10, time.Minute) // Rate limit user creation
 
@@ -172,7 +172,7 @@ func setupUserRoutes(group *mux.RouteGroup) {
 	users.PUT("/{id}", updateUser).
 		WithSummary("Update user").
 		WithPathParam("id", "The unique user identifier", uuid.Nil).
-		WithJsonBody(User{}).
+		WithJSONBody(User{}).
 		WithOKResponse(User{}).
 		RequirePermission("write") // Additional permission check
 

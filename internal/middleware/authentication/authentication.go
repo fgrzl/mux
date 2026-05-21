@@ -53,12 +53,6 @@ func UseAuthenticationWithProvider(rtr *router.Router, provider tokenizer.TokenP
 	rtr.Use(newAuthMiddlewareWithOptions(provider, options))
 }
 
-// newAuthMiddleware creates a new authentication middleware instance with the
-// provided token provider. Extracted to reduce duplication between constructors.
-func newAuthMiddleware(provider tokenizer.TokenProvider) *authenticationMiddleware {
-	return &authenticationMiddleware{provider: provider}
-}
-
 // ---- Functional Options ----
 
 // AuthOption represents a functional option for configuring authentication middleware.
@@ -254,11 +248,11 @@ var ErrRateLimited = errors.New("too many authentication failures")
 // CSRF constants
 const (
 	csrfTokenCookieName = "csrf_token"
-	csrfTokenHeaderName = "X-CSRF-Token"
+	csrfTokenHeaderName = "X-CSRF-Token" //nolint:gosec // G101: HTTP header name, not a secret
 	csrfTokenLength     = 32
 )
 
-var csrfTokenEntropySource io.Reader = rand.Reader
+var csrfTokenEntropySource = rand.Reader
 
 // ---- Middleware Logic ----
 
@@ -455,6 +449,8 @@ func (m *authenticationMiddleware) extendSessionExpiration(c routing.RouteContex
 // renewTokenIfPossible attempts to create a new token for the current user and
 // updates the provided cookie.Value when successful. It logs success and
 // failures appropriately. No error is returned since renewal is best-effort.
+//
+//nolint:gosec // G124: cookie is an in/out renewal handle; attributes are applied via SetCookie.
 func (m *authenticationMiddleware) renewTokenIfPossible(c routing.RouteContext, cookie *http.Cookie) {
 	p := m.provider
 	if !p.CanCreateTokens() {
@@ -567,6 +563,7 @@ func GenerateCSRFTokenErr(c routing.RouteContext) (string, error) {
 	}
 
 	isSecure := isSecureRequest(c.Request())
+	//nolint:gosec // G124: CSRF cookie must be readable by JS (HttpOnly=false); Secure tracks request scheme.
 	cookie := &http.Cookie{
 		Name:     csrfTokenCookieName,
 		Value:    token,

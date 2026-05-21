@@ -30,7 +30,7 @@ func (m *mockProvider) CreateToken(ctx context.Context, principal claims.Princip
 }
 
 func (m *mockProvider) ValidateToken(ctx context.Context, token string) (claims.Principal, error) {
-	return newMockPrincipal(testUserSubject), nil
+	return newMockPrincipal(), nil
 }
 
 func (m *mockProvider) GetTTL() time.Duration { return m.ttl }
@@ -39,7 +39,7 @@ func (m *mockProvider) CanCreateTokens() bool { return true }
 
 func TestShouldPanicGivenNoTokenProviderWhenAuthenticating(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	res := httptest.NewRecorder()
 	ctx := &DefaultRouteContext{
 		request:  req,
@@ -47,7 +47,7 @@ func TestShouldPanicGivenNoTokenProviderWhenAuthenticating(t *testing.T) {
 		services: make(map[ServiceKey]any),
 	}
 
-	mockUser := newMockPrincipal(testUserSubject)
+	mockUser := newMockPrincipal()
 
 	// Act
 	ctx.Authenticate(testCookieName, mockUser)
@@ -59,7 +59,7 @@ func TestShouldPanicGivenNoTokenProviderWhenAuthenticating(t *testing.T) {
 
 func TestShouldReturnServerErrorGivenNoTokenProviderWhenSigningIn(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	res := httptest.NewRecorder()
 	ctx := &DefaultRouteContext{
 		request:  req,
@@ -67,7 +67,7 @@ func TestShouldReturnServerErrorGivenNoTokenProviderWhenSigningIn(t *testing.T) 
 		services: make(map[ServiceKey]any),
 	}
 
-	mockUser := newMockPrincipal(testUserSubject)
+	mockUser := newMockPrincipal()
 
 	// Act
 	ctx.SignIn(mockUser, "/")
@@ -95,13 +95,13 @@ func (p *testPrincipal) CustomClaim(name string) claims.Claim { return nil }
 func (p *testPrincipal) CustomClaimValue(name string) string  { return "" }
 func (p *testPrincipal) Claims() *claims.ClaimSet             { return nil }
 
-func newMockPrincipal(subject string) *testPrincipal {
-	return &testPrincipal{subject: subject}
+func newMockPrincipal() *testPrincipal {
+	return &testPrincipal{subject: testUserSubject}
 }
 
 func TestShouldCreateCookieWithTTLGivenTokenProviderWhenAuthenticating(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodPost, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/test", nil)
 	res := httptest.NewRecorder()
 	ctx := NewRouteContext(res, req)
 
@@ -109,7 +109,7 @@ func TestShouldCreateCookieWithTTLGivenTokenProviderWhenAuthenticating(t *testin
 	provider := &mockProvider{ttl: 30 * time.Minute}
 	ctx.SetService(tokenizer.ServiceKeyTokenProvider, provider)
 
-	mockUser := newMockPrincipal(testUserSubject)
+	mockUser := newMockPrincipal()
 
 	// Act
 	ctx.Authenticate(testCookieName, mockUser)
@@ -121,7 +121,7 @@ func TestShouldCreateCookieWithTTLGivenTokenProviderWhenAuthenticating(t *testin
 
 func TestShouldSetCookieWithAllAttributesGivenSetCookie(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	res := httptest.NewRecorder()
 	ctx := NewRouteContext(res, req)
 
@@ -141,7 +141,7 @@ func TestShouldSetCookieWithAllAttributesGivenSetCookie(t *testing.T) {
 
 func TestShouldReturnCookieValueGivenExistingCookie(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	req.AddCookie(&http.Cookie{Name: testCookieName, Value: testCookieValue})
 	res := httptest.NewRecorder()
 	ctx := NewRouteContext(res, req)
@@ -156,7 +156,7 @@ func TestShouldReturnCookieValueGivenExistingCookie(t *testing.T) {
 
 func TestShouldReturnErrorGivenMissingCookie(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	res := httptest.NewRecorder()
 	ctx := NewRouteContext(res, req)
 
@@ -171,7 +171,7 @@ func TestShouldReturnErrorGivenMissingCookie(t *testing.T) {
 
 func TestShouldSetExpiredCookieGivenClearCookie(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	res := httptest.NewRecorder()
 	ctx := NewRouteContext(res, req)
 
@@ -191,7 +191,7 @@ func TestShouldSetExpiredCookieGivenClearCookie(t *testing.T) {
 
 func TestShouldClearAllCookiesAndRedirectGivenSignOut(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodPost, "/signout", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/signout", nil)
 	res := httptest.NewRecorder()
 	ctx := NewRouteContext(res, req)
 
@@ -234,7 +234,7 @@ func TestShouldClearAllCookiesAndRedirectGivenSignOut(t *testing.T) {
 
 func TestShouldClearCustomCookieAttributesGivenSignOutWithOptions(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodPost, "/signout", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/signout", nil)
 	res := httptest.NewRecorder()
 	ctx := NewRouteContext(res, req)
 
@@ -261,7 +261,7 @@ func TestShouldClearCustomCookieAttributesGivenSignOutWithOptions(t *testing.T) 
 
 func TestShouldApplyCookieOptionsWhenSigningIn(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodPost, "/signin", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/signin", nil)
 	res := httptest.NewRecorder()
 	ctx := NewRouteContext(res, req)
 
@@ -269,7 +269,7 @@ func TestShouldApplyCookieOptionsWhenSigningIn(t *testing.T) {
 	provider := &mockProvider{ttl: 30 * time.Minute}
 	ctx.SetService(tokenizer.ServiceKeyTokenProvider, provider)
 
-	mockUser := newMockPrincipal(testUserSubject)
+	mockUser := newMockPrincipal()
 
 	// Act - Sign in with custom cookie options
 	ctx.SignIn(mockUser, "/dashboard",
@@ -297,7 +297,7 @@ func TestShouldApplyCookieOptionsWhenSigningIn(t *testing.T) {
 
 func TestShouldUseProviderTTLWhenMaxAgeNotSpecified(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodPost, "/signin", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/signin", nil)
 	res := httptest.NewRecorder()
 	ctx := NewRouteContext(res, req)
 
@@ -305,7 +305,7 @@ func TestShouldUseProviderTTLWhenMaxAgeNotSpecified(t *testing.T) {
 	provider := &mockProvider{ttl: 1 * time.Hour}
 	ctx.SetService(tokenizer.ServiceKeyTokenProvider, provider)
 
-	mockUser := newMockPrincipal(testUserSubject)
+	mockUser := newMockPrincipal()
 
 	// Act - Sign in without specifying MaxAge
 	ctx.SignIn(mockUser, "/",
@@ -320,19 +320,19 @@ func TestShouldUseProviderTTLWhenMaxAgeNotSpecified(t *testing.T) {
 
 func TestShouldAllowOverridingSecureAndHttpOnly(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodPost, "/signin", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/signin", nil)
 	res := httptest.NewRecorder()
 	ctx := NewRouteContext(res, req)
 
 	provider := &mockProvider{ttl: 30 * time.Minute}
 	ctx.SetService(tokenizer.ServiceKeyTokenProvider, provider)
 
-	mockUser := newMockPrincipal(testUserSubject)
+	mockUser := newMockPrincipal()
 
 	// Act - Sign in with custom Secure and HttpOnly flags (for testing purposes)
 	ctx.SignIn(mockUser, "/",
 		cookiekit.WithSecure(false),
-		cookiekit.WithHttpOnly(false),
+		cookiekit.WithHTTPOnly(false),
 	)
 
 	// Assert
@@ -343,14 +343,14 @@ func TestShouldAllowOverridingSecureAndHttpOnly(t *testing.T) {
 
 func TestShouldApplySameSiteNoneWithSecure(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodPost, "/signin", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/signin", nil)
 	res := httptest.NewRecorder()
 	ctx := NewRouteContext(res, req)
 
 	provider := &mockProvider{ttl: 30 * time.Minute}
 	ctx.SetService(tokenizer.ServiceKeyTokenProvider, provider)
 
-	mockUser := newMockPrincipal(testUserSubject)
+	mockUser := newMockPrincipal()
 
 	// Act - Sign in with SameSite=None (requires Secure=true)
 	ctx.SignIn(mockUser, "/",
@@ -366,14 +366,14 @@ func TestShouldApplySameSiteNoneWithSecure(t *testing.T) {
 
 func TestShouldAuthenticateWithCustomCookieOptions(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodPost, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/test", nil)
 	res := httptest.NewRecorder()
 	ctx := NewRouteContext(res, req)
 
 	provider := &mockProvider{ttl: 15 * time.Minute}
 	ctx.SetService(tokenizer.ServiceKeyTokenProvider, provider)
 
-	mockUser := newMockPrincipal(testUserSubject)
+	mockUser := newMockPrincipal()
 
 	// Act - Authenticate with custom options
 	ctx.Authenticate("custom-cookie", mockUser,

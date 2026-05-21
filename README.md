@@ -5,6 +5,10 @@
 
 **Mux** is a fast, batteries-included, OpenAPI-native HTTP framework for Go. Routes, request binding, structured errors, middleware, generated OpenAPI, and production server behavior stay in one model.
 
+## Documentation
+
+Full documentation: **[docs/](docs/README.md)** — quick start, guides, learning path, and reference topics.
+
 ## Get Started in 2 Minutes
 
 Mux requires Go 1.25.6 or later.
@@ -133,7 +137,7 @@ if err := router.Configure(func(router *mux.Router) {
     }).
         WithOperationID("createUser").
         WithSummary("Create a user").
-        WithJsonBody(CreateUserRequest{}).
+        WithJSONBody(CreateUserRequest{}).
         WithCreatedResponse(map[string]any{"id": "user-123", "name": "Ada"})
 }); err != nil {
     panic(err)

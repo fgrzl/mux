@@ -85,11 +85,11 @@ func BenchmarkLoggingVariedPaths(b *testing.B) {
 				// rotate among the three
 				switch i % 3 {
 				case 0:
-					r.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/ok", nil))
+					r.ServeHTTP(rr, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/ok", nil))
 				case 1:
-					r.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/user/123", nil))
+					r.ServeHTTP(rr, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/user/123", nil))
 				default:
-					r.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/files/a/b/c", nil))
+					r.ServeHTTP(rr, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/files/a/b/c", nil))
 				}
 			}
 		})

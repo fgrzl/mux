@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"go/ast"
 	"go/format"
-	"go/parser"
 	"go/token"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
+
+	"golang.org/x/tools/go/packages"
 )
 
 func TestRootPackageExportedAPISnapshot(t *testing.T) {
@@ -36,18 +37,42 @@ func TestRootPackageExportedAPISnapshot(t *testing.T) {
 
 func buildRootAPISnapshot(root string) (string, error) {
 	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, root, func(info os.FileInfo) bool {
-		name := info.Name()
-		return strings.HasSuffix(name, ".go") && !strings.HasSuffix(name, "_test.go")
-	}, parser.SkipObjectResolution)
+	cfg := &packages.Config{
+		Fset:  fset,
+		Mode:  packages.NeedSyntax | packages.NeedName | packages.NeedCompiledGoFiles,
+		Dir:   root,
+		Tests: false,
+	}
+	pkgs, err := packages.Load(cfg, "github.com/fgrzl/mux")
 	if err != nil {
 		return "", err
 	}
-
-	pkg, ok := pkgs["mux"]
-	if !ok {
-		return "", fmt.Errorf("package mux not found in %s", root)
+	if len(pkgs) == 0 {
+		return "", fmt.Errorf("no packages loaded")
 	}
+	if len(pkgs[0].Errors) > 0 {
+		return "", pkgs[0].Errors[0]
+	}
+	pkg := pkgs[0]
+	if len(pkg.Syntax) != len(pkg.CompiledGoFiles) {
+		return "", fmt.Errorf("syntax/file count mismatch")
+	}
+
+	type srcFile struct {
+		name string
+		file *ast.File
+	}
+	files := make([]srcFile, 0, len(pkg.Syntax))
+	for i, file := range pkg.Syntax {
+		name := pkg.CompiledGoFiles[i]
+		if strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		files = append(files, srcFile{name: name, file: file})
+	}
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].name < files[j].name
+	})
 
 	typeLines := make([]string, 0)
 	constLines := make([]string, 0)
@@ -57,17 +82,12 @@ func buildRootAPISnapshot(root string) (string, error) {
 	fieldLines := make([]string, 0)
 	ifaceLines := make([]string, 0)
 
-	fileNames := make([]string, 0, len(pkg.Files))
-	for name := range pkg.Files {
-		fileNames = append(fileNames, name)
-	}
-	sort.Strings(fileNames)
-
-	for _, name := range fileNames {
-		file := pkg.Files[name]
+	for _, sf := range files {
+		file := sf.file
 		for _, decl := range file.Decls {
 			switch d := decl.(type) {
 			case *ast.GenDecl:
+				//exhaustive:ignore -- only const, var, and type declarations contribute to the public API snapshot.
 				switch d.Tok {
 				case token.CONST:
 					for _, spec := range d.Specs {

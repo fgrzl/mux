@@ -109,7 +109,7 @@ Focus on:
 
 - `WithOperationID(...)`
 - `WithSummary(...)`
-- `WithJsonBody(...)`
+- `WithJSONBody(...)`
 - `WithOKResponse(...)`, `WithCreatedResponse(...)`, `WithResponse(404, mux.ProblemDetails{})`
 - `mux.GenerateSpecWithGenerator(...)`
 
@@ -119,7 +119,7 @@ Example:
 users.POST("/", createUser).
     WithOperationID("createUser").
     WithSummary("Create a new user").
-    WithJsonBody(CreateUserRequest{}).
+    WithJSONBody(CreateUserRequest{}).
     WithCreatedResponse(User{})
 
 router.GET("/openapi.json", func(c mux.RouteContext) {

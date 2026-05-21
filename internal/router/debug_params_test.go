@@ -1,6 +1,8 @@
 package router
 
 import (
+	"context"
+
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -16,7 +18,7 @@ func TestDebugParamsNonPooled(t *testing.T) {
 		t.Logf("params at handler: id=%s", id)
 		c.OK("ok")
 	})
-	req := httptest.NewRequest(http.MethodGet, "/users/123", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/users/123", nil)
 	rr := httptest.NewRecorder()
 
 	// Act

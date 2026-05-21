@@ -18,14 +18,13 @@ func BenchmarkErrorPaths(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			resp, err := benchClient.Get(server.URL + fmt.Sprintf(testsupport.APIResourceByID, 999999))
+			resp, err := benchClientDo(b, http.MethodGet, server.URL+fmt.Sprintf(testsupport.APIResourceByID, 999999), nil, "")
 			if err != nil {
 				b.Fatalf("GET failed: %v", err)
 			}
 			if resp.StatusCode != http.StatusNotFound {
 				b.Fatalf("expected 404, got %d", resp.StatusCode)
 			}
-			readAndClose(resp)
 		}
 	})
 
@@ -33,14 +32,13 @@ func BenchmarkErrorPaths(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			resp, err := benchClient.Post(server.URL+testsupport.APIBase+"/resources/bulk", common.MimeJSON, bytes.NewReader([]byte("invalid json")))
+			resp, err := benchClientDo(b, http.MethodPost, server.URL+testsupport.APIBase+"/resources/bulk", bytes.NewReader([]byte("invalid json")), common.MimeJSON)
 			if err != nil {
 				b.Fatalf("POST failed: %v", err)
 			}
 			if resp.StatusCode != http.StatusBadRequest {
 				b.Fatalf("expected 400, got %d", resp.StatusCode)
 			}
-			readAndClose(resp)
 		}
 	})
 
@@ -48,14 +46,13 @@ func BenchmarkErrorPaths(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			resp, err := benchClient.Get(server.URL + testsupport.APIBase + "/resources/notanumber")
+			resp, err := benchClientDo(b, http.MethodGet, server.URL+testsupport.APIBase+"/resources/notanumber", nil, "")
 			if err != nil {
 				b.Fatalf("GET failed: %v", err)
 			}
 			if resp.StatusCode != http.StatusBadRequest {
 				b.Fatalf("expected 400, got %d", resp.StatusCode)
 			}
-			readAndClose(resp)
 		}
 	})
 }

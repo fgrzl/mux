@@ -1,6 +1,8 @@
 package routing
 
 import (
+	"context"
+
 	"bytes"
 	"net/http"
 	"net/http/httptest"
@@ -17,7 +19,7 @@ type smallBody struct {
 func TestShouldBindJSONWithinDefaultLimit(t *testing.T) {
 	// Arrange: Default limit is 1MB; this body should succeed without setting MaxBodyBytes
 	body := []byte(`{"name":"ok"}`)
-	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/", bytes.NewReader(body))
 	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rr := httptest.NewRecorder()
 
@@ -33,7 +35,7 @@ func TestShouldBindJSONWithinDefaultLimit(t *testing.T) {
 func TestShouldFailBindJSONOverCustomLimit(t *testing.T) {
 	// Arrange: Set a very small limit to trigger MaxBytesReader error; body is larger than 8 bytes
 	body := []byte(`{"name":"toolong"}`)
-	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/", bytes.NewReader(body))
 	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rr := httptest.NewRecorder()
 

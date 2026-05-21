@@ -47,7 +47,7 @@ func TestShouldNotMutateRouterMetadataWhenGeneratingOpenApiSpec(t *testing.T) {
 		c.OK(page)
 	}).
 		WithOperationID("createUsers").
-		WithJsonBody(page).
+		WithJSONBody(page).
 		WithOKResponse(page)
 
 	defaultSpec, err := mux.GenerateSpecWithGenerator(mux.NewGenerator(), router)

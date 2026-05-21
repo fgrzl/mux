@@ -366,44 +366,27 @@ func TestShouldReturnFalseParseSliceValuesWhenParamNil(t *testing.T) {
 	assert.Nil(t, v)
 }
 
-func TestShouldConvertVariousSignedIntsSingle(t *testing.T) {
+func TestShouldConvertVariousFixedWidthIntsSingle(t *testing.T) {
 	cases := []struct {
-		name string
-		t    reflect.Type
-		want any
+		name  string
+		typ   reflect.Type
+		input string
+		want  any
 	}{
-		{"int8", reflect.TypeOf(int8(0)), int8(12)},
-		{"int16", reflect.TypeOf(int16(0)), int16(12)},
-		{"int32", reflect.TypeOf(int32(0)), int32(12)},
-		{"int64", reflect.TypeOf(int64(0)), int64(12)},
+		{"int8", reflect.TypeOf(int8(0)), "12", int8(12)},
+		{"int16", reflect.TypeOf(int16(0)), "12", int16(12)},
+		{"int32", reflect.TypeOf(int32(0)), "12", int32(12)},
+		{"int64", reflect.TypeOf(int64(0)), "12", int64(12)},
+		{"uint8", reflect.TypeOf(uint8(0)), "9", uint8(9)},
+		{"uint16", reflect.TypeOf(uint16(0)), "9", uint16(9)},
+		{"uint32", reflect.TypeOf(uint32(0)), "9", uint32(9)},
+		{"uint64", reflect.TypeOf(uint64(0)), "9", uint64(9)},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			conv := makeConverter(tc.t, nil)
+			conv := makeConverter(tc.typ, nil)
 			require.NotNil(t, conv)
-			v, err := conv([]string{"12"})
-			require.NoError(t, err)
-			assert.Equal(t, tc.want, v)
-		})
-	}
-}
-
-func TestShouldConvertVariousUnsignedIntsSingle(t *testing.T) {
-	cases := []struct {
-		name string
-		t    reflect.Type
-		want any
-	}{
-		{"uint8", reflect.TypeOf(uint8(0)), uint8(9)},
-		{"uint16", reflect.TypeOf(uint16(0)), uint16(9)},
-		{"uint32", reflect.TypeOf(uint32(0)), uint32(9)},
-		{"uint64", reflect.TypeOf(uint64(0)), uint64(9)},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			conv := makeConverter(tc.t, nil)
-			require.NotNil(t, conv)
-			v, err := conv([]string{"9"})
+			v, err := conv([]string{tc.input})
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, v)
 		})

@@ -1,6 +1,8 @@
 package routing
 
 import (
+	"context"
+
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -25,7 +27,7 @@ func (c *adapterRouteContext) SetRequest(r *http.Request) {
 func TestHTTPHandlerShouldBindRouteContextToRequest(t *testing.T) {
 	// Arrange
 	recorder := httptest.NewRecorder()
-	baseRequest := httptest.NewRequest(http.MethodGet, "/users/42", nil)
+	baseRequest := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/users/42", nil)
 	baseContext := NewRouteContext(recorder, baseRequest)
 	params := &Params{}
 	params.Set("id", "42")
@@ -51,7 +53,7 @@ func TestHTTPHandlerShouldBindRouteContextToRequest(t *testing.T) {
 
 	adapterContext = &adapterRouteContext{
 		RouteContext: baseContext,
-		request:      httptest.NewRequest(http.MethodGet, "/users/42", nil),
+		request:      httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/users/42", nil),
 	}
 
 	// Act

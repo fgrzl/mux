@@ -23,7 +23,7 @@ func generateInventory() error {
 
 	// Header
 	sb.WriteString("# Project Inventory\n\n")
-	sb.WriteString(fmt.Sprintf("Generated: %s\n\n", time.Now().Format("2006-01-02 15:04:05")))
+	fmt.Fprintf(&sb, "Generated: %s\n\n", time.Now().Format("2006-01-02 15:04:05"))
 
 	// Modules
 	modules, err := readModules()
@@ -47,7 +47,7 @@ func generateInventory() error {
 	sb.WriteString(formatBenchmarks(benches))
 
 	// Write to file
-	return os.WriteFile("inventory.md", []byte(sb.String()), 0644)
+	return os.WriteFile("inventory.md", []byte(sb.String()), 0600)
 }
 
 // readModules reads and parses go.mod
@@ -56,7 +56,7 @@ func readModules() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	var modules []string
 	scanner := bufio.NewScanner(file)
@@ -99,55 +99,6 @@ type TestEntry struct {
 	File    string
 }
 
-// findTests finds all test functions
-func findTests() ([]TestEntry, error) {
-	var tests []TestEntry
-	testRegex := regexp.MustCompile(`^func (Test[A-Za-z0-9_]*)\(`)
-
-	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
-		}
-
-		// Skip non-test files and vendor/build directories
-		if !strings.HasSuffix(path, "_test.go") || strings.Contains(path, "vendor") {
-			return nil
-		}
-
-		// Get package name from path
-		pkg := filepath.Dir(path)
-
-		file, err := os.Open(path)
-		if err != nil {
-			return nil
-		}
-		defer file.Close()
-
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			line := scanner.Text()
-			if matches := testRegex.FindStringSubmatch(line); matches != nil {
-				tests = append(tests, TestEntry{
-					Package: pkg,
-					Name:    matches[1],
-					File:    filepath.Base(path),
-				})
-			}
-		}
-
-		return scanner.Err()
-	})
-
-	sort.Slice(tests, func(i, j int) bool {
-		if tests[i].Package != tests[j].Package {
-			return tests[i].Package < tests[j].Package
-		}
-		return tests[i].Name < tests[j].Name
-	})
-
-	return tests, err
-}
-
 // BenchEntry represents a benchmark function
 type BenchEntry struct {
 	Package string
@@ -155,60 +106,129 @@ type BenchEntry struct {
 	File    string
 }
 
+// namedFileRow is a package-qualified name within a file (tests or benchmarks).
+type namedFileRow struct {
+	Package string
+	Name    string
+	File    string
+}
+
+func walkSourceFiles(keep func(path string) bool, onFile func(pkg, path string, scanner *bufio.Scanner) error) error {
+	return filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if !keep(path) {
+			return nil
+		}
+		pkg := filepath.Dir(path)
+		f, err := os.Open(path) //nolint:gosec // G304: inventory walks *_test.go paths under the repo
+		if err != nil {
+			return nil
+		}
+		defer func() { _ = f.Close() }()
+		return onFile(pkg, path, bufio.NewScanner(f))
+	})
+}
+
+func writeInventoryMarkdown(sb *strings.Builder, section string, rows []namedFileRow, unitPlural string) {
+	fmt.Fprintf(sb, "## %s\n\n", section)
+	fmt.Fprintf(sb, "Total: %d\n\n", len(rows))
+
+	byPackage := make(map[string][]namedFileRow)
+	for _, row := range rows {
+		byPackage[row.Package] = append(byPackage[row.Package], row)
+	}
+
+	packages := make([]string, 0, len(byPackage))
+	for p := range byPackage {
+		packages = append(packages, p)
+	}
+	sort.Strings(packages)
+
+	for _, pkg := range packages {
+		fmt.Fprintf(sb, "### %s (%d %s)\n\n", pkg, len(byPackage[pkg]), unitPlural)
+
+		byFile := make(map[string][]namedFileRow)
+		for _, row := range byPackage[pkg] {
+			byFile[row.File] = append(byFile[row.File], row)
+		}
+
+		files := make([]string, 0, len(byFile))
+		for f := range byFile {
+			files = append(files, f)
+		}
+		sort.Strings(files)
+
+		for _, file := range files {
+			fmt.Fprintf(sb, "**%s**\n\n", file)
+			for _, row := range byFile[file] {
+				fmt.Fprintf(sb, "- `%s`\n", row.Name)
+			}
+			sb.WriteString("\n")
+		}
+	}
+}
+
+func collectDecls[E any](pathSuffix string, line *regexp.Regexp, row func(pkg, path, name string) E) ([]E, error) {
+	var out []E
+	err := walkSourceFiles(
+		func(path string) bool {
+			return strings.HasSuffix(path, pathSuffix) && !strings.Contains(path, "vendor")
+		},
+		func(pkg, path string, scanner *bufio.Scanner) error {
+			for scanner.Scan() {
+				if m := line.FindStringSubmatch(scanner.Text()); m != nil {
+					out = append(out, row(pkg, path, m[1]))
+				}
+			}
+			return scanner.Err()
+		},
+	)
+	return out, err
+}
+
+// findTests finds all test functions
+func findTests() ([]TestEntry, error) {
+	testRegex := regexp.MustCompile(`^func (Test[A-Za-z0-9_]*)\(`)
+	tests, err := collectDecls("_test.go", testRegex, func(pkg, path, name string) TestEntry {
+		return TestEntry{Package: pkg, Name: name, File: filepath.Base(path)}
+	})
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(tests, func(i, j int) bool {
+		if tests[i].Package != tests[j].Package {
+			return tests[i].Package < tests[j].Package
+		}
+		return tests[i].Name < tests[j].Name
+	})
+	return tests, nil
+}
+
 // findBenchmarks finds all benchmark functions
 func findBenchmarks() ([]BenchEntry, error) {
-	var benches []BenchEntry
 	benchRegex := regexp.MustCompile(`^func (Benchmark[A-Za-z0-9_]*)\(`)
-
-	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
-		}
-
-		// Only look at benchmark test files
-		if !strings.HasSuffix(path, "_bench_test.go") || strings.Contains(path, "vendor") {
-			return nil
-		}
-
-		// Get package name from path
-		pkg := filepath.Dir(path)
-
-		file, err := os.Open(path)
-		if err != nil {
-			return nil
-		}
-		defer file.Close()
-
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			line := scanner.Text()
-			if matches := benchRegex.FindStringSubmatch(line); matches != nil {
-				benches = append(benches, BenchEntry{
-					Package: pkg,
-					Name:    matches[1],
-					File:    filepath.Base(path),
-				})
-			}
-		}
-
-		return scanner.Err()
+	benches, err := collectDecls("_bench_test.go", benchRegex, func(pkg, path, name string) BenchEntry {
+		return BenchEntry{Package: pkg, Name: name, File: filepath.Base(path)}
 	})
-
+	if err != nil {
+		return nil, err
+	}
 	sort.Slice(benches, func(i, j int) bool {
 		if benches[i].Package != benches[j].Package {
 			return benches[i].Package < benches[j].Package
 		}
 		return benches[i].Name < benches[j].Name
 	})
-
-	return benches, err
+	return benches, nil
 }
 
 // formatModules formats modules section
 func formatModules(modules []string) string {
 	var sb strings.Builder
 	sb.WriteString("## Dependencies\n\n")
-	sb.WriteString(fmt.Sprintf("Total: %d\n\n", len(modules)))
+	fmt.Fprintf(&sb, "Total: %d\n\n", len(modules))
 	sb.WriteString("```\n")
 	for _, m := range modules {
 		sb.WriteString(m + "\n")
@@ -219,98 +239,22 @@ func formatModules(modules []string) string {
 
 // formatTests formats tests section
 func formatTests(tests []TestEntry) string {
+	rows := make([]namedFileRow, len(tests))
+	for i := range tests {
+		rows[i] = namedFileRow{Package: tests[i].Package, Name: tests[i].Name, File: tests[i].File}
+	}
 	var sb strings.Builder
-	sb.WriteString("## Tests\n\n")
-	sb.WriteString(fmt.Sprintf("Total: %d\n\n", len(tests)))
-
-	// Group by package
-	byPackage := make(map[string][]TestEntry)
-	for _, t := range tests {
-		byPackage[t.Package] = append(byPackage[t.Package], t)
-	}
-
-	// Sort packages
-	var packages []string
-	for p := range byPackage {
-		packages = append(packages, p)
-	}
-	sort.Strings(packages)
-
-	// Output by package
-	for _, pkg := range packages {
-		sb.WriteString(fmt.Sprintf("### %s (%d tests)\n\n", pkg, len(byPackage[pkg])))
-
-		// Group by file within package
-		byFile := make(map[string][]TestEntry)
-		for _, t := range byPackage[pkg] {
-			byFile[t.File] = append(byFile[t.File], t)
-		}
-
-		// Sort files
-		var files []string
-		for f := range byFile {
-			files = append(files, f)
-		}
-		sort.Strings(files)
-
-		// Output by file
-		for _, file := range files {
-			sb.WriteString(fmt.Sprintf("**%s**\n\n", file))
-			for _, t := range byFile[file] {
-				sb.WriteString(fmt.Sprintf("- `%s`\n", t.Name))
-			}
-			sb.WriteString("\n")
-		}
-	}
-
+	writeInventoryMarkdown(&sb, "Tests", rows, "tests")
 	return sb.String()
 }
 
 // formatBenchmarks formats benchmarks section
 func formatBenchmarks(benches []BenchEntry) string {
+	rows := make([]namedFileRow, len(benches))
+	for i := range benches {
+		rows[i] = namedFileRow{Package: benches[i].Package, Name: benches[i].Name, File: benches[i].File}
+	}
 	var sb strings.Builder
-	sb.WriteString("## Benchmarks\n\n")
-	sb.WriteString(fmt.Sprintf("Total: %d\n\n", len(benches)))
-
-	// Group by package
-	byPackage := make(map[string][]BenchEntry)
-	for _, b := range benches {
-		byPackage[b.Package] = append(byPackage[b.Package], b)
-	}
-
-	// Sort packages
-	var packages []string
-	for p := range byPackage {
-		packages = append(packages, p)
-	}
-	sort.Strings(packages)
-
-	// Output by package
-	for _, pkg := range packages {
-		sb.WriteString(fmt.Sprintf("### %s (%d benchmarks)\n\n", pkg, len(byPackage[pkg])))
-
-		// Group by file within package
-		byFile := make(map[string][]BenchEntry)
-		for _, b := range byPackage[pkg] {
-			byFile[b.File] = append(byFile[b.File], b)
-		}
-
-		// Sort files
-		var files []string
-		for f := range byFile {
-			files = append(files, f)
-		}
-		sort.Strings(files)
-
-		// Output by file
-		for _, file := range files {
-			sb.WriteString(fmt.Sprintf("**%s**\n\n", file))
-			for _, b := range byFile[file] {
-				sb.WriteString(fmt.Sprintf("- `%s`\n", b.Name))
-			}
-			sb.WriteString("\n")
-		}
-	}
-
+	writeInventoryMarkdown(&sb, "Benchmarks", rows, "benchmarks")
 	return sb.String()
 }

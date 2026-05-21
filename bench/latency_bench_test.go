@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"sort"
 	"sync/atomic"
 	"testing"
@@ -20,7 +21,7 @@ func BenchmarkLatencyDistribution(b *testing.B) {
 	measureLatencies := func(b *testing.B, name string, doRequest func() error) {
 		// Warmup
 		for i := 0; i < 100; i++ {
-			doRequest()
+			_ = doRequest()
 		}
 
 		// Collect samples
@@ -54,21 +55,15 @@ func BenchmarkLatencyDistribution(b *testing.B) {
 
 	b.Run("GET/Resource", func(b *testing.B) {
 		measureLatencies(b, "GET", func() error {
-			resp, err := benchClient.Get(server.URL + fmt.Sprintf(testsupport.APIResourceByID, 1))
-			if err != nil {
-				return err
-			}
-			return readAndClose(resp)
+			_, err := benchClientDo(b, http.MethodGet, server.URL+fmt.Sprintf(testsupport.APIResourceByID, 1), nil, "")
+			return err
 		})
 	})
 
 	b.Run("GET/List", func(b *testing.B) {
 		measureLatencies(b, "List", func() error {
-			resp, err := benchClient.Get(server.URL + testsupport.APIResources)
-			if err != nil {
-				return err
-			}
-			return readAndClose(resp)
+			_, err := benchClientDo(b, http.MethodGet, server.URL+testsupport.APIResources, nil, "")
+			return err
 		})
 	})
 
@@ -78,11 +73,8 @@ func BenchmarkLatencyDistribution(b *testing.B) {
 			n := atomic.AddUint64(&seq, 1)
 			resources := []testsupport.Resource{{TenantID: 0, Name: fmt.Sprintf("lat-%d", n), Type: "resource"}}
 			bts, _ := json.Marshal(resources)
-			resp, err := benchClient.Post(server.URL+testsupport.APIBase+"/resources/bulk", common.MimeJSON, bytes.NewReader(bts))
-			if err != nil {
-				return err
-			}
-			return readAndClose(resp)
+			_, err := benchClientDo(b, http.MethodPost, server.URL+testsupport.APIBase+"/resources/bulk", bytes.NewReader(bts), common.MimeJSON)
+			return err
 		})
 	})
 }

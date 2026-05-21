@@ -13,7 +13,7 @@ import (
 func TestDetachIndependence(t *testing.T) {
 	// Arrange
 	rr := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/", nil)
 
 	c := AcquireContext(rr, req)
 	require.NotNil(t, c)
@@ -41,7 +41,7 @@ func TestDetachIndependence(t *testing.T) {
 func TestDetachUsableInGoroutine(t *testing.T) {
 	// Arrange
 	rr := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/", nil)
 	c := AcquireContext(rr, req)
 	require.NotNil(t, c)
 
@@ -75,7 +75,7 @@ func TestDetachUsableInGoroutine(t *testing.T) {
 func TestDetachShouldNotWriteToOriginalResponse(t *testing.T) {
 	// Arrange
 	rr := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/", nil)
 	c := AcquireContext(rr, req)
 	require.NotNil(t, c)
 
@@ -97,7 +97,7 @@ func TestDetachShouldUseBackgroundContext(t *testing.T) {
 	defer cancel()
 
 	rr := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/", nil).WithContext(baseCtx)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/", nil).WithContext(baseCtx)
 	c := AcquireContext(rr, req)
 	require.NotNil(t, c)
 

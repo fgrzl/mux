@@ -1,6 +1,8 @@
 package authentication
 
 import (
+	"context"
+
 	"errors"
 	"io"
 	"log/slog"
@@ -97,7 +99,7 @@ func BenchmarkAuthenticationRouterPipeline(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			req := httptest.NewRequest(http.MethodGet, benchURL, nil)
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, benchURL, nil)
 			req.Header.Set(common.HeaderAuthorization, bearerPrefix+validToken)
 			rec := httptest.NewRecorder()
 			r.ServeHTTP(rec, req)

@@ -18,9 +18,9 @@ type CookieOption func(*cookieOptions)
 // WithMaxAge sets the MaxAge (seconds).
 // 0 means "unspecified" (falls back to provider TTL).
 // Negative values indicate delete/expired cookie semantics.
-func WithMaxAge(max int) CookieOption {
+func WithMaxAge(maxAge int) CookieOption {
 	return func(o *cookieOptions) {
-		o.maxAge = max
+		o.maxAge = maxAge
 	}
 }
 
@@ -45,8 +45,8 @@ func WithSecure(b bool) CookieOption {
 	}
 }
 
-// WithHttpOnly sets the HttpOnly flag.
-func WithHttpOnly(b bool) CookieOption {
+// WithHTTPOnly sets the HttpOnly flag.
+func WithHTTPOnly(b bool) CookieOption {
 	return func(o *cookieOptions) {
 		o.httpOnly = &b
 	}
@@ -111,5 +111,5 @@ func ResolveCookieOptions(opts ...CookieOption) (maxAge int, path, domain string
 		sameSite = *o.sameSite
 	}
 
-	return
+	return maxAge, path, domain, secure, httpOnly, sameSite
 }

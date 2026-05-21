@@ -27,7 +27,7 @@ const (
 
 func TestShouldCreateNewRouteContext(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 
 	// Act
@@ -46,7 +46,7 @@ func TestShouldCreateNewRouteContext(t *testing.T) {
 
 func TestShouldReturnRouteContextFromRequest(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	ctx.SetRequest(ctx.Request())
@@ -61,7 +61,7 @@ func TestShouldReturnRouteContextFromRequest(t *testing.T) {
 
 func TestShouldSetAndGetService(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	key := ServiceKey("test-service")
@@ -78,7 +78,7 @@ func TestShouldSetAndGetService(t *testing.T) {
 
 func TestShouldReturnFalseForNonExistentService(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	key := ServiceKey("non-existent")
@@ -93,7 +93,7 @@ func TestShouldReturnFalseForNonExistentService(t *testing.T) {
 
 func TestShouldNotSetServiceWithEmptyKey(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	service := testValue
@@ -107,7 +107,7 @@ func TestShouldNotSetServiceWithEmptyKey(t *testing.T) {
 
 func TestShouldNotSetNilService(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	key := ServiceKey("test")
@@ -121,7 +121,7 @@ func TestShouldNotSetNilService(t *testing.T) {
 
 func TestShouldBindFromQueryParameters(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test?name=John&age=30", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test?name=John&age=30", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 
@@ -142,7 +142,7 @@ func TestShouldBindFromQueryParameters(t *testing.T) {
 func TestShouldBindFromJSONBody(t *testing.T) {
 	// Arrange
 	body := `{"name":"John","age":30}`
-	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/test", strings.NewReader(body))
 	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
@@ -164,7 +164,7 @@ func TestShouldBindFromJSONBody(t *testing.T) {
 func TestShouldBindFromPatchJSONBody(t *testing.T) {
 	// Arrange
 	body := `{"name":"John","age":30}`
-	req := httptest.NewRequest(http.MethodPatch, "/test", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPatch, "/test", strings.NewReader(body))
 	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
@@ -186,7 +186,7 @@ func TestShouldBindFromPatchJSONBody(t *testing.T) {
 func TestShouldBindFromPutJSONBody(t *testing.T) {
 	// Arrange
 	body := `{"name":"John","age":30}`
-	req := httptest.NewRequest(http.MethodPut, "/test", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/test", strings.NewReader(body))
 	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
@@ -207,7 +207,7 @@ func TestShouldBindFromPutJSONBody(t *testing.T) {
 
 func TestShouldBindMixedSourcesGivenPostJSONBody(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodPost, "/users/42?limit=5", strings.NewReader(`{"name":"John"}`))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/users/42?limit=5", strings.NewReader(`{"name":"John"}`))
 	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	req.Header.Set("X-Trace-ID", "trace-1")
 	rec := httptest.NewRecorder()
@@ -240,7 +240,7 @@ func TestShouldBindMixedSourcesGivenPostJSONBody(t *testing.T) {
 
 func TestShouldBindMixedSourcesGivenPatchJSONBody(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodPatch, "/users/42?version=7", strings.NewReader(`{"name":"Patched"}`))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPatch, "/users/42?version=7", strings.NewReader(`{"name":"Patched"}`))
 	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
@@ -271,7 +271,7 @@ func TestShouldBindMixedSourcesGivenPostFormBody(t *testing.T) {
 	// Arrange
 	formData := url.Values{}
 	formData.Set("name", "John")
-	req := httptest.NewRequest(http.MethodPost, "/users?limit=5", strings.NewReader(formData.Encode()))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/users?limit=5", strings.NewReader(formData.Encode()))
 	req.Header.Set(common.HeaderContentType, common.MimeFormURLEncoded)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
@@ -293,7 +293,7 @@ func TestShouldBindMixedSourcesGivenPostFormBody(t *testing.T) {
 
 func TestShouldPreferJSONBodyOverQueryWhenKeysConflict(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodPost, "/users?name=query", strings.NewReader(`{"name":"body"}`))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/users?name=query", strings.NewReader(`{"name":"body"}`))
 	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
@@ -312,7 +312,7 @@ func TestShouldPreferJSONBodyOverQueryWhenKeysConflict(t *testing.T) {
 
 func TestShouldPreferPathParamsOverJSONBodyAndQueryWhenKeysConflict(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodPost, "/users/42?id=1", strings.NewReader(`{"id":2}`))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/users/42?id=1", strings.NewReader(`{"id":2}`))
 	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
@@ -337,7 +337,7 @@ func TestShouldPreferPathParamsOverJSONBodyAndQueryWhenKeysConflict(t *testing.T
 
 func TestShouldIgnoreJSONBodyGivenDeleteRequest(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodDelete, "/users?id=7", strings.NewReader(`{"id":99}`))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodDelete, "/users?id=7", strings.NewReader(`{"id":99}`))
 	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
@@ -357,7 +357,7 @@ func TestShouldIgnoreJSONBodyGivenDeleteRequest(t *testing.T) {
 
 func TestShouldIgnoreJSONBodyGivenHeadRequest(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodHead, "/users?name=query", strings.NewReader(`{"name":"body"}`))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodHead, "/users?name=query", strings.NewReader(`{"name":"body"}`))
 	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
@@ -376,7 +376,7 @@ func TestShouldIgnoreJSONBodyGivenHeadRequest(t *testing.T) {
 
 func TestShouldBindQueryParametersGivenOptionsRequest(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodOptions, "/users?name=option", strings.NewReader(`{"name":"body"}`))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodOptions, "/users?name=option", strings.NewReader(`{"name":"body"}`))
 	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
@@ -398,7 +398,7 @@ func TestShouldBindFromFormData(t *testing.T) {
 	formData := url.Values{}
 	formData.Set("name", "John")
 	formData.Set("age", "30")
-	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(formData.Encode()))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/test", strings.NewReader(formData.Encode()))
 	req.Header.Set(common.HeaderContentType, common.MimeFormURLEncoded)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
@@ -419,7 +419,7 @@ func TestShouldBindFromFormData(t *testing.T) {
 
 func TestShouldBindFromHeaders(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	req.Header.Set("X-User-ID", "123")
 	req.Header.Set("X-User-Name", "John")
 	rec := httptest.NewRecorder()
@@ -441,7 +441,7 @@ func TestShouldBindFromHeaders(t *testing.T) {
 
 func TestShouldBindFromRouteParams(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	params := &Params{}
@@ -465,7 +465,7 @@ func TestShouldBindFromRouteParams(t *testing.T) {
 
 func TestShouldReturnErrorForUnsupportedContentType(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader("some data"))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/test", strings.NewReader("some data"))
 	req.Header.Set(common.HeaderContentType, common.MimeTextPlain)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
@@ -482,7 +482,7 @@ func TestShouldReturnErrorForUnsupportedContentType(t *testing.T) {
 
 func TestShouldReturnErrorForInvalidJSON(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(`{"invalid json`))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/test", strings.NewReader(`{"invalid json`))
 	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
@@ -564,7 +564,7 @@ func TestShouldReturnFalseGivenInvalidSliceInput(t *testing.T) {
 
 func TestShouldReturnRequestURIFromContext(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test?param=value", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test?param=value", nil)
 
 	// Act
 	uri := getInstanceURI(req)
@@ -576,7 +576,7 @@ func TestShouldReturnRequestURIFromContext(t *testing.T) {
 
 func TestShouldHandleEmptyParams(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	ctx.paramsSlice = nil
@@ -597,7 +597,7 @@ func TestShouldHandleContextInheritance(t *testing.T) {
 	// Arrange
 	type ctxKey string
 	baseCtx := context.WithValue(context.Background(), ctxKey(testKey), testValue)
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	req = req.WithContext(baseCtx)
 	rec := httptest.NewRecorder()
 
@@ -610,7 +610,7 @@ func TestShouldHandleContextInheritance(t *testing.T) {
 
 func TestShouldBindComplexData(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test?tags=tag1&tags=tag2&user=john", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test?tags=tag1&tags=tag2&user=john", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	params := &Params{}
@@ -644,7 +644,7 @@ func TestShouldBindWithMaxBytesLimit(t *testing.T) {
 	jsonData, err := json.Marshal(largePayload)
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodPost, "/test", bytes.NewReader(jsonData))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/test", bytes.NewReader(jsonData))
 	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
@@ -667,7 +667,7 @@ func TestShouldBindWithMaxBytesLimit(t *testing.T) {
 
 func TestBind_ReturnsErrMissingBody_ForEmptyJSON_WhenRequestBodyRequired(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(""))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/test", strings.NewReader(""))
 	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
@@ -687,7 +687,7 @@ func TestBind_ReturnsErrMissingBody_ForEmptyJSON_WhenRequestBodyRequired(t *test
 
 func TestBind_ReturnsErrMissingBody_ForEmptyForm_WhenRequestBodyRequired(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(""))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/test", strings.NewReader(""))
 	req.Header.Set(common.HeaderContentType, common.MimeFormURLEncoded)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
@@ -707,7 +707,7 @@ func TestBind_ReturnsErrMissingBody_ForEmptyForm_WhenRequestBodyRequired(t *test
 
 func TestBind_ShouldNotWriteResponseWhenBodyMissing(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(""))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/test", strings.NewReader(""))
 	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
@@ -730,7 +730,7 @@ func TestBind_ShouldNotWriteResponseWhenBodyMissing(t *testing.T) {
 
 func TestBind_DoesNotReturnErrMissingBody_WhenRequestBodyNotRequired_JSON(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(""))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/test", strings.NewReader(""))
 	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
@@ -749,7 +749,7 @@ func TestBind_DoesNotReturnErrMissingBody_WhenRequestBodyNotRequired_JSON(t *tes
 
 func TestBind_WritesToResponseWriter_WhenRequestBodyRequired_And_EmptyBody(t *testing.T) {
 	// Arrange - Verify caller-owned error handling can safely decide the response.
-	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(""))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/test", strings.NewReader(""))
 	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)

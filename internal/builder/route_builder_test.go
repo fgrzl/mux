@@ -1,6 +1,8 @@
 package builder
 
 import (
+	"context"
+
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -87,7 +89,7 @@ func TestShouldComposeRouteScopedMiddlewareOnBuilder(t *testing.T) {
 		seen = append(seen, "handler")
 		c.OK("ok")
 	}
-	req := httptest.NewRequest(http.MethodGet, pathUsers, nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, pathUsers, nil)
 	rr := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(rr, req)
 	ctx.SetOptions(builder.Options)
@@ -217,7 +219,7 @@ func TestShouldAccumulateValidationErrorsWithoutPanickingWhenBuilderSafe(t *test
 	// Act / Assert
 	assert.NotPanics(t, func() {
 		builder.WithOperationID("invalid-id")
-		builder.WithJsonBody(struct{ Name string }{Name: "John"})
+		builder.WithJSONBody(struct{ Name string }{Name: "John"})
 	})
 
 	// Assert
@@ -471,7 +473,7 @@ func TestShouldAddJsonBody(t *testing.T) {
 	}{Name: "John", Email: "john@example.com"}
 
 	// Act
-	result := builder.WithJsonBody(example)
+	result := builder.WithJSONBody(example)
 
 	// Assert
 	assert.Equal(t, builder, result)
@@ -493,7 +495,7 @@ func TestShouldOwnPointerBackedRequestBodyExamplesOnRegistration(t *testing.T) {
 	}
 
 	// Act
-	result := builder.WithJsonBody(example)
+	result := builder.WithJSONBody(example)
 	stored := builder.Options.RequestBody.Content[common.MimeJSON].Example.(*builderClonePayload)
 	*example.Name = "changed"
 	example.Nested.Value = "mutated"
@@ -816,7 +818,7 @@ func TestQuickSchemaShouldReturnIndependentCopiesForKnownSchemas(t *testing.T) {
 	assert.NotSame(t, first, second)
 }
 
-func TestWithOneOfJsonBodyShouldNotMutateRegisteredSchemas(t *testing.T) {
+func TestWithOneOfJSONBodyShouldNotMutateRegisteredSchemas(t *testing.T) {
 	// Arrange
 	type CustomType struct {
 		Name string `json:"name"`
@@ -829,7 +831,7 @@ func TestWithOneOfJsonBodyShouldNotMutateRegisteredSchemas(t *testing.T) {
 	})
 
 	// Act
-	rb := DetachedRoute(http.MethodPost, "/customs").WithOneOfJsonBody(CustomType{Name: "alpha"})
+	rb := DetachedRoute(http.MethodPost, "/customs").WithOneOfJSONBody(CustomType{Name: "alpha"})
 	storedSchema := rb.Options.RequestBody.Content[common.MimeJSON].Schema.OneOf[0]
 	fresh, err := QuickSchema(typ)
 

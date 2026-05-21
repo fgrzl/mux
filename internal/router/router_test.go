@@ -1,6 +1,8 @@
 package router
 
 import (
+	"context"
+
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -490,7 +492,7 @@ func TestShouldReturnInternalServerErrorWhenMatchedRouteHasNilOptions(t *testing
 	// Arrange
 	rtr := NewRouter()
 	rtr.routeRegistry.Register("/broken", http.MethodGet, nil)
-	req := httptest.NewRequest(http.MethodGet, "/broken", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/broken", nil)
 	rr := httptest.NewRecorder()
 
 	// Act
@@ -512,7 +514,7 @@ func TestShouldReturnInternalServerErrorWhenMiddlewarePipelineReachesNilEffectiv
 		},
 	})
 	rtr.routeRegistry.Register("/broken", http.MethodGet, &routing.RouteOptions{Method: http.MethodGet, Pattern: "/broken"})
-	req := httptest.NewRequest(http.MethodGet, "/broken", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/broken", nil)
 	rr := httptest.NewRecorder()
 
 	// Act

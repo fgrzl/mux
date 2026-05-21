@@ -114,7 +114,7 @@ func (m *authorizationMiddleware) Invoke(c routing.RouteContext, next router.Han
 }
 
 func (m *authorizationMiddleware) checkRoles(c routing.RouteContext) bool {
-	var checker func(claims.Principal, []string) bool = func(p claims.Principal, vals []string) bool {
+	var checker = func(p claims.Principal, vals []string) bool {
 		if m.options != nil && m.options.CheckRoles != nil {
 			return m.options.CheckRoles(p, vals)
 		}
@@ -130,7 +130,7 @@ func (m *authorizationMiddleware) checkRoles(c routing.RouteContext) bool {
 }
 
 func (m *authorizationMiddleware) checkScopes(c routing.RouteContext) bool {
-	var checker func(claims.Principal, []string) bool = func(p claims.Principal, vals []string) bool {
+	var checker = func(p claims.Principal, vals []string) bool {
 		if m.options != nil && m.options.CheckScopes != nil {
 			return m.options.CheckScopes(p, vals)
 		}

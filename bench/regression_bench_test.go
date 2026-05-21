@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"sync/atomic"
 	"testing"
 
@@ -19,10 +20,7 @@ func BenchmarkRegressionBaseline(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			resp, _ := benchClient.Get(server.URL + fmt.Sprintf(testsupport.APIResourceByID, 1))
-			if resp != nil {
-				readAndClose(resp)
-			}
+			_, _ = benchClientDo(b, http.MethodGet, server.URL+fmt.Sprintf(testsupport.APIResourceByID, 1), nil, "")
 		}
 	})
 
@@ -30,10 +28,7 @@ func BenchmarkRegressionBaseline(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			resp, _ := benchClient.Get(server.URL + testsupport.APIResources)
-			if resp != nil {
-				readAndClose(resp)
-			}
+			_, _ = benchClientDo(b, http.MethodGet, server.URL+testsupport.APIResources, nil, "")
 		}
 	})
 
@@ -45,10 +40,7 @@ func BenchmarkRegressionBaseline(b *testing.B) {
 			n := atomic.AddUint64(&seq, 1)
 			resources := []testsupport.Resource{{TenantID: 0, Name: fmt.Sprintf("reg-%d", n), Type: "resource"}}
 			bts, _ := json.Marshal(resources)
-			resp, _ := benchClient.Post(server.URL+testsupport.APIBase+"/resources/bulk", common.MimeJSON, bytes.NewReader(bts))
-			if resp != nil {
-				readAndClose(resp)
-			}
+			_, _ = benchClientDo(b, http.MethodPost, server.URL+testsupport.APIBase+"/resources/bulk", bytes.NewReader(bts), common.MimeJSON)
 		}
 	})
 
@@ -59,10 +51,7 @@ func BenchmarkRegressionBaseline(b *testing.B) {
 		b.ResetTimer()
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
-				resp, _ := benchClient.Get(server.URL + testsupport.APIResources)
-				if resp != nil {
-					readAndClose(resp)
-				}
+				_, _ = benchClientDo(b, http.MethodGet, server.URL+testsupport.APIResources, nil, "")
 			}
 		})
 	})

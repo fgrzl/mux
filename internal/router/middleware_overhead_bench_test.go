@@ -1,6 +1,8 @@
 package router
 
 import (
+	"context"
+
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -17,7 +19,7 @@ func BenchmarkMuxNoMiddleware(b *testing.B) {
 	rg := r.NewRouteGroup("")
 	rg.GET("/users/{id}", func(c routing.RouteContext) {})
 
-	req := httptest.NewRequest(http.MethodGet, "/users/123", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/users/123", nil)
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -44,7 +46,7 @@ func BenchmarkMuxWithMiddleware(b *testing.B) {
 	rg := r.NewRouteGroup("")
 	rg.GET("/users/{id}", func(c routing.RouteContext) {})
 
-	req := httptest.NewRequest(http.MethodGet, "/users/123", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/users/123", nil)
 
 	b.ReportAllocs()
 	b.ResetTimer()

@@ -16,11 +16,10 @@ func BenchmarkConnections(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			resp, err := benchClient.Get(server.URL + testsupport.APIResources)
+			_, err := benchClientDo(b, http.MethodGet, server.URL+testsupport.APIResources, nil, "")
 			if err != nil {
 				b.Fatalf("GET failed: %v", err)
 			}
-			readAndClose(resp)
 		}
 	})
 
@@ -34,11 +33,15 @@ func BenchmarkConnections(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			resp, err := noKeepaliveClient.Get(server.URL + testsupport.APIResources)
+			req, err := http.NewRequestWithContext(b.Context(), http.MethodGet, server.URL+testsupport.APIResources, nil)
+			if err != nil {
+				b.Fatalf("NewRequest: %v", err)
+			}
+			resp, err := noKeepaliveClient.Do(req)
 			if err != nil {
 				b.Fatalf("GET failed: %v", err)
 			}
-			readAndClose(resp)
+			_ = readAndClose(resp)
 		}
 	})
 
@@ -47,11 +50,10 @@ func BenchmarkConnections(b *testing.B) {
 		b.ResetTimer()
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
-				resp, err := benchClient.Get(server.URL + testsupport.APIResources)
+				_, err := benchClientDo(b, http.MethodGet, server.URL+testsupport.APIResources, nil, "")
 				if err != nil {
 					b.Fatalf("GET failed: %v", err)
 				}
-				readAndClose(resp)
 			}
 		})
 	})

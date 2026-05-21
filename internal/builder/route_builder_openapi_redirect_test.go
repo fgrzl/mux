@@ -101,7 +101,7 @@ func TestPostRedirectGet303Pattern(t *testing.T) {
 	builder := DetachedRoute(http.MethodPost, "/submit-form").
 		WithSummary("Submit form data").
 		WithDescription("Processes form submission and redirects to result page").
-		WithJsonBody(map[string]string{"data": "example"}).
+		WithJSONBody(map[string]string{"data": "example"}).
 		With303Response(). // POST -> GET redirect
 		WithBadRequestResponse()
 
@@ -124,7 +124,7 @@ func TestAPIVersionRedirect307And308(t *testing.T) {
 	builderV1 := DetachedRoute(http.MethodPost, "/api/v1/users").
 		WithSummary("Create user (v1 - deprecated)").
 		WithDescription("Redirects to v2 endpoint, preserving POST method").
-		WithJsonBody(map[string]string{"name": "example"}).
+		WithJSONBody(map[string]string{"name": "example"}).
 		With307Response()
 
 	optsV1 := builderV1.Options
@@ -136,7 +136,7 @@ func TestAPIVersionRedirect307And308(t *testing.T) {
 	builderV0 := DetachedRoute(http.MethodPost, "/api/v0/users").
 		WithSummary("Create user (v0 - obsolete)").
 		WithDescription("Permanently redirects to v2 endpoint").
-		WithJsonBody(map[string]string{"name": "example"}).
+		WithJSONBody(map[string]string{"name": "example"}).
 		With308Response()
 
 	optsV0 := builderV0.Options
@@ -263,7 +263,7 @@ func TestNamedRedirectMethodsInRealisticScenario(t *testing.T) {
 	// Use WithSeeOtherResponse for POST-Redirect-GET pattern
 	submitBuilder := DetachedRoute(http.MethodPost, "/form").
 		WithSummary("Form submission").
-		WithJsonBody(map[string]string{"data": "example"}).
+		WithJSONBody(map[string]string{"data": "example"}).
 		WithSeeOtherResponse().
 		WithBadRequestResponse()
 
@@ -280,7 +280,7 @@ func TestNamedRedirectMethodsInRealisticScenario(t *testing.T) {
 	// Use WithTemporaryRedirectResponse for API versioning
 	apiV1Builder := DetachedRoute(http.MethodPost, "/api/v1/resource").
 		WithSummary("API v1 (deprecated)").
-		WithJsonBody(map[string]string{"id": "123"}).
+		WithJSONBody(map[string]string{"id": "123"}).
 		WithTemporaryRedirectResponse()
 
 	assert.NotNil(t, apiV1Builder.Options.Responses["307"])
@@ -288,7 +288,7 @@ func TestNamedRedirectMethodsInRealisticScenario(t *testing.T) {
 	// Use WithPermanentRedirectResponse for permanently moved API endpoints
 	apiV0Builder := DetachedRoute(http.MethodPost, "/api/v0/resource").
 		WithSummary("API v0 (obsolete)").
-		WithJsonBody(map[string]string{"id": "123"}).
+		WithJSONBody(map[string]string{"id": "123"}).
 		WithPermanentRedirectResponse()
 
 	assert.NotNil(t, apiV0Builder.Options.Responses["308"])

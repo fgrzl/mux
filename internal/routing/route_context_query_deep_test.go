@@ -1,6 +1,8 @@
 package routing
 
 import (
+	"context"
+
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -28,7 +30,7 @@ func TestShouldCoerceShallowDeepObjectBySchema(t *testing.T) {
 	vals.Set("user.city", "Paris")
 	vals.Set("user[tags]", "1,2")
 
-	req := httptest.NewRequest(http.MethodGet, "/?"+vals.Encode(), nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/?"+vals.Encode(), nil)
 	rr := httptest.NewRecorder()
 
 	c := NewRouteContext(rr, req)
@@ -38,7 +40,7 @@ func TestShouldCoerceShallowDeepObjectBySchema(t *testing.T) {
 	}}
 	po := &openapi.ParameterObject{Name: "user", In: "query", Schema: userSchema}
 	opts := &RouteOptions{}
-	opts.Operation.Parameters = []*openapi.ParameterObject{po}
+	opts.Parameters = []*openapi.ParameterObject{po}
 	opts.ParamIndex = BuildParamIndex([]*openapi.ParameterObject{po})
 	c.SetOptions(opts)
 
@@ -62,7 +64,7 @@ func TestShouldCoerceNestedDeepObjectLeavesBySchema(t *testing.T) {
 	vals.Set("user.address.city", "Paris")
 	vals.Set("user[address][tags]", "1,2")
 
-	req := httptest.NewRequest(http.MethodGet, "/?"+vals.Encode(), nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/?"+vals.Encode(), nil)
 	rr := httptest.NewRecorder()
 
 	c := NewRouteContext(rr, req)
@@ -74,7 +76,7 @@ func TestShouldCoerceNestedDeepObjectLeavesBySchema(t *testing.T) {
 	}}
 	po := &openapi.ParameterObject{Name: "user", In: "query", Schema: userSchema}
 	opts := &RouteOptions{}
-	opts.Operation.Parameters = []*openapi.ParameterObject{po}
+	opts.Parameters = []*openapi.ParameterObject{po}
 	opts.ParamIndex = BuildParamIndex([]*openapi.ParameterObject{po})
 	c.SetOptions(opts)
 
@@ -101,14 +103,14 @@ func TestShouldCoerceNestedLeavesWithExampleOnly(t *testing.T) {
 	vals.Add("user.address.tags", "3")
 	vals.Add("user.address.tags", "4")
 
-	req := httptest.NewRequest(http.MethodGet, "/?"+vals.Encode(), nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/?"+vals.Encode(), nil)
 	rr := httptest.NewRecorder()
 
 	c := NewRouteContext(rr, req)
 	ex := &userExample{Address: address{City: "", Tags: []int{}}}
 	po := &openapi.ParameterObject{Name: "user", In: "query", Example: ex}
 	opts := &RouteOptions{}
-	opts.Operation.Parameters = []*openapi.ParameterObject{po}
+	opts.Parameters = []*openapi.ParameterObject{po}
 	opts.ParamIndex = BuildParamIndex([]*openapi.ParameterObject{po})
 	c.SetOptions(opts)
 
@@ -132,7 +134,7 @@ func TestShouldMergeNestedObjectAcrossQueryAndJSONBody(t *testing.T) {
 	// Arrange
 	vals := url.Values{}
 	vals.Set("user.address.city", "Paris")
-	req := httptest.NewRequest(http.MethodPost, "/?"+vals.Encode(), strings.NewReader(`{"user":{"address":{"postal":"75001"}}}`))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/?"+vals.Encode(), strings.NewReader(`{"user":{"address":{"postal":"75001"}}}`))
 	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rr := httptest.NewRecorder()
 

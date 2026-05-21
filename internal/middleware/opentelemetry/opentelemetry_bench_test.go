@@ -1,6 +1,8 @@
 package opentelemetry
 
 import (
+	"context"
+
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -30,7 +32,7 @@ func benchOtel(b *testing.B, pooled bool) {
 		_, _ = c.Response().Write([]byte("ok"))
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/ok", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/ok", nil)
 
 	b.ReportAllocs()
 	b.ResetTimer()

@@ -70,7 +70,7 @@ func fileExists(path string) bool {
 func runGoCommand(t *testing.T, dir string, args ...string) {
 	t.Helper()
 
-	cmd := exec.Command("go", args...)
+	cmd := exec.CommandContext(t.Context(), "go", args...)
 	cmd.Dir = dir
 	cmd.Env = os.Environ()
 

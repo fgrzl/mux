@@ -1,6 +1,8 @@
 package routing
 
 import (
+	"context"
+
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -47,7 +49,7 @@ func (ro *RouteOptions) WithPathParam(name string, example any) *RouteOptions {
 
 func TestShouldBindParseQueryParamAsInteger(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/?limit=10", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/?limit=10", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 
@@ -69,7 +71,7 @@ func TestShouldBindParseQueryParamAsInteger(t *testing.T) {
 
 func TestShouldBindParseHeaderParamAsInteger(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/", nil)
 	req.Header.Set("X-Count", "42")
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
@@ -92,7 +94,7 @@ func TestShouldBindParseHeaderParamAsInteger(t *testing.T) {
 
 func TestShouldBindParsePathParamAsUUID(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/items/550e8400-e29b-41d4-a716-446655440000", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/items/550e8400-e29b-41d4-a716-446655440000", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 
@@ -120,7 +122,7 @@ func TestShouldBindParsePathParamAsUUID(t *testing.T) {
 func TestShouldPreserveTypedValuesGivenMapTarget(t *testing.T) {
 	// Arrange
 	id := uuid.New()
-	req := httptest.NewRequest(http.MethodPost, "/items/"+id.String()+"?limit=10", strings.NewReader(`{"name":"alice"}`))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/items/"+id.String()+"?limit=10", strings.NewReader(`{"name":"alice"}`))
 	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	req.Header.Set("X-Enabled", "true")
 	rec := httptest.NewRecorder()
@@ -152,7 +154,7 @@ func TestShouldPreserveTypedValuesGivenMapTarget(t *testing.T) {
 // Numeric type tests
 func TestShouldBindParseQueryInt(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/?i=1", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/?i=1", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	rb := Route("GET", "/").WithQueryParam("i", 1)
@@ -172,7 +174,7 @@ func TestShouldBindParseQueryInt(t *testing.T) {
 
 func TestShouldBindParseQueryInt16(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/?i16=16", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/?i16=16", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	rb := Route("GET", "/").WithQueryParam("i16", int16(16))
@@ -192,7 +194,7 @@ func TestShouldBindParseQueryInt16(t *testing.T) {
 
 func TestShouldBindParseQueryInt32(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/?i32=32000", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/?i32=32000", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	rb := Route("GET", "/").WithQueryParam("i32", int32(32000))
@@ -212,7 +214,7 @@ func TestShouldBindParseQueryInt32(t *testing.T) {
 
 func TestShouldBindParseQueryInt64(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/?i64=64000000000", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/?i64=64000000000", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	rb := Route("GET", "/").WithQueryParam("i64", int64(64000000000))
@@ -232,7 +234,7 @@ func TestShouldBindParseQueryInt64(t *testing.T) {
 
 func TestShouldBindParseQueryUint(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/?u=7", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/?u=7", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	rb := Route("GET", "/").WithQueryParam("u", uint(7))
@@ -252,7 +254,7 @@ func TestShouldBindParseQueryUint(t *testing.T) {
 
 func TestShouldBindParseQueryFloat32(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/?f32=1.5", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/?f32=1.5", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	rb := Route("GET", "/").WithQueryParam("f32", float32(1.5))
@@ -272,7 +274,7 @@ func TestShouldBindParseQueryFloat32(t *testing.T) {
 
 func TestShouldBindParseQueryFloat64(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/?f64=2.5", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/?f64=2.5", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	rb := Route("GET", "/").WithQueryParam("f64", float64(2.5))
@@ -292,7 +294,7 @@ func TestShouldBindParseQueryFloat64(t *testing.T) {
 
 func TestShouldBindParseHeaderInt64(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/", nil)
 	req.Header.Set("X-Int64", "9223372036854775807")
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
@@ -313,7 +315,7 @@ func TestShouldBindParseHeaderInt64(t *testing.T) {
 
 func TestShouldBindParseHeaderUint(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/", nil)
 	req.Header.Set("X-Uint", "123")
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
@@ -334,7 +336,7 @@ func TestShouldBindParseHeaderUint(t *testing.T) {
 
 func TestShouldBindParsePathInt64(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/items/12345", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/items/12345", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	params := &Params{}
@@ -357,7 +359,7 @@ func TestShouldBindParsePathInt64(t *testing.T) {
 
 func TestShouldBindParseQueryIntSlice(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/?a=1&a=2&a=3", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/?a=1&a=2&a=3", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	rb := Route("GET", "/").WithQueryParam("a", []int{1})
@@ -377,7 +379,7 @@ func TestShouldBindParseQueryIntSlice(t *testing.T) {
 
 func TestShouldBindParseQueryStringSlice(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/?s=hello&s=world", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/?s=hello&s=world", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	rb := Route("GET", "/").WithQueryParam("s", []string{"x"})
@@ -397,7 +399,7 @@ func TestShouldBindParseQueryStringSlice(t *testing.T) {
 
 func TestShouldReturnErrorForInvalidIntQueryParam(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/?i=notanint", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/?i=notanint", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	rb := Route("GET", "/").WithQueryParam("i", 1)
@@ -416,7 +418,7 @@ func TestShouldReturnErrorForInvalidIntQueryParam(t *testing.T) {
 
 func TestShouldReturnErrorForIntegerOverflow(t *testing.T) {
 	// Arrange: int32 overflow value
-	req := httptest.NewRequest("GET", "/?i=99999999999999999999", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/?i=99999999999999999999", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	rb := Route("GET", "/").WithQueryParam("i", int32(0))
@@ -435,7 +437,7 @@ func TestShouldReturnErrorForIntegerOverflow(t *testing.T) {
 
 func TestShouldReturnErrorForHeaderCommaListWhenExpectingSlice(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/", nil)
 	req.Header.Set("X-List", "a,b,c")
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
@@ -456,7 +458,7 @@ func TestShouldReturnErrorForHeaderCommaListWhenExpectingSlice(t *testing.T) {
 
 func TestShouldSplitCommaSeparatedHeaderIntoSlice(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/", nil)
 	req.Header.Set("X-List", "a,b,c")
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
@@ -477,7 +479,7 @@ func TestShouldSplitCommaSeparatedHeaderIntoSlice(t *testing.T) {
 
 func TestShouldSplitCommaSeparatedQueryIntoSlice(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/?tags=a,b,c", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/?tags=a,b,c", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	rb := Route("GET", "/").WithQueryParam("tags", []string{"x"})
@@ -497,7 +499,7 @@ func TestShouldSplitCommaSeparatedQueryIntoSlice(t *testing.T) {
 
 func TestShouldSplitQuotedCommaSeparatedQueryIntoSlice(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/?tags=%22a,b%22,c", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/?tags=%22a,b%22,c", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	rb := Route("GET", "/").WithQueryParam("tags", []string{"x"})
@@ -517,7 +519,7 @@ func TestShouldSplitQuotedCommaSeparatedQueryIntoSlice(t *testing.T) {
 
 func TestShouldBindDotNotationToNestedStruct(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/?user.name=alice&user.age=30", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/?user.name=alice&user.age=30", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	// declare the root parameter as an object so the generator/schema knows property types
@@ -545,7 +547,7 @@ func TestShouldBindDotNotationToNestedStruct(t *testing.T) {
 
 func TestShouldBindBracketNotationToNestedStruct(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest("GET", "/?user[name]=bob&user[age]=25", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/?user[name]=bob&user[age]=25", nil)
 	rec := httptest.NewRecorder()
 	ctx := NewRouteContext(rec, req)
 	rb := Route("GET", "/").WithQueryParam("user", struct {

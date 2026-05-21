@@ -123,6 +123,8 @@ func (m *CORSMiddleware) Invoke(c mux.MutableRouteContext, next mux.HandlerFunc)
 }
 ```
 
+In mux, browser preflight on a path that exists for another method is handled specially before the router writes its fallback 405. Ordinary method mismatches still bypass the main middleware pipeline, so if you also have middleware that can reject requests, register CORS early for matched routes and rely on the built-in preflight handling for method mismatches.
+
 ## Error Handling Middleware
 
 ```go

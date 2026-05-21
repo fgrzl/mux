@@ -100,10 +100,10 @@ func (m *loggingMiddleware) Invoke(c routing.RouteContext, next router.HandlerFu
 
 // sanitizeForLog applies HTML escaping and truncates long values to a sane length.
 func sanitizeForLog(s string) string {
-	const max = 256
+	const maxSanitizeLen = 256
 	esc := html.EscapeString(s)
-	if len(esc) > max {
-		return esc[:max] + "..."
+	if len(esc) > maxSanitizeLen {
+		return esc[:maxSanitizeLen] + "..."
 	}
 	return esc
 }

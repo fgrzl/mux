@@ -1,6 +1,8 @@
 package exportcontrol
 
 import (
+	"context"
+
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -51,7 +53,7 @@ func TestShouldAddExportControlMiddlewareToRouter(t *testing.T) {
 
 	// Register a simple route and make a request to ensure middleware runs
 	rtr.GET("/test", func(c routing.RouteContext) { _, _ = c.Response().Write([]byte("ok")) })
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	rtr.ServeHTTP(rec, req)
 
@@ -65,7 +67,7 @@ func TestShouldAllowAccessWhenNoDatabaseConfigured(t *testing.T) {
 		options: &ExportControlOptions{DB: nil},
 	}
 	// Safe: loopback address for testing
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	req.RemoteAddr = loopbackAddr
 	rec := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(rec, req)
@@ -89,7 +91,7 @@ func TestShouldAllowAccessWhenIPCannotBeParsed(t *testing.T) {
 		options: &ExportControlOptions{DB: nil}, // Even with DB, invalid IP should pass through
 	}
 	// Safe: loopback address for testing
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	req.RemoteAddr = invalidIP
 	rec := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(rec, req)
@@ -108,7 +110,7 @@ func TestShouldAllowAccessWhenIPCannotBeParsed(t *testing.T) {
 
 func TestShouldReturnXForwardedForGivenGetRealIP(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	req.Header.Set(forwardedForHeader, forwardedForList)
 	// Safe: loopback address for testing
 	req.RemoteAddr = loopbackAddr
@@ -122,7 +124,7 @@ func TestShouldReturnXForwardedForGivenGetRealIP(t *testing.T) {
 
 func TestShouldReturnXRealIPGivenGetRealIP(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	req.Header.Set(realIPHeader, realIP)
 	// Safe: loopback address for testing
 	req.RemoteAddr = loopbackAddr
@@ -136,7 +138,7 @@ func TestShouldReturnXRealIPGivenGetRealIP(t *testing.T) {
 
 func TestShouldPreferXForwardedForGivenBothHeadersWhenGettingRealIP(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	req.Header.Set(forwardedForHeader, forwardedForIP)
 	req.Header.Set(realIPHeader, realIP)
 	// Safe: loopback address for testing
@@ -151,7 +153,7 @@ func TestShouldPreferXForwardedForGivenBothHeadersWhenGettingRealIP(t *testing.T
 
 func TestShouldReturnRemoteAddrGivenNoHeadersWhenGettingRealIP(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	// Safe: loopback address for testing
 	req.RemoteAddr = loopbackAddr
 
@@ -164,7 +166,7 @@ func TestShouldReturnRemoteAddrGivenNoHeadersWhenGettingRealIP(t *testing.T) {
 
 func TestShouldReturnRemoteAddrGivenCannotSplitWhenGettingRealIP(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	// Safe: loopback address for testing
 	req.RemoteAddr = loopbackIP // No port
 
@@ -177,7 +179,7 @@ func TestShouldReturnRemoteAddrGivenCannotSplitWhenGettingRealIP(t *testing.T) {
 
 func TestShouldHandleXForwardedForWithSpacesGivenGetRealIP(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	req.Header.Set(forwardedForHeader, forwardedForListW)
 	// Safe: loopback address for testing
 	req.RemoteAddr = loopbackAddr
@@ -226,7 +228,7 @@ func TestShouldHandleMultipleExportControlOptions(t *testing.T) {
 
 	// Register a route and make a request to ensure middleware doesn't panic and allows access
 	rtr.GET("/test", func(c routing.RouteContext) { _, _ = c.Response().Write([]byte("ok")) })
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	rtr.ServeHTTP(rec, req)
 
@@ -235,7 +237,7 @@ func TestShouldHandleMultipleExportControlOptions(t *testing.T) {
 
 func TestShouldHandleEmptyXForwardedFor(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	req.Header.Set(forwardedForHeader, "")
 	req.Header.Set(realIPHeader, realIP)
 	// Safe: loopback address for testing
@@ -250,7 +252,7 @@ func TestShouldHandleEmptyXForwardedFor(t *testing.T) {
 
 func TestShouldHandleEmptyXRealIP(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	req.Header.Set(realIPHeader, "")
 	// Safe: loopback address for testing
 	req.RemoteAddr = loopbackAddr
@@ -270,7 +272,7 @@ func TestShouldProcessRequestWhenGeoLookupFails(t *testing.T) {
 		options: &ExportControlOptions{DB: nil},
 	}
 	// Safe: loopback address for testing
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	req.RemoteAddr = loopbackAddr // Valid IP but no DB
 	rec := httptest.NewRecorder()
 	ctx := routing.NewRouteContext(rec, req)

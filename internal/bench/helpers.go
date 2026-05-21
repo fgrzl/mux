@@ -1,6 +1,8 @@
 package bench
 
 import (
+	"context"
+
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -18,7 +20,7 @@ func BuildDeepPath(n int) string {
 
 // NewRecorderRequest returns a recorder and request for the given method and path.
 func NewRecorderRequest(method, path string) (*httptest.ResponseRecorder, *http.Request) {
-	req := httptest.NewRequest(method, path, nil)
+	req := httptest.NewRequestWithContext(context.Background(), method, path, nil)
 	rr := httptest.NewRecorder()
 	return rr, req
 }

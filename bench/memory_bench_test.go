@@ -1,6 +1,8 @@
 package bench
 
 import (
+	"context"
+
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -32,11 +34,10 @@ func BenchmarkMemoryPressure(b *testing.B) {
 				}
 			}
 			bts, _ := json.Marshal(resources)
-			resp, err := benchClient.Post(server.URL+testsupport.APIBase+"/resources/bulk", common.MimeJSON, bytes.NewReader(bts))
+			_, err := benchClientDo(b, http.MethodPost, server.URL+testsupport.APIBase+"/resources/bulk", bytes.NewReader(bts), common.MimeJSON)
 			if err != nil {
 				b.Fatalf("POST failed: %v", err)
 			}
-			readAndClose(resp)
 		}
 	})
 
@@ -53,13 +54,13 @@ func BenchmarkMemoryPressure(b *testing.B) {
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
-			req, _ := http.NewRequest("PUT", server.URL+fmt.Sprintf(testsupport.APIResourceMetadata, 1), bytes.NewReader(bts))
+			req, _ := http.NewRequestWithContext(context.Background(), "PUT", server.URL+fmt.Sprintf(testsupport.APIResourceMetadata, 1), bytes.NewReader(bts))
 			req.Header.Set(common.HeaderContentType, common.MimeJSON)
 			resp, err := benchClient.Do(req)
 			if err != nil {
 				b.Fatalf("PUT failed: %v", err)
 			}
-			readAndClose(resp)
+			_ = readAndClose(resp)
 		}
 	})
 
@@ -67,11 +68,10 @@ func BenchmarkMemoryPressure(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			resp, err := benchClient.Get(server.URL + testsupport.APIResources)
+			_, err := benchClientDo(b, http.MethodGet, server.URL+testsupport.APIResources, nil, "")
 			if err != nil {
 				b.Fatalf("GET failed: %v", err)
 			}
-			readAndClose(resp)
 			if i%100 == 0 {
 				runtime.GC()
 			}

@@ -49,7 +49,7 @@ func TestDocsShouldNotUseStalePublicAPINames(t *testing.T) {
 			return nil
 		}
 
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(path) //nolint:gosec // G122: paths come from filepath.WalkDir over the repo tree in a test-only API scan.
 		if err != nil {
 			return err
 		}

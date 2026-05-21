@@ -1,6 +1,8 @@
 package router
 
 import (
+	"context"
+
 	"net/http/httptest"
 	"testing"
 
@@ -9,7 +11,7 @@ import (
 
 // BenchmarkNewRouteContextAlloc benchmarks allocating a fresh context per request via NewRouteContext.
 func BenchmarkNewRouteContextAlloc(b *testing.B) {
-	req := httptest.NewRequest("GET", "/users/42", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/users/42", nil)
 	rr := httptest.NewRecorder()
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -21,7 +23,7 @@ func BenchmarkNewRouteContextAlloc(b *testing.B) {
 
 // BenchmarkAcquireContextPool benchmarks reusing a context from the pool with AcquireContext/ReleaseContext.
 func BenchmarkAcquireContextPool(b *testing.B) {
-	req := httptest.NewRequest("GET", "/users/42", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/users/42", nil)
 	rr := httptest.NewRecorder()
 	b.ReportAllocs()
 	b.ResetTimer()

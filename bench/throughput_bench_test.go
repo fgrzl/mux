@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -22,11 +23,10 @@ func BenchmarkThroughput(b *testing.B) {
 
 		start := time.Now()
 		for i := 0; i < b.N; i++ {
-			resp, err := benchClient.Get(server.URL + testsupport.APIResources)
+			_, err := benchClientDo(b, http.MethodGet, server.URL+testsupport.APIResources, nil, "")
 			if err != nil {
 				b.Fatalf("GET failed: %v", err)
 			}
-			readAndClose(resp)
 		}
 		elapsed := time.Since(start)
 		b.ReportMetric(float64(b.N)/elapsed.Seconds(), "req/s")
@@ -39,11 +39,10 @@ func BenchmarkThroughput(b *testing.B) {
 		start := time.Now()
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
-				resp, err := benchClient.Get(server.URL + testsupport.APIResources)
+				_, err := benchClientDo(b, http.MethodGet, server.URL+testsupport.APIResources, nil, "")
 				if err != nil {
 					b.Fatalf("GET failed: %v", err)
 				}
-				readAndClose(resp)
 			}
 		})
 		elapsed := time.Since(start)
@@ -66,21 +65,12 @@ func BenchmarkThroughput(b *testing.B) {
 					n := atomic.AddUint64(&seq, 1)
 					resources := []testsupport.Resource{{TenantID: 0, Name: fmt.Sprintf("t-%d", n), Type: "resource"}}
 					bts, _ := json.Marshal(resources)
-					resp, _ := benchClient.Post(server.URL+testsupport.APIBase+"/resources/bulk", common.MimeJSON, bytes.NewReader(bts))
-					if resp != nil {
-						readAndClose(resp)
-					}
+					_, _ = benchClientDo(b, http.MethodPost, server.URL+testsupport.APIBase+"/resources/bulk", bytes.NewReader(bts), common.MimeJSON)
 				case 1, 2: // Search
-					resp, _ := benchClient.Get(server.URL + testsupport.APIBase + "/resources/search?type=resource")
-					if resp != nil {
-						readAndClose(resp)
-					}
+					_, _ = benchClientDo(b, http.MethodGet, server.URL+testsupport.APIBase+"/resources/search?type=resource", nil, "")
 				default: // Read
 					id := (local % 10) + 1
-					resp, _ := benchClient.Get(server.URL + fmt.Sprintf(testsupport.APIResourceByID, id))
-					if resp != nil {
-						readAndClose(resp)
-					}
+					_, _ = benchClientDo(b, http.MethodGet, server.URL+fmt.Sprintf(testsupport.APIResourceByID, id), nil, "")
 				}
 			}
 		})

@@ -15,7 +15,7 @@ import (
 type OpenAPISpec struct {
 	OpenAPI           string                 `json:"openapi" yaml:"openapi"`
 	Info              *InfoObject            `json:"info" yaml:"info"`
-	JsonSchemaDialect string                 `json:"jsonSchemaDialect,omitempty" yaml:"jsonSchemaDialect,omitempty"`
+	JSONSchemaDialect string                 `json:"jsonSchemaDialect,omitempty" yaml:"jsonSchemaDialect,omitempty"`
 	Servers           []*ServerObject        `json:"servers,omitempty" yaml:"servers,omitempty"`
 	Paths             map[string]*PathItem   `json:"paths" yaml:"paths"`
 	Webhooks          map[string]*PathItem   `json:"webhooks,omitempty" yaml:"webhooks,omitempty"`
@@ -23,13 +23,13 @@ type OpenAPISpec struct {
 	Security          []*SecurityRequirement `json:"security,omitempty" yaml:"security,omitempty"`
 	Tags              []*TagObject           `json:"tags,omitempty" yaml:"tags,omitempty"`
 	ExternalDocs      *ExternalDocumentation `json:"externalDocs,omitempty" yaml:"externalDocs,omitempty"`
-	Extensions        map[string]any         `json:"-,inline" yaml:"-,inline"`
+	Extensions        map[string]any         `json:"-" yaml:"-,inline"`
 }
 
 func NewOpenAPISpec() *OpenAPISpec {
 	return &OpenAPISpec{
 		OpenAPI:           "3.1.0",
-		JsonSchemaDialect: "https://json-schema.org/draft/2020-12/schema",
+		JSONSchemaDialect: "https://json-schema.org/draft/2020-12/schema",
 		Info:              &InfoObject{Version: "1.0.0"},
 		Paths:             make(map[string]*PathItem),
 		Servers:           []*ServerObject{{URL: "/"}},
@@ -86,17 +86,17 @@ func (spec *OpenAPISpec) MarshalToFile(path string) error {
 		if err != nil {
 			return fmt.Errorf("marshaling to JSON: %w", err)
 		}
-		return os.WriteFile(path, data, 0644)
+		return os.WriteFile(path, data, 0600)
 	case ".yml", ".yaml":
-		file, err := os.Create(path)
+		file, err := os.Create(path) //nolint:gosec // G304: caller supplies the output path for MarshalToFile
 		if err != nil {
 			return fmt.Errorf("creating file %q: %w", path, err)
 		}
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 
 		enc := yaml.NewEncoder(file)
 		enc.SetIndent(2)
-		defer enc.Close()
+		defer func() { _ = enc.Close() }()
 		return enc.Encode(spec)
 	default:
 		return fmt.Errorf("unsupported file extension: %s", ext)
@@ -106,7 +106,7 @@ func (spec *OpenAPISpec) MarshalToFile(path string) error {
 // UnmarshalFromFile reads a JSON or YAML OpenAPI document from the given path
 // and unmarshals it into the spec receiver.
 func (spec *OpenAPISpec) UnmarshalFromFile(path string) error {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // G304: caller supplies the document path for UnmarshalFromFile
 	if err != nil {
 		return fmt.Errorf("reading file %q: %w", path, err)
 	}
@@ -135,7 +135,7 @@ type InfoObject struct {
 	Contact        *ContactObject `json:"contact,omitempty" yaml:"contact,omitempty"`
 	License        *LicenseObject `json:"license,omitempty" yaml:"license,omitempty"`
 	Version        string         `json:"version" yaml:"version"`
-	Extensions     map[string]any `json:"-,inline" yaml:"-,inline"`
+	Extensions     map[string]any `json:"-" yaml:"-,inline"`
 }
 
 // PathItem, Operation, ParameterObject, RequestBodyObject, ResponseObject, MediaType, Schema and others
@@ -155,7 +155,7 @@ type PathItem struct {
 	Trace       *Operation         `json:"trace,omitempty" yaml:"trace,omitempty"`
 	Parameters  []*ParameterObject `json:"parameters,omitempty" yaml:"parameters,omitempty"`
 	Servers     []*ServerObject    `json:"servers,omitempty" yaml:"servers,omitempty"`
-	Extensions  map[string]any     `json:"-,inline" yaml:"-,inline"`
+	Extensions  map[string]any     `json:"-" yaml:"-,inline"`
 }
 
 type Operation struct {
@@ -171,7 +171,7 @@ type Operation struct {
 	Deprecated   bool                       `json:"deprecated,omitempty" yaml:"deprecated,omitempty"`
 	Security     []*SecurityRequirement     `json:"security,omitempty" yaml:"security,omitempty"`
 	Servers      []*ServerObject            `json:"servers,omitempty" yaml:"servers,omitempty"`
-	Extensions   map[string]any             `json:"-,inline" yaml:"-,inline"`
+	Extensions   map[string]any             `json:"-" yaml:"-,inline"`
 }
 
 // ParameterObject defines a parameter for an operation or path.
@@ -189,7 +189,7 @@ type ParameterObject struct {
 	Example         any                       `json:"example,omitempty" yaml:"example,omitempty"`
 	Examples        map[string]*ExampleObject `json:"examples,omitempty" yaml:"examples,omitempty"`
 	Content         map[string]*MediaType     `json:"content,omitempty" yaml:"content,omitempty"`
-	Extensions      map[string]*any           `json:"-,inline" yaml:"-,inline"`
+	Extensions      map[string]*any           `json:"-" yaml:"-,inline"`
 	// Converter is runtime-only and not serialized.
 	Converter func(values []string) (any, error) `json:"-" yaml:"-"`
 }
@@ -198,7 +198,7 @@ type RequestBodyObject struct {
 	Description string                `json:"description,omitempty" yaml:"description,omitempty"`
 	Content     map[string]*MediaType `json:"content" yaml:"content"`
 	Required    bool                  `json:"required,omitempty" yaml:"required,omitempty"`
-	Extensions  map[string]any        `json:"-,inline" yaml:"-,inline"`
+	Extensions  map[string]any        `json:"-" yaml:"-,inline"`
 }
 
 type ResponseObject struct {
@@ -206,7 +206,7 @@ type ResponseObject struct {
 	Headers     map[string]*HeaderObject `json:"headers,omitempty" yaml:"headers,omitempty"`
 	Content     map[string]*MediaType    `json:"content,omitempty" yaml:"content,omitempty"`
 	Links       map[string]*LinkObject   `json:"links,omitempty" yaml:"links,omitempty"`
-	Extensions  map[string]any           `json:"-,inline" yaml:"-,inline"`
+	Extensions  map[string]any           `json:"-" yaml:"-,inline"`
 }
 
 type MediaType struct {
@@ -214,7 +214,7 @@ type MediaType struct {
 	Example    any                        `json:"example,omitempty" yaml:"example,omitempty"`
 	Examples   map[string]*ExampleObject  `json:"examples,omitempty" yaml:"examples,omitempty"`
 	Encoding   map[string]*EncodingObject `json:"encoding,omitempty" yaml:"encoding,omitempty"`
-	Extensions map[string]any             `json:"-,inline" yaml:"-,inline"`
+	Extensions map[string]any             `json:"-" yaml:"-,inline"`
 }
 
 // Schema represents a JSON Schema or a reference to one.
@@ -256,7 +256,7 @@ type ComponentsObject struct {
 	SecuritySchemes map[string]*SecurityScheme    `json:"securitySchemes,omitempty" yaml:"securitySchemes,omitempty"`
 	Links           map[string]*LinkObject        `json:"links,omitempty" yaml:"links,omitempty"`
 	PathItems       map[string]any                `json:"pathItems,omitempty" yaml:"pathItems,omitempty"`
-	Extensions      map[string]any                `json:"-,inline" yaml:"-,inline"`
+	Extensions      map[string]any                `json:"-" yaml:"-,inline"`
 }
 
 type HeaderObject struct {
@@ -267,7 +267,7 @@ type HeaderObject struct {
 	Example     any                   `json:"example,omitempty" yaml:"example,omitempty"`
 	Examples    map[string]any        `json:"examples,omitempty" yaml:"examples,omitempty"`
 	Content     map[string]*MediaType `json:"content,omitempty" yaml:"content,omitempty"`
-	Extensions  map[string]any        `json:"-,inline" yaml:"-,inline"`
+	Extensions  map[string]any        `json:"-" yaml:"-,inline"`
 }
 
 type ExampleObject struct {
@@ -275,7 +275,7 @@ type ExampleObject struct {
 	Description   string         `json:"description,omitempty" yaml:"description,omitempty"`
 	Value         any            `json:"value,omitempty" yaml:"value,omitempty"`
 	ExternalValue string         `json:"externalValue,omitempty" yaml:"externalValue,omitempty"`
-	Extensions    map[string]any `json:"-,inline" yaml:"-,inline"`
+	Extensions    map[string]any `json:"-" yaml:"-,inline"`
 }
 
 type EncodingObject struct {
@@ -284,7 +284,7 @@ type EncodingObject struct {
 	Style         string                   `json:"style,omitempty" yaml:"style,omitempty"`
 	Explode       bool                     `json:"explode,omitempty" yaml:"explode,omitempty"`
 	AllowReserved bool                     `json:"allowReserved,omitempty" yaml:"allowReserved,omitempty"`
-	Extensions    map[string]any           `json:"-,inline" yaml:"-,inline"`
+	Extensions    map[string]any           `json:"-" yaml:"-,inline"`
 }
 
 type LinkObject struct {
@@ -294,7 +294,7 @@ type LinkObject struct {
 	RequestBody  any            `json:"requestBody,omitempty" yaml:"requestBody,omitempty"`
 	Description  string         `json:"description,omitempty" yaml:"description,omitempty"`
 	Server       *ServerObject  `json:"server,omitempty" yaml:"server,omitempty"`
-	Extensions   map[string]any `json:"-,inline" yaml:"-,inline"`
+	Extensions   map[string]any `json:"-" yaml:"-,inline"`
 }
 
 type SecurityRequirement map[string]any
@@ -303,34 +303,34 @@ type ServerObject struct {
 	URL         string                     `json:"url" yaml:"url"`
 	Description string                     `json:"description,omitempty" yaml:"description,omitempty"`
 	Variables   map[string]*ServerVariable `json:"variables,omitempty" yaml:"variables,omitempty"`
-	Extensions  map[string]any             `json:"-,inline" yaml:"-,inline"`
+	Extensions  map[string]any             `json:"-" yaml:"-,inline"`
 }
 
 type ServerVariable struct {
 	Enum        []string       `json:"enum,omitempty" yaml:"enum,omitempty"`
 	Default     string         `json:"default" yaml:"default"`
 	Description string         `json:"description,omitempty" yaml:"description,omitempty"`
-	Extensions  map[string]any `json:"-,inline" yaml:"-,inline"`
+	Extensions  map[string]any `json:"-" yaml:"-,inline"`
 }
 
 type ExternalDocumentation struct {
 	Description string         `json:"description,omitempty" yaml:"description,omitempty"`
 	URL         string         `json:"url" yaml:"url"`
-	Extensions  map[string]any `json:"-,inline" yaml:"-,inline"`
+	Extensions  map[string]any `json:"-" yaml:"-,inline"`
 }
 
 type ContactObject struct {
 	Name       string         `json:"name,omitempty" yaml:"name,omitempty"`
 	URL        string         `json:"url,omitempty" yaml:"url,omitempty"`
 	Email      string         `json:"email,omitempty" yaml:"email"`
-	Extensions map[string]any `json:"-,inline" yaml:"-,inline"`
+	Extensions map[string]any `json:"-" yaml:"-,inline"`
 }
 
 type LicenseObject struct {
 	Name       string         `json:"name" yaml:"name"`
 	Identifier string         `json:"identifier,omitempty" yaml:"identifier,omitempty"`
 	URL        string         `json:"url,omitempty" yaml:"url,omitempty"`
-	Extensions map[string]any `json:"-,inline" yaml:"-,inline"`
+	Extensions map[string]any `json:"-" yaml:"-,inline"`
 }
 
 type SecurityScheme struct {
@@ -341,8 +341,8 @@ type SecurityScheme struct {
 	Scheme           string            `json:"scheme,omitempty" yaml:"scheme,omitempty"`
 	BearerFormat     string            `json:"bearerFormat,omitempty" yaml:"bearerFormat,omitempty"`
 	Flows            *OAuthFlowsObject `json:"flows,omitempty" yaml:"flows,omitempty"`
-	OpenIdConnectUrl string            `json:"openIdConnectUrl,omitempty" yaml:"openIdConnectUrl,omitempty"`
-	Extensions       map[string]any    `json:"-,inline" yaml:"-,inline"`
+	OpenIDConnectURL string            `json:"openIdConnectUrl,omitempty" yaml:"openIdConnectUrl,omitempty"`
+	Extensions       map[string]any    `json:"-" yaml:"-,inline"`
 }
 
 type OAuthFlowsObject struct {
@@ -350,20 +350,20 @@ type OAuthFlowsObject struct {
 	Password          *OAuthFlowObject `json:"password,omitempty" yaml:"password,omitempty"`
 	ClientCredentials *OAuthFlowObject `json:"clientCredentials,omitempty" yaml:"clientCredentials,omitempty"`
 	AuthorizationCode *OAuthFlowObject `json:"authorizationCode,omitempty" yaml:"authorizationCode,omitempty"`
-	Extensions        map[string]any   `json:"-,inline" yaml:"-,inline"`
+	Extensions        map[string]any   `json:"-" yaml:"-,inline"`
 }
 
 type OAuthFlowObject struct {
-	AuthorizationUrl string            `json:"authorizationUrl,omitempty" yaml:"authorizationUrl,omitempty"`
-	TokenUrl         string            `json:"tokenUrl,omitempty" yaml:"tokenUrl,omitempty"`
-	RefreshUrl       string            `json:"refreshUrl,omitempty" yaml:"refreshUrl,omitempty"`
+	AuthorizationURL string            `json:"authorizationUrl,omitempty" yaml:"authorizationUrl,omitempty"`
+	TokenURL         string            `json:"tokenUrl,omitempty" yaml:"tokenUrl,omitempty"`
+	RefreshURL       string            `json:"refreshUrl,omitempty" yaml:"refreshUrl,omitempty"`
 	Scopes           map[string]string `json:"scopes,omitempty" yaml:"scopes,omitempty"`
-	Extensions       map[string]any    `json:"-,inline" yaml:"-,inline"`
+	Extensions       map[string]any    `json:"-" yaml:"-,inline"`
 }
 
 type TagObject struct {
 	Name         string                 `json:"name" yaml:"name"`
 	Description  string                 `json:"description,omitempty" yaml:"description,omitempty"`
 	ExternalDocs *ExternalDocumentation `json:"externalDocs,omitempty" yaml:"externalDocs,omitempty"`
-	Extensions   map[string]any         `json:"-,inline" yaml:"-,inline"`
+	Extensions   map[string]any         `json:"-" yaml:"-,inline"`
 }

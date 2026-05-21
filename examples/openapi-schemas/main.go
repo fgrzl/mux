@@ -65,7 +65,7 @@ func registerRoutes(router *mux.Router) {
 		WithSummary("Create a new user").
 		WithDescription("Creates a new user account with the provided information").
 		WithTags("Users").
-		WithJsonBody(User{}).
+		WithJSONBody(User{}).
 		WithCreatedResponse(User{})
 
 	getUserRoute := router.GET("/users/{id}", getUser)
@@ -82,7 +82,7 @@ func registerRoutes(router *mux.Router) {
 		WithOperationID("createProduct").
 		WithSummary("Create a new product").
 		WithTags("Products").
-		WithJsonBody(Product{}).
+		WithJSONBody(Product{}).
 		WithCreatedResponse(Product{})
 }
 

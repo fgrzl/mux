@@ -22,7 +22,7 @@ func TestShouldCreateNewOpenAPISpecWithDefaults(t *testing.T) {
 
 	// Assert
 	assert.Equal(t, "3.1.0", spec.OpenAPI)
-	assert.Equal(t, "https://json-schema.org/draft/2020-12/schema", spec.JsonSchemaDialect)
+	assert.Equal(t, "https://json-schema.org/draft/2020-12/schema", spec.JSONSchemaDialect)
 	assert.NotNil(t, spec.Info)
 	assert.Equal(t, "1.0.0", spec.Info.Version)
 	assert.NotNil(t, spec.Paths)
@@ -157,80 +157,81 @@ func TestShouldNotNormalizeNonEmptyComponents(t *testing.T) {
 	assert.Len(t, normalized.Components.Parameters, 1)
 }
 
-func TestShouldMarshalToJSONFile(t *testing.T) {
-	// Arrange
-	spec := &OpenAPISpec{
-		OpenAPI: "3.1.0",
-		Info:    &InfoObject{Title: testAPITitle, Version: testAPIVersion},
-		Paths: map[string]*PathItem{
-			"/test": {
-				Get: &Operation{
-					Summary: "Test endpoint",
-					Responses: map[string]*ResponseObject{
-						"200": {Description: "Success"},
+func TestShouldMarshalSpecToFile(t *testing.T) {
+	cases := []struct {
+		name      string
+		ext       string
+		unmarshal func([]byte, *map[string]any) error
+		buildSpec func() *OpenAPISpec
+	}{
+		{
+			name: "JSON",
+			ext:  ".json",
+			unmarshal: func(data []byte, out *map[string]any) error {
+				return json.Unmarshal(data, out)
+			},
+			buildSpec: func() *OpenAPISpec {
+				return &OpenAPISpec{
+					OpenAPI: "3.1.0",
+					Info:    &InfoObject{Title: testAPITitle, Version: testAPIVersion},
+					Paths: map[string]*PathItem{
+						"/test": {
+							Get: &Operation{
+								Summary: "Test endpoint",
+								Responses: map[string]*ResponseObject{
+									"200": {Description: "Success"},
+								},
+							},
+						},
 					},
-				},
+				}
+			},
+		},
+		{
+			name: "YAML",
+			ext:  ".yaml",
+			unmarshal: func(data []byte, out *map[string]any) error {
+				return yaml.Unmarshal(data, out)
+			},
+			buildSpec: func() *OpenAPISpec {
+				return &OpenAPISpec{
+					OpenAPI: "3.1.0",
+					Info:    &InfoObject{Title: testAPITitle, Version: testAPIVersion},
+					Paths: map[string]*PathItem{
+						"/test": {
+							Post: &Operation{
+								Summary: "Create test",
+								Responses: map[string]*ResponseObject{
+									"201": {Description: "Created"},
+								},
+							},
+						},
+					},
+				}
 			},
 		},
 	}
 
-	tempFile := filepath.Join(t.TempDir(), "test-spec.json")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			spec := tc.buildSpec()
+			tempFile := filepath.Join(t.TempDir(), "test-spec"+tc.ext)
 
-	// Act
-	err := spec.MarshalToFile(tempFile)
+			err := spec.MarshalToFile(tempFile)
+			require.NoError(t, err)
 
-	// Assert
-	require.NoError(t, err)
+			data, err := os.ReadFile(tempFile) //nolint:gosec // G304: temp file from t.TempDir()
+			require.NoError(t, err)
 
-	// Verify file exists and is valid JSON
-	data, err := os.ReadFile(tempFile)
-	require.NoError(t, err)
+			var result map[string]any
+			err = tc.unmarshal(data, &result)
+			require.NoError(t, err)
 
-	var result map[string]interface{}
-	err = json.Unmarshal(data, &result)
-	require.NoError(t, err)
-
-	assert.Equal(t, "3.1.0", result["openapi"])
-	assert.Contains(t, result, "info")
-	assert.Contains(t, result, "paths")
-}
-
-func TestShouldMarshalToYAMLFile(t *testing.T) {
-	// Arrange
-	spec := &OpenAPISpec{
-		OpenAPI: "3.1.0",
-		Info:    &InfoObject{Title: testAPITitle, Version: testAPIVersion},
-		Paths: map[string]*PathItem{
-			"/test": {
-				Post: &Operation{
-					Summary: "Create test",
-					Responses: map[string]*ResponseObject{
-						"201": {Description: "Created"},
-					},
-				},
-			},
-		},
+			assert.Equal(t, "3.1.0", result["openapi"])
+			assert.Contains(t, result, "info")
+			assert.Contains(t, result, "paths")
+		})
 	}
-
-	tempFile := filepath.Join(t.TempDir(), "test-spec.yaml")
-
-	// Act
-	err := spec.MarshalToFile(tempFile)
-
-	// Assert
-	require.NoError(t, err)
-
-	// Verify file exists and is valid YAML
-	data, err := os.ReadFile(tempFile)
-	require.NoError(t, err)
-
-	var result map[string]interface{}
-	err = yaml.Unmarshal(data, &result)
-	require.NoError(t, err)
-
-	assert.Equal(t, "3.1.0", result["openapi"])
-	assert.Contains(t, result, "info")
-	assert.Contains(t, result, "paths")
 }
 
 func TestShouldReturnErrorForUnsupportedFileExtension(t *testing.T) {
@@ -269,7 +270,7 @@ func TestShouldUnmarshalFromJSONFile(t *testing.T) {
 	}`
 
 	tempFile := filepath.Join(t.TempDir(), "test-unmarshal.json")
-	require.NoError(t, os.WriteFile(tempFile, []byte(jsonContent), 0644))
+	require.NoError(t, os.WriteFile(tempFile, []byte(jsonContent), 0600))
 
 	var spec OpenAPISpec
 
@@ -301,7 +302,7 @@ paths:
 `
 
 	tempFile := filepath.Join(t.TempDir(), "test-unmarshal.yaml")
-	require.NoError(t, os.WriteFile(tempFile, []byte(yamlContent), 0644))
+	require.NoError(t, os.WriteFile(tempFile, []byte(yamlContent), 0600))
 
 	var spec OpenAPISpec
 
@@ -332,7 +333,7 @@ func TestShouldReturnErrorForNonExistentFile(t *testing.T) {
 func TestShouldReturnErrorForUnsupportedUnmarshalExtension(t *testing.T) {
 	// Arrange
 	tempFile := filepath.Join(t.TempDir(), "test.txt")
-	require.NoError(t, os.WriteFile(tempFile, []byte("some content"), 0644))
+	require.NoError(t, os.WriteFile(tempFile, []byte("some content"), 0600))
 
 	var spec OpenAPISpec
 
@@ -348,7 +349,7 @@ func TestShouldHandleComplexOpenAPISpec(t *testing.T) {
 	// Arrange
 	spec := &OpenAPISpec{
 		OpenAPI:           "3.1.0",
-		JsonSchemaDialect: "https://json-schema.org/draft/2020-12/schema",
+		JSONSchemaDialect: "https://json-schema.org/draft/2020-12/schema",
 		Info: &InfoObject{
 			Title:       "Complex API",
 			Version:     "1.0.0",
@@ -406,12 +407,12 @@ func TestShouldHandleComplexOpenAPISpec(t *testing.T) {
 	normalized := spec.Normalize()
 	assert.NotNil(t, normalized)
 
-	// Test JSON marshalling
+	// Test JSON marshaling
 	tempFile := filepath.Join(t.TempDir(), "complex-spec.json")
 	err = spec.MarshalToFile(tempFile)
 	assert.NoError(t, err)
 
-	// Test YAML marshalling
+	// Test YAML marshaling
 	tempFileYAML := filepath.Join(t.TempDir(), "complex-spec.yaml")
 	err = spec.MarshalToFile(tempFileYAML)
 	assert.NoError(t, err)
@@ -479,7 +480,7 @@ func TestShouldSupportPropertyLevelDescriptions(t *testing.T) {
 	require.NoError(t, err)
 
 	// Assert - Read back and verify descriptions are present
-	jsonData, err := os.ReadFile(tempJSON)
+	jsonData, err := os.ReadFile(tempJSON) //nolint:gosec // G304: temp JSON from t.TempDir()
 	require.NoError(t, err)
 
 	var jsonSpec map[string]any
@@ -513,7 +514,7 @@ func TestShouldSupportPropertyLevelDescriptions(t *testing.T) {
 	assert.Equal(t, "The age of the user in years", ageProp["description"])
 
 	// Verify YAML as well
-	yamlData, err := os.ReadFile(tempYAML)
+	yamlData, err := os.ReadFile(tempYAML) //nolint:gosec // G304: temp YAML from t.TempDir()
 	require.NoError(t, err)
 
 	var yamlSpec map[string]any
@@ -526,13 +527,13 @@ func TestShouldSupportPropertyLevelDescriptions(t *testing.T) {
 	yamlPost := yamlUsersPath["post"].(map[string]any)
 	yamlRequestBody := yamlPost["requestBody"].(map[string]any)
 	yamlContent := yamlRequestBody["content"].(map[string]any)
-	yamlJsonContent := yamlContent["application/json"].(map[string]any)
-	yamlSchema := yamlJsonContent["schema"].(map[string]any)
+	yamlJSONContent := yamlContent["application/json"].(map[string]any)
+	yamlSchema := yamlJSONContent["schema"].(map[string]any)
 	yamlProperties := yamlSchema["properties"].(map[string]any)
 
 	// Verify descriptions in YAML
-	yamlIdProp := yamlProperties["id"].(map[string]any)
-	assert.Equal(t, "The unique identifier for the user", yamlIdProp["description"])
+	yamlIDProp := yamlProperties["id"].(map[string]any)
+	assert.Equal(t, "The unique identifier for the user", yamlIDProp["description"])
 }
 
 func ptrFloat64(v float64) *float64 {

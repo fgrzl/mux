@@ -1,6 +1,8 @@
 package authentication
 
 import (
+	"context"
+
 	"crypto/rand"
 	"crypto/tls"
 	"errors"
@@ -237,6 +239,30 @@ func TestAuthenticationMiddlewareShouldRejectRequestWithoutValidAuthentication(t
 	assert.Equal(t, http.StatusUnauthorized, res.Code)
 }
 
+func TestAuthenticationMiddlewareShouldPreserveMethodNotAllowedOnMethodMismatch(t *testing.T) {
+	// Arrange
+	rtr := router.NewRouter()
+	UseAuthentication(rtr,
+		WithValidator(func(string) (claims.Principal, error) {
+			return nil, ErrInvalidToken
+		}),
+	)
+
+	ctx, res := newRouteContext(func(r *http.Request) {
+		r.Method = http.MethodPost
+	})
+	rtr.GET("/test", func(c routing.RouteContext) {
+		c.OK("success")
+	})
+
+	// Act
+	rtr.ServeHTTP(res, ctx.Request())
+
+	// Assert
+	assert.Equal(t, http.StatusMethodNotAllowed, res.Code)
+	assert.Contains(t, res.Header().Get("Allow"), http.MethodGet)
+}
+
 func TestAuthenticationMiddlewareShouldAuthenticateViaCookie(t *testing.T) {
 	// Arrange
 	mockUser := newMockPrincipal("user123")
@@ -429,7 +455,7 @@ func newBenchAuthMiddleware() *authenticationMiddleware {
 // newBenchRouteContext creates a routing.RouteContext for benchmarks and tests.
 // The optional setup function can modify the request (e.g., set headers/cookies).
 func newBenchRouteContext(setup func(r *http.Request)) routing.RouteContext {
-	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "http://example.com/test", nil)
 	rec := httptest.NewRecorder()
 	if setup != nil {
 		setup(req)
@@ -440,7 +466,7 @@ func newBenchRouteContext(setup func(r *http.Request)) routing.RouteContext {
 // newRouteContext creates a request, recorder and routing.RouteContext for tests.
 // Returns the RouteContext and the underlying ResponseRecorder so tests can inspect the response.
 func newRouteContext(setup func(r *http.Request)) (routing.RouteContext, *httptest.ResponseRecorder) {
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	if setup != nil {
 		setup(req)
@@ -477,25 +503,25 @@ func TestExtractBearerTokenShouldBeCaseInsensitive(t *testing.T) {
 
 func TestIsSecureRequestShouldDetectTLS(t *testing.T) {
 	// Test direct TLS
-	req := httptest.NewRequest(http.MethodGet, "https://example.com/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.com/test", nil)
 	req.TLS = &tls.ConnectionState{} // Simulate TLS
 	assert.True(t, isSecureRequest(req))
 }
 
 func TestIsSecureRequestShouldIgnoreXForwardedProtoWithoutTrustedMiddleware(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "http://example.com/test", nil)
 	req.Header.Set("X-Forwarded-Proto", "https")
 	assert.False(t, isSecureRequest(req))
 }
 
 func TestIsSecureRequestShouldRespectRequestScheme(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "http://example.com/test", nil)
 	req.URL.Scheme = "https"
 	assert.True(t, isSecureRequest(req))
 }
 
 func TestIsSecureRequestShouldReturnFalseForHTTP(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "http://example.com/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "http://example.com/test", nil)
 	assert.False(t, isSecureRequest(req))
 }
 
@@ -515,7 +541,7 @@ func TestCSRFValidationShouldPassWithMatchingTokens(t *testing.T) {
 		}),
 	)
 
-	csrfToken := "test-csrf-token-12345"
+	csrfToken := "test-csrf-token-12345" //nolint:gosec // G101: synthetic CSRF value in a unit test
 	ctx, res := newRouteContext(func(r *http.Request) {
 		r.Method = http.MethodPost
 		r.AddCookie(&http.Cookie{Name: cookiekit.GetUserCookieName(), Value: "valid-token"})
@@ -828,27 +854,27 @@ func TestAudienceValidationShouldAcceptValidAudience(t *testing.T) {
 // ---- Tests for Client ID Extraction ----
 
 func TestGetClientIDShouldIgnoreXForwardedForWithoutTrustedMiddleware(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	req.RemoteAddr = "192.168.1.1:12345"
 	req.Header.Set("X-Forwarded-For", "203.0.113.195, 70.41.3.18, 150.172.238.178")
 	assert.Equal(t, "192.168.1.1", getClientID(req))
 }
 
 func TestGetClientIDShouldIgnoreXRealIPWithoutTrustedMiddleware(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	req.RemoteAddr = "192.168.1.1:12345"
 	req.Header.Set("X-Real-IP", "203.0.113.195")
 	assert.Equal(t, "192.168.1.1", getClientID(req))
 }
 
 func TestGetClientIDShouldFallbackToRemoteAddr(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	req.RemoteAddr = "192.168.1.1:12345"
 	assert.Equal(t, "192.168.1.1", getClientID(req))
 }
 
 func TestGetClientIDShouldParseIPv6RemoteAddr(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	req.RemoteAddr = "[2001:db8::1]:12345"
 	assert.Equal(t, "2001:db8::1", getClientID(req))
 }
@@ -949,7 +975,8 @@ func (failingCSRFEntropyReader) Read(p []byte) (int, error) {
 }
 
 func TestGenerateSecureTokenShouldUseCryptoRandReaderByDefault(t *testing.T) {
-	assert.Same(t, rand.Reader, csrfTokenEntropySource)
+	assert.NotNil(t, csrfTokenEntropySource)
+	assert.Equal(t, rand.Reader, csrfTokenEntropySource)
 }
 
 func TestContextEnricherShouldEnrichContextAfterAuthentication(t *testing.T) {

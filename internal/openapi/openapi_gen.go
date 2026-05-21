@@ -315,26 +315,6 @@ func cloneOperationForSpec(op *Operation) *Operation {
 	return CloneOperation(op)
 }
 
-func cloneParameterForSpec(param *ParameterObject) *ParameterObject {
-	return CloneParameterObject(param)
-}
-
-func cloneRequestBodyForSpec(body *RequestBodyObject) *RequestBodyObject {
-	return CloneRequestBodyObject(body)
-}
-
-func cloneResponseForSpec(resp *ResponseObject) *ResponseObject {
-	return CloneResponseObject(resp)
-}
-
-func cloneMediaTypeForSpec(media *MediaType) *MediaType {
-	return CloneMediaType(media)
-}
-
-func cloneSchemaForSpec(schema *Schema) *Schema {
-	return CloneSchema(schema)
-}
-
 func (g *Generator) ensureComponentSchema(example any, schema *Schema) error {
 	if schema == nil {
 		return nil
@@ -408,8 +388,9 @@ func (g *Generator) ensureComponentSchema(example any, schema *Schema) error {
 	// become top-level component schemas instead of causing "unnamed type"
 	// errors.
 	for {
+		//exhaustive:ignore -- unwrap loop handles only composite kinds relevant to schema refs
 		switch t.Kind() {
-		case reflect.Ptr:
+		case reflect.Pointer:
 			t = t.Elem()
 		case reflect.Slice, reflect.Array, reflect.Map:
 			// For maps, register the value type
@@ -469,7 +450,7 @@ func (g *Generator) ensureSchemaRef(schema *Schema) error {
 	}
 
 	// Unwrap pointers
-	for t.Kind() == reflect.Ptr {
+	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
 		if t == nil {
 			break
@@ -496,7 +477,7 @@ func (g *Generator) GenerateSchemaForType(t reflect.Type) (*Schema, error) {
 	if t == nil {
 		return nil, fmt.Errorf("type is nil")
 	}
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 	if t.Name() == "" {
@@ -571,8 +552,9 @@ func isZero(v any) bool {
 	if !val.IsValid() {
 		return true
 	}
+	//exhaustive:ignore -- isZero treats emptiness for JSON-like reflect kinds and falls through below
 	switch val.Kind() {
-	case reflect.Ptr, reflect.Interface:
+	case reflect.Pointer, reflect.Interface:
 		return val.IsNil()
 	case reflect.Slice, reflect.Map, reflect.Array, reflect.String:
 		return val.Len() == 0
@@ -741,7 +723,7 @@ func typeIdentity(t reflect.Type) string {
 	if t == nil {
 		return ""
 	}
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 	if pkg := t.PkgPath(); pkg != "" {

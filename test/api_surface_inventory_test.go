@@ -28,7 +28,7 @@ func TestDocsAndExamplesShouldNotReferenceRemovedPublicSurface(t *testing.T) {
 		"pkg/",
 		"NewRouteGroup",
 		"WithOperationIDErr(",
-		"WithJsonBodyErr(",
+		"WithJSONBodyErr(",
 		"WithCreatedResponseErr(",
 		"WithBadRequestResponse(",
 		"WithUnauthorizedResponse(",

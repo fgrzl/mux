@@ -8,7 +8,7 @@ import (
 	"github.com/fgrzl/mux/internal/common"
 )
 
-const ServiceKeyTokenProvider common.ServiceKey = "tokenizer.token_provider"
+const ServiceKeyTokenProvider common.ServiceKey = "tokenizer.token_provider" //nolint:gosec // G101: DI service key, not a credential
 
 // TokenProvider defines the minimal interface for creating and validating tokens.
 // It uses context.Context so internal packages don't need to import routing types.

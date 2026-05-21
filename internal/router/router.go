@@ -7,8 +7,10 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime/debug"
+	"strings"
 	"sync/atomic"
 
+	"github.com/fgrzl/mux/internal/common"
 	openapi "github.com/fgrzl/mux/internal/openapi"
 	"github.com/fgrzl/mux/internal/registry"
 	"github.com/fgrzl/mux/internal/routing"
@@ -39,7 +41,7 @@ func NewRouter(opts ...RouterOption) *Router {
 	defaultHandler := func(c routing.RouteContext) {
 		invokeRouteHandler(c)
 	}
-	r.pipeline.Store(pipelineCache{h: HandlerFunc(defaultHandler), mwCount: 0})
+	r.pipeline.Store(pipelineCache{h: defaultHandler, mwCount: 0})
 	return r
 }
 
@@ -48,6 +50,10 @@ func NewRouter(opts ...RouterOption) *Router {
 // The function receives a RouteContext which contains request/response helpers
 // and route-specific options.
 type HandlerFunc = routing.HandlerFunc
+
+// MethodNotAllowedHandler can intercept a method-mismatch response.
+// Returning true indicates the request was fully handled.
+type MethodNotAllowedHandler func(http.ResponseWriter, *http.Request, string) bool
 
 // RouteKey uniquely identifies a route by its HTTP method and pattern.
 // RouteKey uniquely identifies a route by its HTTP method and pattern.
@@ -75,6 +81,8 @@ type Router struct {
 	options *RouterOptions
 	// Middleware is exported so internal packages and tests can register middleware.
 	middleware []Middleware
+	// methodNotAllowedHandler can answer specialized 405 cases such as browser preflight.
+	methodNotAllowedHandler MethodNotAllowedHandler
 	// pipeline caches the composed middleware chain (HandlerFunc). It is
 	// rebuilt when middleware are added via Use. Stored with atomic.Value
 	// to avoid per-request locking and allocations.
@@ -98,11 +106,11 @@ func (rtr *Router) Configure(configure func(*Router)) error {
 		return nil
 	}
 
-	original := rtr.RouteGroup.validationState()
+	original := rtr.validationState()
 	configured := original.WithPanicOnError(false)
-	rtr.RouteGroup.validation = configured
+	rtr.validation = configured
 	defer func() {
-		rtr.RouteGroup.validation = original
+		rtr.validation = original
 	}()
 
 	configure(rtr)
@@ -186,7 +194,7 @@ func (rtr *Router) Use(m Middleware) {
 	// Compose the pipeline immediately and cache it so the first request
 	// doesn't pay for pipeline construction.
 	mw := rtr.middleware
-	var final HandlerFunc = func(c routing.RouteContext) {
+	var final = func(c routing.RouteContext) {
 		invokeRouteHandler(c)
 	}
 	for i := len(mw) - 1; i >= 0; i-- {
@@ -197,6 +205,21 @@ func (rtr *Router) Use(m Middleware) {
 		}
 	}
 	rtr.pipeline.Store(pipelineCache{h: final, mwCount: len(mw)})
+}
+
+// SetMethodNotAllowedHandler installs a startup-time hook that can answer
+// specialized method-mismatch requests before the router writes its fallback 405.
+// This is a single handler slot intended for targeted cases such as CORS
+// preflight; registering another non-nil handler later is a startup error.
+// Like Use, this must only be called during startup before serving requests.
+func (rtr *Router) SetMethodNotAllowedHandler(handler MethodNotAllowedHandler) {
+	if handler == nil {
+		return
+	}
+	if rtr.methodNotAllowedHandler != nil {
+		panic("router: method-not-allowed handler already registered")
+	}
+	rtr.methodNotAllowedHandler = handler
 }
 
 // NewRouteGroup creates a new route group with the specified prefix.
@@ -240,11 +263,18 @@ func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	res, outcome := rtr.resolveRoute(r, c)
 	switch outcome {
+	case routeOutcomeResolved:
+		// handled below after switch
 	case routeOutcomeNotFound:
 		c.NotFound()
 		rtr.releaseContext(c)
 		return
 	case routeOutcomeMethodNotAllowed:
+		allowHeader := rtr.effectiveAllowHeaderForMethodNotAllowed(r, res.details.Allow)
+		if rtr.methodNotAllowedHandler != nil && rtr.methodNotAllowedHandler(w, r, allowHeader) {
+			rtr.releaseContext(c)
+			return
+		}
 		if res.details.Allow != "" {
 			w.Header().Set("Allow", res.details.Allow)
 		}
@@ -332,6 +362,36 @@ func safeMethod(r *http.Request) string {
 		return ""
 	}
 	return r.Method
+}
+
+func (rtr *Router) effectiveAllowHeaderForMethodNotAllowed(r *http.Request, allowHeader string) string {
+	if r == nil || r.Method != http.MethodOptions || !rtr.shouldFallbackToGet() {
+		return allowHeader
+	}
+	requestedMethod := strings.ToUpper(strings.TrimSpace(r.Header.Get(common.HeaderAccessControlRequestMethod)))
+	if requestedMethod != http.MethodHead {
+		return allowHeader
+	}
+	if !allowHeaderHasMethod(allowHeader, http.MethodGet) || allowHeaderHasMethod(allowHeader, http.MethodHead) {
+		return allowHeader
+	}
+	if strings.TrimSpace(allowHeader) == "" {
+		return allowHeader
+	}
+	return allowHeader + ", HEAD"
+}
+
+func allowHeaderHasMethod(allowHeader, method string) bool {
+	method = strings.ToUpper(strings.TrimSpace(method))
+	if method == "" || allowHeader == "" {
+		return false
+	}
+	for _, candidate := range strings.Split(allowHeader, ",") {
+		if strings.ToUpper(strings.TrimSpace(candidate)) == method {
+			return true
+		}
+	}
+	return false
 }
 
 func invokeRouteHandler(c routing.RouteContext) {
@@ -476,9 +536,9 @@ func (rtr *Router) executePipeline(c routing.RouteContext) {
 }
 
 func (rtr *Router) buildPipeline(mw []Middleware) HandlerFunc {
-	final := HandlerFunc(func(c routing.RouteContext) {
+	final := func(c routing.RouteContext) {
 		invokeRouteHandler(c)
-	})
+	}
 	for i := len(mw) - 1; i >= 0; i-- {
 		middleware := mw[i]
 		next := final

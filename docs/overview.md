@@ -95,7 +95,7 @@ Define your API documentation alongside your routes:
 router.POST("/users", createUser).
     WithOperationID("createUser").
     WithSummary("Create a new user").
-    WithJsonBody(User{}).
+    WithJSONBody(User{}).
     WithCreatedResponse(User{}).
     WithResponse(http.StatusBadRequest, mux.ProblemDetails{}).
     WithTags("Users")

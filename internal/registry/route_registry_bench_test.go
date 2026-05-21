@@ -3,6 +3,7 @@ package registry
 import (
 	"io"
 	"log/slog"
+	"net/http"
 	"strconv"
 	"testing"
 
@@ -17,18 +18,18 @@ func init() {
 // registerNoop is a helper to register a route with a no-op handler into the registry.
 // The handler is intentionally empty because benchmarks measure only routing performance,
 // not handler execution time.
-func registerNoop(r *RouteRegistry, pattern string, method string) {
+func registerNoop(r *RouteRegistry, pattern string) {
 	opts := &routing.RouteOptions{
-		Method:  method,
+		Method:  http.MethodGet,
 		Pattern: pattern,
 		Handler: func(c routing.RouteContext) { /* empty by design for benchmarking */ },
 	}
-	r.Register(pattern, method, opts)
+	r.Register(pattern, http.MethodGet, opts)
 }
 
 func BenchmarkRouteRegistryLoadExactMatch(b *testing.B) {
 	r := NewRouteRegistry()
-	registerNoop(r, "/hello", "GET")
+	registerNoop(r, "/hello")
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -39,7 +40,7 @@ func BenchmarkRouteRegistryLoadExactMatch(b *testing.B) {
 
 func BenchmarkRouteRegistryLoadParamMatch(b *testing.B) {
 	r := NewRouteRegistry()
-	registerNoop(r, "/users/{id}", "GET")
+	registerNoop(r, "/users/{id}")
 	var params routing.Params
 
 	b.ReportAllocs()
@@ -51,7 +52,7 @@ func BenchmarkRouteRegistryLoadParamMatch(b *testing.B) {
 
 func BenchmarkRouteRegistryLoadWildcard(b *testing.B) {
 	r := NewRouteRegistry()
-	registerNoop(r, "/files/*", "GET")
+	registerNoop(r, "/files/*")
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -62,7 +63,7 @@ func BenchmarkRouteRegistryLoadWildcard(b *testing.B) {
 
 func BenchmarkRouteRegistryLoadCatchAll(b *testing.B) {
 	r := NewRouteRegistry()
-	registerNoop(r, "/catch/**", "GET")
+	registerNoop(r, "/catch/**")
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -74,12 +75,12 @@ func BenchmarkRouteRegistryLoadCatchAll(b *testing.B) {
 // helper to populate registry with n routes
 func populateRegistry(r *RouteRegistry, n int) {
 	for i := 0; i < n; i++ {
-		registerNoop(r, "/static/route/"+strconv.Itoa(i), "GET")
-		registerNoop(r, "/items/{id}/"+strconv.Itoa(i), "GET")
+		registerNoop(r, "/static/route/"+strconv.Itoa(i))
+		registerNoop(r, "/items/{id}/"+strconv.Itoa(i))
 	}
-	registerNoop(r, "/users/{userId}", "GET")
-	registerNoop(r, "/files/*", "GET")
-	registerNoop(r, "/catch/**", "GET")
+	registerNoop(r, "/users/{userId}")
+	registerNoop(r, "/files/*")
+	registerNoop(r, "/catch/**")
 }
 
 func benchRegistryMany(b *testing.B, n int) {

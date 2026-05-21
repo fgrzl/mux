@@ -100,9 +100,10 @@ type CORSOptions struct {
 type corsMiddleware struct {
 	opts CORSOptions
 	// normalized comma-joined values
-	methods string
-	headers string
-	expose  string
+	methods   string
+	methodSet map[string]struct{}
+	headers   string
+	expose    string
 	// precomputed origin checks
 	allowedMap       map[string]struct{}
 	wildcardPatterns []string // patterns like "*.example.com"
@@ -124,6 +125,14 @@ func newCORSMiddleware(opts CORSOptions) *corsMiddleware {
 		methods = defaultMethods()
 	}
 	cm.methods = strings.Join(methods, ", ")
+	cm.methodSet = make(map[string]struct{}, len(methods))
+	for _, method := range methods {
+		normalized := normalizeMethod(method)
+		if normalized == "" {
+			continue
+		}
+		cm.methodSet[normalized] = struct{}{}
+	}
 
 	if len(opts.AllowedHeaders) > 0 {
 		cm.headers = strings.Join(opts.AllowedHeaders, ", ")
@@ -270,6 +279,93 @@ func (m *corsMiddleware) setResponseHeaders(res http.ResponseWriter, allowOrigin
 	}
 }
 
+func (m *corsMiddleware) handleMethodNotAllowed(w http.ResponseWriter, req *http.Request, allowHeader string) bool {
+	if req == nil || req.Method != http.MethodOptions {
+		return false
+	}
+
+	origin := req.Header.Get(common.HeaderOrigin)
+	if origin == "" {
+		return false
+	}
+
+	requestedMethod := normalizeMethod(req.Header.Get(common.HeaderAccessControlRequestMethod))
+	if requestedMethod == "" {
+		return false
+	}
+
+	allowOrigin := m.determineAllowedOrigin(origin)
+	if allowOrigin == "" {
+		return false
+	}
+
+	allowMethods := m.allowedMethodsForPath(allowHeader, requestedMethod)
+	if allowMethods == "" {
+		return false
+	}
+
+	m.setResponseHeaders(w, allowOrigin)
+	w.Header().Set(common.HeaderAccessControlAllowMethods, allowMethods)
+	m.setAllowedHeaders(req, w)
+
+	if m.opts.MaxAge > 0 {
+		w.Header().Set(common.HeaderAccessControlMaxAge, strconv.Itoa(m.opts.MaxAge))
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+	return true
+}
+
+func (m *corsMiddleware) allowedMethodsForPath(allowHeader, requestedMethod string) string {
+	if allowHeader == "" || len(m.methodSet) == 0 {
+		return ""
+	}
+
+	methods := make([]string, 0, len(m.methodSet))
+	for _, method := range strings.Split(allowHeader, ",") {
+		normalized := normalizeMethod(method)
+		if normalized == "" {
+			continue
+		}
+		if _, ok := m.methodSet[normalized]; ok {
+			methods = append(methods, normalized)
+		}
+	}
+
+	if requestedMethod == http.MethodHead && len(m.opts.AllowedMethods) == 0 && allowHeaderHasMethod(allowHeader, http.MethodHead) && !methodSliceHas(methods, http.MethodHead) {
+		methods = append(methods, http.MethodHead)
+	}
+
+	return strings.Join(methods, ", ")
+}
+
+func normalizeMethod(method string) string {
+	return strings.ToUpper(strings.TrimSpace(method))
+}
+
+func allowHeaderHasMethod(allowHeader, method string) bool {
+	method = normalizeMethod(method)
+	if method == "" || allowHeader == "" {
+		return false
+	}
+	for _, candidate := range strings.Split(allowHeader, ",") {
+		if normalizeMethod(candidate) == method {
+			return true
+		}
+	}
+	return false
+}
+
+func methodSliceHas(methods []string, method string) bool {
+	method = normalizeMethod(method)
+	for _, candidate := range methods {
+		if candidate == method {
+			return true
+		}
+	}
+	return false
+}
+
 // handlePreflight handles CORS preflight requests.
 func (m *corsMiddleware) handlePreflight(c routing.RouteContext, next router.HandlerFunc, allowOrigin string, req *http.Request, res http.ResponseWriter) {
 	// Only respond to preflight if origin is allowed
@@ -319,5 +415,7 @@ func UseCORS(rtr *router.Router, opts ...CORSOption) {
 	for _, opt := range opts {
 		opt(options)
 	}
-	rtr.Use(newCORSMiddleware(*options))
+	middleware := newCORSMiddleware(*options)
+	rtr.SetMethodNotAllowedHandler(middleware.handleMethodNotAllowed)
+	rtr.Use(middleware)
 }

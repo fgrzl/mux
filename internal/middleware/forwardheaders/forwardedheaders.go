@@ -182,7 +182,7 @@ func parseForwardedRFC(v string) (forAddr, proto, host string) {
 		}
 	}
 
-	return
+	return forAddr, proto, host
 }
 
 // unquoteAndTrim trims whitespace and removes surrounding quotes from a header token.

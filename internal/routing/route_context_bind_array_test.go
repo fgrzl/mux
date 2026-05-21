@@ -1,6 +1,8 @@
 package routing
 
 import (
+	"context"
+
 	"bytes"
 	"net/http"
 	"net/http/httptest"
@@ -14,7 +16,7 @@ import (
 func TestShouldBindJSONArrayRootIntoSlice(t *testing.T) {
 	// Arrange
 	body := []byte(`[{"name":"a"},{"name":"b"}]`)
-	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/", bytes.NewReader(body))
 	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rr := httptest.NewRecorder()
 
@@ -32,7 +34,7 @@ func TestShouldBindJSONArrayRootIntoSlice(t *testing.T) {
 func TestShouldReturnExplicitErrorForJSONPrimitiveRoot(t *testing.T) {
 	// Arrange
 	body := []byte(`"hello"`)
-	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/", bytes.NewReader(body))
 	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rr := httptest.NewRecorder()
 
@@ -50,7 +52,7 @@ func TestShouldReturnExplicitErrorForJSONPrimitiveRoot(t *testing.T) {
 func TestShouldReturnErrorForJSONArrayBodyWithAdditionalInputs(t *testing.T) {
 	// Arrange
 	body := []byte(`[{"name":"a"}]`)
-	req := httptest.NewRequest(http.MethodPost, "/?limit=1", bytes.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/?limit=1", bytes.NewReader(body))
 	req.Header.Set(common.HeaderContentType, common.MimeJSON)
 	rr := httptest.NewRecorder()
 
