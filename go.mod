@@ -4,7 +4,7 @@ go 1.25.6
 
 require (
 	github.com/fgrzl/claims v0.1.0
-	github.com/fgrzl/json v1.0.0
+	github.com/fgrzl/json v1.0.1
 	github.com/go-faker/faker/v4 v4.7.0
 	github.com/google/uuid v1.6.0
 	github.com/oschwald/geoip2-golang v1.13.0
