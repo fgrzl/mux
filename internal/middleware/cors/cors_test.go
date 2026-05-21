@@ -108,6 +108,109 @@ func TestShouldApplyCORSHeadersGivenUseCORSMiddleware(t *testing.T) {
 	assert.Equal(t, "*", rec.Header().Get(common.HeaderAccessControlAllowOrigin))
 }
 
+func TestShouldHandlePreflightGivenUseCORSMiddlewareOnMethodMismatch(t *testing.T) {
+	// Arrange
+	rtr := router.NewRouter()
+	UseCORS(rtr, WithAllowedOrigins("*"))
+
+	rtr.GET("/test", func(c routing.RouteContext) {
+		c.Response().WriteHeader(http.StatusOK)
+	})
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodOptions, testAPITestURL, nil)
+	req.Header.Set(common.HeaderOrigin, testOriginExample)
+	req.Header.Set(common.HeaderAccessControlRequestMethod, http.MethodGet)
+	req.Header.Set(common.HeaderAccessControlRequestHeaders, "X-Custom")
+	rec := httptest.NewRecorder()
+
+	// Act
+	rtr.ServeHTTP(rec, req)
+
+	// Assert
+	assert.Equal(t, http.StatusNoContent, rec.Code)
+	assert.Equal(t, "*", rec.Header().Get(common.HeaderAccessControlAllowOrigin))
+	assert.Equal(t, http.MethodGet, rec.Header().Get(common.HeaderAccessControlAllowMethods))
+	assert.Equal(t, "X-Custom", rec.Header().Get(common.HeaderAccessControlAllowHeaders))
+}
+
+func TestShouldReturnNoContentWithTruthfulMethodsGivenPreflightRequestedMethodIsDisallowed(t *testing.T) {
+	// Arrange
+	rtr := router.NewRouter()
+	UseCORS(rtr, WithAllowedOrigins("*"))
+
+	rtr.GET("/test", func(c routing.RouteContext) {
+		c.Response().WriteHeader(http.StatusOK)
+	})
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodOptions, testAPITestURL, nil)
+	req.Header.Set(common.HeaderOrigin, testOriginExample)
+	req.Header.Set(common.HeaderAccessControlRequestMethod, http.MethodDelete)
+	rec := httptest.NewRecorder()
+
+	// Act
+	rtr.ServeHTTP(rec, req)
+
+	// Assert
+	assert.Equal(t, http.StatusNoContent, rec.Code)
+	assert.Equal(t, "*", rec.Header().Get(common.HeaderAccessControlAllowOrigin))
+	assert.Equal(t, http.MethodGet, rec.Header().Get(common.HeaderAccessControlAllowMethods))
+}
+
+func TestShouldAdvertiseHeadGivenHeadFallbackEnabled(t *testing.T) {
+	// Arrange
+	rtr := router.NewRouter(router.WithHeadFallbackToGet())
+	UseCORS(rtr, WithAllowedOrigins("*"))
+
+	rtr.GET("/test", func(c routing.RouteContext) {
+		c.Response().WriteHeader(http.StatusOK)
+	})
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodOptions, testAPITestURL, nil)
+	req.Header.Set(common.HeaderOrigin, testOriginExample)
+	req.Header.Set(common.HeaderAccessControlRequestMethod, http.MethodHead)
+	rec := httptest.NewRecorder()
+
+	// Act
+	rtr.ServeHTTP(rec, req)
+
+	// Assert
+	assert.Equal(t, http.StatusNoContent, rec.Code)
+	assert.Equal(t, "*", rec.Header().Get(common.HeaderAccessControlAllowOrigin))
+	assert.Equal(t, "GET, HEAD", rec.Header().Get(common.HeaderAccessControlAllowMethods))
+}
+
+func TestShouldPanicGivenUseCORSTwice(t *testing.T) {
+	// Arrange
+	rtr := router.NewRouter()
+
+	// Act & Assert
+	assert.Panics(t, func() {
+		UseCORS(rtr, WithAllowedOrigins("*"))
+		UseCORS(rtr, WithAllowedOrigins("https://example.com"))
+	})
+}
+
+func TestShouldReturnMethodNotAllowedGivenOptionsWithoutPreflightHeaders(t *testing.T) {
+	// Arrange
+	rtr := router.NewRouter()
+	UseCORS(rtr, WithAllowedOrigins("*"))
+
+	rtr.GET("/test", func(c routing.RouteContext) {
+		c.Response().WriteHeader(http.StatusOK)
+	})
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodOptions, testAPITestURL, nil)
+	rec := httptest.NewRecorder()
+
+	// Act
+	rtr.ServeHTTP(rec, req)
+
+	// Assert
+	assert.Equal(t, http.StatusMethodNotAllowed, rec.Code)
+	assert.Equal(t, http.MethodGet, rec.Header().Get("Allow"))
+	assert.Empty(t, rec.Header().Get(common.HeaderAccessControlAllowOrigin))
+}
+
 // ---- Wildcard Pattern Tests ----
 
 func TestWildcardPattern_SingleSubdomain(t *testing.T) {

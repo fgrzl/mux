@@ -239,6 +239,30 @@ func TestAuthenticationMiddlewareShouldRejectRequestWithoutValidAuthentication(t
 	assert.Equal(t, http.StatusUnauthorized, res.Code)
 }
 
+func TestAuthenticationMiddlewareShouldPreserveMethodNotAllowedOnMethodMismatch(t *testing.T) {
+	// Arrange
+	rtr := router.NewRouter()
+	UseAuthentication(rtr,
+		WithValidator(func(string) (claims.Principal, error) {
+			return nil, ErrInvalidToken
+		}),
+	)
+
+	ctx, res := newRouteContext(func(r *http.Request) {
+		r.Method = http.MethodPost
+	})
+	rtr.GET("/test", func(c routing.RouteContext) {
+		c.OK("success")
+	})
+
+	// Act
+	rtr.ServeHTTP(res, ctx.Request())
+
+	// Assert
+	assert.Equal(t, http.StatusMethodNotAllowed, res.Code)
+	assert.Contains(t, res.Header().Get("Allow"), http.MethodGet)
+}
+
 func TestAuthenticationMiddlewareShouldAuthenticateViaCookie(t *testing.T) {
 	// Arrange
 	mockUser := newMockPrincipal("user123")
@@ -951,7 +975,8 @@ func (failingCSRFEntropyReader) Read(p []byte) (int, error) {
 }
 
 func TestGenerateSecureTokenShouldUseCryptoRandReaderByDefault(t *testing.T) {
-	assert.Same(t, rand.Reader, csrfTokenEntropySource)
+	assert.NotNil(t, csrfTokenEntropySource)
+	assert.Equal(t, rand.Reader, csrfTokenEntropySource)
 }
 
 func TestContextEnricherShouldEnrichContextAfterAuthentication(t *testing.T) {

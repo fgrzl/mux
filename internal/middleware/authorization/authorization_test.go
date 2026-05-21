@@ -156,6 +156,25 @@ func TestShouldAddAuthorizationMiddlewareToRouter(t *testing.T) {
 	rtr.ServeHTTP(rec, req)
 }
 
+func TestShouldPreserveMethodNotAllowedGivenAuthorizationMiddleware(t *testing.T) {
+	// Arrange
+	rtr := router.NewRouter()
+	UseAuthorization(rtr, WithRoles(roleAdmin))
+	rtr.GET(pathTest, func(c routing.RouteContext) {
+		c.OK("success")
+	})
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, pathTest, nil)
+	rec := httptest.NewRecorder()
+
+	// Act
+	rtr.ServeHTTP(rec, req)
+
+	// Assert
+	assert.Equal(t, http.StatusMethodNotAllowed, rec.Code)
+	assert.Contains(t, rec.Header().Get("Allow"), http.MethodGet)
+}
+
 func TestShouldAllowAccessWhenUserHasRequiredRole(t *testing.T) {
 	// Arrange
 	middleware := &authorizationMiddleware{

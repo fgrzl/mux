@@ -7,8 +7,10 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime/debug"
+	"strings"
 	"sync/atomic"
 
+	"github.com/fgrzl/mux/internal/common"
 	openapi "github.com/fgrzl/mux/internal/openapi"
 	"github.com/fgrzl/mux/internal/registry"
 	"github.com/fgrzl/mux/internal/routing"
@@ -49,6 +51,10 @@ func NewRouter(opts ...RouterOption) *Router {
 // and route-specific options.
 type HandlerFunc = routing.HandlerFunc
 
+// MethodNotAllowedHandler can intercept a method-mismatch response.
+// Returning true indicates the request was fully handled.
+type MethodNotAllowedHandler func(http.ResponseWriter, *http.Request, string) bool
+
 // RouteKey uniquely identifies a route by its HTTP method and pattern.
 // RouteKey uniquely identifies a route by its HTTP method and pattern.
 type RouteKey struct {
@@ -75,6 +81,8 @@ type Router struct {
 	options *RouterOptions
 	// Middleware is exported so internal packages and tests can register middleware.
 	middleware []Middleware
+	// methodNotAllowedHandler can answer specialized 405 cases such as browser preflight.
+	methodNotAllowedHandler MethodNotAllowedHandler
 	// pipeline caches the composed middleware chain (HandlerFunc). It is
 	// rebuilt when middleware are added via Use. Stored with atomic.Value
 	// to avoid per-request locking and allocations.
@@ -199,6 +207,21 @@ func (rtr *Router) Use(m Middleware) {
 	rtr.pipeline.Store(pipelineCache{h: final, mwCount: len(mw)})
 }
 
+// SetMethodNotAllowedHandler installs a startup-time hook that can answer
+// specialized method-mismatch requests before the router writes its fallback 405.
+// This is a single handler slot intended for targeted cases such as CORS
+// preflight; registering another non-nil handler later is a startup error.
+// Like Use, this must only be called during startup before serving requests.
+func (rtr *Router) SetMethodNotAllowedHandler(handler MethodNotAllowedHandler) {
+	if handler == nil {
+		return
+	}
+	if rtr.methodNotAllowedHandler != nil {
+		panic("router: method-not-allowed handler already registered")
+	}
+	rtr.methodNotAllowedHandler = handler
+}
+
 // NewRouteGroup creates a new route group with the specified prefix.
 // The prefix will be added to all routes using this router (e.g., /api/v1).
 // NewRouteGroup creates a new route group with the specified prefix.
@@ -247,6 +270,11 @@ func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		rtr.releaseContext(c)
 		return
 	case routeOutcomeMethodNotAllowed:
+		allowHeader := rtr.effectiveAllowHeaderForMethodNotAllowed(r, res.details.Allow)
+		if rtr.methodNotAllowedHandler != nil && rtr.methodNotAllowedHandler(w, r, allowHeader) {
+			rtr.releaseContext(c)
+			return
+		}
 		if res.details.Allow != "" {
 			w.Header().Set("Allow", res.details.Allow)
 		}
@@ -334,6 +362,36 @@ func safeMethod(r *http.Request) string {
 		return ""
 	}
 	return r.Method
+}
+
+func (rtr *Router) effectiveAllowHeaderForMethodNotAllowed(r *http.Request, allowHeader string) string {
+	if r == nil || r.Method != http.MethodOptions || !rtr.shouldFallbackToGet() {
+		return allowHeader
+	}
+	requestedMethod := strings.ToUpper(strings.TrimSpace(r.Header.Get(common.HeaderAccessControlRequestMethod)))
+	if requestedMethod != http.MethodHead {
+		return allowHeader
+	}
+	if !allowHeaderHasMethod(allowHeader, http.MethodGet) || allowHeaderHasMethod(allowHeader, http.MethodHead) {
+		return allowHeader
+	}
+	if strings.TrimSpace(allowHeader) == "" {
+		return allowHeader
+	}
+	return allowHeader + ", HEAD"
+}
+
+func allowHeaderHasMethod(allowHeader, method string) bool {
+	method = strings.ToUpper(strings.TrimSpace(method))
+	if method == "" || allowHeader == "" {
+		return false
+	}
+	for _, candidate := range strings.Split(allowHeader, ",") {
+		if strings.ToUpper(strings.TrimSpace(candidate)) == method {
+			return true
+		}
+	}
+	return false
 }
 
 func invokeRouteHandler(c routing.RouteContext) {

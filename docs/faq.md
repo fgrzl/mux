@@ -272,7 +272,8 @@ router.POST("/users", createUser).RequirePermission("write")
 
 ### Q: How do I handle CORS?
 
-**A:** Implement custom CORS middleware:
+**A:** Use `mux.UseCORS(...)` for the built-in middleware, or implement custom CORS middleware if you need a bespoke policy. Mux special-cases browser preflight on method-mismatch paths so an `OPTIONS` request with the normal CORS headers can be answered before the router writes its fallback 405, while ordinary method mismatches still return 405 immediately. That preflight path does not run through the rest of the middleware stack, and if `WithHeadFallbackToGet()` is enabled then a GET-backed route can also advertise `HEAD` for preflight. Repeat `UseCORS` calls on the same router are rejected at startup to avoid conflicting method-mismatch handlers.
+
 ```go
 type CORSMiddleware struct{}
 
