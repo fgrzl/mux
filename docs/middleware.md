@@ -22,6 +22,7 @@ Built-in middleware is installed on the router and executes in the order it is a
 - Short-circuiting: A middleware may choose not to call `next(c)`. In that case, it terminates the pipeline early (e.g., to reject unauthorized requests).
 - Scope: Middleware is registered on the router. Use `AllowAnonymous()` and route-group defaults such as `RequireRoles(...)`, `RequireScopes(...)`, and `RequirePermission(...)` to shape behavior for subsets of routes.
 - Performance: Mux composes the middleware pipeline and caches it. The pipeline is rebuilt only when middleware are added, avoiding per-request allocations.
+- Method mismatch: Ordinary `405 Method Not Allowed` responses bypass the main middleware pipeline. When CORS is installed, browser-style preflight on a path that exists for another method is handled through a dedicated method-mismatch hook before the fallback `405` is written. Register `UseCORS(...)` once per router; repeated calls are rejected so the preflight handler stays unambiguous.
 
 ## Authentication Middleware
 
