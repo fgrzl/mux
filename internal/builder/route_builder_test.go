@@ -189,6 +189,19 @@ func TestShouldSetRateLimit(t *testing.T) {
 	assert.Equal(t, builder, result)
 }
 
+func TestShouldSetMaxBodyBytes(t *testing.T) {
+	// Arrange
+	builder := DetachedRoute(http.MethodPost, "/upload")
+	limit := int64(16 << 20)
+
+	// Act
+	result := builder.WithMaxBodyBytes(limit)
+
+	// Assert
+	assert.Equal(t, limit, builder.Options.MaxBodyBytes)
+	assert.Equal(t, builder, result)
+}
+
 func TestShouldSetOperationID(t *testing.T) {
 	// Arrange
 	builder := DetachedRoute(http.MethodGet, pathUsers)

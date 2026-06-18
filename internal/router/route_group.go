@@ -424,6 +424,7 @@ func cloneDetachedRouteOptions(source *routing.RouteOptions) *routing.RouteOptio
 		Permissions:    slices.Clone(source.Permissions),
 		RateLimit:      source.RateLimit,
 		RateInterval:   source.RateInterval,
+		MaxBodyBytes:   source.MaxBodyBytes,
 		Operation:      *operation,
 	}
 	cloned.SetMiddleware(slices.Clone(source.Middleware))
@@ -449,6 +450,9 @@ func mergeRouteOptions(target, source *routing.RouteOptions) {
 	}
 	if source.RateInterval > 0 {
 		target.RateInterval = source.RateInterval
+	}
+	if source.MaxBodyBytes > 0 {
+		target.MaxBodyBytes = source.MaxBodyBytes
 	}
 	target.AppendMiddleware(slices.Clone(source.Middleware)...)
 	for key, service := range source.Services {
@@ -552,6 +556,7 @@ func (rg *RouteGroup) newRouteOptions(method, pattern string, handler routing.Ha
 		Permissions:    slices.Clone(rg.defaultPermissions),
 		RateLimit:      0,
 		RateInterval:   0,
+		MaxBodyBytes:   0,
 		Operation:      op,
 	}
 	if len(op.Parameters) > 0 {

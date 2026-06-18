@@ -41,6 +41,7 @@ type RouteOptions struct {
 	Permissions    []string
 	RateLimit      int
 	RateInterval   time.Duration
+	MaxBodyBytes   int64
 
 	// ---- OpenAPI documentation ----
 	openapi.Operation

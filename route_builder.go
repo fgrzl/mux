@@ -83,6 +83,16 @@ func (b *RouteBuilder) WithRateLimit(limit int, interval time.Duration) *RouteBu
 	return b
 }
 
+// WithMaxBodyBytes overrides the router-wide request-body size limit
+// (mux.WithMaxBodyBytes) for this single route. Bind rejects bodies larger than
+// n with the standard "request body too large" error. Use it for routes that
+// legitimately accept larger payloads, or to tighten the limit on a specific
+// route. A value <= 0 leaves the router-wide default in effect.
+func (b *RouteBuilder) WithMaxBodyBytes(n int64) *RouteBuilder {
+	b.inner.WithMaxBodyBytes(n)
+	return b
+}
+
 // WithOperationID sets a stable, unique OpenAPI operationId for this route.
 // Provide one for every documented route so generators and AI tooling can
 // refer to the operation consistently.

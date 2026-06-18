@@ -269,6 +269,7 @@ method (*RouteBuilder) WithFormBody(any) *RouteBuilder
 method (*RouteBuilder) WithFoundResponse() *RouteBuilder
 method (*RouteBuilder) WithHeaderParam(string, string, any) *RouteBuilder
 method (*RouteBuilder) WithJSONBody(any) *RouteBuilder
+method (*RouteBuilder) WithMaxBodyBytes(int64) *RouteBuilder
 method (*RouteBuilder) WithMovedPermanentlyResponse() *RouteBuilder
 method (*RouteBuilder) WithMultipartBody(any) *RouteBuilder
 method (*RouteBuilder) WithNoContentResponse() *RouteBuilder
