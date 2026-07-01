@@ -516,6 +516,10 @@ func (rtr *Router) configureContext(c *routing.DefaultRouteContext, w http.Respo
 		c.SetMaxBodyBytes(rtr.options.MaxBodyBytes)
 	}
 
+	if res.options != nil && res.options.MaxBodyBytes > 0 {
+		c.SetMaxBodyBytes(res.options.MaxBodyBytes)
+	}
+
 	if res.suppressBody {
 		c.SetResponse(headWriter{ResponseWriter: w})
 	}

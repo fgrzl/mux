@@ -111,6 +111,12 @@ router.Services().
 router.GET("/api/data", handler).
     WithRateLimit(100, time.Minute)
 
+// Per-route body size limit. Overrides the router-wide WithMaxBodyBytes for
+// this single route; other routes keep the router-wide default. Use it for
+// routes that accept larger payloads (or to tighten a specific route).
+router.POST("/import", handler).
+    WithMaxBodyBytes(16 << 20) // 16MB
+
 // OpenTelemetry tracing
 mux.UseOpenTelemetry(router)
 
