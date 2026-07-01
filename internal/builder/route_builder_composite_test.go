@@ -37,11 +37,13 @@ func TestWithOneOfJSONBodyShouldCreateOneOfSchema(t *testing.T) {
 	mediaType := rb.Options.RequestBody.Content[common.MimeJSON]
 	if mediaType == nil {
 		t.Fatal("expected JSON media type to be set")
+		return
 	}
 
 	schema := mediaType.Schema
 	if schema == nil {
 		t.Fatal("expected schema to be set")
+		return
 	}
 
 	if len(schema.OneOf) != 2 {
@@ -73,11 +75,13 @@ func TestWithAnyOfJSONBodyShouldCreateAnyOfSchema(t *testing.T) {
 	mediaType := rb.Options.RequestBody.Content[common.MimeJSON]
 	if mediaType == nil {
 		t.Fatal("expected JSON media type to be set")
+		return
 	}
 
 	schema := mediaType.Schema
 	if schema == nil {
 		t.Fatal("expected schema to be set")
+		return
 	}
 
 	if len(schema.AnyOf) != 3 {
@@ -120,11 +124,13 @@ func TestWithAllOfJSONBodyShouldCreateAllOfSchema(t *testing.T) {
 	mediaType := rb.Options.RequestBody.Content[common.MimeJSON]
 	if mediaType == nil {
 		t.Fatal("expected JSON media type to be set")
+		return
 	}
 
 	schema := mediaType.Schema
 	if schema == nil {
 		t.Fatal("expected schema to be set")
+		return
 	}
 
 	if len(schema.AllOf) != 2 {
