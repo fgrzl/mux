@@ -129,6 +129,14 @@ func (rb *RouteBuilder) WithRateLimit(limit int, interval time.Duration) *RouteB
 	return rb
 }
 
+// WithMaxBodyBytes sets the maximum request-body size accepted by Bind on this
+// single route, overriding the router-wide limit. A value <= 0 leaves the
+// router-wide default in effect.
+func (rb *RouteBuilder) WithMaxBodyBytes(n int64) *RouteBuilder {
+	rb.Options.MaxBodyBytes = n
+	return rb
+}
+
 // WithOperationID sets/validates the OpenAPI OperationID.
 func (rb *RouteBuilder) WithOperationID(id string) *RouteBuilder {
 	if _, err := rb.WithOperationIDErr(id); err != nil {
