@@ -1,11 +1,11 @@
 module github.com/fgrzl/mux
 
-go 1.25.6
+go 1.26.0
 
 require (
 	github.com/fgrzl/claims v0.1.0
 	github.com/fgrzl/json v1.0.2
-	github.com/go-faker/faker/v4 v4.9.0
+	github.com/go-faker/faker/v4 v4.10.0
 	github.com/google/uuid v1.6.0
 	github.com/oschwald/geoip2-golang v1.13.0
 	github.com/stretchr/testify v1.11.1
